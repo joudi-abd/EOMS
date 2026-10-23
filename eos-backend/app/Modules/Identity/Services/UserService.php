@@ -6,6 +6,7 @@ use App\Modules\Identity\Models\User;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 class UserService
 {
@@ -96,5 +97,19 @@ class UserService
 
             return $target->refresh();
         });
+    }
+
+    public function search(array $filters): LengthAwarePaginator
+    {
+        $search = trim((string) ($filters['q'] ?? ''));
+
+        return User::query()
+            ->when($search !== '', fn ($q) => $q->where(fn ($w) => $w
+                ->where('name', 'like', "%{$search}%")
+                ->orWhere('email', 'like', "%{$search}%")
+                ->orWhere('phone', 'like', "%{$search}%")))
+            ->when(! empty($filters['status']), fn ($q) => $q->where('status', $filters['status']))
+            ->orderBy('name')
+            ->paginate(20);
     }
 }

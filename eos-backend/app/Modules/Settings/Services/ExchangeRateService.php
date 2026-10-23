@@ -4,6 +4,7 @@ namespace App\Modules\Settings\Services;
 
 use App\Modules\Settings\Models\Currency;
 use App\Modules\Settings\Models\ExchangeRate;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 
@@ -44,5 +45,10 @@ class ExchangeRateService
     private function cacheKey(string $from, string $to): string
     {
         return 'fx:latest:'.strtoupper($from).':'.strtoupper($to);
+    }
+
+    public function currencies(): Collection
+    {
+        return Currency::orderBy('code')->get();
     }
 }

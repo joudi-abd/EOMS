@@ -4,51 +4,45 @@ namespace App\Modules\Identity\Http\Controllers;
 
 use App\Modules\Identity\Http\Requests\LoginRequest;
 use App\Modules\Identity\Http\Resources\UserResource;
-use App\Modules\Identity\Models\User;
-use Illuminate\Http\JsonResponse;
+use App\Modules\Identity\Services\AuthService;
+use App\Support\ApiResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
-use Illuminate\Support\Facades\Hash;
 
 class AuthController extends Controller
 {
-    public function login(LoginRequest $request): JsonResponse
+    public function __construct(private AuthService $auth) {}
+
+    public function login(LoginRequest $request)
     {
         $data = $request->validated();
 
-        $user = User::where('email', $data['email'])->first();
+        $user = $this->auth->attempt($data['email'], $data['password']);
 
-        if (! $user || ! Hash::check($data['password'], $user->password)) {
-            return response()->json(['message' => 'بيانات الدخول غير صحيحة.'], 401);
+        // رسالة واحدة للبريد وكلمة المرور حتى لا نكشف وجود الحسابات
+        if (! $user) {
+            return ApiResponse::message('بيانات الدخول غير صحيحة.', 401);
         }
 
         if ($user->status !== 'active') {
-            return response()->json(['message' => 'هذا الحساب معطّل.'], 403);
+            return ApiResponse::message('هذا الحساب معطّل.', 403);
         }
 
-        $user->forceFill(['last_login_at' => now()])->save();
-
-        return response()->json([
-            'data' => [
-                'token' => $user->createToken('api')->plainTextToken,
-                'user' => new UserResource($user),
-            ],
+        return ApiResponse::ok([
+            'token' => $this->auth->issueToken($user),
+            'user' => new UserResource($user),
         ]);
     }
 
-    public function logout(Request $request): JsonResponse
+    public function logout(Request $request)
     {
-        $request->user()->currentAccessToken()->delete();
+        $this->auth->revoke($request->user());
 
-        return response()->json(['message' => 'تم تسجيل الخروج.']);
+        return ApiResponse::message('تم تسجيل الخروج.');
     }
 
-    public function me(Request $request): JsonResponse
+    public function me(Request $request)
     {
-        return response()->json([
-            'data' => [
-                'user' => new UserResource($request->user()),
-            ],
-        ]);
+        return ApiResponse::ok(['user' => new UserResource($request->user())]);
     }
 }

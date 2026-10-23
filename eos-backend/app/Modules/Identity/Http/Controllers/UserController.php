@@ -7,7 +7,7 @@ use App\Modules\Identity\Http\Requests\UpdateUserRequest;
 use App\Modules\Identity\Http\Resources\UserResource;
 use App\Modules\Identity\Models\User;
 use App\Modules\Identity\Services\UserService;
-use Illuminate\Http\JsonResponse;
+use App\Support\ApiResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 
@@ -19,41 +19,30 @@ class UserController extends Controller
     {
         $this->ensureCan($request);
 
-        $search = trim((string) $request->query('q', ''));
-
-        $users = User::query()
-            ->when($search !== '', fn ($q) => $q->where(fn ($w) => $w
-                ->where('name', 'like', "%{$search}%")
-                ->orWhere('email', 'like', "%{$search}%")
-                ->orWhere('phone', 'like', "%{$search}%")))
-            ->when($request->filled('status'), fn ($q) => $q->where('status', $request->query('status')))
-            ->orderBy('name')
-            ->paginate(20);
-
-        return UserResource::collection($users);
+        return ApiResponse::paginated(
+            $this->users->search($request->query())->through(fn (User $user) => new UserResource($user))
+        );
     }
 
-    public function store(StoreUserRequest $request): JsonResponse
+    public function store(StoreUserRequest $request)
     {
         $this->ensureCan($request);
 
-        $user = $this->users->create($request->validated());
-
-        return (new UserResource($user))->response()->setStatusCode(201);
+        return ApiResponse::created(new UserResource($this->users->create($request->validated())));
     }
 
     public function show(Request $request, User $user)
     {
         $this->ensureCan($request);
 
-        return new UserResource($user);
+        return ApiResponse::ok(new UserResource($user));
     }
 
     public function update(UpdateUserRequest $request, User $user)
     {
         $this->ensureCan($request);
 
-        return new UserResource($this->users->update($user, $request->validated()));
+        return ApiResponse::ok(new UserResource($this->users->update($user, $request->validated())));
     }
 
     public function updateStatus(Request $request, User $user)
@@ -64,19 +53,13 @@ class UserController extends Controller
             'status' => ['required', 'in:active,disabled'],
         ]);
 
-        return new UserResource($this->users->setStatus($user, $data['status'], $request->user()));
-    }
-
-    private function ensureCan(Request $request): void
-    {
-        abort_unless($request->user()?->can('users.manage'), 403, 'ليست لديك صلاحية إدارة المستخدمين.');
+        return ApiResponse::ok(new UserResource($this->users->setStatus($user, $data['status'], $request->user())));
     }
 
     public function assignRoles(Request $request, User $user)
     {
         $this->ensureCan($request);
 
-        // نستخدم $request->user() مباشرة لأن Sanctum لا يُمرّر المستخدم للحارس الافتراضي
         abort_unless(
             $request->user()->can('assignRoles', $user),
             403,
@@ -88,6 +71,11 @@ class UserController extends Controller
             'roles.*' => ['string', 'exists:usr_roles,name'],
         ]);
 
-        return new UserResource($this->users->assignRoles($user, $data['roles']));
+        return ApiResponse::ok(new UserResource($this->users->assignRoles($user, $data['roles'])));
+    }
+
+    private function ensureCan(Request $request): void
+    {
+        abort_unless($request->user()?->can('users.manage'), 403, 'ليست لديك صلاحية إدارة المستخدمين.');
     }
 }

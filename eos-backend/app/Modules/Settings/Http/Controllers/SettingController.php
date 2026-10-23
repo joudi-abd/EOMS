@@ -3,7 +3,7 @@
 namespace App\Modules\Settings\Http\Controllers;
 
 use App\Modules\Settings\Services\SettingService;
-use Illuminate\Http\JsonResponse;
+use App\Support\ApiResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 
@@ -11,12 +11,12 @@ class SettingController extends Controller
 {
     public function __construct(private SettingService $settings) {}
 
-    public function group(string $group): JsonResponse
+    public function group(string $group)
     {
-        return response()->json(['data' => $this->settings->group($group)]);
+        return ApiResponse::ok($this->settings->group($group));
     }
 
-    public function update(Request $request, string $key): JsonResponse
+    public function update(Request $request, string $key)
     {
         $data = $request->validate([
             'value' => ['required', 'string', 'max:1000'],
@@ -25,10 +25,10 @@ class SettingController extends Controller
 
         $setting = $this->settings->set($key, $data['value'], $data['group'] ?? 'general');
 
-        return response()->json(['data' => [
+        return ApiResponse::ok([
             'key' => $setting->setting_key,
             'value' => $setting->setting_value,
             'group' => $setting->setting_group,
-        ]]);
+        ]);
     }
 }

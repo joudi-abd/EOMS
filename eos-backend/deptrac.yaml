@@ -1,0 +1,21 @@
+deptrac:
+  paths:
+    - ./app
+  layers:
+    - name: Identity
+      collectors:
+        - type: classNameRegex
+          value: '#^App\\Modules\\Identity\\.+#'
+    - name: Settings
+      collectors:
+        - type: classNameRegex
+          value: '#^App\\Modules\\Settings\\.+#'
+    - name: HR
+      collectors:
+        - type: classNameRegex
+          value: '#^App\\Modules\\HR\\.+#'
+  ruleset:
+    Identity: []
+    Settings: []
+    HR:
+      - Identity

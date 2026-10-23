@@ -2,45 +2,42 @@
 
 namespace App\Modules\Settings\Http\Controllers;
 
-use App\Modules\Settings\Models\Currency;
+use App\Modules\Settings\Http\Requests\StoreExchangeRateRequest;
 use App\Modules\Settings\Services\ExchangeRateService;
-use Illuminate\Http\JsonResponse;
+use App\Support\ApiResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 
 class ExchangeRateController extends Controller
 {
-    public function currencies(): JsonResponse
+    public function __construct(private ExchangeRateService $rates) {}
+
+    public function currencies()
     {
-        return response()->json(['data' => Currency::orderBy('code')->get()]);
+        return ApiResponse::ok($this->rates->currencies());
     }
 
-    public function store(Request $request, ExchangeRateService $service): JsonResponse
+    public function store(StoreExchangeRateRequest $request)
     {
-        $data = $request->validate([
-            'from' => ['required', 'exists:sys_currencies,code'],
-            'to' => ['required', 'exists:sys_currencies,code', 'different:from'],
-            'rate' => ['required', 'numeric', 'gt:0'],
-            'rate_date' => ['nullable', 'date'],
-        ]);
+        $data = $request->validated();
 
-        $rate = $service->setRate(
+        $rate = $this->rates->setRate(
             $data['from'],
             $data['to'],
             (float) $data['rate'],
             $data['rate_date'] ?? now()->toDateString()
         );
 
-        return response()->json(['data' => $rate], 201);
+        return ApiResponse::created($rate);
     }
 
-    public function latest(Request $request, ExchangeRateService $service): JsonResponse
+    public function latest(Request $request)
     {
         $data = $request->validate([
             'from' => ['required', 'exists:sys_currencies,code'],
             'to' => ['required', 'exists:sys_currencies,code'],
         ]);
 
-        return response()->json(['data' => $service->latestRate($data['from'], $data['to'])]);
+        return ApiResponse::ok($this->rates->latestRate($data['from'], $data['to']));
     }
 }
