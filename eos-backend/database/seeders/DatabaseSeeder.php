@@ -2,7 +2,9 @@
 
 namespace Database\Seeders;
 
-use App\Models\User;
+use App\Modules\Identity\Database\Seeders\RolePermissionSeeder;
+use App\Modules\Identity\Database\Seeders\SystemAdminSeeder;
+use App\Modules\Settings\Database\Seeders\CurrencySeeder;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
@@ -15,11 +17,10 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // User::factory(10)->create();
-
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
+        $this->call([
+            CurrencySeeder::class,
+            RolePermissionSeeder::class,
+            SystemAdminSeeder::class,
         ]);
     }
 }
