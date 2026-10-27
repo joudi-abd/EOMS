@@ -13,11 +13,11 @@ class JobTitleService
         return JobTitle::orderBy('name')->paginate(20);
     }
 
-
     public function show(JobTitle $jobTitle): JobTitle
     {
         return $jobTitle;
     }
+
     public function create(array $data): JobTitle
     {
         return JobTitle::create($data);

@@ -148,5 +148,4 @@ class IdentityTest extends TestCase
         $this->putJson("/api/v1/users/{$admin->id}/roles", ['roles' => ['employee']])
             ->assertUnprocessable();
     }
-
 }

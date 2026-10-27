@@ -4,6 +4,7 @@ namespace App\Modules\HR\Http\Controllers;
 
 use App\Modules\HR\Http\Requests\StoreEmployeeRequest;
 use App\Modules\HR\Http\Requests\UpdateEmployeeRequest;
+use App\Modules\HR\Http\Resources\EmployeeResource;
 use App\Modules\HR\Models\Employee;
 use App\Modules\HR\Services\EmployeeService;
 use App\Support\ApiResponse;
@@ -16,21 +17,30 @@ class EmployeeController extends Controller
 
     public function index(Request $request)
     {
-        return ApiResponse::paginated($this->employees->search($request->query()));
+        return ApiResponse::paginated(
+            $this->employees->search($request->query())
+                ->through(fn (Employee $employee) => new EmployeeResource($employee))
+        );
     }
 
     public function show(Employee $employee)
     {
-        return ApiResponse::ok($employee->load(['department', 'jobTitle', 'manager:id,employee_no,first_name,last_name']));
+        return ApiResponse::ok(new EmployeeResource(
+            $employee->load(['department', 'jobTitle', 'manager:id,employee_no,first_name,last_name'])
+        ));
     }
 
     public function store(StoreEmployeeRequest $request)
     {
-        return ApiResponse::created($this->employees->create($request->validated()));
+        return ApiResponse::created(new EmployeeResource(
+            $this->employees->create($request->validated())
+        ));
     }
 
     public function update(UpdateEmployeeRequest $request, Employee $employee)
     {
-        return ApiResponse::ok($this->employees->update($employee, $request->validated()));
+        return ApiResponse::ok(new EmployeeResource(
+            $this->employees->update($employee, $request->validated())
+        ));
     }
 }

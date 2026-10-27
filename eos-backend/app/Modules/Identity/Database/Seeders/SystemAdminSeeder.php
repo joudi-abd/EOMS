@@ -14,6 +14,7 @@ class SystemAdminSeeder extends Seeder
 
         if (! $email || ! $password) {
             $this->command?->warn('ADMIN_EMAIL أو ADMIN_PASSWORD غير مضبوط في .env، تم تخطي إنشاء مدير النظام.');
+
             return;
         }
 

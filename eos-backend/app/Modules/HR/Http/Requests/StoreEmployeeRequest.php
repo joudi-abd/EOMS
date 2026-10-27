@@ -19,15 +19,13 @@ class StoreEmployeeRequest extends FormRequest
             'national_id' => ['required', 'string', 'max:30'],
             'birth_date' => ['nullable', 'date', 'before:today'],
             'email' => ['nullable', 'email', 'max:255', 'unique:hr_employees,email'],
-            'phone' => ['nullable', 'string', 'max:30'],
+            'phone' => ['nullable', 'string', 'max:30', 'unique:usr_users,phone'],
             'address' => ['nullable', 'string', 'max:500'],
             'department_id' => ['nullable', 'integer', 'exists:hr_departments,id'],
             'job_title_id' => ['nullable', 'integer', 'exists:hr_job_titles,id'],
             'manager_id' => ['nullable', 'integer', 'exists:hr_employees,id'],
             'sham_cash_wallet' => ['nullable', 'string', 'max:30'],
             'hire_date' => ['required', 'date'],
-
-            // حساب الدخول إلزامي لكل موظف
             'account.email' => ['required', 'email', 'max:255', 'unique:usr_users,email'],
             'account.password' => ['required', 'string', 'min:10'],
         ];

@@ -23,8 +23,12 @@ class UpdateUserRequest extends FormRequest
             'email' => ['sometimes', 'email', 'max:255', Rule::unique('usr_users', 'email')->ignore($user->id)],
             'phone' => ['sometimes', 'nullable', 'string', 'max:30', Rule::unique('usr_users', 'phone')->ignore($user->id)],
             'password' => ['sometimes', 'string', 'min:10'],
-            'roles' => ['sometimes', 'array'],
-            'roles.*' => ['string', 'exists:usr_roles,name'],
+            'roles' => [
+                'sometimes',
+                'array',
+                Rule::prohibitedIf(fn () => ! $this->user()?->hasRole('system_admin')),
+            ],
+            'roles.*' => ['string', 'distinct', 'exists:usr_roles,name'],
         ];
     }
 }

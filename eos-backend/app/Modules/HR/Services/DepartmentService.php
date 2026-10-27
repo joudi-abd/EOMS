@@ -2,9 +2,9 @@
 
 namespace App\Modules\HR\Services;
 
-use Illuminate\Support\Facades\DB;
 use App\Modules\HR\Models\Department;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class DepartmentService
@@ -23,7 +23,6 @@ class DepartmentService
     {
         return Department::create($data);
     }
-
 
     public function update(Department $department, array $data): Department
     {
@@ -86,7 +85,6 @@ class DepartmentService
                 : (int) $currentId;
         }
     }
-
 
     public function delete(Department $department): void
     {

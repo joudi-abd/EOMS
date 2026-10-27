@@ -4,9 +4,9 @@ namespace Tests\Feature\Settings;
 
 use App\Modules\Identity\Database\Seeders\RolePermissionSeeder;
 use App\Modules\Identity\Models\User;
+use App\Modules\Settings\Database\Seeders\CurrencySeeder;
 use App\Modules\Settings\Models\Currency;
 use App\Modules\Settings\Models\ExchangeRate;
-use App\Modules\Settings\Database\Seeders\CurrencySeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
@@ -28,6 +28,7 @@ class ExchangeRateTest extends TestCase
         $user->assignRole($role);
         Sanctum::actingAs($user, ['*']);
     }
+
     private function ids(): array
     {
         return [
@@ -94,7 +95,7 @@ class ExchangeRateTest extends TestCase
             'rate' => 1,
             'rate_date' => '2026-10-22',
         ])->assertStatus(422)
-          ->assertJsonValidationErrors(['to']);
+            ->assertJsonValidationErrors(['to']);
     }
 
     public function test_latest_returns_newest_rate(): void

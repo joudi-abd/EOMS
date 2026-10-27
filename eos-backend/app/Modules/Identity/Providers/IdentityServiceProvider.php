@@ -2,8 +2,8 @@
 
 namespace App\Modules\Identity\Providers;
 
-use App\Modules\Identity\Models\User;
 use App\Modules\Identity\Http\Middleware\RequirePermission;
+use App\Modules\Identity\Models\User;
 use App\Modules\Identity\Policies\UserPolicy;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;

@@ -18,7 +18,7 @@ return new class extends Migration
             $table->decimal('rate', 18, 6);
             $table->date('rate_date');
             $table->timestamps();
-            $table->unique(['from_currency_id', 'to_currency_id', 'rate_date'] , 'sys_exchange_rates_currency_date_unique');
+            $table->unique(['from_currency_id', 'to_currency_id', 'rate_date'], 'sys_exchange_rates_currency_date_unique');
         });
     }
 

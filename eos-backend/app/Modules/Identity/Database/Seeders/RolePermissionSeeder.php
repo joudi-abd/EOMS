@@ -9,9 +9,8 @@ use Spatie\Permission\PermissionRegistrar;
 
 class RolePermissionSeeder extends Seeder
 {
-    // الصلاحيات بصيغة "الوحدة.الإجراء"
     private const MODULES = [
-        'employees' => ['view', 'manage'],
+        'employees' => ['view', 'manage', 'view_sensitive', 'view_financial'],
         'attendance' => ['view', 'manage', 'adjust'],
         'leaves' => ['view', 'approve'],
         'payroll' => ['view', 'manage', 'approve'],
@@ -42,46 +41,29 @@ class RolePermissionSeeder extends Seeder
 
         $roles = [
             'system_admin' => $all->all(),
-
             'company_manager' => $all
-                ->filter(fn ($p) => str_ends_with($p, '.view') || str_ends_with($p, '.approve'))
+                ->filter(fn ($p) => (str_ends_with($p, '.view') || str_ends_with($p, '.approve')))
                 ->values()->all(),
-
             'hr_manager' => [
-                'employees.view', 'employees.manage',
+                'employees.view', 'employees.manage', 'employees.view_sensitive',
                 'attendance.view', 'attendance.manage', 'attendance.adjust',
                 'leaves.view', 'leaves.approve',
-                'documents.view', 'documents.manage',
-                'reports.view',
+                'documents.view', 'documents.manage', 'reports.view',
             ],
-
             'finance_manager' => [
                 'payroll.view', 'payroll.manage',
                 'finance.view', 'finance.manage',
-                'purchases.view', 'purchases.approve',
-                'reports.view',
+                'purchases.view', 'purchases.approve', 'reports.view',
             ],
-
             'project_manager' => [
                 'projects.view', 'projects.manage',
-                'meetings.view', 'meetings.manage',
-                'employees.view',
-                'documents.view', 'documents.manage',
-                'reports.view',
+                'meetings.view', 'meetings.manage', 'employees.view',
+                'documents.view', 'documents.manage', 'reports.view',
             ],
-
-            'engineer' => [
-                'projects.view',
-                'meetings.view',
-                'documents.view',
-            ],
-
+            'engineer' => ['projects.view', 'meetings.view', 'documents.view'],
             'purchasing_officer' => [
-                'purchases.view', 'purchases.manage',
-                'assets.view',
+                'purchases.view', 'purchases.manage', 'assets.view',
             ],
-
-            // الموظف العادي: لا صلاحيات إدارية، ويرى بياناته عبر الـ Policies لاحقاً
             'employee' => [],
         ];
 
@@ -89,5 +71,7 @@ class RolePermissionSeeder extends Seeder
             $role = Role::firstOrCreate(['name' => $name, 'guard_name' => 'web']);
             $role->syncPermissions($perms);
         }
+
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
     }
 }
