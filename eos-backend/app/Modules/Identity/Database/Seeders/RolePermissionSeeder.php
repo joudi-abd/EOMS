@@ -22,7 +22,7 @@ class RolePermissionSeeder extends Seeder
         'meetings' => ['view', 'manage'],
         'reports' => ['view'],
         'audit' => ['view'],
-        'settings' => ['manage'],
+        'settings' => ['view', 'manage'],
         'users' => ['manage'],
         'roles' => ['assign'],
     ];

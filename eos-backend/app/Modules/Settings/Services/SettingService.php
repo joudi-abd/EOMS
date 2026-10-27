@@ -25,4 +25,16 @@ class SettingService
             ->pluck('setting_value', 'setting_key')
             ->all();
     }
+
+    public function publicSettings(): array
+    {
+        $allowedKeys = [
+            'company.name',
+        ];
+
+        return Setting::query()
+            ->whereIn('setting_key', $allowedKeys)
+            ->pluck('setting_value', 'setting_key')
+            ->all();
+    }
 }

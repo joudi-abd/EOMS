@@ -57,14 +57,56 @@ class SettingsTest extends TestCase
             ->assertForbidden();
     }
 
-    public function test_settings_group_is_readable(): void
+    public function test_employee_can_read_only_public_settings(): void
     {
         $this->actAs('employee');
-        Setting::create(['setting_key' => 'company.name', 'setting_value' => 'A', 'setting_group' => 'company']);
+
+        Setting::create([
+            'setting_key' => 'company.name',
+            'setting_value' => 'EOMS',
+            'setting_group' => 'company',
+        ]);
+
+        Setting::create([
+            'setting_key' => 'internal.secret',
+            'setting_value' => 'private-value',
+            'setting_group' => 'company',
+        ]);
+
+        $response = $this->getJson('/api/v1/settings/config/public')
+            ->assertOk();
+
+        $this->assertSame(
+            'EOMS',
+            $response->json()['data']['company.name']
+        );
+
+        $this->assertArrayNotHasKey(
+            'internal.secret',
+            $response->json()['data']
+        );
 
         $this->getJson('/api/v1/settings/config/company')
-            ->assertOk()
-            ->assertJsonFragment(['company.name' => 'A']);
+            ->assertForbidden();
+    }
+
+    public function test_admin_can_read_internal_settings(): void
+    {
+        $this->actAs('system_admin');
+
+        Setting::create([
+            'setting_key' => 'internal.secret',
+            'setting_value' => 'private-value',
+            'setting_group' => 'internal',
+        ]);
+
+        $response = $this->getJson('/api/v1/settings/config/internal')
+            ->assertOk();
+
+        $this->assertSame(
+            'private-value',
+            $response->json()['data']['internal.secret']
+        );
     }
 
     public function test_api_client_command_stores_hashed_token(): void

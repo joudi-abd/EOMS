@@ -43,4 +43,14 @@ class SettingController extends Controller
             'group' => $setting->setting_group,
         ]);
     }
+
+    /**
+     * Get public application settings.
+     *
+     * Returns a safe subset of application settings.
+     */
+    public function publicSettings()
+    {
+        return ApiResponse::ok($this->settings->publicSettings());
+    }
 }

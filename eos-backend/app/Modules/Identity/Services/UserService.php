@@ -2,6 +2,7 @@
 
 namespace App\Modules\Identity\Services;
 
+use App\Modules\Identity\Events\UserProfileUpdating;
 use App\Modules\Identity\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -52,17 +53,40 @@ class UserService
             if ($roles !== null) {
                 $this->ensureRoleAdministrator();
             }
+            if ($roles !== null) {
+                $this->lockSystemAdminRole();
+            }
 
+            $user = User::query()
+                ->lockForUpdate()
+                ->findOrFail($user->id);
+
+            // $oldRoles = $user->getRoleNames()->all();
+            // if ($roles !== null) {
+            //     $this->ensureLastActiveAdminIsPreserved($user, $oldRoles, $roles);
+            // }
+            // event(new UserProfileUpdating($user, $data));
+            // $user->fill($data);
+
+            // $changed = Arr::except($user->getDirty(), ['password']);
+            // $old = Arr::only($user->getRawOriginal(), array_keys($changed));
+            // $user->save();
             $oldRoles = $user->getRoleNames()->all();
             if ($roles !== null) {
                 $this->ensureLastActiveAdminIsPreserved($user, $oldRoles, $roles);
             }
+            // Notify other modules before updating the user.
+            event(new UserProfileUpdating($user, $data));
             $user->fill($data);
-
-            $changed = Arr::except($user->getDirty(), ['password']);
-            $old = Arr::only($user->getRawOriginal(), array_keys($changed));
+            $changed = Arr::except(
+                $user->getDirty(),
+                ['password']
+            );
+            $old = Arr::only(
+                $user->getRawOriginal(),
+                array_keys($changed)
+            );
             $user->save();
-
             if ($roles !== null) {
                 $user->syncRoles($roles);
             }
@@ -80,40 +104,58 @@ class UserService
         });
     }
 
-    public function setStatus(User $user, string $status, User $actor): User
-    {
-        if ($status === 'disabled' && $actor->is($user)) {
-            throw ValidationException::withMessages([
-                'status' => ['لا يمكنك تعطيل حسابك بنفسك.'],
-            ]);
-        }
+    public function setStatus(
+        User $user,
+        string $status,
+        User $actor
+    ): User {
+        return DB::transaction(function () use ($user, $status, $actor) {
 
-        if ($user->hasRole('system_admin')) {
-            $this->ensureRoleAdministrator();
+            $this->lockSystemAdminRole();
 
-            if ($status === 'disabled' && $user->status === 'active') {
-                $otherActiveAdmins = User::role('system_admin')
-                    ->where('status', 'active')
-                    ->where('id', '!=', $user->id)
-                    ->count();
+            $user = User::query()
+                ->lockForUpdate()
+                ->findOrFail($user->id);
 
-                if ($otherActiveAdmins === 0) {
-                    throw ValidationException::withMessages([
-                        'status' => ['لا يمكن تعطيل آخر مدير نظام نشط.'],
-                    ]);
+            if ($status === 'disabled' && $actor->is($user)) {
+                throw ValidationException::withMessages([
+                    'status' => ['لا يمكنك تعطيل حسابك بنفسك.'],
+                ]);
+            }
+
+            if ($user->hasRole('system_admin')) {
+                $this->ensureRoleAdministrator();
+
+                if ($status === 'disabled' && $user->status === 'active') {
+                    $otherActiveAdmins = User::role('system_admin')
+                        ->where('status', 'active')
+                        ->whereKeyNot($user->id)
+                        ->count();
+
+                    if ($otherActiveAdmins === 0) {
+                        throw ValidationException::withMessages([
+                            'status' => [
+                                'لا يمكن تعطيل آخر مدير نظام نشط.',
+                            ],
+                        ]);
+                    }
                 }
             }
-        }
 
-        return DB::transaction(function () use ($user, $status) {
             $old = $user->status;
+
             $user->update(['status' => $status]);
 
             if ($status === 'disabled') {
                 $user->tokens()->delete();
             }
 
-            $this->audit->log('user.status_changed', $user, ['status' => $old], ['status' => $status]);
+            $this->audit->log(
+                'user.status_changed',
+                $user,
+                ['status' => $old],
+                ['status' => $status]
+            );
 
             return $user->refresh();
         });
@@ -124,10 +166,28 @@ class UserService
         $this->ensureRoleAdministrator();
 
         return DB::transaction(function () use ($target, $roles) {
+            $this->lockSystemAdminRole();
+
+            $target = User::query()
+                ->lockForUpdate()
+                ->findOrFail($target->id);
+
             $old = $target->getRoleNames()->all();
-            $this->ensureLastActiveAdminIsPreserved($target, $old, $roles);
+
+            $this->ensureLastActiveAdminIsPreserved(
+                $target,
+                $old,
+                $roles
+            );
+
             $target->syncRoles($roles);
-            $this->audit->log('user.roles_changed', $target, ['roles' => $old], ['roles' => $roles]);
+
+            $this->audit->log(
+                'user.roles_changed',
+                $target,
+                ['roles' => $old],
+                ['roles' => $roles]
+            );
 
             return $target->refresh();
         });
@@ -165,5 +225,20 @@ class UserService
             ->when(! empty($filters['status']), fn ($q) => $q->where('status', $filters['status']))
             ->orderBy('name')
             ->paginate(20);
+    }
+
+    private function lockSystemAdminRole(): void
+    {
+        $role = DB::table('usr_roles')
+            ->where('name', 'system_admin')
+            ->where('guard_name', 'web')
+            ->lockForUpdate()
+            ->first();
+
+        if ($role === null) {
+            throw new \RuntimeException(
+                'System admin role is missing. Run RolePermissionSeeder.'
+            );
+        }
     }
 }
