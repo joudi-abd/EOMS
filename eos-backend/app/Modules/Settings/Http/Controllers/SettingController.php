@@ -4,18 +4,30 @@ namespace App\Modules\Settings\Http\Controllers;
 
 use App\Modules\Settings\Services\SettingService;
 use App\Support\ApiResponse;
+use Dedoc\Scramble\Attributes\Group;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 
+#[Group('07 - Settings / Configuration', weight: 7)]
 class SettingController extends Controller
 {
     public function __construct(private SettingService $settings) {}
 
+    /**
+     * List settings by group.
+     *
+     * Returns a list of settings for a specific group.
+     */
     public function group(string $group)
     {
         return ApiResponse::ok($this->settings->group($group));
     }
 
+    /**
+     * Update a setting.
+     *
+     * Updates the value of a specific setting.
+     */
     public function update(Request $request, string $key)
     {
         $data = $request->validate([
