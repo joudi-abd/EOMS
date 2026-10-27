@@ -84,10 +84,103 @@ class EmployeeService
             ->paginate(20);
     }
 
+    
     public function update(Employee $employee, array $data): Employee
     {
-        $employee->update($data);
+        return DB::transaction(function () use ($employee, $data) {
 
-        return $employee->refresh();
+            $employee = Employee::query()
+                ->lockForUpdate()
+                ->findOrFail($employee->id);
+
+            if (array_key_exists('manager_id', $data)
+                && $data['manager_id'] !== null) {
+
+                $this->validateManager(
+                    $employee,
+                    (int) $data['manager_id']
+                );
+            }
+
+            $employee->fill($data);
+
+            if (! $employee->isDirty()) {
+                return $employee;
+            }
+
+            // Only non-sensitive organizational fields
+            // are included in audit details.
+            $auditableFields = [
+                'department_id',
+                'job_title_id',
+                'manager_id',
+            ];
+
+            $changes = array_intersect_key(
+                $employee->getDirty(),
+                array_flip($auditableFields)
+            );
+
+            $oldValues = [];
+            $newValues = [];
+
+            foreach ($changes as $field => $value) {
+                $oldValues[$field] = $employee->getRawOriginal($field);
+                $newValues[$field] = $value;
+            }
+
+            $employee->save();
+
+            $this->audit->log(
+                'employee.updated',
+                $employee,
+                $oldValues ?: null,
+                $newValues ?: null
+            );
+
+            return $employee->refresh();
+        });
     }
+
+    /**
+     * Prevent self-management and circular
+     * reporting relationships.
+     */
+    private function validateManager(
+        Employee $employee,
+        int $managerId
+    ): void {
+        $visited = [];
+        $currentId = $managerId;
+
+        while ($currentId !== null) {
+
+            if ($currentId === (int) $employee->id) {
+                throw ValidationException::withMessages([
+                    'manager_id' => [
+                        'لا يمكن إنشاء علاقة إدارية دائرية.',
+                    ],
+                ]);
+            }
+
+            if (isset($visited[$currentId])) {
+                throw ValidationException::withMessages([
+                    'manager_id' => [
+                        'توجد علاقة إدارية دائرية مسبقاً.',
+                    ],
+                ]);
+            }
+
+            $visited[$currentId] = true;
+
+            $currentId = Employee::query()
+                ->whereKey($currentId)
+                ->value('manager_id');
+
+            $currentId = $currentId === null
+                ? null
+                : (int) $currentId;
+        }
+    }
+
 }

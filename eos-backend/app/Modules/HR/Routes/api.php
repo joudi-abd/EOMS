@@ -12,6 +12,7 @@ Route::prefix('api/v1')->middleware(['api', 'auth:sanctum'])->group(function () 
         Route::get('departments', [DepartmentController::class, 'index']);
         Route::get('departments/{department}', [DepartmentController::class, 'show']);
         Route::get('job-titles', [JobTitleController::class, 'index']);
+        Route::get('job-titles/{jobTitle}',[JobTitleController::class , 'show']);
     });
 
     Route::middleware('perm:employees.manage')->group(function () {

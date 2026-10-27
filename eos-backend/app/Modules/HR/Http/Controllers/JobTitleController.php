@@ -17,6 +17,10 @@ class JobTitleController extends Controller
         return ApiResponse::paginated($this->jobTitles->paginate());
     }
 
+        public function show(JobTitle $jobTitle)
+    {
+        return ApiResponse::ok($this->jobTitles->show($jobTitle));
+    }
     public function store(Request $request)
     {
         $data = $request->validate([
