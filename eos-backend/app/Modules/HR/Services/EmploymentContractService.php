@@ -33,8 +33,17 @@ class EmploymentContractService
     public function create(Employee $employee, array $data, ?EmploymentContract $previous = null): EmploymentContract
     {
         return DB::transaction(function () use ($employee, $data, $previous) {
-            // Same lock is used by activate/terminate, preventing concurrent lifecycle operations.
-            Employee::query()->lockForUpdate()->findOrFail($employee->id);
+            $employee = Employee::query()
+                ->lockForUpdate()
+                ->findOrFail($employee->id);
+
+            if ($employee->status === 'terminated') {
+                throw ValidationException::withMessages([
+                    'employee' => [
+                        'لا يمكن إنشاء أو تجديد عقد لموظف انتهت خدمته.',
+                    ],
+                ]);
+            }
 
             if ($previous !== null) {
                 $previous = EmploymentContract::query()->lockForUpdate()->findOrFail($previous->id);
@@ -72,7 +81,17 @@ class EmploymentContractService
     public function activate(Employee $employee, EmploymentContract $contract): EmploymentContract
     {
         return DB::transaction(function () use ($employee, $contract) {
-            Employee::query()->lockForUpdate()->findOrFail($employee->id);
+            $employee = Employee::query()
+                ->lockForUpdate()
+                ->findOrFail($employee->id);
+
+            if ($employee->status === 'terminated') {
+                throw ValidationException::withMessages([
+                    'employee' => [
+                        'لا يمكن تفعيل عقد لموظف انتهت خدمته.',
+                    ],
+                ]);
+            }
             $contract = EmploymentContract::query()->lockForUpdate()->findOrFail($contract->id);
             $this->find($employee, $contract);
 

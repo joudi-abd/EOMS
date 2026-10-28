@@ -141,4 +141,93 @@ class EmploymentContractTest extends TestCase
         ])->assertOk()->assertJsonPath('data.status', 'terminated');
         $this->assertDatabaseHas('hr_employment_contracts', ['id' => $id, 'status' => 'terminated']);
     }
+
+    public function test_cannot_activate_contract_for_terminated_employee(): void
+    {
+        $this->login('hr_manager');
+
+        $employee = $this->employee();
+
+        $contract = EmploymentContract::create([
+            'employee_id' => $employee->id,
+            'contract_number' => 'CT-TERMINATED-001',
+            'type' => 'fixed_term',
+            'status' => 'draft',
+            'start_date' => '2026-01-01',
+            'end_date' => '2026-12-31',
+        ]);
+
+        $employee->update([
+            'status' => 'terminated',
+            'termination_date' => '2026-10-01',
+        ]);
+
+        $this->postJson(
+            "/api/v1/employees/{$employee->id}/contracts/{$contract->id}/activate"
+        )
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['employee']);
+
+        $this->assertSame(
+            'draft',
+            $contract->fresh()->status
+        );
+    }
+
+    public function test_cannot_create_contract_for_terminated_employee(): void
+    {
+        $this->login('hr_manager');
+
+        $employee = $this->employee();
+
+        $employee->update([
+            'status' => 'terminated',
+            'termination_date' => '2026-10-01',
+        ]);
+
+        $this->postJson(
+            "/api/v1/employees/{$employee->id}/contracts",
+            $this->payload('CT-NEW-001', '2026-11-01', '2027-10-31')
+        )
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['employee']);
+
+        $this->assertDatabaseMissing('hr_employment_contracts', [
+            'contract_number' => 'CT-NEW-001',
+        ]);
+    }
+
+    public function test_cannot_renew_contract_for_terminated_employee(): void
+    {
+        $this->login('hr_manager');
+
+        $employee = $this->employee();
+
+        $contract = EmploymentContract::create([
+            'employee_id' => $employee->id,
+            'contract_number' => 'CT-OLD-001',
+            'type' => 'fixed_term',
+            'status' => 'expired',
+            'start_date' => '2026-01-01',
+            'end_date' => '2026-09-30',
+        ]);
+
+        $employee->update([
+            'status' => 'terminated',
+            'termination_date' => '2026-10-01',
+        ]);
+
+        $this->postJson(
+            "/api/v1/employees/{$employee->id}/contracts/{$contract->id}/renew",
+            $this->payload('CT-RENEW-001', '2026-11-01', '2027-10-31')
+        )
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['employee']);
+
+        $this->assertSame('expired', $contract->fresh()->status);
+
+        $this->assertDatabaseMissing('hr_employment_contracts', [
+            'contract_number' => 'CT-RENEW-001',
+        ]);
+    }
 }

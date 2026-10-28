@@ -23,10 +23,6 @@ class HrServiceProvider extends ServiceProvider
 
         $this->commands([
             ProcessScheduledContractTerminations::class,
-        ]);
-
-        $this->commands([
-            ProcessScheduledContractTerminations::class,
             ProcessExpiredContracts::class,
         ]);
     }
