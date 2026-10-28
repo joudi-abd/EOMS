@@ -12,12 +12,12 @@ use Illuminate\Validation\ValidationException;
 
 class EmployeeService
 {
-    public function __construct(private AuditLogger $audit) {}
+    public function __construct(private AuditLogger $audit, private EmployeeJobHistoryService $employeeJobHistoryService) {}
 
     public function create(array $data): Employee
     {
+
         return DB::transaction(function () use ($data) {
-            $account = $data['account'];
             $nationalId = trim((string) $data['national_id']);
             $nationalIdHash = hash('sha256', $nationalId);
 
@@ -27,25 +27,17 @@ class EmployeeService
                 ]);
             }
 
-            $user = User::create([
-                'name' => $data['first_name'].' '.$data['last_name'],
-                'email' => $account['email'],
-                'phone' => $data['phone'] ?? null,
-                'password' => $account['password'],
-                'status' => 'active',
-            ]);
-            $user->assignRole('employee');
-
             $employee = Employee::create(array_merge(
-                Arr::except($data, ['account', 'national_id']),
+                Arr::except($data, ['national_id']),
                 [
                     'employee_no' => $this->generateEmployeeNo(),
-                    'user_id' => $user->id,
+                    'user_id' => null,
                     'national_id' => $nationalId,
                     'national_id_hash' => $nationalIdHash,
                     'status' => 'active',
                 ]
             ));
+            $this->employeeJobHistoryService->recordHire($employee);
 
             // Never include address, ID, birthdate or wallet details in audit logs.
             $this->audit->log('employee.created', $employee, null, [
@@ -94,8 +86,12 @@ class EmployeeService
                 $this->validateManager($employee, (int) $data['manager_id']);
             }
 
-            $employee->fill($data);
+            $effectiveDate = $data['effective_date'] ?? null;
+            $reason = $data['reason'] ?? null;
 
+            $employee->fill(
+                Arr::except($data, ['effective_date', 'reason'])
+            );
             if (! $employee->isDirty()) {
                 return $employee;
             }
@@ -103,7 +99,17 @@ class EmployeeService
             $tracked = ['department_id', 'job_title_id', 'manager_id'];
             $changes = Arr::only($employee->getDirty(), $tracked);
             $oldValues = Arr::only($employee->getRawOriginal(), array_keys($changes));
-
+            if ($employee->isDirty([
+                'department_id',
+                'job_title_id',
+                'manager_id',
+            ])) {
+                $this->employeeJobHistoryService->recordAssignmentChange(
+                    $employee,
+                    $effectiveDate,
+                    $reason
+                );
+            }
             $employee->save();
 
             // Employee identity and the login account should share name and phone.

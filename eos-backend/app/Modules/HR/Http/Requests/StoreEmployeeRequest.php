@@ -15,6 +15,7 @@ class StoreEmployeeRequest extends FormRequest
     {
         return [
             'first_name' => ['required', 'string', 'max:80'],
+            'father_name' => ['required', 'string', 'max:80'],
             'last_name' => ['required', 'string', 'max:80'],
             'national_id' => ['required', 'string', 'max:30'],
             'birth_date' => ['nullable', 'date', 'before:today'],
@@ -26,8 +27,7 @@ class StoreEmployeeRequest extends FormRequest
             'manager_id' => ['nullable', 'integer', 'exists:hr_employees,id'],
             'sham_cash_wallet' => ['nullable', 'string', 'max:30'],
             'hire_date' => ['required', 'date'],
-            'account.email' => ['required', 'email', 'max:255', 'unique:usr_users,email'],
-            'account.password' => ['required', 'string', 'min:10'],
+            'account' => ['prohibited'],
         ];
     }
 }

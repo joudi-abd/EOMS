@@ -10,7 +10,7 @@ use Spatie\Permission\PermissionRegistrar;
 class RolePermissionSeeder extends Seeder
 {
     private const MODULES = [
-        'employees' => ['view', 'manage', 'view_sensitive', 'view_financial'],
+        'employees' => ['view', 'manage', 'view_sensitive', 'view_financial', 'documents.view', 'documents.manage'],
         'attendance' => ['view', 'manage', 'adjust'],
         'leaves' => ['view', 'approve'],
         'payroll' => ['view', 'manage', 'approve'],
@@ -46,6 +46,7 @@ class RolePermissionSeeder extends Seeder
                 ->values()->all(),
             'hr_manager' => [
                 'employees.view', 'employees.manage', 'employees.view_sensitive',
+                'employees.documents.view', 'employees.documents.manage',
                 'attendance.view', 'attendance.manage', 'attendance.adjust',
                 'leaves.view', 'leaves.approve',
                 'documents.view', 'documents.manage', 'reports.view',

@@ -15,7 +15,9 @@ class EmployeeResource extends JsonResource
         return [
             'id' => $this->id,
             'employee_no' => $this->employee_no,
+            'has_account' => $this->user_id !== null,
             'first_name' => $this->first_name,
+            'father_name' => $this->father_name,
             'last_name' => $this->last_name,
             'full_name' => $this->full_name,
             'department_id' => $this->department_id,
@@ -31,6 +33,7 @@ class EmployeeResource extends JsonResource
             'phone' => $this->when($canSensitive, fn () => $this->phone),
             'address' => $this->when($canSensitive, fn () => $this->address),
             'termination_date' => $this->when($canSensitive, fn () => $this->termination_date?->format('Y-m-d')),
+            'termination_reason' => $this->when($canSensitive, fn () => $this->termination_reason),
             'biometric_code' => $this->when($canSensitive, fn () => $this->biometric_code),
             'user_id' => $this->when($canSensitive, fn () => $this->user_id),
             'sham_cash_wallet' => $this->when($canFinancial, fn () => $this->sham_cash_wallet),

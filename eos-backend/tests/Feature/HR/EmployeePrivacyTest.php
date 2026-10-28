@@ -32,6 +32,7 @@ class EmployeePrivacyTest extends TestCase
         return Employee::create([
             'employee_no' => 'U-12345678',
             'first_name' => 'Ahmad',
+            'father_name' => 'Test Father',
             'last_name' => 'Ali',
             'national_id' => '1234567890',
             'national_id_hash' => hash('sha256', '1234567890'),
@@ -72,15 +73,12 @@ class EmployeePrivacyTest extends TestCase
 
         $this->postJson('/api/v1/employees', [
             'first_name' => 'Sara',
+            'father_name' => 'Test Father',
             'last_name' => 'Omar',
             'national_id' => '123000456000',
             'address' => 'Confidential home',
             'sham_cash_wallet' => '0999876543',
             'hire_date' => '2026-10-01',
-            'account' => [
-                'email' => 'sara.audit@test.example',
-                'password' => 'StrongPass2026!',
-            ],
         ])->assertCreated();
 
         $log = AuditLog::where('action', 'employee.created')->firstOrFail();

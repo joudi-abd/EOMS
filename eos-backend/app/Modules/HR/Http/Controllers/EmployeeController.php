@@ -48,8 +48,8 @@ class EmployeeController extends Controller
     /**
      * Create an employee.
      *
-     * Creates an employee record and an associated
-     * user account with the employee role.
+     * Creates an employee profile without a login account.
+     * Account creation is an optional separate step.
      *
      * Requires employees.manage permission.
      */

@@ -12,10 +12,10 @@ class Employee extends Model
     protected $table = 'hr_employees';
 
     protected $fillable = [
-        'employee_no', 'user_id', 'first_name', 'last_name',
+        'employee_no', 'user_id', 'first_name', 'father_name', 'last_name',
         'national_id', 'national_id_hash', 'birth_date', 'email', 'phone', 'address',
         'department_id', 'job_title_id', 'manager_id', 'biometric_code',
-        'sham_cash_wallet', 'status', 'hire_date', 'termination_date',
+        'sham_cash_wallet', 'status', 'hire_date', 'termination_date', 'termination_reason',
     ];
 
     // الرقم الوطني لا يظهر أبداً في أي استجابة JSON
@@ -56,8 +56,23 @@ class Employee extends Model
         return $this->hasMany(self::class, 'manager_id');
     }
 
+    public function documents(): HasMany
+    {
+        return $this->hasMany(EmployeeDocument::class, 'employee_id');
+    }
+
     public function getFullNameAttribute(): string
     {
-        return trim($this->first_name.' '.$this->last_name);
+        return trim(implode(' ', array_filter([$this->first_name, $this->father_name, $this->last_name], fn ($part) => filled($part))));
+    }
+
+    public function jobHistories(): HasMany
+    {
+        return $this->hasMany(EmployeeJobHistory::class, 'employee_id');
+    }
+
+    public function contracts(): HasMany
+    {
+        return $this->hasMany(EmploymentContract::class, 'employee_id');
     }
 }

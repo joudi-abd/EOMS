@@ -2,6 +2,7 @@
 
 namespace App\Modules\Identity\Services;
 
+use App\Modules\HR\Models\Employee;
 use App\Modules\Identity\Events\UserProfileUpdating;
 use App\Modules\Identity\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -25,9 +26,47 @@ class UserService
     {
         return DB::transaction(function () use ($data) {
             $roles = Arr::pull($data, 'roles');
+            $employeeId = Arr::pull($data, 'employee_id');
 
+            // Keep existing role-authority policy for account creation.
             if ($roles !== null) {
                 $this->ensureRoleAdministrator();
+            }
+
+            $employee = null;
+            if ($employeeId !== null) {
+                // Lock before creating the user to prevent duplicate links.
+                $employee = Employee::query()
+                    ->lockForUpdate()
+                    ->findOrFail($employeeId);
+
+                if ($employee->user_id !== null) {
+                    throw ValidationException::withMessages([
+                        'employee_id' => ['هذا الموظف مرتبط بحساب مسبقاً.'],
+                    ]);
+                }
+
+                if ($employee->status === 'terminated') {
+                    throw ValidationException::withMessages([
+                        'employee_id' => ['لا يمكن إنشاء حساب لموظف انتهت خدمته.'],
+                    ]);
+                }
+
+                // Name and phone always come from HR; ignore client-supplied values.
+                $data['name'] = $employee->full_name;
+                $data['phone'] = $employee->phone;
+                $data['status'] = 'active';
+
+                if ($employee->phone !== null && User::query()
+                    ->where('phone', $employee->phone)->exists()) {
+                    throw ValidationException::withMessages([
+                        'phone' => ['رقم هاتف الموظف مستخدم لحساب آخر.'],
+                    ]);
+                }
+
+                // No explicit roles: provision regular employee account.
+                // Authorized system_admin may explicitly select other roles.
+                $roles ??= ['employee'];
             }
 
             $user = User::create($data);
@@ -36,13 +75,23 @@ class UserService
                 $user->syncRoles($roles);
             }
 
+            if ($employee !== null) {
+                $employee->user_id = $user->id;
+                $employee->save();
+
+                $this->audit->log('employee.account_linked', $employee, null, [
+                    'employee_id' => $employee->id,
+                    'user_id' => $user->id,
+                ]);
+            }
+
             $this->audit->log('user.created', $user, null, [
                 'id' => $user->id,
                 'roles' => $user->getRoleNames()->all(),
             ]);
 
             return $user;
-        });
+        }, 3);
     }
 
     public function update(User $user, array $data): User

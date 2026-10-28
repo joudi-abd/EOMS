@@ -2,6 +2,8 @@
 
 namespace App\Modules\HR\Providers;
 
+use App\Modules\HR\Console\Commands\ProcessExpiredContracts;
+use App\Modules\HR\Console\Commands\ProcessScheduledContractTerminations;
 use App\Modules\HR\Listeners\ProtectEmployeeAccountProfile;
 use App\Modules\Identity\Events\UserProfileUpdating;
 use Illuminate\Support\Facades\Event;
@@ -18,5 +20,14 @@ class HrServiceProvider extends ServiceProvider
             UserProfileUpdating::class,
             ProtectEmployeeAccountProfile::class
         );
+
+        $this->commands([
+            ProcessScheduledContractTerminations::class,
+        ]);
+
+        $this->commands([
+            ProcessScheduledContractTerminations::class,
+            ProcessExpiredContracts::class,
+        ]);
     }
 }
