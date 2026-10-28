@@ -1,0 +1,96 @@
+:host {
+  display: block;
+  max-width: 880px;
+}
+
+h2 {
+  margin-top: 28px;
+}
+
+.log,
+.docs {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+}
+
+.log li {
+  display: grid;
+  grid-template-columns: 170px minmax(0, 1fr) auto;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.when,
+.by {
+  color: var(--muted);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.docs li {
+  padding: 6px 0;
+}
+
+.docs i {
+  color: var(--muted);
+  margin-inline-end: 6px;
+}
+
+:host-context([dir='ltr']) .flip {
+  transform: scaleX(-1);
+}
+
+.inline {
+  display: flex;
+  align-items: end;
+  gap: 12px;
+}
+
+.inline label,
+.stack label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 14px;
+  flex: 1;
+  max-width: 420px;
+}
+
+.inline input {
+  margin: 0;
+}
+
+.stack {
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+}
+
+.stack label {
+  width: 100%;
+  max-width: none;
+}
+
+.stack textarea {
+  font: inherit;
+  color: inherit;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px;
+  resize: vertical;
+}
+
+@media (max-width: 640px) {
+  .log li {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+
+  .inline {
+    display: grid;
+  }
+}

@@ -1,0 +1,14 @@
+<ol class="rank chart-svg" [attr.aria-label]="label()">
+  @for (row of shown(); track row.label) {
+    <li>
+      <span class="title">{{ row.label }}</span>
+      <span class="track" aria-hidden="true">
+        <span class="fill" [style.width.%]="share(row.value)" [style.background]="row.color ?? color()"></span>
+      </span>
+      <b>{{ format(row.value) }}@if (row.unit) {<span class="unit">{{ row.unit }}</span>}</b>
+      @if (row.note) {
+        <small>{{ row.note }}</small>
+      }
+    </li>
+  }
+</ol>

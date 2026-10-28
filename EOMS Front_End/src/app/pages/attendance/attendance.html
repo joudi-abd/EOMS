@@ -1,0 +1,135 @@
+<main class="work" id="content">
+  <button class="menu" type="button" (click)="chrome.toggle()">
+    <i class="fa-solid" [class.fa-bars]="!chrome.menuOpen()" [class.fa-xmark]="chrome.menuOpen()" aria-hidden="true"></i>
+    {{ chrome.menuOpen() ? t('closeMenu') : t('menu') }}
+  </button>
+
+  @if (!session.can('attendance')) {
+    <h1>{{ t('attendance') }}</h1>
+    <p class="empty">{{ t('noAccess') }}</p>
+    <a class="primary" routerLink="/">{{ t('back') }}</a>
+  } @else {
+    <app-notice />
+
+    @if (who()) {
+      <app-attendance-day />
+    } @else {
+      <header class="heading">
+        <h1>{{ t('attendance') }}</h1>
+      </header>
+      <p class="note">
+        {{ t('policyLine') }} {{ t('rangeFrom') }} {{ office.policy().start }} {{ t('rangeTo') }} {{ office.policy().end }} ·
+        {{ t('graceLabel') }} {{ num(office.policy().grace) }} {{ t('minutesUnit') }} ·
+        {{ t('noDeduction') }}
+      </p>
+      <p class="note">{{ t('deviceSource') }} {{ t('lastPunch') }} {{ lastRecord() }}</p>
+
+      <nav class="views" [attr.aria-label]="t('reportViews')">
+        @for (item of views; track item.id) {
+          <a
+            [routerLink]="[]"
+            [queryParams]="{ view: item.id === 'day' ? null : item.id }"
+            queryParamsHandling="merge"
+            [class.active]="view() === item.id"
+            [attr.aria-current]="view() === item.id ? 'page' : null"
+          >{{ t(item.label) }}</a>
+        }
+      </nav>
+
+      @if (view() === 'day') {
+        @if (!report().workday) {
+          <p class="note">{{ report().holiday ? t('holidayToday') + ': ' + text(report().holiday!) : t('notWorkday') }}</p>
+        }
+        @if (officeWide()) {
+          <div class="summary">
+            <p><span>{{ t('present') }}</span><strong>{{ num(report().present) }}</strong></p>
+            <p><span>{{ t('reviewMark') }}</span><strong [class.late]="report().review > 0">{{ num(report().review) }}</strong></p>
+            <p><span>{{ t('lateArrival') }}</span><strong [class.wait]="report().late > 0">{{ num(report().late) }}</strong></p>
+            <p><span>{{ t('earlyLeave') }}</span><strong [class.wait]="report().early > 0">{{ num(report().early) }}</strong></p>
+            <p><span>{{ t('incomplete') }}</span><strong [class.wait]="report().incomplete > 0">{{ num(report().incomplete) }}</strong></p>
+            <p><span>{{ t('onLeave') }}</span><strong>{{ num(report().onLeave) }}</strong></p>
+            <p><span>{{ t('missionMark') }}</span><strong>{{ num(report().mission) }}</strong></p>
+            <p><span>{{ t('overtimeLabel') }}</span><strong>{{ hours(report().overtime) }}</strong></p>
+          </div>
+        }
+
+        <div class="filters">
+          <label>
+            <span>{{ t('attendanceDay') }}</span>
+            <input name="day" type="date" autocomplete="off" [value]="day()" (change)="filter('day', $event)" />
+          </label>
+          @if (officeWide() || session.manages()) {
+            <label>
+              <span>{{ t('searchAttendance') }}</span>
+              <input name="q" type="search" autocomplete="off" [value]="query()" (input)="filter('q', $event)" />
+            </label>
+            <label>
+              <span>{{ t('department') }}</span>
+              <select name="dept" autocomplete="off" (change)="filter('dept', $event)">
+                <option value="">{{ t('allDepartments') }}</option>
+                @for (item of office.departmentList(); track item.id) {
+                  <option [value]="item.id" [selected]="department() === item.id">{{ text(item.name) }}</option>
+                }
+              </select>
+            </label>
+            <label>
+              <span>{{ t('state') }}</span>
+              <select name="mark" autocomplete="off" (change)="filter('mark', $event)">
+                <option value="">{{ t('allStatuses') }}</option>
+                <option value="present" [selected]="mark() === 'present'">{{ t('present') }}</option>
+                <option value="late" [selected]="mark() === 'late'">{{ t('lateArrival') }}</option>
+                <option value="early" [selected]="mark() === 'early'">{{ t('earlyLeave') }}</option>
+                <option value="incomplete" [selected]="mark() === 'incomplete'">{{ t('incomplete') }}</option>
+                <option value="review" [selected]="mark() === 'review'">{{ t('reviewMark') }}</option>
+                <option value="absent" [selected]="mark() === 'absent'">{{ t('absent') }}</option>
+                <option value="leave" [selected]="mark() === 'leave'">{{ t('onLeave') }}</option>
+                <option value="mission" [selected]="mark() === 'mission'">{{ t('missionMark') }}</option>
+              </select>
+            </label>
+          }
+        </div>
+
+        @if (rows().length === 0) {
+          <p class="empty">{{ t('emptyDay') }}</p>
+          <button class="text" type="button" (click)="clearFilters()">{{ t('clearAttendance') }}</button>
+        } @else {
+          <app-attendance-table [rows]="rows()" />
+        }
+
+        @if (officeWide() && report().unmatched.length > 0) {
+          <h2>{{ t('unmatchedTitle') }}</h2>
+          @for (punch of report().unmatched; track punch.id) {
+            <form class="link" (submit)="link($event, punch.pin)">
+              <span>{{ punch.at.slice(11, 16) }} · {{ punch.pin }}</span>
+              @if (session.canAct('attendance.link')) {
+                <label>
+                  <span class="vh">{{ t('chooseEmployee') }}</span>
+                  <select name="employee" autocomplete="off" required>
+                    <option value="">{{ t('chooseEmployee') }}</option>
+                    @for (employee of office.employees(); track employee.id) {
+                      @if (employee.status !== 'ended') {
+                        <option [value]="employee.id">{{ text(employee.name) }}</option>
+                      }
+                    }
+                  </select>
+                </label>
+                <button class="primary" type="submit">{{ t('saveLink') }}</button>
+              } @else {
+                <span>{{ t('unmatched') }}</span>
+              }
+            </form>
+          }
+        }
+
+        <h2>{{ t('rawLog') }}</h2>
+        @if (log().length === 0) {
+          <p class="empty">{{ t('noPunchDay') }}</p>
+        } @else {
+          <app-punch-log [rows]="log()" />
+        }
+      } @else {
+        <app-attendance-report [view]="reportView()" [scope]="scope()" />
+      }
+    }
+  }
+</main>

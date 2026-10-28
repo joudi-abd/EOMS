@@ -1,0 +1,29 @@
+<div class="sheet">
+  <table>
+    <thead>
+      <tr>
+        <th>{{ t('punchTime') }}</th>
+        <th>{{ t('pin') }}</th>
+        <th>{{ t('employees') }}</th>
+        <th>{{ t('direction') }}</th>
+        <th>{{ t('fingerprint') }}</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (row of rows(); track row.id) {
+        <tr>
+          <td>{{ row.time }}</td>
+          <td>{{ row.pin }}</td>
+          <td [class.wait]="row.unmatched">{{ row.person }}</td>
+          <td>{{ row.direction }}</td>
+          <td>
+            {{ t('fingerprint') }}
+            @if (row.duplicate) {
+              <span class="wait">· {{ t('duplicateFlag') }}</span>
+            }
+          </td>
+        </tr>
+      }
+    </tbody>
+  </table>
+</div>

@@ -1,0 +1,33 @@
+<div class="grid-2">
+  <section class="panel" data-print>
+    <header class="panel-head">
+      <div>
+        <h2>{{ t('accountsTitle') }}</h2>
+        <p>{{ t('accountsCaption') }}</p>
+      </div>
+      <a class="text small" routerLink="/modules/access">{{ t('access') }}</a>
+    </header>
+    <app-rank-chart [rows]="insights.accountsByRole()" [label]="t('accountsTitle')" />
+  </section>
+  <section class="panel" data-print>
+    <header class="panel-head">
+      <div>
+        <h2>{{ t('accountStateTitle') }}</h2>
+      </div>
+    </header>
+    <app-donut-chart [slices]="insights.accountState()" [label]="t('accountStateTitle')" [center]="t('accountsWord')" />
+    <h3 class="sub-title">{{ t('auditTitle') }}</h3>
+    @if (recent().length === 0) {
+      <p class="empty">{{ t('noData') }}</p>
+    } @else {
+      <ul class="log">
+        @for (entry of recent(); track entry.id) {
+          <li>
+            <span class="when">{{ short(entry.at) }} {{ entry.at.slice(11, 16) }}</span>
+            <span>{{ actor(entry.actorId) }} {{ line(entry.kind) }} · {{ text(entry.targetName) }}</span>
+          </li>
+        }
+      </ul>
+    }
+  </section>
+</div>

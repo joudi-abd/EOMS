@@ -1,0 +1,93 @@
+<form class="form" (submit)="save($event)">
+  <label>
+    <span>{{ t('firstName') }}</span>
+    <input name="firstName" type="text" autocomplete="off" maxlength="80" required [value]="person()?.firstName ?? ''" />
+  </label>
+  <label>
+    <span>{{ t('lastName') }}</span>
+    <input name="lastName" type="text" autocomplete="off" maxlength="80" required [value]="person()?.lastName ?? ''" />
+  </label>
+  @if (!person()) {
+    <label>
+      <span>{{ t('nationalId') }}</span>
+      <input name="nationalId" type="text" inputmode="numeric" maxlength="30" autocomplete="off" required />
+    </label>
+    <label>
+      <span>{{ t('hired') }}</span>
+      <input name="hired" type="date" autocomplete="off" required />
+    </label>
+  }
+  <label>
+    <span>{{ t('jobTitle') }}</span>
+    <select name="titleId" autocomplete="off">
+      <option value="">{{ t('chooseTitle') }}</option>
+      @for (item of office.titles(); track item.id) {
+        <option [value]="item.id" [selected]="person()?.titleId === item.id">{{ text(item.name) }}</option>
+      }
+    </select>
+  </label>
+  <label>
+    <span>{{ t('department') }}</span>
+    <select name="department" autocomplete="off">
+      <option value="">{{ t('chooseDepartment') }}</option>
+      @for (item of office.departmentList(); track item.id) {
+        <option [value]="item.id" [selected]="person()?.department === item.id">{{ text(item.name) }}</option>
+      }
+    </select>
+  </label>
+  <label>
+    <span>{{ t('manager') }}</span>
+    <select name="manager" autocomplete="off">
+      <option value="">{{ t('noDirectManager') }}</option>
+      @for (item of managers(); track item.id) {
+        <option [value]="item.id" [selected]="person()?.managerId === item.id">{{ text(item.name) }}</option>
+      }
+    </select>
+  </label>
+  @if (showSensitive()) {
+    <label>
+      <span>{{ t('birthDate') }}</span>
+      <input name="birthDate" type="date" autocomplete="off" [max]="today" [value]="person()?.birthDate ?? ''" />
+    </label>
+    <label>
+      <span>{{ t('phone') }}</span>
+      <input name="phone" type="tel" autocomplete="off" maxlength="30" dir="ltr" [value]="person()?.phone ?? ''" />
+    </label>
+    <label>
+      <span>{{ t('email') }}</span>
+      <input name="email" type="email" autocomplete="off" spellcheck="false" dir="ltr" [value]="person()?.email ?? ''" />
+    </label>
+    <label class="wide">
+      <span>{{ t('address') }}</span>
+      <input name="address" type="text" autocomplete="off" maxlength="500" [value]="person()?.address ?? ''" />
+    </label>
+  }
+  @if (showWallet()) {
+    <label>
+      <span>{{ t('wallet') }}</span>
+      <input name="wallet" type="text" autocomplete="off" maxlength="30" dir="ltr" [value]="person()?.wallet ?? ''" />
+    </label>
+  }
+  @if (!person()) {
+    <label>
+      <span>{{ t('accountEmail') }}</span>
+      <input name="accountEmail" type="email" autocomplete="off" spellcheck="false" dir="ltr" required />
+    </label>
+    <label>
+      <span>{{ t('accountPassword') }}</span>
+      <input name="accountPassword" type="password" autocomplete="new-password" minlength="10" dir="ltr" required />
+      <small class="hint">{{ t('passwordHint') }}</small>
+    </label>
+    <p class="wide note">{{ t('staffNoHint') }}</p>
+  }
+  @if (problem()) {
+    <p class="wide warn" role="alert">{{ problem() }}</p>
+  }
+  <div class="wide actions">
+    <button class="primary" type="submit" [disabled]="saving()">
+      <i class="fa-solid fa-check" aria-hidden="true"></i>
+      {{ person() ? t('saveChanges') : t('saveEmployee') }}
+    </button>
+    <button class="text" type="button" (click)="cancel()">{{ t('cancel') }}</button>
+  </div>
+</form>

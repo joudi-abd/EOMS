@@ -1,0 +1,40 @@
+:host {
+  display: block;
+  margin-top: 16px;
+}
+
+input {
+  width: 100%;
+  margin: 0;
+}
+
+.decide {
+  white-space: nowrap;
+}
+
+.form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: end;
+  margin-bottom: 16px;
+}
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 14px;
+  min-width: 0;
+}
+
+@media (max-width: 640px) {
+  .form {
+    grid-template-columns: 1fr;
+  }
+
+  .form .primary {
+    width: 100%;
+  }
+}

@@ -1,0 +1,167 @@
+{
+  "title": "اتجاه الواجهة الرئيسية",
+  "question": "السحب اختار بهو الاستقبال. أبقِه، أو خذ بديلاً، أو أعد السحب.",
+  "options": [
+    {
+      "id": "assigned",
+      "kind": "assigned",
+      "label": "بهو الاستقبال",
+      "kicker": "THE ROLL",
+      "lineage": "بهو مكتب هندسي: رخام مشحوذ وسكة نحاس",
+      "thesis": "المديرة ترى المكتب كما ترى البهو صباحاً: قرار واحد على السكة النحاسية، وبقية الأرقام حجر هادئ.",
+      "palette": ["#E4E1DA", "#8A7044", "#241E18", "#1E4A43"],
+      "materials": ["رخام مشحوذ", "نحاس مصمت", "حبر خشب الجوز"],
+      "viewport": "سكة نحاسية بكامل الارتفاع، ثم شريط قرارات اليوم، ثم رقم واحد كبير مع أثر الأسبوع، ثم جدول المشاريع. الاعتماد على الشريط، والرفض وحده في الفراغ.",
+      "risk": "إذا امتلأ الحجر ببطاقات متساوية يختفي البهو ويعود قالب لوحات الإدارة.",
+      "raised": [
+        {
+          "from": "وحدة التحكم الداكنة",
+          "raise": "الرفض والإجراء الحساس يقفان وحدهما، وبجانبهما فراغ، ولا يجاوران الاعتماد."
+        },
+        {
+          "from": "خريطة الحديقة",
+          "raise": "السكة النحاسية مستوى لوني واحد بلا انقطاع من أعلى الشاشة إلى أسفلها."
+        },
+        {
+          "from": "غلاف الكتالوج",
+          "raise": "رقم واحد فقط يُسمح له أن يكون كبيراً، وبقية الحقل تبقى حجراً هادئاً."
+        },
+        {
+          "from": "حقل البيانات",
+          "raise": "الرقم الذي يتحرك يحمل أثر أيامه، واليوم الذي تجاوز فيه الحد مُعلَّم."
+        }
+      ],
+      "html": ".impeccable/mocks/decision/assigned.html",
+      "comp": ".impeccable/mocks/decision/assigned.png"
+    },
+    {
+      "id": "model-pick",
+      "kind": "pick",
+      "label": "جدار عينات المواد",
+      "kicker": "IMPECCABLE’S PICK",
+      "lineage": "جدار عينات في مكتب التصميم: خرسانة، نحاس، زجاج، خشب",
+      "thesis": "حال المكتب جدار عينات. كل مؤشر عينة بختم مواصفة، والعينة الممسوكة هي القرار الذي تنتظره المديرة.",
+      "palette": ["#C8C4BC", "#8A7044", "#D7E0DC", "#6B4A32"],
+      "materials": ["خرسانة", "صفيحة نحاس", "زجاج", "خشب"],
+      "viewport": "قائمة اعتيادية، ثم عينة نحاس كبيرة تحمل طلب الاعتماد وختمها، وتحتها عينات أصغر للحضور والمشاريع والمال.",
+      "risk": "هذا هو الاتجاه الذي تستقر عليه أغلب لوحات الإدارة المصممة بعناية، وجدار العينات قد يعود شبكة بطاقات.",
+      "html": ".impeccable/mocks/decision/model-pick.html",
+      "comp": ".impeccable/mocks/decision/model-pick.png"
+    },
+    {
+      "id": "challenger-crouwel",
+      "kind": "challenger",
+      "catalogId": "crouwel-grid-specimen",
+      "label": "شبكة البناء",
+      "verdict": "competitive",
+      "lineage": "ملصق فيم كراويل: الحرف يُبنى خلية خلية",
+      "thesis": "الأرقام تُبنى على شبكة ظاهرة. الخلية هي وحدة القراءة، والمستوى الأزرق الواحد هو القرار.",
+      "palette": ["#F7F8F6", "#D5DEEA", "#172033", "#1D4ED8"],
+      "materials": ["ورقة بيضاء", "خطوط شبكة", "مستوى لوني واحد"],
+      "viewport": "قائمة جانبية، رقم ضخم للقرارات المعلقة على الشبكة، ومستطيل أزرق واحد للاعتماد، ثم جدول محاذٍ للخلايا.",
+      "case": "أوضح في محاذاة الأرقام، وأضعف في انتماء مديرة المكتب إليه.",
+      "risk": "يُقرأ كملصق شبكة إذا كبر الحرف على حساب الجدول.",
+      "html": ".impeccable/mocks/decision/challenger-crouwel.html",
+      "comp": ".impeccable/mocks/decision/challenger-crouwel.png",
+      "hero": "https://impeccable.style/worlds/cards/crouwel-grid-specimen-hero.webp",
+      "board": "https://impeccable.style/worlds/cards/crouwel-grid-specimen.webp"
+    },
+    {
+      "id": "challenger-timetable",
+      "kind": "challenger",
+      "catalogId": "rw-timetable-slide-rack",
+      "label": "جدول المواعيد",
+      "verdict": "competitive",
+      "lineage": "جدول رحلات 1971 على طاولة مضاءة",
+      "thesis": "يوم المكتب جدول مواعيد: صف لكل مشروع، والعلامة في الخلية تقول متأخر أو في الموعد.",
+      "palette": ["#E0A92E", "#F4EFE2", "#1C1C1C", "#1F5C45"],
+      "materials": ["أرضية ذهبية", "لوح عاجي", "علامة في خلية"],
+      "viewport": "ترويسة، ثم جدول مشاريع بعرض الشاشة كجدول إقلاع، وصف واحد معكوس هو العقد الذي يقترب انتهاؤه.",
+      "case": "أقرب إلى مهمة المتابعة، وأبعد عن مكان المكتب الذي تعرفه المديرة.",
+      "risk": "الميل الذهبي يتحول إلى زي إذا غطى على الجدول نفسه.",
+      "html": ".impeccable/mocks/decision/challenger-timetable.html",
+      "comp": ".impeccable/mocks/decision/challenger-timetable.png",
+      "hero": "https://impeccable.style/worlds/cards/rw-timetable-slide-rack-hero.webp",
+      "board": "https://impeccable.style/worlds/cards/rw-timetable-slide-rack.webp"
+    },
+    {
+      "id": "challenger-console",
+      "kind": "challenger",
+      "catalogId": "digital-design-canon-dark-first-developer-console",
+      "label": "وحدة التحكم الداكنة",
+      "verdict": "declined",
+      "lineage": "سطح عمل داكن لمبرمج",
+      "thesis": "أرضية غرافيت، وفواصل شعرية، والفعل الخطير معزول.",
+      "palette": ["#1C2128", "#8FB3FF", "#E7ECF2"],
+      "materials": ["غرافيت", "فواصل شعرية"],
+      "viewport": "لوحات داكنة متراصة تتبدل محتوياتها دون أن يتبدل الإطار.",
+      "case": "يُقرأ كأداة مطور لا كمكتب هندسي، ويخسر الانتماء والوضوح معاً.",
+      "kept": "عزل الفعل الخطير بمساحة فارغة حوله.",
+      "risk": "الظلام الدائم يتعب مراجعة يوم كامل.",
+      "hero": "https://impeccable.style/worlds/cards/digital-design-canon-dark-first-developer-console-hero.webp"
+    },
+    {
+      "id": "challenger-zoo",
+      "kind": "challenger",
+      "catalogId": "aww2-zoo-gardens-guide-map",
+      "label": "خريطة الحديقة",
+      "verdict": "declined",
+      "lineage": "دليل حديقة بألوان مسطحة",
+      "thesis": "كل قسم فص لوني، والحد بين الأقسام هو الساحل.",
+      "palette": ["#F5F1E4", "#8ED462", "#FF705D", "#F5E211"],
+      "materials": ["لون مسطح", "ساحل بين الفصوص"],
+      "viewport": "فص واحد يبتلع الشاشة حتى يخرج من طرفيها.",
+      "case": "لا تعرف المديرة مكتبها في خريطة حديقة، والفص يخفي الجدول والاعتماد.",
+      "kept": "التزام مستوى لوني واحد حتى يغادر حافة الإطار.",
+      "risk": "اللعب اللوني يضعف جدية الرواتب والعقود.",
+      "hero": "https://impeccable.style/worlds/cards/aww2-zoo-gardens-guide-map-hero.webp"
+    },
+    {
+      "id": "challenger-saville",
+      "kind": "challenger",
+      "catalogId": "brand-identity-canon-saville-catalog-sleeve",
+      "label": "غلاف الكتالوج",
+      "verdict": "declined",
+      "lineage": "غلاف أسود بأرقام كتالوج بدل الأسماء",
+      "thesis": "الاسم شريط لون، والرقم هو العنوان، والسواد هو المساحة.",
+      "palette": ["#111111", "#F4F4F4", "#E23B2F", "#2F6BFF"],
+      "materials": ["أسود مطفي", "شريط ترميز"],
+      "viewport": "حقل أسود ورقم فهرس، والاسم لا يظهر إلا عند التمرير.",
+      "case": "إخفاء الأسماء يكسر مهمة عربية تعتمد على قراءة العقد والمشروع.",
+      "kept": "رقم واحد يملك الحقل، والباقي صمت.",
+      "risk": "الترميز بدل التسمية يعطل العمل اليومي.",
+      "hero": "https://impeccable.style/worlds/cards/brand-identity-canon-saville-catalog-sleeve-hero.webp"
+    },
+    {
+      "id": "challenger-ikeda",
+      "kind": "challenger",
+      "catalogId": "ikeda-datamatics",
+      "label": "حقل البيانات",
+      "verdict": "declined",
+      "lineage": "حقل أبيض وأسود من أعمدة ونبض",
+      "thesis": "المكتب حقل خطوط، والحالة انعكاس الإطار لحظة واحدة.",
+      "palette": ["#000000", "#FFFFFF"],
+      "materials": ["خط شعري", "نبض"],
+      "viewport": "أعمدة كثيفة ومنحنٍ واحد، بلا لون للحالة.",
+      "case": "يومض بدل أن يُقرَأ، ولا يملك لوناً للتنبيه، فلا يصلح لمكتب يراجع عقوداً.",
+      "kept": "الرقم المتحرك يحمل أثره، ولحظة تجاوز الحد تُعلَّم.",
+      "risk": "الوميض يتعارض مع استخدام يوم كامل.",
+      "hero": "https://impeccable.style/worlds/cards/ikeda-datamatics-hero.webp"
+    }
+  ],
+  "reroll": { "registers": ["safer", "bolder"] },
+  "steer": true,
+  "buildPath": { "value": "code", "toggle": true },
+  "canon": true,
+  "canonCard": {
+    "kind": "canon",
+    "label": "قالب لوحات الإدارة",
+    "thesis": "قائمة جانبية، أربعة أرقام متساوية، رسم، ثم جدول. ما تشحنه الفئة عادة، بصناعة نظيفة.",
+    "palette": ["#F7F8FA", "#111827", "#2563EB", "#FFFFFF"],
+    "materials": ["شبكة محاذاة", "بطاقة ناعمة"],
+    "viewport": "سكة رمادية، أربعة مستطيلات متساوية، رسم أعمدة، وجدول مشاريع.",
+    "risk": "لا يُميَّز عن أي نظام إداري آخر، وهذا مقصود.",
+    "html": ".impeccable/mocks/decision/canon.html",
+    "comp": ".impeccable/mocks/decision/canon.png"
+  }
+}

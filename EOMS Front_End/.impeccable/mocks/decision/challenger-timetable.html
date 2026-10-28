@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Readex+Pro:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0}
+html,body{width:1440px;height:900px;overflow:hidden}
+body{font-family:"Readex Pro",sans-serif;background:#E0A92E;color:#1C1C1C;font-size:22px}
+.app{height:900px;display:flex;flex-direction:column}
+header{display:flex;justify-content:space-between;align-items:center;padding:18px 28px;border-bottom:2px solid #1C1C1C}
+nav{display:flex;gap:22px}
+nav a{color:#1C1C1C;text-decoration:none}
+nav a.on{font-weight:700;border-bottom:3px solid #1C1C1C}
+.board{margin:20px 28px;background:#1C1C1C;color:#F4EFE2}
+.board header,.row{display:grid;grid-template-columns:1.4fr .7fr .6fr .8fr;padding:12px 18px;border-bottom:1px solid #3A3428}
+.board header{color:#E0A92E;font-weight:600}
+.row.warn{background:#F4EFE2;color:#1C1C1C}
+.mark{font-weight:700}
+.late{color:#B43222;font-weight:700}
+.ok{color:#7DCEA0;font-weight:700}
+.row.warn .ok{color:#1F5C45}
+.foot{display:flex;justify-content:space-between;padding:0 28px}
+button{font-family:inherit;font-size:22px;background:#1C1C1C;color:#F4EFE2;border:0;padding:12px 18px}
+.ghost{background:transparent;border:2px solid #1C1C1C;color:#1C1C1C;margin-right:40px}
+.note{padding:14px 28px;font-weight:400}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <b>EOMS</b>
+    <nav>
+      <a class="on" href="#">اليوم</a>
+      <a href="#">المشاريع</a>
+      <a href="#">الحضور</a>
+      <a href="#">المالية</a>
+    </nav>
+    <span>ليلى الحسن</span>
+  </header>
+  <section class="board">
+    <header><span>المشروع</span><span>الإنجاز</span><span>الحالة</span><span>العلامة</span></header>
+    <div class="row warn"><span>الواجهة البحرية</span><span>٦٨٪</span><span>تنفيذ</span><span class="late">العقد ١٢ يوماً</span></div>
+    <div class="row"><span>مدرسة الرواد</span><span>٤١٪</span><span>تنفيذ</span><span class="late">٤ مهام متأخرة</span></div>
+    <div class="row"><span>برج النخيل</span><span>٢٢٪</span><span>تصميم</span><span class="ok">في الموعد</span></div>
+    <div class="row"><span>عيادة النور</span><span>٩١٪</span><span>تسليم</span><span class="ok">في الموعد</span></div>
+    <div class="row"><span>الحضور اليوم</span><span>٧٩ / ٨٦</span><span>دوام</span><span class="late">غياب ٤</span></div>
+  </section>
+  <p class="note">بيانات توضيحية. الصف المعكوس هو ما يتجاوز الحد. العلامة تملأ الخلية أو تبقى فارغة.</p>
+  <div class="foot">
+    <button type="button">اعتماد ٣ إجازات</button>
+    <button class="ghost" type="button">رفض</button>
+  </div>
+</div>
+</body>
+</html>

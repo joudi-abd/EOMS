@@ -1,0 +1,467 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-22T20:30:35.642Z",
+  "title": "Design System: EOMS",
+  "extensions": {
+    "colorMeta": {
+      "ground": {
+        "role": "neutral",
+        "displayName": "Cool Ground",
+        "canonical": "oklch(97.9% 0.003 264.5)",
+        "tonalRamp": [
+          "oklch(15.0% 0.003 264.5)",
+          "oklch(26.4% 0.003 264.5)",
+          "oklch(37.9% 0.003 264.5)",
+          "oklch(49.3% 0.003 264.5)",
+          "oklch(60.7% 0.003 264.5)",
+          "oklch(72.1% 0.003 264.5)",
+          "oklch(83.6% 0.003 264.5)",
+          "oklch(95.0% 0.003 264.5)"
+        ]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "White",
+        "canonical": "oklch(100.0% 0.000 89.9)",
+        "tonalRamp": [
+          "oklch(15.0% 0.000 0.0)",
+          "oklch(26.4% 0.000 0.0)",
+          "oklch(37.9% 0.000 0.0)",
+          "oklch(49.3% 0.000 0.0)",
+          "oklch(60.7% 0.000 0.0)",
+          "oklch(72.1% 0.000 0.0)",
+          "oklch(83.6% 0.000 0.0)",
+          "oklch(95.0% 0.000 0.0)"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Desk Ink",
+        "canonical": "oklch(21.0% 0.032 264.7)",
+        "tonalRamp": [
+          "oklch(15.0% 0.032 264.7)",
+          "oklch(26.4% 0.032 264.7)",
+          "oklch(37.9% 0.032 264.7)",
+          "oklch(49.3% 0.032 264.7)",
+          "oklch(60.7% 0.032 264.7)",
+          "oklch(72.1% 0.032 264.7)",
+          "oklch(83.6% 0.032 264.7)",
+          "oklch(95.0% 0.032 264.7)"
+        ]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Quiet Ink",
+        "canonical": "oklch(44.6% 0.026 256.8)",
+        "tonalRamp": [
+          "oklch(15.0% 0.026 256.8)",
+          "oklch(26.4% 0.026 256.8)",
+          "oklch(37.9% 0.026 256.8)",
+          "oklch(49.3% 0.026 256.8)",
+          "oklch(60.7% 0.026 256.8)",
+          "oklch(72.1% 0.026 256.8)",
+          "oklch(83.6% 0.026 256.8)",
+          "oklch(95.0% 0.026 256.8)"
+        ]
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "Hairline",
+        "canonical": "oklch(92.8% 0.006 264.5)",
+        "tonalRamp": [
+          "oklch(15.0% 0.006 264.5)",
+          "oklch(26.4% 0.006 264.5)",
+          "oklch(37.9% 0.006 264.5)",
+          "oklch(49.3% 0.006 264.5)",
+          "oklch(60.7% 0.006 264.5)",
+          "oklch(72.1% 0.006 264.5)",
+          "oklch(83.6% 0.006 264.5)",
+          "oklch(95.0% 0.006 264.5)"
+        ]
+      },
+      "action": {
+        "role": "primary",
+        "displayName": "Action Blue",
+        "canonical": "oklch(54.6% 0.215 262.9)",
+        "tonalRamp": [
+          "oklch(15.0% 0.215 262.9)",
+          "oklch(26.4% 0.215 262.9)",
+          "oklch(37.9% 0.215 262.9)",
+          "oklch(49.3% 0.215 262.9)",
+          "oklch(60.7% 0.215 262.9)",
+          "oklch(72.1% 0.215 262.9)",
+          "oklch(83.6% 0.215 262.9)",
+          "oklch(95.0% 0.215 262.9)"
+        ]
+      },
+      "action-ink": {
+        "role": "primary",
+        "displayName": "Pressed Blue",
+        "canonical": "oklch(48.8% 0.217 264.4)",
+        "tonalRamp": [
+          "oklch(15.0% 0.217 264.4)",
+          "oklch(26.4% 0.217 264.4)",
+          "oklch(37.9% 0.217 264.4)",
+          "oklch(49.3% 0.217 264.4)",
+          "oklch(60.7% 0.217 264.4)",
+          "oklch(72.1% 0.217 264.4)",
+          "oklch(83.6% 0.217 264.4)",
+          "oklch(95.0% 0.217 264.4)"
+        ]
+      },
+      "action-tint": {
+        "role": "primary",
+        "displayName": "Selected Wash",
+        "canonical": "oklch(97.0% 0.014 254.6)",
+        "tonalRamp": [
+          "oklch(15.0% 0.014 254.6)",
+          "oklch(26.4% 0.014 254.6)",
+          "oklch(37.9% 0.014 254.6)",
+          "oklch(49.3% 0.014 254.6)",
+          "oklch(60.7% 0.014 254.6)",
+          "oklch(72.1% 0.014 254.6)",
+          "oklch(83.6% 0.014 254.6)",
+          "oklch(95.0% 0.014 254.6)"
+        ]
+      },
+      "late": {
+        "role": "status",
+        "displayName": "Late Red",
+        "canonical": "oklch(50.5% 0.190 27.5)",
+        "tonalRamp": [
+          "oklch(15.0% 0.190 27.5)",
+          "oklch(26.4% 0.190 27.5)",
+          "oklch(37.9% 0.190 27.5)",
+          "oklch(49.3% 0.190 27.5)",
+          "oklch(60.7% 0.190 27.5)",
+          "oklch(72.1% 0.190 27.5)",
+          "oklch(83.6% 0.190 27.5)",
+          "oklch(95.0% 0.190 27.5)"
+        ]
+      },
+      "on-time": {
+        "role": "status",
+        "displayName": "On-Time Green",
+        "canonical": "oklch(50.8% 0.105 165.6)",
+        "tonalRamp": [
+          "oklch(15.0% 0.105 165.6)",
+          "oklch(26.4% 0.105 165.6)",
+          "oklch(37.9% 0.105 165.6)",
+          "oklch(49.3% 0.105 165.6)",
+          "oklch(60.7% 0.105 165.6)",
+          "oklch(72.1% 0.105 165.6)",
+          "oklch(83.6% 0.105 165.6)",
+          "oklch(95.0% 0.105 165.6)"
+        ]
+      },
+      "waiting": {
+        "role": "status",
+        "displayName": "Waiting Amber",
+        "canonical": "oklch(55.5% 0.146 49.0)",
+        "tonalRamp": [
+          "oklch(15.0% 0.146 49.0)",
+          "oklch(26.4% 0.146 49.0)",
+          "oklch(37.9% 0.146 49.0)",
+          "oklch(49.3% 0.146 49.0)",
+          "oklch(60.7% 0.146 49.0)",
+          "oklch(72.1% 0.146 49.0)",
+          "oklch(83.6% 0.146 49.0)",
+          "oklch(95.0% 0.146 49.0)"
+        ]
+      },
+      "notice": {
+        "role": "primary",
+        "displayName": "Notice Wash",
+        "canonical": "oklch(93.2% 0.032 255.6)",
+        "tonalRamp": [
+          "oklch(15.0% 0.032 255.6)",
+          "oklch(26.4% 0.032 255.6)",
+          "oklch(37.9% 0.032 255.6)",
+          "oklch(49.3% 0.032 255.6)",
+          "oklch(60.7% 0.032 255.6)",
+          "oklch(72.1% 0.032 255.6)",
+          "oklch(83.6% 0.032 255.6)",
+          "oklch(95.0% 0.032 255.6)"
+        ]
+      },
+      "notice-line": {
+        "role": "primary",
+        "displayName": "Notice Line",
+        "canonical": "oklch(88.2% 0.057 254.1)",
+        "tonalRamp": [
+          "oklch(15.0% 0.057 254.1)",
+          "oklch(26.4% 0.057 254.1)",
+          "oklch(37.9% 0.057 254.1)",
+          "oklch(49.3% 0.057 254.1)",
+          "oklch(60.7% 0.057 254.1)",
+          "oklch(72.1% 0.057 254.1)",
+          "oklch(83.6% 0.057 254.1)",
+          "oklch(95.0% 0.057 254.1)"
+        ]
+      },
+      "rail-ink": {
+        "role": "neutral",
+        "displayName": "Rail Ink",
+        "canonical": "oklch(37.3% 0.031 259.7)",
+        "tonalRamp": [
+          "oklch(15.0% 0.031 259.7)",
+          "oklch(26.4% 0.031 259.7)",
+          "oklch(37.9% 0.031 259.7)",
+          "oklch(49.3% 0.031 259.7)",
+          "oklch(60.7% 0.031 259.7)",
+          "oklch(72.1% 0.031 259.7)",
+          "oklch(83.6% 0.031 259.7)",
+          "oklch(95.0% 0.031 259.7)"
+        ]
+      },
+      "hover": {
+        "role": "neutral",
+        "displayName": "Hover Wash",
+        "canonical": "oklch(96.7% 0.003 264.5)",
+        "tonalRamp": [
+          "oklch(15.0% 0.003 264.5)",
+          "oklch(26.4% 0.003 264.5)",
+          "oklch(37.9% 0.003 264.5)",
+          "oklch(49.3% 0.003 264.5)",
+          "oklch(60.7% 0.003 264.5)",
+          "oklch(72.1% 0.003 264.5)",
+          "oklch(83.6% 0.003 264.5)",
+          "oklch(95.0% 0.003 264.5)"
+        ]
+      },
+      "row-hover": {
+        "role": "neutral",
+        "displayName": "Row Wash",
+        "canonical": "oklch(98.4% 0.003 247.9)",
+        "tonalRamp": [
+          "oklch(15.0% 0.003 247.9)",
+          "oklch(26.4% 0.003 247.9)",
+          "oklch(37.9% 0.003 247.9)",
+          "oklch(49.3% 0.003 247.9)",
+          "oklch(60.7% 0.003 247.9)",
+          "oklch(72.1% 0.003 247.9)",
+          "oklch(83.6% 0.003 247.9)",
+          "oklch(95.0% 0.003 247.9)"
+        ]
+      },
+      "series-soft": {
+        "role": "primary",
+        "displayName": "Expense Share",
+        "canonical": "oklch(80.9% 0.096 251.8)",
+        "tonalRamp": [
+          "oklch(15.0% 0.096 251.8)",
+          "oklch(26.4% 0.096 251.8)",
+          "oklch(37.9% 0.096 251.8)",
+          "oklch(49.3% 0.096 251.8)",
+          "oklch(60.7% 0.096 251.8)",
+          "oklch(72.1% 0.096 251.8)",
+          "oklch(83.6% 0.096 251.8)",
+          "oklch(95.0% 0.096 251.8)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "The metric figure. 32px, weight 600, letter-spacing -0.03em, tabular. Grounded section figures are 28px at the same weight."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "The page title. 24px, weight 600, letter-spacing -0.02em. Headings balance their line breaks."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "The section title. 18px, weight 600, letter-spacing -0.02em. The rail wordmark is separate: 22px, weight 700, Action Blue."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Reading text, buttons, and the leave row. 16px, weight 400, line-height 1.5."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Metric captions, the filter label, and navigation. 14px. Table headers are this size at weight 500. Captions at 13px are the rail subtitle, the sample-data line, and the bar labels."
+      }
+    },
+    "shadows": [],
+    "motion": [
+      {
+        "name": "queue",
+        "value": "grid-template-rows 240ms cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "Open and close the leave queue. Removed under prefers-reduced-motion."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "rail",
+        "value": "900px"
+      },
+      {
+        "name": "stack",
+        "value": "640px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The single heading-row action. Action Blue fill, white label, weight 600.",
+      "html": "<button class=\"ds-btn-primary\" type=\"button\">اعتماد الإجازات</button>",
+      "css": ".ds-btn-primary {\n  font-family: \"Readex Pro Variable\", sans-serif;\n  font-size: 16px;\n  font-weight: 600;\n  background: var(--action, #2563eb);\n  color: #fff;\n  border: 0;\n  border-radius: 8px;\n  min-height: 40px;\n  padding: 8px 14px;\n  display: inline-flex;\n  align-items: center;\n  width: fit-content;\n  cursor: pointer;\n  text-decoration: none;\n}\n.ds-btn-primary:hover { background: var(--action-ink, #1d4ed8); }\n.ds-btn-primary:focus-visible { outline: 2px solid var(--action, #2563eb); outline-offset: 2px; }\n.ds-btn-primary:disabled {\n  background: var(--line, #e5e7eb);\n  color: var(--muted, #4b5563);\n  cursor: not-allowed;\n}"
+    },
+    {
+      "name": "Bordered Button",
+      "kind": "button",
+      "refersTo": "button-bordered",
+      "description": "Approve, undo, and show-all. White fill, 1px hairline, Desk Ink label.",
+      "html": "<button class=\"ds-btn-bordered\" type=\"button\">اعتماد</button>",
+      "css": ".ds-btn-bordered {\n  font-family: \"Readex Pro Variable\", sans-serif;\n  font-size: 16px;\n  background: var(--surface, #ffffff);\n  color: var(--ink, #111827);\n  border: 1px solid var(--line, #e5e7eb);\n  border-radius: 8px;\n  min-height: 40px;\n  padding: 8px 14px;\n  cursor: pointer;\n}\n.ds-btn-bordered:hover { background: #f3f4f6; }\n.ds-btn-bordered:focus-visible { outline: 2px solid var(--action, #2563eb); outline-offset: 2px; }"
+    },
+    {
+      "name": "Quiet Button",
+      "kind": "button",
+      "refersTo": "button-quiet",
+      "description": "The reject action. Transparent, Late Red label, 20px after a bordered button.",
+      "html": "<span dir=\"rtl\"><button class=\"ds-btn-bordered\" type=\"button\">اعتماد</button><button class=\"ds-btn-quiet\" type=\"button\">رفض</button></span>",
+      "css": ".ds-btn-bordered {\n  font-family: \"Readex Pro Variable\", sans-serif;\n  font-size: 16px;\n  background: var(--surface, #ffffff);\n  color: var(--ink, #111827);\n  border: 1px solid var(--line, #e5e7eb);\n  border-radius: 8px;\n  min-height: 40px;\n  padding: 8px 14px;\n  cursor: pointer;\n}\n.ds-btn-bordered:hover { background: #f3f4f6; }\n.ds-btn-bordered:focus-visible { outline: 2px solid var(--action, #2563eb); outline-offset: 2px; }\n.ds-btn-quiet {\n  font-family: \"Readex Pro Variable\", sans-serif;\n  font-size: 16px;\n  background: transparent;\n  color: var(--late, #b91c1c);\n  border: 0;\n  border-radius: 8px;\n  min-height: 40px;\n  padding: 8px 14px;\n  margin-inline-start: 20px;\n  cursor: pointer;\n}\n.ds-btn-quiet:hover { background: #f3f4f6; }\n.ds-btn-quiet:focus-visible { outline: 2px solid var(--action, #2563eb); outline-offset: 2px; }"
+    },
+    {
+      "name": "Rail",
+      "kind": "nav",
+      "refersTo": "rail",
+      "description": "The 230px shell rail. Text modules, active item in Selected Wash, language switch in the footer.",
+      "html": "<aside class=\"ds-rail\" dir=\"rtl\"><p class=\"ds-brand\">EOMS</p><p class=\"ds-brand-sub\">نظام الإدارة المتكامل</p><nav class=\"ds-nav\" aria-label=\"لوحة المعلومات\"><a class=\"ds-nav-link is-on\" href=\"#\">لوحة المعلومات</a><a class=\"ds-nav-link\" href=\"#\">الموظفون</a><a class=\"ds-nav-link\" href=\"#\">المشاريع</a></nav><div class=\"ds-foot\"><strong>مديرة الشركة</strong><span>بيانات توضيحية</span><button class=\"ds-lang\" type=\"button\">English</button></div></aside>",
+      "css": ".ds-rail {\n  width: 230px;\n  background: var(--surface, #ffffff);\n  border-inline-end: 1px solid var(--line, #e5e7eb);\n  padding: 24px 16px 16px;\n  display: flex;\n  flex-direction: column;\n  font-family: \"Readex Pro Variable\", sans-serif;\n  color: var(--ink, #111827);\n}\n.ds-brand {\n  font-size: 22px;\n  font-weight: 700;\n  color: var(--action, #2563eb);\n  margin: 0 10px 4px;\n}\n.ds-brand-sub {\n  margin: 0 10px 20px;\n  color: var(--muted, #4b5563);\n  font-size: 13px;\n}\n.ds-nav { display: flex; flex-direction: column; gap: 2px; }\n.ds-nav-link {\n  color: #374151;\n  text-decoration: none;\n  font-size: 14px;\n  padding: 8px 10px;\n  border-radius: 8px;\n  min-height: 40px;\n  display: flex;\n  align-items: center;\n}\n.ds-nav-link:hover { background: #f3f4f6; }\n.ds-nav-link.is-on {\n  background: var(--action-tint, #eff6ff);\n  color: var(--action-ink, #1d4ed8);\n  font-weight: 600;\n}\n.ds-nav-link:focus-visible { outline: 2px solid var(--action, #2563eb); outline-offset: 2px; }\n.ds-foot {\n  margin-top: 24px;\n  padding: 16px 10px 0;\n  border-top: 1px solid var(--line, #e5e7eb);\n}\n.ds-foot strong { display: block; font-size: 14px; }\n.ds-foot span { color: var(--muted, #4b5563); font-size: 13px; }\n.ds-lang {\n  margin-top: 10px;\n  background: transparent;\n  border: 1px solid var(--line, #e5e7eb);\n  border-radius: 8px;\n  min-height: 40px;\n  padding: 0 12px;\n  cursor: pointer;\n  font: inherit;\n  color: inherit;\n}\n.ds-lang:hover { border-color: var(--action, #2563eb); }\n.ds-lang:focus-visible { outline: 2px solid var(--action, #2563eb); outline-offset: 2px; }"
+    },
+    {
+      "name": "Metric Cards",
+      "kind": "card",
+      "refersTo": "metric",
+      "description": "Four equal figures. Quiet Ink caption, 32px tabular value, 12px radius, 1px hairline.",
+      "html": "<ul class=\"ds-metrics\" dir=\"rtl\"><li class=\"ds-metric\"><span>الموظفون</span><strong>86</strong></li><li class=\"ds-metric\"><span>الحضور اليوم</span><strong>79</strong></li><li class=\"ds-metric\"><span>المشاريع</span><strong>11</strong></li><li class=\"ds-metric\"><span>بانتظار الاعتماد</span><strong>4</strong></li></ul>",
+      "css": ".ds-metrics {\n  display: grid;\n  grid-template-columns: repeat(4, minmax(0, 1fr));\n  gap: 14px;\n  margin: 0;\n  padding: 0;\n  list-style: none;\n  font-family: \"Readex Pro Variable\", sans-serif;\n}\n.ds-metric {\n  background: var(--surface, #ffffff);\n  border: 1px solid var(--line, #e5e7eb);\n  border-radius: var(--radius, 12px);\n  padding: 16px;\n}\n.ds-metric span {\n  display: block;\n  color: var(--muted, #4b5563);\n  font-size: 14px;\n}\n.ds-metric strong {\n  display: block;\n  margin-top: 6px;\n  font-size: 32px;\n  font-weight: 600;\n  letter-spacing: -0.03em;\n  font-variant-numeric: tabular-nums;\n  color: var(--ink, #111827);\n}"
+    },
+    {
+      "name": "Select",
+      "kind": "input",
+      "refersTo": "select",
+      "description": "The filter field. White, 1px hairline, 8px radius, 40px tall. Label stacked above.",
+      "html": "<label class=\"ds-filter\" dir=\"rtl\"><span>تصفية المشاريع</span><select><option>كل المشاريع</option><option>المتأخرة</option><option>في الموعد</option></select></label>",
+      "css": ".ds-filter {\n  display: flex;\n  flex-direction: column;\n  align-items: stretch;\n  gap: 4px;\n  color: var(--muted, #4b5563);\n  font-family: \"Readex Pro Variable\", sans-serif;\n  font-size: 14px;\n}\n.ds-filter select {\n  width: 100%;\n  max-width: 240px;\n  min-height: 40px;\n  border: 1px solid var(--line, #e5e7eb);\n  border-radius: 8px;\n  background: var(--surface, #ffffff);\n  color: var(--ink, #111827);\n  padding: 0 10px;\n  font: inherit;\n  caret-color: var(--action, #2563eb);\n}\n.ds-filter select:focus-visible { outline: 2px solid var(--action, #2563eb); outline-offset: 2px; }"
+    },
+    {
+      "name": "Notice",
+      "kind": "custom",
+      "refersTo": "notice",
+      "description": "The undo banner after a decision. Notice Wash, Notice Line, bordered undo action.",
+      "html": "<div class=\"ds-notice\" dir=\"rtl\"><span>اعتُمدت الإجازة.</span><button class=\"ds-btn-bordered\" type=\"button\">تراجع</button></div>",
+      "css": ".ds-notice {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  gap: 12px;\n  background: var(--notice, #dbeafe);\n  border: 1px solid #bfdbfe;\n  border-radius: 8px;\n  padding: 10px 12px;\n  font-family: \"Readex Pro Variable\", sans-serif;\n  font-size: 16px;\n  color: var(--ink, #111827);\n}\n.ds-btn-bordered {\n  font-family: \"Readex Pro Variable\", sans-serif;\n  font-size: 16px;\n  background: var(--surface, #ffffff);\n  color: var(--ink, #111827);\n  border: 1px solid var(--line, #e5e7eb);\n  border-radius: 8px;\n  min-height: 40px;\n  padding: 8px 14px;\n  cursor: pointer;\n}\n.ds-btn-bordered:hover { background: #f3f4f6; }\n.ds-btn-bordered:focus-visible { outline: 2px solid var(--action, #2563eb); outline-offset: 2px; }"
+    },
+    {
+      "name": "Paired Panel",
+      "kind": "card",
+      "refersTo": "panel",
+      "description": "One white surface: stage bars beside the project table. Late and on-time are weight 600.",
+      "html": "<section class=\"ds-panel\" dir=\"rtl\"><div><h2>المشاريع حسب حالة التنفيذ</h2><div class=\"ds-bars\"><div class=\"ds-bar\"><span class=\"ds-n\">3</span><span class=\"ds-track\"><span class=\"ds-col\" style=\"height:72%\"></span></span><span class=\"ds-lab\">تصميم</span></div><div class=\"ds-bar\"><span class=\"ds-n\">1</span><span class=\"ds-track\"><span class=\"ds-col\" style=\"height:28%\"></span></span><span class=\"ds-lab\">مراجعة</span></div><div class=\"ds-bar\"><span class=\"ds-n\">5</span><span class=\"ds-track\"><span class=\"ds-col\" style=\"height:100%\"></span></span><span class=\"ds-lab\">تنفيذ</span></div><div class=\"ds-bar\"><span class=\"ds-n\">2</span><span class=\"ds-track\"><span class=\"ds-col\" style=\"height:48%\"></span></span><span class=\"ds-lab\">تسليم</span></div></div></div><div><h2>المشاريع</h2><table class=\"ds-table\"><thead><tr><th>المشروع</th><th>الإنجاز</th><th>الموعد</th></tr></thead><tbody><tr><td>مشروع</td><td>68%</td><td class=\"ds-late\">متأخر</td></tr><tr><td>مشروع</td><td>91%</td><td class=\"ds-ok\">في الموعد</td></tr></tbody></table></div></section>",
+      "css": ".ds-panel {\n  display: grid;\n  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.25fr);\n  gap: 28px;\n  align-items: start;\n  background: var(--surface, #ffffff);\n  border: 1px solid var(--line, #e5e7eb);\n  border-radius: var(--radius, 12px);\n  padding: 18px 18px 8px;\n  font-family: \"Readex Pro Variable\", sans-serif;\n  color: var(--ink, #111827);\n}\n.ds-panel h2 {\n  font-size: 18px;\n  font-weight: 600;\n  letter-spacing: -0.02em;\n  margin: 0 0 12px;\n}\n.ds-bars {\n  display: flex;\n  align-items: flex-end;\n  gap: 12px;\n  min-height: 180px;\n}\n.ds-bar {\n  flex: 1;\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  gap: 8px;\n  min-width: 0;\n}\n.ds-track { height: 120px; display: flex; align-items: flex-end; }\n.ds-col {\n  width: 36px;\n  background: var(--action, #2563eb);\n  border-radius: 6px 6px 0 0;\n}\n.ds-n { font-variant-numeric: tabular-nums; font-weight: 600; }\n.ds-lab { font-size: 13px; color: var(--muted, #4b5563); text-align: center; }\n.ds-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }\n.ds-table th, .ds-table td {\n  text-align: start;\n  padding: 10px 8px;\n  border-bottom: 1px solid var(--line, #e5e7eb);\n  vertical-align: top;\n}\n.ds-table th { font-weight: 500; color: var(--muted, #4b5563); font-size: 14px; }\n.ds-table tbody tr:hover td { background: #f8fafc; }\n.ds-late { color: var(--late, #b91c1c); font-weight: 600; }\n.ds-ok { color: var(--ontime, #047857); font-weight: 600; }"
+    },
+    {
+      "name": "Proportion Track",
+      "kind": "custom",
+      "refersTo": "proportion",
+      "description": "Revenue in Action Blue, expense in Expense Share, on a hairline pill. Currency stays unset.",
+      "html": "<div class=\"ds-money\" dir=\"rtl\"><p class=\"ds-note\">العملة غير محددة في هذه المرحلة.</p><div class=\"ds-compare\" role=\"img\" aria-label=\"الإيرادات / المصروفات\"><span class=\"ds-rev\" style=\"width:62%\"></span><span class=\"ds-exp\" style=\"width:38%\"></span></div></div>",
+      "css": ".ds-money { font-family: \"Readex Pro Variable\", sans-serif; }\n.ds-note {\n  color: var(--muted, #4b5563);\n  font-size: 14px;\n  max-width: 62ch;\n  margin: 0 0 12px;\n}\n.ds-compare {\n  display: flex;\n  height: 12px;\n  border-radius: 999px;\n  overflow: hidden;\n  background: var(--line, #e5e7eb);\n}\n.ds-rev { background: var(--action, #2563eb); }\n.ds-exp { background: #93c5fd; }"
+    },
+    {
+      "name": "Leave Queue",
+      "kind": "custom",
+      "refersTo": "button-quiet",
+      "description": "The only motion. Grid row opens over 240ms. Approve is bordered; reject is quiet.",
+      "html": "<div class=\"ds-queue\" dir=\"rtl\"><ul class=\"ds-leave\"><li><p><strong>موظف</strong> <span>· إجازة · 2 يوماً</span></p><p><button class=\"ds-btn-bordered\" type=\"button\">اعتماد</button><button class=\"ds-btn-quiet\" type=\"button\">رفض</button></p></li></ul></div>",
+      "css": ".ds-queue {\n  display: grid;\n  grid-template-rows: 1fr;\n  transition: grid-template-rows 240ms cubic-bezier(0.16, 1, 0.3, 1);\n  font-family: \"Readex Pro Variable\", sans-serif;\n  color: var(--ink, #111827);\n  font-size: 16px;\n}\n@media (prefers-reduced-motion: reduce) {\n  .ds-queue { transition: none; }\n}\n.ds-leave { list-style: none; margin: 0; padding: 0; }\n.ds-leave li {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  gap: 16px;\n  padding: 12px 0;\n  border-bottom: 1px solid var(--line, #e5e7eb);\n}\n.ds-leave p { margin: 0; }\n.ds-btn-bordered {\n  font-family: \"Readex Pro Variable\", sans-serif;\n  font-size: 16px;\n  background: var(--surface, #ffffff);\n  color: var(--ink, #111827);\n  border: 1px solid var(--line, #e5e7eb);\n  border-radius: 8px;\n  min-height: 40px;\n  padding: 8px 14px;\n  cursor: pointer;\n}\n.ds-btn-bordered:hover { background: #f3f4f6; }\n.ds-btn-bordered:focus-visible { outline: 2px solid var(--action, #2563eb); outline-offset: 2px; }\n.ds-btn-quiet {\n  font-family: \"Readex Pro Variable\", sans-serif;\n  font-size: 16px;\n  background: transparent;\n  color: var(--late, #b91c1c);\n  border: 0;\n  border-radius: 8px;\n  min-height: 40px;\n  padding: 8px 14px;\n  margin-inline-start: 20px;\n  cursor: pointer;\n}\n.ds-btn-quiet:hover { background: #f3f4f6; }\n.ds-btn-quiet:focus-visible { outline: 2px solid var(--action, #2563eb); outline-offset: 2px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Straight Shell",
+    "overview": "EOMS is the ordinary administrative shell of an engineering office, built straight. The director works in Arabic, right to left, and English uses the same structure in the other direction. Density is a working desk: a fixed rail, a heading, figures, then records. The binding product note is a modern, luxurious desk; the shipped shell answers with alignment, one type family, and hairline borders. Confirmed rejections: a marketing lobby, a wall of sample cards, and any costume that makes the office harder to read.\n\nThe page ground is cool gray. White is reserved for the metric cards and a paired panel. Lower sections sit on the ground under a title. Action blue is the only interactive color. Late red, on-time green, and waiting amber mark state, and the quiet reject action uses late red. The system is flat. The leave queue is the only motion, and it is removed when the user prefers reduced motion.\n\nA later module screen uses this frame. It renders in the work column, keeps the rail, and reuses the heading row, the bordered button, the table, and the metric card when it has those kinds of content. The wordmark is the letters EOMS in the rail. There is no logo file, no client company name, and no currency symbol to apply. Sample figures stay labeled as sample figures.",
+    "keyCharacteristics": [
+      "One self-hosted family, Readex Pro Variable, for Arabic and Latin",
+      "Cool gray ground, white surfaces, 1px lines, and no drop shadows",
+      "Action blue for interaction; red, green, and amber for state",
+      "A 230px rail, Arabic right to left by default, English on the same grid",
+      "12px on surfaces and 8px on controls",
+      "One primary action on the heading row"
+    ],
+    "rules": [
+      {
+        "name": "The One Accent Rule",
+        "body": "Action blue is the only interactive color. Primary actions, the active rail item, focus, stage bars, and the revenue share all use it. Notice Wash and Expense Share are lighter steps of that blue, and they stay on the banner and the proportion track.",
+        "section": "colors"
+      },
+      {
+        "name": "The Status-Only Rule",
+        "body": "Late red, on-time green, and waiting amber mark state. The quiet reject action is the one control that uses late red. These three colors do not brand the shell, fill a chart, or replace the primary button.",
+        "section": "colors"
+      },
+      {
+        "name": "The One Family Rule",
+        "body": "Readex Pro Variable carries every role in Arabic and Latin. Do not add a display face, a monospace face, or an icon font.",
+        "section": "typography"
+      },
+      {
+        "name": "The Latin Figures Rule",
+        "body": "Counts, percentages, and dates use tabular figures. Arabic formats them with Latin digits; English uses the US locale. Keep that numbering on the next module screen.",
+        "section": "typography"
+      },
+      {
+        "name": "The Permanent Shell Rule",
+        "body": "A module screen is a work column inside the existing rail. It keeps the rail, the type, and the color. It does not add a top bar or a second frame.",
+        "section": "layout"
+      },
+      {
+        "name": "The Ground Sections Rule",
+        "body": "Bordered white surfaces are the metric cards and a paired panel. A list or a table that is the whole section sits on the ground under its title.",
+        "section": "layout"
+      },
+      {
+        "name": "The Flat Rule",
+        "body": "Surfaces are flat at rest and on hover. A shadow is not a state. Separate regions with the ground and a 1px line.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Two Radius Rule",
+        "body": "Cards and the paired panel use 12px. Controls use 8px. The bar cap and the proportion pill stay on those two charts.",
+        "section": "shapes"
+      },
+      {
+        "name": "The One Primary Rule",
+        "body": "The heading row carries the single primary action. Every other action is a bordered button, or the quiet reject button.",
+        "section": "components"
+      },
+      {
+        "name": "The Still Shell Rule",
+        "body": "Hover, focus, and navigation do not animate. The leave queue is the only transition, and it is removed when the user prefers reduced motion.",
+        "section": "components"
+      }
+    ],
+    "dos": [
+      "**Do** keep the 230px rail, the work column, Readex Pro Variable, and the logical directions on every module screen.",
+      "**Do** mark the active module with Selected Wash and Pressed Blue at weight 600.",
+      "**Do** put at most one primary action on the heading row, and use the bordered button for a secondary action.",
+      "**Do** use Late Red, On-Time Green, and Waiting Amber only as status, with the quiet reject action as the single Late Red control.",
+      "**Do** keep a 40px target and a 2px Action Blue focus outline, 2px outside the control.",
+      "**Do** label synthetic figures as sample figures, and leave money as plain numbers beside the note that currency is not set.",
+      "**Do** collapse the rail under 900px behind the menu button, and stack the metric row and the paired panel under 640px."
+    ],
+    "donts": [
+      "**Don't** add a drop shadow, a second typeface, a glyph icon set, or a dark theme.",
+      "**Don't** invent a client company name, a logo, or a currency symbol. The wordmark is the letters EOMS.",
+      "**Don't** wrap every section in a card. A title and a table sit on the ground.",
+      "**Don't** animate hover, cards, or navigation. The leave queue is the only motion.",
+      "**Don't** use Expense Share, Notice Wash, or the status colors as button fills.",
+      "**Don't** restyle the shell for one module. An unbuilt module is a title, one sentence, and a link back."
+    ]
+  }
+}

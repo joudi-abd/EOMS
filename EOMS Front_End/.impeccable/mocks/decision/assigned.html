@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Readex+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0}
+html,body{width:1440px;height:900px;overflow:hidden}
+body{font-family:"Readex Pro",sans-serif;background:#E4E1DA;color:#241E18}
+.app{display:flex;height:900px}
+aside{width:240px;background:#8A7044;color:#F6F1E6;padding:28px 20px;display:flex;flex-direction:column}
+.mark{font-size:28px;font-weight:700;letter-spacing:.08em}
+.sub{font-size:13px;opacity:.85;margin:4px 0 28px}
+nav{display:flex;flex-direction:column;gap:2px}
+nav a{color:#F6F1E6;text-decoration:none;font-size:15px;padding:8px 12px;border-radius:4px}
+nav a.on{background:#F6F1E6;color:#6E5834;font-weight:600}
+main{flex:1;display:flex;flex-direction:column;min-width:0}
+header{height:72px;display:flex;align-items:center;justify-content:space-between;padding:0 32px}
+.who{font-size:18px;font-weight:600}
+.who span{font-weight:400;color:#6B6258}
+.lang{font-size:14px;border:1px solid #8A7044;background:transparent;color:#241E18;padding:6px 10px}
+.datum{background:#8A7044;color:#F6F1E6;min-height:196px;display:flex;align-items:center;gap:28px;padding:24px 32px}
+.big{font-size:92px;font-weight:700;line-height:.85}
+.big small{display:block;font-size:16px;font-weight:500;margin-top:8px}
+.spark{display:block;margin-top:8px}
+.plates{display:flex;gap:10px;flex:1}
+.plate{background:#F6F1E6;color:#241E18;border:0;text-align:right;padding:14px 14px;min-width:150px;border-radius:2px}
+.plate b{display:block;font-size:22px}
+.plate span{font-size:13px;color:#6B6258}
+.plate.go{outline:2px solid #F6F1E6}
+.void{width:36px}
+.reject{background:transparent;color:#F6F1E6;border:1px solid #F6F1E6;padding:14px 18px;font-size:16px;font-family:inherit;align-self:center}
+.work{padding:22px 32px;display:grid;grid-template-columns:1.1fr 1.6fr;gap:22px}
+.quiet{display:flex;gap:28px;padding-top:8px}
+.quiet div b{display:block;font-size:28px;font-weight:600}
+.quiet div span{font-size:13px;color:#6B6258}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{text-align:right;font-weight:500;color:#6B6258;padding:8px 0;border-bottom:1px solid #C9C2B4}
+td{padding:10px 0;border-bottom:1px solid #D9D3C7}
+.late{color:#9C3B2E;font-weight:600}
+.ok{color:#1E4A43;font-weight:600}
+.note{font-size:12px;color:#6B6258;margin-top:8px}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside>
+    <div class="mark">EOMS</div>
+    <div class="sub">نظام الإدارة المتكامل</div>
+    <nav>
+      <a class="on" href="#">لوحة المعلومات</a>
+      <a href="#">الموظفون</a>
+      <a href="#">الحضور</a>
+      <a href="#">الإجازات</a>
+      <a href="#">الرواتب</a>
+      <a href="#">المشاريع</a>
+      <a href="#">العملاء والعقود</a>
+      <a href="#">المالية</a>
+      <a href="#">المشتريات</a>
+      <a href="#">المخزون</a>
+      <a href="#">المستندات</a>
+      <a href="#">الأصول</a>
+    </nav>
+  </aside>
+  <main>
+    <header>
+      <div class="who">ليلى الحسن <span>· مديرة الشركة</span></div>
+      <button class="lang" type="button">عربي | EN</button>
+    </header>
+    <section class="datum">
+      <div class="big">٤<small>قرارات تنتظر اليوم</small>
+        <svg class="spark" width="120" height="28" viewBox="0 0 120 28" aria-hidden="true">
+          <polyline points="0,20 20,18 40,19 60,14 80,8 100,9 120,4" fill="none" stroke="#F6F1E6" stroke-width="2"/>
+          <circle cx="80" cy="8" r="3" fill="#E4B15A"/>
+        </svg>
+      </div>
+      <div class="plates">
+        <button class="plate go" type="button"><b>٣ إجازات</b><span>اعتماد</span></button>
+        <button class="plate" type="button"><b>١٢ يوماً</b><span>عقد الواجهة البحرية</span></button>
+        <button class="plate" type="button"><b>٤ مهام</b><span>متأخرة · مدرسة الرواد</span></button>
+        <button class="plate" type="button"><b>طلب شراء</b><span>حديد تسليح</span></button>
+      </div>
+      <div class="void"></div>
+      <button class="reject" type="button">رفض</button>
+    </section>
+    <section class="work">
+      <div>
+        <div class="quiet">
+          <div><b>٨٦</b><span>موظفاً</span></div>
+          <div><b>٧٩</b><span>حاضر اليوم · غياب ٤</span></div>
+          <div><b>١١</b><span>مشروعاً قائماً</span></div>
+        </div>
+        <p class="note">بيانات توضيحية. العلامة على الأثر: اليوم الذي دخل فيه عقد الواجهة نافذة التنبيه.</p>
+      </div>
+      <table>
+        <thead><tr><th>المشروع</th><th>الحالة</th><th>الإنجاز</th><th>الموعد</th></tr></thead>
+        <tbody>
+          <tr><td>الواجهة البحرية</td><td>تنفيذ</td><td>٦٨٪</td><td class="late">متأخر</td></tr>
+          <tr><td>مدرسة الرواد</td><td>تنفيذ</td><td>٤١٪</td><td class="late">متأخر</td></tr>
+          <tr><td>برج النخيل</td><td>تصميم</td><td>٢٢٪</td><td class="ok">في الموعد</td></tr>
+          <tr><td>عيادة النور</td><td>تسليم</td><td>٩١٪</td><td class="ok">في الموعد</td></tr>
+        </tbody>
+      </table>
+    </section>
+  </main>
+</div>
+</body>
+</html>

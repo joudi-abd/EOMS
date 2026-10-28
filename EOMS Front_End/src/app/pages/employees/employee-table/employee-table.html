@@ -1,0 +1,40 @@
+<div class="sheet">
+  <table>
+    <thead>
+      <tr>
+        <th>{{ t('staffNo') }}</th>
+        <th>{{ t('employeeCol') }}</th>
+        <th>{{ t('jobTitle') }}</th>
+        <th>{{ t('department') }}</th>
+        <th>{{ t('state') }}</th>
+        <th>{{ t('tabFinger') }}</th>
+        <th>{{ t('hired') }}</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (employee of rows(); track employee.id) {
+        <tr>
+          <td class="num">{{ employee.staffNo }}</td>
+          <td>
+            <a class="name" [routerLink]="[]" [queryParams]="{ file: employee.id }" queryParamsHandling="merge">
+              {{ text(employee.name) }}
+            </a>
+          </td>
+          <td>{{ text(employee.title) || '—' }}</td>
+          <td>{{ department(employee.department) }}</td>
+          <td
+            [class.ok]="employee.status === 'active'"
+            [class.wait]="employee.status === 'away' || employee.status === 'leaving'"
+            [class.late]="employee.status === 'ended'"
+          >
+            {{ t(employee.status) }}
+          </td>
+          <td [class.wait]="employee.fingerprint === 'queued' || employee.fingerprint === 'waiting'" [class.late]="employee.fingerprint === 'failed'">
+            {{ t(fingerKey[employee.fingerprint]) }}
+          </td>
+          <td>{{ date(employee.hired) }}</td>
+        </tr>
+      }
+    </tbody>
+  </table>
+</div>

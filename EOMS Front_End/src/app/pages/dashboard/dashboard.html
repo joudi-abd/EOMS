@@ -1,0 +1,60 @@
+<main class="work" id="content">
+  <button class="menu" type="button" (click)="chrome.toggle()">
+    <i class="fa-solid" [class.fa-bars]="!chrome.menuOpen()" [class.fa-xmark]="chrome.menuOpen()" aria-hidden="true"></i>
+    {{ chrome.menuOpen() ? t('closeMenu') : t('menu') }}
+  </button>
+  <app-notice />
+
+  <header class="heading">
+    <div>
+      <h1>{{ greeting() }} {{ firstName() }}</h1>
+      <p class="sub">{{ today() }} · {{ session.roleLine() }}</p>
+    </div>
+    <div class="actions">
+      <button class="text" type="button" (click)="exportPdf()">
+        <i class="fa-solid fa-file-pdf" aria-hidden="true"></i>
+        {{ t('exportDashboard') }}
+      </button>
+      @if (session.can('leave') && decidesLeave()) {
+        <button class="primary" type="button" [attr.aria-expanded]="leaveOpen()" aria-controls="leave-queue" (click)="toggleLeave()">
+          <i class="fa-solid fa-calendar-check" aria-hidden="true"></i>
+          {{ t('approveLeave') }}
+        </button>
+      }
+    </div>
+  </header>
+
+  @if (session.can('leave')) {
+    <app-leave-queue />
+  }
+
+  <app-metrics />
+
+  @if (session.can('attendance')) {
+    @if (officeView()) {
+      <app-attendance-block />
+    } @else if (session.hasFile()) {
+      <app-my-month />
+    }
+  }
+
+  @if (session.can('employees') || session.can('leave')) {
+    <app-people />
+  }
+
+  @if ((session.can('requests') && session.canAct('leave.decide')) || session.can('payroll')) {
+    <app-hr-flow />
+  }
+
+  @if (session.can('procurement')) {
+    <app-purchase-table />
+  }
+
+  @if (session.can('access')) {
+    <app-accounts-mix />
+  }
+
+  @if (!hasSection()) {
+    <p class="empty">{{ t('emptyHome') }}</p>
+  }
+</main>

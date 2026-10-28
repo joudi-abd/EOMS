@@ -1,0 +1,5 @@
+<main class="work later" id="content">
+  <h1>{{ title() }}</h1>
+  <p>{{ allowed() || !known() ? t('laterBody') : t('noAccess') }}</p>
+  <a class="primary" routerLink="/">{{ t('back') }}</a>
+</main>

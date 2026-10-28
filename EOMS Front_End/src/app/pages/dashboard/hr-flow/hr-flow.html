@@ -1,0 +1,32 @@
+<div class="grid-2">
+  @if (session.can('requests')) {
+    <section class="panel" data-print>
+      <header class="panel-head">
+        <div>
+          <h2>{{ t('requestsTitle') }}</h2>
+          <p>{{ session.canAct('leave.decide') ? t('officeScope') : t('teamScope') }}</p>
+        </div>
+        <a class="text small" routerLink="/modules/requests">{{ t('requests') }}</a>
+      </header>
+      <app-bar-chart [data]="insights.requestsByKind()" [series]="series()" [label]="t('requestsTitle')" [stacked]="true" [height]="260" />
+    </section>
+  }
+  @if (session.can('payroll')) {
+    <section class="panel" data-print>
+      <header class="panel-head">
+        <div>
+          <h2>{{ t('payrollTitle') }}</h2>
+          @if (insights.payroll(); as payroll) {
+            <p>{{ payroll.month }} · {{ t(runStatusKey[payroll.run.status]) }}</p>
+          }
+        </div>
+        <a class="text small" routerLink="/modules/payroll">{{ t('payroll') }}</a>
+      </header>
+      @if (insights.payroll(); as payroll) {
+        <app-donut-chart [slices]="payroll.slices" [label]="t('payrollTitle')" [center]="t('runEmployees')" />
+      } @else {
+        <p class="empty">{{ t('noRunsHint') }}</p>
+      }
+    </section>
+  }
+</div>

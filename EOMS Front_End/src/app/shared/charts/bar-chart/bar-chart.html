@@ -1,0 +1,64 @@
+<figure class="chart">
+  <svg
+    class="chart-svg"
+    [attr.width]="width()"
+    [attr.height]="height()"
+    [attr.viewBox]="'0 0 ' + width() + ' ' + height()"
+    role="img"
+    [attr.aria-label]="label()"
+    (pointermove)="track($event)"
+    (pointerleave)="active.set(null)"
+  >
+    @for (tick of ticks(); track tick.value) {
+      <line class="grid" [attr.x1]="rtl() ? 8 : pad.start" [attr.x2]="rtl() ? width() - pad.start : width() - pad.end" [attr.y1]="tick.y" [attr.y2]="tick.y" />
+      <text class="axis" [attr.x]="axisX()" [attr.y]="tick.y + 4" text-anchor="end">{{ format(tick.value) }}</text>
+    }
+    @if (active() !== null) {
+      <rect class="guide" [attr.x]="guideX()" [attr.y]="pad.top" [attr.width]="band()" [attr.height]="plot().height" />
+    }
+    @for (group of bars(); track $index) {
+      @for (bar of group; track bar.key) {
+        @if (bar.height > 0) {
+          <rect class="bar" [attr.x]="bar.x" [attr.y]="bar.y" [attr.width]="bar.width" [attr.height]="bar.height" [attr.rx]="stacked() ? 0 : 3" [style.fill]="bar.color" />
+        }
+      }
+    }
+    @for (item of labels(); track $index) {
+      @if (item.shown) {
+        <text class="axis" [attr.x]="item.x" [attr.y]="height() - 10" text-anchor="middle">{{ item.text }}</text>
+      }
+    }
+  </svg>
+  @if (tip(); as box) {
+    <div class="tip" [style.left.px]="box.x" aria-hidden="true">
+      <strong>{{ box.title }}</strong>
+      @for (row of box.rows; track row.label) {
+        <span><i [style.background]="row.color"></i>{{ row.label }} <b>{{ row.value }}</b></span>
+      }
+    </div>
+  }
+  @if (series().length > 1) {
+    <figcaption class="legend">
+      @for (item of series(); track item.key) {
+        <span><i [style.background]="item.color"></i>{{ item.label }}</span>
+      }
+    </figcaption>
+  }
+  <table class="vh">
+    <caption>{{ label() }}</caption>
+    <tr>
+      <th></th>
+      @for (item of series(); track item.key) {
+        <th>{{ item.label }}</th>
+      }
+    </tr>
+    @for (row of data(); track $index) {
+      <tr>
+        <th>{{ row.label }}</th>
+        @for (item of series(); track item.key) {
+          <td>{{ format(row.values[item.key] ?? 0) }}</td>
+        }
+      </tr>
+    }
+  </table>
+</figure>

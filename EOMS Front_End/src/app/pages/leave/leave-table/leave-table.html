@@ -1,0 +1,39 @@
+<div class="sheet">
+  <table>
+    <thead>
+      <tr>
+        <th>{{ t('employeeCol') }}</th>
+        <th>{{ t('kind') }}</th>
+        <th>{{ t('leaveFrom') }}</th>
+        <th>{{ t('span') }}</th>
+        <th>{{ t('state') }}</th>
+        <th><span class="vh">{{ t('approve') }}</span></th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (row of rows(); track row.id) {
+        <tr>
+          <td>
+            <a class="name" [routerLink]="[]" [queryParams]="{ req: row.id }" queryParamsHandling="merge">{{ text(row.employee) }}</a>
+          </td>
+          <td>{{ text(row.type) }}</td>
+          <td class="num">{{ short(row.from) }}</td>
+          <td class="num">{{ length(row) }}</td>
+          <td [class]="tone(row.status)">{{ t(row.status) }}</td>
+          <td class="decide">
+            @if (office.canAdvanceLeave(row.id, session.account().id)) {
+              <button class="text" type="button" (click)="approve(row.id)">
+                <i class="fa-solid fa-check" aria-hidden="true"></i>
+                {{ t('approve') }}
+              </button>
+              <button class="quiet" type="button" (click)="reject(row.id)">
+                <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+                {{ t('reject') }}
+              </button>
+            }
+          </td>
+        </tr>
+      }
+    </tbody>
+  </table>
+</div>

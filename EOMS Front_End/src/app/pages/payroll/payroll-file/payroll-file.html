@@ -1,0 +1,62 @@
+@if (person(); as row) {
+  <header class="heading">
+    <h1>{{ text(row.name) }}</h1>
+    <button class="text" type="button" (click)="back()">{{ t('backToPayroll') }}</button>
+  </header>
+  <p class="note">{{ t('payrollRules') }}</p>
+  <p class="note">{{ t('currencyNote') }}</p>
+  <dl class="facts">
+    <dt>{{ t('staffNo') }}</dt>
+    <dd class="num">{{ row.staffNo }}</dd>
+    <dt>{{ t('jobTitle') }}</dt>
+    <dd>{{ text(row.title) }}</dd>
+    <dt>{{ t('department') }}</dt>
+    <dd>{{ department(row.department) }}</dd>
+    <dt>{{ t('state') }}</dt>
+    <dd>{{ t(row.status) }}</dd>
+    <dt>{{ t('hired') }}</dt>
+    <dd>{{ date(row.hired) }}</dd>
+    <dt>{{ t('payrollBase') }}</dt>
+    <dd class="muted">{{ t('payrollUnset') }}</dd>
+    <dt>{{ t('payrollAllowance') }}</dt>
+    <dd class="muted">{{ t('payrollLinesUnset') }}</dd>
+    <dt>{{ t('payrollDeduction') }}</dt>
+    <dd class="muted">{{ t('noDeduction') }}</dd>
+    <dt>{{ t('overtimeLabel') }}</dt>
+    <dd class="muted">{{ t('overtimeRule') }}</dd>
+  </dl>
+
+  <h2>{{ t('payments') }}</h2>
+  @if (payments().length === 0) {
+    <p class="empty">{{ t('noPayments') }}</p>
+  } @else {
+    <div class="sheet">
+      <table>
+        <thead>
+          <tr>
+            <th>{{ t('runPeriod') }}</th>
+            <th>{{ t('payMethod') }}</th>
+            <th>{{ t('payReference') }}</th>
+            <th>{{ t('paidOn') }}</th>
+            <th>{{ t('byLabel') }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (pay of payments(); track pay.id) {
+            <tr>
+              <td>{{ period(pay.runId) }}</td>
+              <td>{{ pay.method === 'cash' ? t('payCash') : t('payWallet') }}</td>
+              <td class="num">{{ pay.reference }}</td>
+              <td class="num">{{ date(pay.paidOn) }}</td>
+              <td>{{ actor(pay.actorId) }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+} @else {
+  <h1>{{ t('payroll') }}</h1>
+  <p class="empty">{{ t('missingPayroll') }}</p>
+  <button class="text" type="button" (click)="back()">{{ t('backToPayroll') }}</button>
+}

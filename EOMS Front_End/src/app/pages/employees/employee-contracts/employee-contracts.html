@@ -1,0 +1,55 @@
+<div class="sheet">
+  <table>
+    <thead>
+      <tr>
+        <th>{{ t('contractType') }}</th>
+        <th>{{ t('contractStart') }}</th>
+        <th>{{ t('contractEnd') }}</th>
+        <th>{{ t('state') }}</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (contract of rows(); track contract.id) {
+        <tr>
+          <td>{{ typeName(contract.type) }}</td>
+          <td>{{ date(contract.start) }}</td>
+          <td>{{ contract.end ? date(contract.end) : t('noEnd') }}</td>
+          <td [class.ok]="contract.status === 'current'">{{ state(contract) }}</td>
+        </tr>
+      }
+    </tbody>
+  </table>
+</div>
+<p class="note">{{ t('contractRenewHint') }}</p>
+<p class="note">{{ t('contractOpenPoints') }}</p>
+
+@if (session.mayEdit(person().id, 'employee.edit') && person().status !== 'ended') {
+  <h2>{{ t('renewContract') }}</h2>
+  <form class="form" (submit)="renew($event)">
+    <label>
+      <span>{{ t('contractType') }}</span>
+      <select name="type" autocomplete="off" (change)="onType($event)">
+        @for (item of office.contractTypes(); track item.id) {
+          <option [value]="item.id" [selected]="typeId() === item.id">{{ text(item.name) }}</option>
+        }
+      </select>
+    </label>
+    <label>
+      <span>{{ t('contractStart') }}</span>
+      <input name="start" type="date" autocomplete="off" required />
+    </label>
+    @if (fixedTerm()) {
+      <label>
+        <span>{{ t('contractEnd') }}</span>
+        <input name="end" type="date" autocomplete="off" required />
+      </label>
+    }
+    <button class="text" type="submit">
+      <i class="fa-solid fa-file-signature" aria-hidden="true"></i>
+      {{ t('renewContract') }}
+    </button>
+    @if (refused()) {
+      <p class="warn wide">{{ t('hireInvalid') }}</p>
+    }
+  </form>
+}

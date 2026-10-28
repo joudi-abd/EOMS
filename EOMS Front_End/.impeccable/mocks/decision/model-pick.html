@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Readex+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0}
+html,body{width:1440px;height:900px;overflow:hidden}
+body{font-family:"Readex Pro",sans-serif;background:#E7E2D8;color:#1A1A1A}
+.app{display:flex;height:900px}
+aside{width:220px;background:#2A2622;color:#E7E2D8;padding:28px 18px}
+.mark{font-size:26px;font-weight:700}
+.sub{font-size:13px;opacity:.7;margin:4px 0 24px}
+nav a{display:block;color:#E7E2D8;text-decoration:none;font-size:15px;padding:8px 10px}
+nav a.on{background:#8A7044;color:#F6F1E6}
+main{flex:1;padding:28px 32px}
+header{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:22px}
+header b{font-size:20px}
+header span{font-size:14px;color:#6B6258}
+.held{background:#8A7044;color:#F6F1E6;min-height:280px;padding:28px;display:grid;grid-template-columns:1.2fr .8fr;gap:24px;position:relative}
+.tag{position:absolute;top:18px;left:18px;background:#F4EFE2;color:#1A1A1A;font-size:13px;padding:8px 10px;width:140px}
+.tag b{display:block;font-size:12px;letter-spacing:.04em}
+.held h1{font-size:64px;font-weight:700;line-height:.9}
+.held p{font-size:18px;margin-top:12px}
+.actions{display:flex;gap:12px;align-items:end}
+button{font-family:inherit;font-size:16px;padding:12px 18px;border:0;background:#F6F1E6;color:#1A1A1A}
+.ghost{background:transparent;color:#F6F1E6;border:1px solid #F6F1E6;margin-right:48px}
+.row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-top:16px}
+.swatch{min-height:210px;padding:18px;display:flex;flex-direction:column;justify-content:space-between}
+.swatch b{font-size:40px}
+.swatch span{font-size:15px}
+.c{background:#C8C4BC}
+.g{background:#D7E0DC}
+.w{background:#6B4A32;color:#F6F1E6}
+.note{font-size:12px;color:#6B6258;margin-top:12px}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside>
+    <div class="mark">EOMS</div>
+    <div class="sub">نظام الإدارة المتكامل</div>
+    <nav>
+      <a class="on" href="#">لوحة المعلومات</a>
+      <a href="#">الموظفون</a>
+      <a href="#">الحضور</a>
+      <a href="#">الإجازات</a>
+      <a href="#">المشاريع</a>
+      <a href="#">المالية</a>
+      <a href="#">المشتريات</a>
+      <a href="#">المستندات</a>
+    </nav>
+  </aside>
+  <main>
+    <header>
+      <b>ليلى الحسن · مديرة الشركة</b>
+      <span>بيانات توضيحية</span>
+    </header>
+    <section class="held">
+      <div class="tag"><b>عينة ممسوكة</b>إجازات · بانتظار الاعتماد</div>
+      <div>
+        <h1>٣</h1>
+        <p>طلبات إجازة تنتظر اعتمادك اليوم.</p>
+      </div>
+      <div class="actions">
+        <button type="button">اعتماد</button>
+        <button class="ghost" type="button">رفض</button>
+      </div>
+    </section>
+    <div class="row">
+      <article class="swatch c"><b>٨٦</b><span>موظف · الخرسانة</span></article>
+      <article class="swatch g"><b>٧٩</b><span>حاضر · الزجاج · غياب ٤</span></article>
+      <article class="swatch w"><b>١١</b><span>مشروع · الخشب · ٤ مهام متأخرة</span></article>
+    </div>
+    <p class="note">ختم المواصفة يبقى على العينة الممسوكة فقط. بقية العينات أرقام بلا إجراء.</p>
+  </main>
+</div>
+</body>
+</html>

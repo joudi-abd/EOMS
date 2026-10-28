@@ -1,0 +1,62 @@
+<main class="work" id="content">
+  <button class="menu" type="button" (click)="chrome.toggle()">
+    <i class="fa-solid" [class.fa-bars]="!chrome.menuOpen()" [class.fa-xmark]="chrome.menuOpen()" aria-hidden="true"></i>
+    {{ chrome.menuOpen() ? t('closeMenu') : t('menu') }}
+  </button>
+
+  @if (!session.can('requests')) {
+    <h1>{{ t('requests') }}</h1>
+    <p class="empty">{{ t('noAccess') }}</p>
+    <a class="primary" routerLink="/">{{ t('back') }}</a>
+  } @else {
+    <app-notice />
+
+    @if (request()) {
+      <app-request-file />
+    } @else {
+      <header class="heading">
+        <h1>{{ t('requests') }}</h1>
+        @if (session.hasFile()) {
+          <div class="actions">
+            @for (item of kinds; track item) {
+              <button [class]="item === 'correction' ? 'primary' : 'text'" type="button" (click)="openNew(item)">
+                <i class="fa-solid {{ kindIcon[item] }}" aria-hidden="true"></i>
+                {{ t(kindKey[item]) }}
+              </button>
+            }
+          </div>
+        }
+      </header>
+      <p class="note">{{ t('requestsHint') }}</p>
+
+      <div class="filters">
+        <label>
+          <span>{{ t('kind') }}</span>
+          <select name="kind" autocomplete="off" (change)="filter('kind', $event)">
+            <option value="">{{ t('allKinds') }}</option>
+            @for (item of kinds; track item) {
+              <option [value]="item" [selected]="kind() === item">{{ t(kindKey[item]) }}</option>
+            }
+          </select>
+        </label>
+        <label>
+          <span>{{ t('state') }}</span>
+          <select name="status" autocomplete="off" (change)="filter('status', $event)">
+            <option value="">{{ t('allStatuses') }}</option>
+            <option value="pending_manager" [selected]="status() === 'pending_manager'">{{ t('pending_manager') }}</option>
+            <option value="pending_hr" [selected]="status() === 'pending_hr'">{{ t('pending_hr') }}</option>
+            <option value="approved" [selected]="status() === 'approved'">{{ t('approved') }}</option>
+            <option value="rejected" [selected]="status() === 'rejected'">{{ t('rejected') }}</option>
+          </select>
+        </label>
+      </div>
+
+      @if (rows().length === 0) {
+        <p class="empty">{{ t('emptyRequests') }}</p>
+        <button class="text" type="button" (click)="clearFilters()">{{ t('allRequests') }}</button>
+      } @else {
+        <app-request-table [rows]="rows()" />
+      }
+    }
+  }
+</main>

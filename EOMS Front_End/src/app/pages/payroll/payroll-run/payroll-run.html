@@ -1,0 +1,117 @@
+@if (run(); as item) {
+  <header class="heading">
+    <h1>{{ t('payroll') }} · {{ month(item.period) }}</h1>
+    <button class="text" type="button" (click)="back()">{{ t('backToRuns') }}</button>
+  </header>
+  <p class="note">{{ t('amountsUnset') }} {{ t('runAttendanceNote') }}</p>
+
+  <ol class="stages">
+    @for (stage of stages; track stage) {
+      <li [class.done]="reached(stage)" [class.current]="item.status === stage">
+        <i class="fa-solid" [class.fa-circle-check]="reached(stage) && item.status !== stage" [class.fa-circle-dot]="item.status === stage" [class.fa-circle]="!reached(stage)" aria-hidden="true"></i>
+        <span>{{ t(runStatusKey[stage]) }}</span>
+        @switch (stage) {
+          @case ('review') {
+            <small>{{ t('preparedByLabel') }} {{ actor(item.preparedBy) }}</small>
+          }
+          @case ('approval') {
+            <small>{{ t('reviewedByLabel') }} {{ actor(item.reviewedBy) }}</small>
+          }
+          @case ('approved') {
+            <small>{{ t('approvedByLabel') }} {{ actor(item.approvedBy) }}</small>
+          }
+        }
+      </li>
+    }
+  </ol>
+
+  @if (item.returnNote) {
+    <p class="warn">{{ t('returnedWith') }} {{ item.returnNote }}</p>
+  }
+
+  @if (item.status !== 'approved') {
+    @if (step()) {
+      <div class="actions">
+        <button class="primary" type="button" (click)="advance()">
+          <i class="fa-solid fa-check" aria-hidden="true"></i>
+          {{ stepLabel() }}
+        </button>
+      </div>
+      @if (mayReturn()) {
+        <form class="return" (submit)="sendBack($event)">
+          <label>
+            <span>{{ t('returnNote') }}</span>
+            <input name="note" type="text" autocomplete="off" required />
+          </label>
+          <button class="quiet" type="submit">{{ t('returnRun') }}</button>
+        </form>
+      }
+    } @else {
+      <p class="note">{{ t('stepWaiting') }}: {{ t(runStatusKey[item.status]) }} · {{ t('noStepForYou') }}</p>
+    }
+    <p class="note">{{ t('separationRule') }}</p>
+  }
+
+  <section class="panel paid" data-print>
+    <header class="panel-head">
+      <div>
+        <h2>{{ t('paidMix') }}</h2>
+        <p>{{ t('amountsUnset') }}</p>
+      </div>
+    </header>
+    <app-donut-chart [slices]="paidMix()" [label]="t('paidMix')" [center]="t('runEmployees')" />
+  </section>
+
+  <div class="bar">
+    <h2>{{ t('runEmployees') }}</h2>
+    <div class="actions">
+      <button class="text" type="button" [disabled]="exporting()" (click)="exportExcel()">
+        <i class="fa-solid fa-file-excel" aria-hidden="true"></i>
+        {{ exporting() ? t('exporting') : t('exportExcel') }}
+      </button>
+      <button class="text" type="button" (click)="exportPdf()">
+        <i class="fa-solid fa-file-pdf" aria-hidden="true"></i>
+        {{ t('exportPdf') }}
+      </button>
+    </div>
+  </div>
+  <app-payroll-table [lines]="lines()" />
+
+  @if (item.status === 'approved' && session.canAct('payroll.pay') && unpaid().length > 0) {
+    <h2>{{ t('recordPay') }}</h2>
+    <p class="note">{{ t('payrollPayRule') }}</p>
+    <form class="pay" (submit)="pay($event)">
+      <label>
+        <span>{{ t('employeeCol') }}</span>
+        <select name="employee" autocomplete="off" required>
+          @for (line of unpaid(); track line.employee.id) {
+            <option [value]="line.employee.id">{{ text(line.employee.name) }}</option>
+          }
+        </select>
+      </label>
+      <label>
+        <span>{{ t('payMethod') }}</span>
+        <select name="method" autocomplete="off" (change)="onMethod($event)">
+          <option value="cash" [selected]="method() === 'cash'">{{ t('payCash') }}</option>
+          <option value="wallet" [selected]="method() === 'wallet'">{{ t('payWallet') }}</option>
+        </select>
+      </label>
+      <label>
+        <span>{{ t('payReference') }}</span>
+        <input name="reference" type="text" autocomplete="off" required />
+      </label>
+      <label>
+        <span>{{ t('paidOn') }}</span>
+        <input name="paidOn" type="date" autocomplete="off" required />
+      </label>
+      <button class="primary" type="submit">{{ t('recordPay') }}</button>
+      @if (refused()) {
+        <p class="warn wide">{{ t('hireInvalid') }}</p>
+      }
+    </form>
+  }
+} @else {
+  <h1>{{ t('payroll') }}</h1>
+  <p class="empty">{{ t('noRuns') }}</p>
+  <button class="text" type="button" (click)="back()">{{ t('backToRuns') }}</button>
+}

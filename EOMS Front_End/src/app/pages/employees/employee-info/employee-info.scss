@@ -1,0 +1,48 @@
+:host {
+  display: block;
+}
+
+.edit {
+  width: fit-content;
+  color: var(--ink);
+  text-decoration: none;
+  margin-top: 16px;
+}
+
+.file {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px 24px;
+  margin: 20px 0 16px;
+  max-width: 880px;
+}
+
+.file div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+dt {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+dd {
+  margin: 0;
+}
+
+.mono {
+  font-variant-numeric: tabular-nums;
+}
+
+.wide {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 640px) {
+  .file {
+    grid-template-columns: 1fr;
+  }
+}

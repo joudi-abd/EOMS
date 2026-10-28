@@ -1,0 +1,120 @@
+@if (creating()) {
+  <header class="heading">
+    <h1>{{ t('requestLeave') }}</h1>
+    <button class="text" type="button" (click)="back()">{{ t('backToLeave') }}</button>
+  </header>
+  <p class="note">{{ t('ownRequest') }} {{ t('leavePath') }}</p>
+  <p class="note">{{ t('leavePolicy') }}</p>
+  @if (session.canAct('leave.request')) {
+    <form class="form" (submit)="save($event)">
+      <label>
+        <span>{{ t('kind') }}</span>
+        <select name="typeId" autocomplete="off" (change)="read('typeId', $event)">
+          @for (item of office.leaveTypes(); track item.id) {
+            <option [value]="item.id" [selected]="typeId() === item.id">{{ text(item.name) }}</option>
+          }
+        </select>
+      </label>
+      <label>
+        <span>{{ hourly() ? t('date') : t('leaveFrom') }}</span>
+        <input name="from" type="date" autocomplete="off" required [value]="from()" (input)="read('from', $event)" />
+      </label>
+      @if (hourly()) {
+        <label>
+          <span>{{ t('hoursFrom') }}</span>
+          <input name="start" type="time" required [value]="start()" (input)="read('start', $event)" />
+        </label>
+        <label>
+          <span>{{ t('hoursTo') }}</span>
+          <input name="end" type="time" required [value]="end()" (input)="read('end', $event)" />
+        </label>
+      } @else {
+        <label>
+          <span>{{ t('leaveDays') }}</span>
+          <input name="days" type="number" min="1" max="60" inputmode="numeric" required [value]="days()" (input)="onDays($event)" />
+        </label>
+      }
+      <label class="wide">
+        <span>{{ t('leaveReason') }}</span>
+        <input name="reason" type="text" autocomplete="off" [value]="reason()" (input)="read('reason', $event)" />
+      </label>
+      @if (clockOrder()) {
+        <p class="wide warn">{{ t('permitOrder') }}</p>
+      }
+      @if (missed()) {
+        <p class="wide warn">{{ t('missingStaff') }}</p>
+      }
+      <button class="primary" type="submit" [disabled]="!ready()">{{ t('saveRequest') }}</button>
+    </form>
+  } @else {
+    <p class="empty">{{ t('missingStaff') }}</p>
+  }
+} @else if (row(); as leave) {
+  <header class="heading">
+    <h1>{{ text(leave.employee) }}</h1>
+    <button class="text" type="button" (click)="back()">{{ t('backToLeave') }}</button>
+  </header>
+  <dl class="facts">
+    <dt>{{ t('kind') }}</dt>
+    <dd>{{ text(leave.type) }}</dd>
+    @if (leave.kind === 'leave') {
+      <dt>{{ t('leaveFrom') }}</dt>
+      <dd>{{ date(leave.from) }}</dd>
+      <dt>{{ t('leaveUntil') }}</dt>
+      <dd>{{ date(leave.until) }}</dd>
+      <dt>{{ t('leaveDays') }}</dt>
+      <dd>{{ num(leave.days) }} {{ leave.days === 1 ? t('day') : t('days') }}</dd>
+    } @else {
+      <dt>{{ t('date') }}</dt>
+      <dd>{{ date(leave.from) }}</dd>
+      <dt>{{ t('hoursFrom') }}</dt>
+      <dd>{{ leave.start }} – {{ leave.end }}</dd>
+    }
+    @if (leave.reason) {
+      <dt>{{ t('leaveReason') }}</dt>
+      <dd>{{ leave.reason }}</dd>
+    }
+    <dt>{{ t('state') }}</dt>
+    <dd [class]="tone(leave.status)">{{ t(leave.status) }}</dd>
+  </dl>
+
+  <h2>{{ t('decisionsTitle') }}</h2>
+  <ol class="trail">
+    @for (decision of leave.decisions; track $index) {
+      <li>
+        <span class="when">{{ date(decision.at) }} {{ decision.at.slice(11, 16) }}</span>
+        <span>{{ decision.stage === 'manager' ? t('stageManager') : decision.stage === 'self' ? t('stageSelf') : t('stageHr') }}</span>
+        <span [class.ok]="decision.decision === 'approved'" [class.late]="decision.decision === 'rejected'">
+          {{ actor(decision.actorId) }} {{ decision.decision === 'approved' ? t('decisionApproved') : t('decisionRejected') }}
+        </span>
+      </li>
+    }
+    @if (leave.status === 'pending_manager' || leave.status === 'pending_hr') {
+      <li class="waiting">
+        <span class="when">—</span>
+        <span>{{ leave.status === 'pending_manager' ? t('stageManager') : t('stageHr') }}</span>
+        <span class="wait">{{ t(leave.status) }}</span>
+      </li>
+    }
+  </ol>
+
+  @if (own() && (leave.status === 'pending_manager' || leave.status === 'pending_hr')) {
+    <p class="note">{{ t('selfDecide') }}</p>
+  }
+  @if (office.canAdvanceLeave(leave.id, session.account().id)) {
+    <div class="actions">
+      <button class="primary" type="button" (click)="approve()">
+        <i class="fa-solid fa-check" aria-hidden="true"></i>
+        {{ t('approve') }}
+      </button>
+      <button class="quiet" type="button" (click)="reject()">
+        <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+        {{ t('reject') }}
+      </button>
+    </div>
+  }
+} @else {
+  <h1>{{ t('leave') }}</h1>
+  <p class="empty">{{ t('missingLeave') }}</p>
+  <button class="text" type="button" (click)="back()">{{ t('backToLeave') }}</button>
+}

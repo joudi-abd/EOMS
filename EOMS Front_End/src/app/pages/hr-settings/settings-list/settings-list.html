@@ -1,0 +1,98 @@
+<section class="named">
+  <h2>{{ heading() }}</h2>
+  @if (list() === 'leaveTypes') {
+    <p class="note">{{ t('leaveRulesOpen') }}</p>
+  }
+  @if (!remote()) {
+    <p class="note">{{ t('localOnly') }}</p>
+  }
+  @if (items().length === 0) {
+    <p class="empty" aria-live="polite">{{ office.loading() ? t('loading') : '—' }}</p>
+  }
+  <ul class="list">
+    @for (item of items(); track item.id) {
+      <li>
+        @if (editing() === item.id) {
+          <form class="rename" (submit)="rename($event, item.id)">
+            <label>
+              <span class="vh">{{ remote() ? t('personName') : t('nameAr') }}</span>
+              <input name="ar" type="text" autocomplete="off" maxlength="120" required [value]="item.name.ar" />
+            </label>
+            @if (list() === 'departments') {
+              <label>
+                <span class="vh">{{ t('departmentCode') }}</span>
+                <input name="code" type="text" autocomplete="off" maxlength="20" dir="ltr" required [value]="code(item)" />
+              </label>
+            } @else if (!remote()) {
+              <label>
+                <span class="vh">{{ t('nameEn') }}</span>
+                <input name="en" type="text" autocomplete="off" [value]="item.name.en" />
+              </label>
+            }
+            <button class="text" type="submit" [disabled]="busy()">{{ t('save') }}</button>
+            <button class="text" type="button" (click)="edit(item.id)">{{ t('cancel') }}</button>
+          </form>
+        } @else {
+          <span class="name">{{ text(item.name) }}</span>
+          <span class="extra">{{ extra(item) }}</span>
+          @if (session.canAct('hr.settings')) {
+            <button class="text small" type="button" (click)="edit(item.id)">
+              <i class="fa-solid fa-pen" aria-hidden="true"></i>
+              {{ t('rename') }}
+            </button>
+            @if (remote()) {
+              <button class="quiet small" type="button" [disabled]="busy()" (click)="remove(item.id)">
+                <i class="fa-solid fa-trash" aria-hidden="true"></i>
+                {{ t('deleteItem') }}
+              </button>
+            }
+          }
+        }
+      </li>
+    }
+  </ul>
+  @if (session.canAct('hr.settings')) {
+    <form class="add" (submit)="add($event)">
+      <label>
+        <span>{{ remote() ? t('personName') : t('nameAr') }}</span>
+        <input name="ar" type="text" autocomplete="off" maxlength="120" required />
+      </label>
+      @if (list() === 'departments') {
+        <label>
+          <span>{{ t('departmentCode') }}</span>
+          <input name="code" type="text" autocomplete="off" maxlength="20" dir="ltr" required />
+        </label>
+      } @else if (!remote()) {
+        <label>
+          <span>{{ t('nameEn') }}</span>
+          <input name="en" type="text" autocomplete="off" />
+        </label>
+      }
+      @if (list() === 'leaveTypes') {
+        <label>
+          <span>{{ t('kind') }}</span>
+          <select name="unit" autocomplete="off">
+            <option value="day">{{ t('unitDay') }}</option>
+            <option value="hour">{{ t('unitHour') }}</option>
+          </select>
+        </label>
+      }
+      @if (list() === 'contractTypes') {
+        <label>
+          <span>{{ t('contractEnd') }}</span>
+          <select name="fixed" autocomplete="off">
+            <option value="fixed">{{ t('hasEnd') }}</option>
+            <option value="open">{{ t('noEndType') }}</option>
+          </select>
+        </label>
+      }
+      <button class="text" type="submit" [disabled]="busy()">
+        <i class="fa-solid fa-plus" aria-hidden="true"></i>
+        {{ t('addItem') }}
+      </button>
+    </form>
+  }
+  @if (problem()) {
+    <p class="warn" role="alert">{{ problem() }}</p>
+  }
+</section>

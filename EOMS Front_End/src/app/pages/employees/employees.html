@@ -1,0 +1,109 @@
+<main class="work" id="content">
+  <button class="menu" type="button" (click)="chrome.toggle()">
+    <i class="fa-solid" [class.fa-bars]="!chrome.menuOpen()" [class.fa-xmark]="chrome.menuOpen()" aria-hidden="true"></i>
+    {{ chrome.menuOpen() ? t('closeMenu') : t('menu') }}
+  </button>
+
+  @if (!session.can('employees')) {
+    <h1>{{ t('employees') }}</h1>
+    <p class="empty">{{ t('noAccess') }}</p>
+    <a class="primary" routerLink="/">{{ t('back') }}</a>
+  } @else {
+    <app-notice />
+
+    @if (file()) {
+      <app-employee-file />
+    } @else {
+      <header class="heading">
+        <h1>{{ t('employees') }}</h1>
+        <div class="actions">
+          <button class="text" type="button" [disabled]="exporting()" (click)="exportExcel()">
+            <i class="fa-solid fa-file-excel" aria-hidden="true"></i>
+            {{ exporting() ? t('exporting') : t('exportExcel') }}
+          </button>
+          <button class="text" type="button" (click)="exportPdf()">
+            <i class="fa-solid fa-file-pdf" aria-hidden="true"></i>
+            {{ t('exportPdf') }}
+          </button>
+          @if (session.canAct('employee.add')) {
+            <button class="primary" type="button" (click)="openNew()">
+              <i class="fa-solid fa-user-plus" aria-hidden="true"></i>
+              {{ t('addEmployee') }}
+            </button>
+          }
+        </div>
+      </header>
+
+      <div class="summary">
+        <p><span>{{ t('employeesLabel') }}</span><strong>{{ num(stats().total) }}</strong><small>{{ t('openFilesShort') }}</small></p>
+        <p><span>{{ t('active') }}</span><strong>{{ num(stats().active) }}</strong></p>
+        <p><span>{{ t('away') }}</span><strong [class.wait]="stats().away > 0">{{ num(stats().away) }}</strong></p>
+        <p><span>{{ t('leaving') }}</span><strong>{{ num(stats().leaving) }}</strong></p>
+        <p>
+          <span>{{ t('tabFinger') }}</span>
+          <strong [class.wait]="stats().fingers < stats().total">{{ num(stats().fingers) }} {{ t('ofWord') }} {{ num(stats().total) }}</strong>
+          <small>{{ t('fingerOk') }}</small>
+        </p>
+      </div>
+
+      <div class="grid-2 charts">
+        <section class="panel" data-print>
+          <header class="panel-head">
+            <div><h2>{{ t('statusMix') }}</h2></div>
+          </header>
+          <app-donut-chart [slices]="statusMix()" [label]="t('statusMix')" [center]="t('employeesLabel')" />
+        </section>
+        <section class="panel" data-print>
+          <header class="panel-head">
+            <div><h2>{{ t('departments') }}</h2><p>{{ t('openFilesShort') }}</p></div>
+          </header>
+          <app-rank-chart [rows]="byDepartment()" [label]="t('departments')" />
+        </section>
+      </div>
+
+      <div class="filters">
+        <label>
+          <span>{{ t('searchEmployees') }}</span>
+          <input name="q" type="search" autocomplete="off" [value]="query()" (input)="filter('q', $event)" />
+        </label>
+        <label>
+          <span>{{ t('department') }}</span>
+          <select name="dept" autocomplete="off" (change)="filter('dept', $event)">
+            <option value="">{{ t('allDepartments') }}</option>
+            @for (item of office.departmentList(); track item.id) {
+              <option [value]="item.id" [selected]="department() === item.id">{{ text(item.name) }}</option>
+            }
+          </select>
+        </label>
+        <label>
+          <span>{{ t('jobTitle') }}</span>
+          <select name="title" autocomplete="off" (change)="filter('title', $event)">
+            <option value="">{{ t('allTitles') }}</option>
+            @for (item of office.titles(); track item.id) {
+              <option [value]="item.id" [selected]="titleId() === item.id">{{ text(item.name) }}</option>
+            }
+          </select>
+        </label>
+        <label>
+          <span>{{ t('state') }}</span>
+          <select name="staff" autocomplete="off" (change)="filter('staff', $event)">
+            <option value="">{{ t('allStatuses') }}</option>
+            <option value="active" [selected]="status() === 'active'">{{ t('active') }}</option>
+            <option value="away" [selected]="status() === 'away'">{{ t('away') }}</option>
+            <option value="leaving" [selected]="status() === 'leaving'">{{ t('leaving') }}</option>
+            <option value="ended" [selected]="status() === 'ended'">{{ t('ended') }}</option>
+          </select>
+        </label>
+      </div>
+
+      @if (office.employees().length === 0) {
+        <p class="empty" aria-live="polite">{{ office.loading() ? t('loading') : t('noEmployees') }}</p>
+      } @else if (rows().length === 0) {
+        <p class="empty">{{ t('emptyStaff') }}</p>
+        <button class="text" type="button" (click)="clearFilters()">{{ t('clearSearch') }}</button>
+      } @else {
+        <app-employee-table [rows]="rows()" />
+      }
+    }
+  }
+</main>
