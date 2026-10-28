@@ -1,0 +1,146 @@
+@if (!allowed()) {
+  <h1>{{ t('attendance') }}</h1>
+  <p class="empty">{{ t('noAccess') }}</p>
+  <button class="text" type="button" (click)="back()">{{ t('backToAttendance') }}</button>
+} @else if (employee(); as person) {
+  <header class="heading">
+    <h1>{{ text(person.name) }}</h1>
+    <button class="text" type="button" (click)="back()">{{ t('backToAttendance') }}</button>
+  </header>
+  @if (row(); as record) {
+    <dl class="file">
+      <div>
+        <dt>{{ t('department') }}</dt>
+        <dd>{{ department(person.department) }}</dd>
+      </div>
+      <div>
+        <dt>{{ t('attendanceDay') }}</dt>
+        <dd>{{ date(day()) }}</dd>
+      </div>
+      <div>
+        <dt>{{ t('state') }}</dt>
+        <dd [class]="tone(record.mark)">{{ mark(record.mark) }}</dd>
+      </div>
+      <div>
+        <dt>{{ t('arrival') }}</dt>
+        <dd class="num">{{ record.checkIn ?? '—' }}@if (record.lateBy !== null) { · {{ num(record.lateBy) }} {{ t('minutesUnit') }} {{ t('lateBy') }} }</dd>
+      </div>
+      <div>
+        <dt>{{ t('departure') }}</dt>
+        <dd class="num">{{ record.checkOut ?? '—' }}</dd>
+      </div>
+      <div>
+        <dt>{{ t('hours') }}</dt>
+        <dd class="num">{{ hours(record.minutes) }}</dd>
+      </div>
+      <div>
+        <dt>{{ t('overtimeLabel') }}</dt>
+        <dd class="num">{{ record.overtime ? hours(record.overtime) : '—' }}</dd>
+      </div>
+      @if (record.projectId) {
+        <div>
+          <dt>{{ t('missionProject') }}</dt>
+          <dd>{{ project(record.projectId) }}</dd>
+        </div>
+      }
+    </dl>
+
+    @if (record.mark === 'review') {
+      <p class="note">{{ t('reviewHint') }}</p>
+    }
+
+    <h2>{{ t('rawLog') }}</h2>
+    @if (punches().length === 0) {
+      <p class="empty">{{ t('noDevice') }}</p>
+    } @else {
+      <ul class="punches">
+        @for (punch of punches(); track punch.id) {
+          <li>
+            <span class="num">{{ punch.at.slice(11, 16) }}</span>
+            <span>{{ direction(punch.status) }}</span>
+            <span>{{ t('fingerprint') }}</span>
+            @if (punch.duplicate) {
+              <span class="wait">{{ t('duplicateFlag') }}</span>
+            }
+          </li>
+        }
+      </ul>
+    }
+
+    @if (correction(); as fix) {
+      <p class="note">{{ t('correctedFlag') }}: {{ fix.checkIn }}@if (fix.checkOut) {–{{ fix.checkOut }}} · {{ actor(fix.by) }} · {{ fix.note }}</p>
+    }
+    @if (mission(); as task) {
+      <p class="note">{{ t('missionMark') }}: {{ project(task.projectId) }} · {{ actor(task.actorId) }}@if (task.note) { · {{ task.note }} }</p>
+    }
+    @if (resolution(); as done) {
+      <p class="note">
+        {{ t('absent') }} · {{ actor(done.actorId) }} · {{ done.note }}
+        @if (session.mayEdit(person.id, 'attendance.correct')) {
+          <button class="text inline-action" type="button" (click)="reopen()">{{ t('reopenDay') }}</button>
+        }
+      </p>
+    }
+
+    @if (session.mayEdit(person.id, 'attendance.correct')) {
+      <h2>{{ t('correctRecord') }}</h2>
+      <p class="note">{{ t('manualHint') }}</p>
+      <form class="form" (submit)="save($event)">
+        <label>
+          <span>{{ t('arrival') }}</span>
+          <input name="checkIn" type="time" autocomplete="off" required />
+        </label>
+        <label>
+          <span>{{ t('departure') }}</span>
+          <input name="checkOut" type="time" autocomplete="off" />
+        </label>
+        <label class="wide">
+          <span>{{ t('correctionNote') }}</span>
+          <input name="note" type="text" autocomplete="off" required />
+        </label>
+        <button class="primary" type="submit">{{ t('saveCorrection') }}</button>
+      </form>
+    }
+
+    @if (mayMission() && (record.mark === 'review' || record.mark === 'incomplete' || record.mark === 'mission')) {
+      <h2>{{ t('missionTitle') }}</h2>
+      <p class="note">{{ t('missionRule') }}</p>
+      <form class="form" (submit)="saveMission($event)">
+        <label>
+          <span>{{ t('missionProject') }}</span>
+          <select name="project" autocomplete="off" required>
+            <option value="">{{ t('allProjects') }}</option>
+            @for (item of projects; track item.id) {
+              <option [value]="item.id" [selected]="mission()?.projectId === item.id || (!mission() && person.projects[0] === item.id)">{{ text(item.name) }}</option>
+            }
+          </select>
+        </label>
+        <label>
+          <span>{{ t('notes') }}</span>
+          <input name="note" type="text" autocomplete="off" />
+        </label>
+        <button class="text" type="submit">
+          <i class="fa-solid fa-helmet-safety" aria-hidden="true"></i>
+          {{ t('saveMission') }}
+        </button>
+      </form>
+    }
+
+    @if (record.mark === 'review' && session.mayEdit(person.id, 'attendance.correct')) {
+      <h2>{{ t('confirmAbsence') }}</h2>
+      <form class="form" (submit)="confirm($event)">
+        <label class="wide">
+          <span>{{ t('absenceNote') }}</span>
+          <input name="note" type="text" autocomplete="off" required />
+        </label>
+        <button class="quiet" type="submit">{{ t('confirmAbsence') }}</button>
+      </form>
+    }
+  } @else {
+    <p class="empty">{{ t('missingAttendance') }}</p>
+  }
+} @else {
+  <h1>{{ t('attendance') }}</h1>
+  <p class="empty">{{ t('missingAttendance') }}</p>
+  <button class="text" type="button" (click)="back()">{{ t('backToAttendance') }}</button>
+}

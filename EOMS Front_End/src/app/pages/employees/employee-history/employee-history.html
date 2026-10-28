@@ -1,0 +1,71 @@
+<h2>{{ t('historyTitle') }}</h2>
+@if (entries().length === 0) {
+  <p class="empty">{{ t('noHistory') }}</p>
+} @else {
+  <ul class="log">
+    @for (entry of entries(); track entry.id) {
+      <li>
+        <span class="when">{{ date(entry.at) }} {{ entry.at.slice(11, 16) }}</span>
+        <span>
+          <strong>{{ t(fieldKey[entry.field]) }}</strong>:
+          {{ value(entry, entry.from) }}
+          <i class="fa-solid fa-arrow-left flip" aria-hidden="true"></i>
+          {{ value(entry, entry.to) }}
+        </span>
+        <span class="by">{{ t('byLabel') }} {{ actor(entry.actorId) }}</span>
+      </li>
+    }
+  </ul>
+}
+
+<h2>{{ t('staffDocuments') }}</h2>
+@if (person().documents.length === 0) {
+  <p class="empty">{{ t('noManager') }}</p>
+} @else {
+  <ul class="docs">
+    @for (doc of person().documents; track $index) {
+      <li><i class="fa-solid fa-file-lines" aria-hidden="true"></i> {{ text(doc) }}</li>
+    }
+  </ul>
+}
+<p class="note">{{ t('documentRule') }}</p>
+@if (session.mayEdit(person().id, 'employee.edit') && person().status !== 'ended') {
+  <form class="inline" (submit)="addDocument($event)">
+    <label>
+      <span>{{ t('documentName') }}</span>
+      <input name="document" type="text" autocomplete="off" required />
+    </label>
+    <button class="text" type="submit">
+      <i class="fa-solid fa-plus" aria-hidden="true"></i>
+      {{ t('addDocument') }}
+    </button>
+  </form>
+}
+
+<h2>{{ t('evaluationsTitle') }}</h2>
+<p class="note">{{ t('evaluationRule') }}</p>
+@if (evaluations().length === 0) {
+  <p class="empty">{{ t('noEvaluations') }}</p>
+} @else {
+  <ul class="log">
+    @for (item of evaluations(); track item.id) {
+      <li>
+        <span class="when">{{ date(item.at) }}</span>
+        <span>{{ item.note }}</span>
+        <span class="by">{{ t('byLabel') }} {{ actor(item.actorId) }}</span>
+      </li>
+    }
+  </ul>
+}
+@if (mayEvaluate() && person().status !== 'ended') {
+  <form class="stack" (submit)="addEvaluation($event)">
+    <label>
+      <span>{{ t('evaluationNote') }}</span>
+      <textarea name="evaluation" rows="3" required></textarea>
+    </label>
+    <button class="text" type="submit">
+      <i class="fa-solid fa-plus" aria-hidden="true"></i>
+      {{ t('addEvaluation') }}
+    </button>
+  </form>
+}

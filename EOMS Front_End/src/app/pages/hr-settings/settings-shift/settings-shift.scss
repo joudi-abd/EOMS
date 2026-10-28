@@ -1,0 +1,85 @@
+:host {
+  display: block;
+}
+
+.shift {
+  max-width: 720px;
+  margin-top: 16px;
+}
+
+.facts {
+  margin: 0;
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
+}
+
+.form {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 20px;
+}
+
+.form > label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 14px;
+  min-width: 0;
+}
+
+.form input:not([type='checkbox']) {
+  width: 100%;
+  margin: 0;
+}
+
+fieldset {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+
+legend {
+  color: var(--muted);
+  font-size: 14px;
+  margin-bottom: 6px;
+  width: 100%;
+}
+
+.check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+}
+
+.check input {
+  width: 18px;
+  height: 18px;
+  min-height: 0;
+  margin: 0;
+  accent-color: var(--action);
+}
+
+.wide {
+  grid-column: 1 / -1;
+}
+
+.warn {
+  margin: 0;
+  color: var(--late);
+}
+
+.form .primary {
+  justify-self: start;
+}
+
+@media (max-width: 640px) {
+  .form {
+    grid-template-columns: 1fr;
+  }
+}

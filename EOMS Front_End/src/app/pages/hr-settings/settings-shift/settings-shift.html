@@ -1,0 +1,41 @@
+<section class="shift">
+  <p class="facts">
+    {{ t('policyLine') }} {{ t('rangeFrom') }} {{ office.policy().start }} {{ t('rangeTo') }} {{ office.policy().end }} ·
+    {{ t('dailyHours') }} {{ hours(length()) }} ·
+    {{ t('graceLabel') }} {{ num(office.policy().grace) }} {{ t('minutesUnit') }}
+  </p>
+  <p class="note">{{ t('noBreaks') }} {{ t('noDeduction') }}</p>
+
+  @if (session.canAct('hr.settings')) {
+    <form class="form" (submit)="save($event)">
+      <label>
+        <span>{{ t('shiftStart') }}</span>
+        <input name="start" type="time" required [value]="office.policy().start" />
+      </label>
+      <label>
+        <span>{{ t('shiftEnd') }}</span>
+        <input name="end" type="time" required [value]="office.policy().end" />
+      </label>
+      <label>
+        <span>{{ t('graceMinutes') }}</span>
+        <input name="grace" type="number" min="0" max="180" inputmode="numeric" required [value]="office.policy().grace" />
+      </label>
+      <fieldset class="wide">
+        <legend>{{ t('workdaysLabel') }}</legend>
+        @for (day of days; track day) {
+          <label class="check">
+            <input type="checkbox" name="workday" [value]="day" [checked]="office.policy().workdays.includes(day)" />
+            <span>{{ dayName(day) }}</span>
+          </label>
+        }
+      </fieldset>
+      @if (problem()) {
+        <p class="wide warn" role="alert">{{ problem() }}</p>
+      }
+      <button class="primary" type="submit" [disabled]="saving()">
+        <i class="fa-solid fa-check" aria-hidden="true"></i>
+        {{ t('savePolicy') }}
+      </button>
+    </form>
+  }
+</section>

@@ -1,0 +1,104 @@
+<main class="work" id="content">
+  <button class="menu" type="button" (click)="chrome.toggle()">
+    <i class="fa-solid" [class.fa-bars]="!chrome.menuOpen()" [class.fa-xmark]="chrome.menuOpen()" aria-hidden="true"></i>
+    {{ chrome.menuOpen() ? t('closeMenu') : t('menu') }}
+  </button>
+
+  @if (!session.can('leave')) {
+    <h1>{{ t('leave') }}</h1>
+    <p class="empty">{{ t('noAccess') }}</p>
+    <a class="primary" routerLink="/">{{ t('back') }}</a>
+  } @else {
+    <app-notice />
+
+    @if (request()) {
+      <app-leave-file />
+    } @else {
+      <header class="heading">
+        <h1>{{ t('leave') }}</h1>
+        <div class="actions">
+          <button class="text" type="button" [disabled]="exporting()" (click)="exportExcel()">
+            <i class="fa-solid fa-file-excel" aria-hidden="true"></i>
+            {{ exporting() ? t('exporting') : t('exportExcel') }}
+          </button>
+          <button class="text" type="button" (click)="exportPdf()">
+            <i class="fa-solid fa-file-pdf" aria-hidden="true"></i>
+            {{ t('exportPdf') }}
+          </button>
+          @if (session.canAct('leave.request')) {
+            <button class="primary" type="button" (click)="openNew()">
+              <i class="fa-solid fa-calendar-plus" aria-hidden="true"></i>
+              {{ t('requestLeave') }}
+            </button>
+          }
+        </div>
+      </header>
+      <p class="note">{{ t('leavePath') }}</p>
+
+      @if (session.hasFile()) {
+        <section class="used">
+          <h2>{{ t('myUsedTitle') }} · {{ year() }}</h2>
+          <div class="summary">
+            @for (item of used(); track item.type.id) {
+              <p>
+                <span>{{ text(item.type.name) }}</span>
+                <strong>{{ num(item.amount) }}</strong>
+                <small>{{ item.type.unit === 'hour' ? t('hoursShort') : t('days') }}</small>
+              </p>
+            }
+          </div>
+          <p class="note">{{ t('usedNote') }}</p>
+        </section>
+      }
+
+      @if (rows().length > 0) {
+        <div class="grid-2 charts">
+          <section class="panel" data-print>
+            <header class="panel-head">
+              <div><h2>{{ t('leaveMix') }}</h2><p>{{ session.canAct('leave.decide') ? t('officeScope') : t('teamScope') }}</p></div>
+            </header>
+            <app-donut-chart [slices]="statusMix()" [label]="t('leaveMix')" [center]="t('requests')" />
+          </section>
+          <section class="panel" data-print>
+            <header class="panel-head">
+              <div><h2>{{ t('requestsByType') }}</h2><p>{{ session.canAct('leave.decide') ? t('officeScope') : t('teamScope') }}</p></div>
+            </header>
+            <app-rank-chart [rows]="byType()" [label]="t('requestsByType')" [color]="'var(--fill-info)'" />
+          </section>
+        </div>
+      }
+
+      <div class="filters">
+        <label>
+          <span>{{ t('searchLeave') }}</span>
+          <input name="q" type="search" autocomplete="off" [value]="query()" (input)="filter('q', $event)" />
+        </label>
+        <label>
+          <span>{{ t('kind') }}</span>
+          <select name="kind" autocomplete="off" (change)="filter('kind', $event)">
+            <option value="">{{ t('allRequests') }}</option>
+            <option value="leave" [selected]="kind() === 'leave'">{{ t('dailyKind') }}</option>
+            <option value="permit" [selected]="kind() === 'permit'">{{ t('hourlyKind') }}</option>
+          </select>
+        </label>
+        <label>
+          <span>{{ t('state') }}</span>
+          <select name="status" autocomplete="off" (change)="filter('status', $event)">
+            <option value="">{{ t('allStatuses') }}</option>
+            <option value="pending_manager" [selected]="status() === 'pending_manager'">{{ t('pending_manager') }}</option>
+            <option value="pending_hr" [selected]="status() === 'pending_hr'">{{ t('pending_hr') }}</option>
+            <option value="approved" [selected]="status() === 'approved'">{{ t('approved') }}</option>
+            <option value="rejected" [selected]="status() === 'rejected'">{{ t('rejected') }}</option>
+          </select>
+        </label>
+      </div>
+
+      @if (rows().length === 0) {
+        <p class="empty">{{ t('emptyLeave') }}</p>
+        <button class="text" type="button" (click)="clearFilters()">{{ t('clearLeave') }}</button>
+      } @else {
+        <app-leave-table [rows]="rows()" />
+      }
+    }
+  }
+</main>

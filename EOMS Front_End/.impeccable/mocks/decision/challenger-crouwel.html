@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Readex+Pro:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0}
+html,body{width:1440px;height:900px;overflow:hidden}
+body{font-family:"Readex Pro",sans-serif;background:#F7F8F6;color:#172033;background-image:linear-gradient(#D5DEEA 1px,transparent 1px),linear-gradient(90deg,#D5DEEA 1px,transparent 1px);background-size:40px 40px}
+.app{display:flex;height:900px}
+aside{width:220px;background:#F7F8F6;border-left:1px solid #172033;padding:24px 16px}
+.mark{font-size:22px;font-weight:700}
+nav a{display:block;color:#172033;text-decoration:none;font-size:15px;padding:8px 0;border-bottom:1px solid #D5DEEA}
+nav a.on{font-weight:700}
+main{flex:1;padding:28px 36px}
+top,header{display:flex;justify-content:space-between}
+h1{font-size:160px;line-height:.8;font-weight:700;letter-spacing:-.04em}
+.lead{font-size:22px;margin:8px 0 20px}
+.row{display:flex;gap:16px;align-items:center}
+.plane{background:#1D4ED8;color:#fff;border:0;font-family:inherit;font-size:18px;padding:16px 22px}
+.line{background:transparent;border:1px solid #172033;font-family:inherit;font-size:18px;padding:16px 22px;margin-right:80px}
+table{width:100%;margin-top:28px;border-collapse:collapse;font-size:16px}
+th,td{text-align:right;padding:10px 8px;border-bottom:1px solid #172033}
+.late{color:#9C3B2E;font-weight:700}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside>
+    <div class="mark">EOMS</div>
+    <nav>
+      <a class="on" href="#">لوحة المعلومات</a>
+      <a href="#">الموظفون</a>
+      <a href="#">الحضور</a>
+      <a href="#">الإجازات</a>
+      <a href="#">المشاريع</a>
+      <a href="#">المالية</a>
+      <a href="#">المشتريات</a>
+      <a href="#">المستندات</a>
+    </nav>
+  </aside>
+  <main>
+    <header><b>ليلى الحسن · مديرة الشركة</b><span>شبكة ظاهرة · بيانات توضيحية</span></header>
+    <h1>٤</h1>
+    <p class="lead">قرارات تنتظر. الخلية وحدة القراءة، والمستوى الأزرق هو الاعتماد.</p>
+    <div class="row">
+      <button class="plane" type="button">اعتماد ٣ إجازات</button>
+      <button class="line" type="button">رفض</button>
+    </div>
+    <table>
+      <thead><tr><th>المشروع</th><th>الإنجاز</th><th>الموعد</th></tr></thead>
+      <tbody>
+        <tr><td>الواجهة البحرية</td><td>٦٨٪</td><td class="late">متأخر · ١٢ يوماً على العقد</td></tr>
+        <tr><td>مدرسة الرواد</td><td>٤١٪</td><td class="late">٤ مهام متأخرة</td></tr>
+        <tr><td>برج النخيل</td><td>٢٢٪</td><td>في الموعد</td></tr>
+        <tr><td>عيادة النور</td><td>٩١٪</td><td>تسليم</td></tr>
+      </tbody>
+    </table>
+  </main>
+</div>
+</body>
+</html>

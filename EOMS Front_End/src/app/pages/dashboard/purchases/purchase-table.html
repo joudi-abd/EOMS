@@ -1,0 +1,73 @@
+<div class="grid-3">
+  <section class="panel" data-print>
+    <header class="panel-head">
+      <div>
+        <h2>{{ t('purchasesTitle') }}</h2>
+        <p>{{ t('purchasesCaption') }}</p>
+      </div>
+    </header>
+    @if (session.canAct('purchase.add')) {
+      <form class="form" (submit)="add($event)">
+        <label>
+          <span>{{ t('item') }}</span>
+          <input name="item" type="text" autocomplete="off" required />
+        </label>
+        <label>
+          <span>{{ t('supplier') }}</span>
+          <input name="supplier" type="text" autocomplete="off" required />
+        </label>
+        <button class="primary" type="submit">
+          <i class="fa-solid fa-plus" aria-hidden="true"></i>
+          {{ t('addPurchase') }}
+        </button>
+      </form>
+    }
+    <div class="flush">
+      <table>
+        <thead>
+          <tr>
+            <th>{{ t('item') }}</th>
+            <th>{{ t('supplier') }}</th>
+            <th>{{ t('state') }}</th>
+            @if (session.canAct('purchase.decide')) {
+              <th><span class="vh">{{ t('approve') }}</span></th>
+            }
+          </tr>
+        </thead>
+        <tbody>
+          @for (purchase of office.purchases(); track purchase.id) {
+            <tr>
+              <td>{{ text(purchase.item) }}</td>
+              <td>{{ text(purchase.supplier) }}</td>
+              <td [class.wait]="purchase.status === 'pending'" [class.ok]="purchase.status === 'approved'" [class.late]="purchase.status === 'rejected'">
+                {{ t(purchase.status) }}
+              </td>
+              @if (session.canAct('purchase.decide')) {
+                <td class="decide">
+                  @if (purchase.status === 'pending') {
+                    <button class="text" type="button" (click)="decide(purchase.id, true)">
+                      <i class="fa-solid fa-check" aria-hidden="true"></i>
+                      {{ t('approve') }}
+                    </button>
+                    <button class="quiet" type="button" (click)="decide(purchase.id, false)">
+                      <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+                      {{ t('reject') }}
+                    </button>
+                  }
+                </td>
+              }
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </section>
+  <section class="panel" data-print>
+    <header class="panel-head">
+      <div>
+        <h2>{{ t('purchaseMixTitle') }}</h2>
+      </div>
+    </header>
+    <app-donut-chart [slices]="insights.purchaseMix()" [label]="t('purchaseMixTitle')" [center]="t('purchasesTitle')" />
+  </section>
+</div>

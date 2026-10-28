@@ -1,0 +1,382 @@
+:host {
+  display: block;
+}
+
+.gate {
+  min-height: 100dvh;
+  display: grid;
+  grid-template-columns: minmax(460px, 1fr) minmax(0, 1.2fr);
+}
+
+/* Sign-in column */
+
+.desk {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 28px 56px 32px;
+  background: var(--surface);
+  border-inline-end: 1px solid var(--line);
+}
+
+.bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 44px;
+}
+
+.mark-small {
+  display: none;
+  width: 104px;
+  height: auto;
+}
+
+.lang {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-inline-start: auto;
+  min-height: 40px;
+  padding: 0 14px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--muted);
+  font-size: 14px;
+  cursor: pointer;
+  transition:
+    background-color 120ms ease-out,
+    border-color 120ms ease-out;
+}
+
+.lang:hover {
+  background: var(--hover);
+  border-color: var(--line-strong);
+  color: var(--ink);
+}
+
+.entry {
+  width: 100%;
+  max-width: 440px;
+  margin: auto;
+  padding: 48px 0;
+}
+
+h1 {
+  font-size: 36px;
+  line-height: 1.25;
+  font-weight: 600;
+}
+
+.lede {
+  margin: 12px 0 0;
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+.form {
+  display: grid;
+  gap: 22px;
+  margin-top: 40px;
+}
+
+.field {
+  display: grid;
+  gap: 8px;
+}
+
+.label {
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.control {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+/* The fields run left to right inside a right-to-left page, so the padding stays symmetric. */
+.control input {
+  width: 100%;
+  height: 54px;
+  margin: 0;
+  padding: 0 52px;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  background: var(--raised);
+  color: var(--ink);
+  font-size: 16px;
+  transition:
+    border-color 120ms ease-out,
+    background-color 120ms ease-out;
+}
+
+.control input:hover {
+  border-color: var(--soft);
+}
+
+.control input:focus-visible {
+  border-color: var(--action);
+  background: var(--surface);
+  outline: 2px solid var(--action-tint);
+  outline-offset: 0;
+}
+
+.control input:disabled {
+  color: var(--muted);
+  cursor: progress;
+}
+
+.lead {
+  position: absolute;
+  inset-inline-start: 18px;
+  color: var(--soft);
+  font-size: 16px;
+  pointer-events: none;
+  transition: color 120ms ease-out;
+}
+
+.control:focus-within .lead {
+  color: var(--action);
+}
+
+.eye {
+  position: absolute;
+  inset-inline-end: 7px;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--soft);
+  cursor: pointer;
+  transition:
+    background-color 120ms ease-out,
+    color 120ms ease-out;
+}
+
+.eye i {
+  font-size: 17px;
+}
+
+.eye:hover,
+.eye[aria-pressed='true'] {
+  background: var(--action-tint);
+  color: var(--action-ink);
+}
+
+.problem {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  background: var(--late-tint);
+  color: var(--late);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.problem i {
+  margin-top: 3px;
+}
+
+.submit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  height: 54px;
+  margin-top: 6px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--action);
+  color: #fff;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 120ms ease-out;
+}
+
+.submit:hover {
+  background: var(--action-ink);
+}
+
+.submit:disabled {
+  background: var(--action-ink);
+  cursor: progress;
+}
+
+.submit i {
+  font-size: 15px;
+}
+
+:host-context([dir='ltr']) .forward {
+  transform: scaleX(-1);
+}
+
+.spin {
+  animation: spin 800ms linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.hint {
+  margin: 28px 0 0;
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+  color: var(--soft);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.foot {
+  color: var(--soft);
+  font-size: 13px;
+}
+
+/* Brand scene: a drafting sheet with building elevations */
+
+.scene {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 56px 64px 36px;
+  overflow: hidden;
+  background-color: var(--ground);
+  background-image:
+    linear-gradient(rgb(37 99 235 / 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(37 99 235 / 0.08) 1px, transparent 1px),
+    linear-gradient(rgb(37 99 235 / 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(37 99 235 / 0.035) 1px, transparent 1px);
+  background-size:
+    120px 120px,
+    120px 120px,
+    24px 24px,
+    24px 24px;
+  background-position: -1px -1px;
+}
+
+.scene-copy {
+  max-width: 560px;
+}
+
+.mark {
+  display: block;
+  width: 200px;
+  height: auto;
+}
+
+.scene-title {
+  margin: 40px 0 0;
+  color: var(--ink);
+  font-size: 34px;
+  font-weight: 600;
+  line-height: 1.35;
+  text-wrap: balance;
+}
+
+.scene-lede {
+  margin: 16px 0 0;
+  max-width: 46ch;
+  color: var(--muted);
+  font-size: 17px;
+  line-height: 1.7;
+}
+
+.skyline {
+  display: block;
+  width: 100%;
+  max-height: 44vh;
+  margin-top: auto;
+  padding-top: 32px;
+}
+
+.skyline path {
+  vector-effect: non-scaling-stroke;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.frame {
+  stroke: var(--action);
+  stroke-width: 1.4;
+  stroke-opacity: 0.6;
+}
+
+.dims {
+  stroke: var(--soft);
+  stroke-width: 1;
+  stroke-opacity: 0.6;
+}
+
+.ground-line {
+  stroke: var(--ink);
+  stroke-width: 1.5;
+  stroke-opacity: 0.35;
+}
+
+.scene-foot {
+  margin: 16px 0 0;
+  color: var(--soft);
+  font-size: 13px;
+}
+
+@media (max-width: 960px) {
+  .gate {
+    grid-template-columns: 1fr;
+  }
+
+  .scene {
+    display: none;
+  }
+
+  .desk {
+    padding: 20px 24px 24px;
+    border: 0;
+  }
+
+  .mark-small {
+    display: block;
+  }
+
+  .lang {
+    margin-inline-start: 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .desk {
+    padding: 16px 16px 20px;
+  }
+
+  .entry {
+    padding: 32px 0;
+  }
+
+  h1 {
+    font-size: 30px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spin {
+    animation: none;
+  }
+}

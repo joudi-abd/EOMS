@@ -1,0 +1,26 @@
+:host {
+  display: block;
+}
+
+th:nth-child(2),
+td:nth-child(2) {
+  min-width: 7.5em;
+}
+
+td .text,
+td .quiet {
+  margin-inline-start: 0;
+}
+
+td .quiet {
+  margin-inline-start: 8px;
+}
+
+.decide {
+  white-space: nowrap;
+}
+
+button:disabled {
+  color: var(--muted);
+  cursor: not-allowed;
+}

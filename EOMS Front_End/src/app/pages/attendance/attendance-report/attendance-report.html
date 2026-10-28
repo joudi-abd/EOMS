@@ -1,0 +1,243 @@
+<div class="filters">
+  <label>
+    <span>{{ t('periodFrom') }}</span>
+    <input name="from" type="date" autocomplete="off" [value]="from()" (change)="filter('from', $event)" />
+  </label>
+  <label>
+    <span>{{ t('periodTo') }}</span>
+    <input name="to" type="date" autocomplete="off" [value]="to()" (change)="filter('to', $event)" />
+  </label>
+  @if (!scope() || scope()!.size > 1) {
+    <label>
+      <span>{{ t('department') }}</span>
+      <select name="dept" autocomplete="off" (change)="filter('dept', $event)">
+        <option value="">{{ t('allDepartments') }}</option>
+        @for (item of office.departmentList(); track item.id) {
+          <option [value]="item.id" [selected]="department() === item.id">{{ text(item.name) }}</option>
+        }
+      </select>
+    </label>
+    <label>
+      <span>{{ t('filterManager') }}</span>
+      <select name="mgr" autocomplete="off" (change)="filter('mgr', $event)">
+        <option value="">{{ t('allManagers') }}</option>
+        @for (item of managers(); track item.id) {
+          <option [value]="item.id" [selected]="manager() === item.id">{{ text(item.name) }}</option>
+        }
+      </select>
+    </label>
+    <label>
+      <span>{{ t('filterProject') }}</span>
+      <select name="proj" autocomplete="off" (change)="filter('proj', $event)">
+        <option value="">{{ t('allProjects') }}</option>
+        @for (item of projects; track item.id) {
+          <option [value]="item.id" [selected]="project() === item.id">{{ text(item.name) }}</option>
+        }
+      </select>
+    </label>
+    <label>
+      <span>{{ t('filterEmployee') }}</span>
+      <select name="emp" autocomplete="off" (change)="filter('emp', $event)">
+        <option value="">{{ t('allEmployees') }}</option>
+        @for (item of office.employees(); track item.id) {
+          @if (!scope() || scope()!.has(item.id)) {
+            <option [value]="item.id" [selected]="person() === item.id">{{ text(item.name) }}</option>
+          }
+        }
+      </select>
+    </label>
+  }
+</div>
+
+<div class="bar">
+  <p class="period">{{ date(from()) }} – {{ date(to()) }}</p>
+  <div class="actions">
+    <button class="text" type="button" [disabled]="exporting()" (click)="exportExcel()">
+      <i class="fa-solid fa-file-excel excel" aria-hidden="true"></i>
+      {{ exporting() ? t('exporting') : t('exportExcel') }}
+    </button>
+    <button class="text" type="button" (click)="exportPdf()">
+      <i class="fa-solid fa-file-pdf pdf" aria-hidden="true"></i>
+      {{ t('exportPdf') }}
+    </button>
+  </div>
+</div>
+
+<div class="summary">
+  <p><span>{{ t('attendanceRate') }}</span><strong>{{ percent(totals().rate) }}</strong></p>
+  <p><span>{{ t('lateDays') }}</span><strong [class.wait]="totals().late > 0">{{ num(totals().late) }}</strong></p>
+  <p><span>{{ t('reviewDays') }}</span><strong [class.late]="totals().review > 0">{{ num(totals().review) }}</strong></p>
+  <p><span>{{ t('overtimeTotal') }}</span><strong>{{ hours(totals().overtime) }}</strong></p>
+</div>
+
+<div class="grid-2 charts">
+  <section class="panel" data-print>
+    <header class="panel-head">
+      <div>
+        <h2>{{ view() === 'overtime' ? t('overtimeDaily') : t('dailyMix') }}</h2>
+        <p>{{ date(from()) }} – {{ date(to()) }}</p>
+      </div>
+    </header>
+    @if (view() === 'overtime') {
+      <app-bar-chart [data]="overtimeDaily()" [series]="overtimeSeries()" [label]="t('overtimeDaily')" [height]="230" />
+    } @else {
+      <app-bar-chart [data]="dailyMix()" [series]="mixSeries()" [label]="t('dailyMix')" [stacked]="true" [height]="230" />
+    }
+  </section>
+  <section class="panel" data-print>
+    <header class="panel-head">
+      <div>
+        <h2>{{ rankTitle() }}</h2>
+        <p>{{ date(from()) }} – {{ date(to()) }}</p>
+      </div>
+    </header>
+    @if (ranking().length === 0) {
+      <p class="empty">{{ t('noData') }}</p>
+    } @else {
+      <app-rank-chart [rows]="ranking()" [label]="rankTitle()" [color]="rankColor()" [unit]="view() === 'month' ? '%' : ''" [max]="view() === 'month' ? 100 : null" />
+    }
+  </section>
+</div>
+<p class="note">{{ t('exportNote') }}</p>
+
+@switch (view()) {
+  @case ('month') {
+    @if (summary().length === 0) {
+      <p class="empty">{{ t('emptyReport') }}</p>
+    } @else {
+      <div class="sheet">
+        <table>
+          <thead>
+            <tr>
+              <th>{{ t('employeeCol') }}</th>
+              <th>{{ t('workdaysCol') }}</th>
+              <th>{{ t('presentDays') }}</th>
+              <th>{{ t('lateDays') }}</th>
+              <th>{{ t('reviewDays') }}</th>
+              <th>{{ t('absentDays') }}</th>
+              <th>{{ t('leaveCount') }}</th>
+              <th>{{ t('missionDays') }}</th>
+              <th>{{ t('workedHours') }}</th>
+              <th>{{ t('requiredHours') }}</th>
+              <th>{{ t('overtimeHours') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of summary(); track row.employee.id) {
+              <tr>
+                <td>
+                  <span class="who">{{ text(row.employee.name) }}</span>
+                  <span class="sub">{{ deptName(row.employee.department) }}</span>
+                </td>
+                <td class="num">{{ num(row.workdays) }}</td>
+                <td class="num">{{ num(row.arrived) }}</td>
+                <td class="num" [class.wait]="row.late > 0">{{ num(row.late) }}</td>
+                <td class="num" [class.late]="row.review > 0">{{ num(row.review) }}</td>
+                <td class="num">{{ num(row.absent) }}</td>
+                <td class="num">{{ num(row.leave) }}</td>
+                <td class="num">{{ num(row.mission) }}</td>
+                <td class="num">{{ hours(row.worked) }}</td>
+                <td class="num">{{ hours(row.required) }}</td>
+                <td class="num">{{ row.overtime ? hours(row.overtime) : '—' }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  }
+  @case ('late') {
+    @if (late().length === 0) {
+      <p class="empty">{{ t('emptyReport') }}</p>
+    } @else {
+      <div class="sheet">
+        <table>
+          <thead>
+            <tr>
+              <th>{{ t('date') }}</th>
+              <th>{{ t('employeeCol') }}</th>
+              <th>{{ t('arrival') }}</th>
+              <th>{{ t('lateBy') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (line of late(); track line.day + line.employee.id) {
+              <tr>
+                <td class="num">{{ short(line.day) }}</td>
+                <td>
+                  <a class="name" [routerLink]="[]" [queryParams]="{ who: line.employee.id, day: line.day }" queryParamsHandling="merge">{{ text(line.employee.name) }}</a>
+                </td>
+                <td class="num">{{ line.checkIn }}</td>
+                <td class="num wait">{{ num(line.lateBy ?? 0) }} {{ t('minutesUnit') }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  }
+  @case ('review') {
+    <p class="note">{{ t('reviewHint') }}</p>
+    @if (review().length === 0) {
+      <p class="empty">{{ t('emptyReport') }}</p>
+    } @else {
+      <div class="sheet">
+        <table>
+          <thead>
+            <tr>
+              <th>{{ t('date') }}</th>
+              <th>{{ t('employeeCol') }}</th>
+              <th>{{ t('state') }}</th>
+              <th>{{ t('arrival') }}</th>
+              <th>{{ t('departure') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (line of review(); track line.day + line.employee.id) {
+              <tr>
+                <td class="num">{{ short(line.day) }}</td>
+                <td>
+                  <a class="name" [routerLink]="[]" [queryParams]="{ who: line.employee.id, day: line.day }" queryParamsHandling="merge">{{ text(line.employee.name) }}</a>
+                </td>
+                <td [class]="tone(line.mark)">{{ mark(line.mark) }}</td>
+                <td class="num">{{ line.checkIn ?? '—' }}</td>
+                <td class="num">{{ line.checkOut ?? '—' }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  }
+  @case ('overtime') {
+    <p class="note">{{ t('overtimeRule') }}</p>
+    @if (overtime().length === 0) {
+      <p class="empty">{{ t('emptyReport') }}</p>
+    } @else {
+      <div class="sheet">
+        <table>
+          <thead>
+            <tr>
+              <th>{{ t('date') }}</th>
+              <th>{{ t('employeeCol') }}</th>
+              <th>{{ t('departure') }}</th>
+              <th>{{ t('overtimeLabel') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (line of overtime(); track line.day + line.employee.id) {
+              <tr>
+                <td class="num">{{ short(line.day) }}</td>
+                <td>
+                  <a class="name" [routerLink]="[]" [queryParams]="{ who: line.employee.id, day: line.day }" queryParamsHandling="merge">{{ text(line.employee.name) }}</a>
+                </td>
+                <td class="num">{{ line.checkOut }}</td>
+                <td class="num">{{ hours(line.overtime) }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  }
+}

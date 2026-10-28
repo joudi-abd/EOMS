@@ -1,0 +1,47 @@
+<div class="sheet">
+  <table>
+    <thead>
+      <tr>
+        <th>{{ t('employeeCol') }}</th>
+        <th>{{ t('department') }}</th>
+        <th>{{ t('state') }}</th>
+        <th>{{ t('arrival') }}</th>
+        <th>{{ t('departure') }}</th>
+        <th>{{ t('hours') }}</th>
+        <th>{{ t('overtimeLabel') }}</th>
+        <th>{{ t('remark') }}</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (row of rows(); track row.employeeId) {
+        <tr>
+          <td>
+            <a class="name" [routerLink]="[]" [queryParams]="{ who: row.employee.id }" queryParamsHandling="merge">
+              {{ text(row.employee.name) }}
+            </a>
+          </td>
+          <td>{{ department(row.employee.department) }}</td>
+          <td [class]="tone(row.mark)">{{ mark(row.mark) }}</td>
+          <td class="num">{{ row.checkIn ?? '—' }}</td>
+          <td class="num">{{ row.checkOut ?? '—' }}</td>
+          <td class="num">{{ hours(row.minutes) }}</td>
+          <td class="num">{{ row.overtime ? hours(row.overtime) : '—' }}</td>
+          <td>
+            @if (row.lateBy !== null) {
+              <span>{{ num(row.lateBy) }} {{ t('minutesUnit') }} {{ t('lateBy') }}</span>
+            }
+            @if (row.projectId) {
+              <span>{{ project(row.projectId) }}</span>
+            }
+            @if (row.duplicate) {
+              <span class="wait">{{ t('duplicateFlag') }}</span>
+            }
+            @if (row.corrected) {
+              <span>{{ t('correctedFlag') }}</span>
+            }
+          </td>
+        </tr>
+      }
+    </tbody>
+  </table>
+</div>

@@ -1,0 +1,106 @@
+:host {
+  display: block;
+  min-width: 0;
+  position: relative;
+}
+
+.chart {
+  margin: 0;
+  position: relative;
+}
+
+svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+  touch-action: pan-y;
+}
+
+.grid {
+  stroke: var(--line);
+  stroke-width: 1;
+  shape-rendering: crispEdges;
+}
+
+.axis {
+  fill: var(--muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.guide {
+  fill: var(--ink);
+  opacity: 0.04;
+}
+
+.bar {
+  transition: opacity 160ms ease-out;
+}
+
+.tip {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  min-width: 140px;
+  padding: 8px 10px;
+  background: var(--ink);
+  color: #fff;
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 1.5;
+  pointer-events: none;
+  display: grid;
+  gap: 2px;
+  z-index: 2;
+  box-shadow: 0 6px 18px rgb(17 24 39 / 0.18);
+}
+
+.tip strong {
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+.tip span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.tip b {
+  margin-inline-start: auto;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  padding-inline-start: 12px;
+}
+
+.tip i,
+.legend i {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  display: inline-block;
+  flex: none;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bar {
+    transition: none;
+  }
+}

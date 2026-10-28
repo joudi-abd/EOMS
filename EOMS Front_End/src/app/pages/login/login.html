@@ -1,0 +1,96 @@
+<div class="gate">
+  <main class="desk" id="content">
+    <header class="bar">
+      <img class="mark-small" src="/brand/ufuq.png" width="176" height="121" alt="UFUQ" />
+      <button class="lang" type="button" (click)="toggleLanguage()" [attr.aria-label]="t('switchLabel')">
+        <i class="fa-solid fa-language" aria-hidden="true"></i>
+        {{ t('switchTo') }}
+      </button>
+    </header>
+
+    <section class="entry" aria-labelledby="sign-in-title">
+      <h1 id="sign-in-title">{{ t('signInTitle') }}</h1>
+      <p class="lede">{{ t('signInLede') }}</p>
+
+      <form class="form" (submit)="submit($event)" [attr.aria-busy]="busy()">
+        <label class="field">
+          <span class="label">{{ t('email') }}</span>
+          <span class="control">
+            <i class="fa-solid fa-envelope lead" aria-hidden="true"></i>
+            <input name="email" type="email" autocomplete="username" spellcheck="false" dir="ltr" required [disabled]="busy()" placeholder="Email"/>
+          </span>
+        </label>
+
+        <label class="field">
+          <span class="label">{{ t('password') }}</span>
+          <span class="control">
+            <i class="fa-solid fa-lock lead" aria-hidden="true"></i>
+            <input
+              name="password"
+              [type]="reveal() ? 'text' : 'password'"
+              autocomplete="current-password"
+              spellcheck="false"
+              dir="ltr"
+              required
+              [disabled]="busy()"
+              placeholder="Password"
+            />
+            <button
+              class="eye"
+              type="button"
+              [attr.aria-label]="reveal() ? t('hidePassword') : t('showPassword')"
+              [attr.title]="reveal() ? t('hidePassword') : t('showPassword')"
+              [attr.aria-pressed]="reveal()"
+              (click)="toggleReveal()"
+            >
+              <i class="fa-solid" [class.fa-eye]="!reveal()" [class.fa-eye-slash]="reveal()" aria-hidden="true"></i>
+            </button>
+          </span>
+        </label>
+
+        @if (problem()) {
+          <p class="problem" role="alert">
+            <i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i>
+            <span>{{ problem() }}</span>
+          </p>
+        }
+
+        <button class="submit" type="submit" [disabled]="busy()">
+          @if (busy()) {
+            <i class="fa-solid fa-circle-notch spin" aria-hidden="true"></i>
+            {{ t('signingIn') }}
+          } @else {
+            {{ t('signIn') }}
+            <i class="fa-solid fa-arrow-left forward" aria-hidden="true"></i>
+          }
+        </button>
+      </form>
+
+    </section>
+
+    <footer class="foot">© {{ year }} · {{ t('brand') }}</footer>
+  </main>
+
+  <aside class="scene" aria-hidden="true">
+    <div class="scene-copy">
+      <img class="mark" src="/brand/ufuq.png" width="176" height="121" alt="" />
+      <p class="scene-title">{{ t('brand') }}</p>
+    </div>
+
+    <svg class="skyline" viewBox="0 0 640 260" preserveAspectRatio="xMidYMax meet" fill="none">
+      <g class="ground-line"><path d="M0 252H640" /></g>
+      <g class="frame">
+        <path d="M40 252V120h88v132M40 150h88M40 180h88M40 210h88M84 120v132" />
+        <path d="M150 252V64l54-30 54 30v188M150 96h108M150 128h108M150 160h108M150 192h108M150 224h108M186 64v188M222 64v188" />
+        <path d="M282 252V150h70v102M282 176h70M282 202h70M282 228h70M317 150v102" />
+        <path d="M372 252V40h96v212M372 72h96M372 104h96M372 136h96M372 168h96M372 200h96M372 232h96M404 40v212M436 40v212M420 40V18" />
+        <path d="M490 252V132l46-26 46 26v120M490 160h92M490 188h92M490 216h92M536 106v146" />
+        <path d="M598 252V186h34v66M598 210h34M598 232h34" />
+      </g>
+      <g class="dims">
+        <path d="M372 26h96M372 21v10M468 21v10" />
+        <path d="M24 120v132M19 120h10M19 252h10" />
+      </g>
+    </svg>
+  </aside>
+</div>

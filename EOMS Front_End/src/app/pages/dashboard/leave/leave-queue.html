@@ -1,0 +1,39 @@
+<div class="queue" [class.is-open]="open()">
+  <div class="queue-body" id="leave-queue" [attr.inert]="open() ? null : ''">
+    <section class="panel" data-print>
+      <header class="panel-head">
+        <div>
+          <h2>{{ t('leaveQueue') }}</h2>
+          <p>{{ t('leavePath') }}</p>
+        </div>
+      </header>
+      @if (pending().length === 0) {
+        <p class="empty">{{ t('nonePending') }}</p>
+      } @else {
+        <ul class="leave">
+          @for (leave of pending(); track leave.id) {
+            <li>
+              <p>
+                <strong>{{ text(leave.employee) }}</strong>
+                <span> · {{ text(leave.type) }} · {{ span(leave) }} · {{ date(leave.from) }}</span>
+                <small class="stage">{{ t(leave.status) }}</small>
+              </p>
+              @if (office.canAdvanceLeave(leave.id, session.account().id)) {
+                <p class="decide">
+                  <button class="text" type="button" (click)="approve(leave.id)">
+                    <i class="fa-solid fa-check" aria-hidden="true"></i>
+                    {{ t('approve') }}
+                  </button>
+                  <button class="quiet" type="button" (click)="reject(leave.id)">
+                    <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+                    {{ t('reject') }}
+                  </button>
+                </p>
+              }
+            </li>
+          }
+        </ul>
+      }
+    </section>
+  </div>
+</div>

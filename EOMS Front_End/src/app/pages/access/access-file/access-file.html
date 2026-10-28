@@ -1,0 +1,67 @@
+@if (creating() || person()) {
+  <header class="heading">
+    <h1>{{ creating() ? t('addAccount') : draftName() }}</h1>
+    <button class="text" type="button" (click)="back()">{{ t('backToAccess') }}</button>
+  </header>
+  <p class="note">{{ t('rolesHint') }}</p>
+  @if (!editable()) {
+    <p class="note lock-note">
+      <i class="fa-solid fa-lock" aria-hidden="true"></i>
+      {{ t('directorOnly') }}
+    </p>
+  } @else {
+    <form class="form" (submit)="save($event)">
+      <label class="wide">
+        <span>{{ t('personName') }}</span>
+        <input name="fullName" type="text" autocomplete="name" maxlength="120" required [value]="draftName()" (input)="onName($event)" />
+      </label>
+      <label>
+        <span>{{ t('email') }}</span>
+        <input name="email" type="email" autocomplete="off" spellcheck="false" dir="ltr" maxlength="255" required [value]="person()?.email ?? ''" />
+      </label>
+      <label>
+        <span>{{ t('phone') }}</span>
+        <input name="phone" type="tel" autocomplete="off" dir="ltr" maxlength="30" [value]="person()?.phone ?? ''" />
+      </label>
+      <label class="wide">
+        <span>{{ t('password') }}</span>
+        <input
+          name="password"
+          type="password"
+          autocomplete="new-password"
+          dir="ltr"
+          minlength="10"
+          [required]="creating()"
+        />
+        <small class="hint">{{ creating() ? t('passwordHint') : t('passwordKeep') }}</small>
+      </label>
+      <fieldset class="wide">
+        <legend>{{ t('accountRoles') }}</legend>
+        @for (role of roles; track role) {
+          <label class="check">
+            <input
+              type="checkbox"
+              name="role"
+              [value]="role"
+              [checked]="picked().includes(role)"
+              [disabled]="lockedRole(role)"
+              (change)="toggle(role, $event)"
+            />
+            <span>{{ t(roleLabel[role]) }}</span>
+          </label>
+        }
+      </fieldset>
+      @if (limit()) {
+        <p class="wide warn">{{ t('roleLimit') }}</p>
+      }
+      @if (problem()) {
+        <p class="wide warn" role="alert">{{ problem() }}</p>
+      }
+      <button class="primary" type="submit" [disabled]="picked().length === 0 || saving()">{{ t('saveAccount') }}</button>
+    </form>
+  }
+} @else {
+  <h1>{{ t('access') }}</h1>
+  <p class="empty" aria-live="polite">{{ office.loading() ? t('loading') : t('missingAccount') }}</p>
+  <button class="text" type="button" (click)="back()">{{ t('backToAccess') }}</button>
+}

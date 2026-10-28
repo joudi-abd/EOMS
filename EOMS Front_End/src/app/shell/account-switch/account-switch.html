@@ -1,0 +1,11 @@
+<div class="who">
+  <span class="avatar" aria-hidden="true">{{ initials() }}</span>
+  <div class="id">
+    <strong>{{ text(session.account().name) }}</strong>
+    <span class="roles">{{ session.roleLine() || session.account().email }}</span>
+  </div>
+</div>
+<button class="out" type="button" [disabled]="leaving()" (click)="signOut()">
+  <i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i>
+  {{ t('signOut') }}
+</button>

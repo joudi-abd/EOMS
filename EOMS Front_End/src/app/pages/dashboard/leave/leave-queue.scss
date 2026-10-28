@@ -1,0 +1,68 @@
+:host {
+  display: block;
+}
+
+.queue {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 240ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.queue.is-open {
+  grid-template-rows: 1fr;
+}
+
+.queue-body {
+  overflow: hidden;
+}
+
+.queue.is-open .panel {
+  margin-top: 16px;
+}
+
+.leave {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.leave li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.leave li:last-child {
+  border-bottom: 0;
+}
+
+.leave p {
+  margin: 0;
+}
+
+.stage {
+  display: block;
+  color: var(--wait);
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+.decide {
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .leave li {
+    display: grid;
+    align-items: start;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .queue {
+    transition: none;
+  }
+}

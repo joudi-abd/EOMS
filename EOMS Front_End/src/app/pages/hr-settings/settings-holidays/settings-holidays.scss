@@ -1,0 +1,65 @@
+:host {
+  display: block;
+}
+
+.holidays {
+  max-width: 720px;
+  margin-top: 16px;
+}
+
+.list {
+  list-style: none;
+  margin: 0 0 16px;
+  padding: 0;
+}
+
+.list li {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.when {
+  color: var(--muted);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.quiet {
+  margin-inline-start: 0;
+}
+
+.inline {
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.inline label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.inline .grow {
+  flex: 1;
+  min-width: 200px;
+}
+
+.inline input {
+  margin: 0;
+  width: 100%;
+}
+
+@media (max-width: 640px) {
+  .list li {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+}

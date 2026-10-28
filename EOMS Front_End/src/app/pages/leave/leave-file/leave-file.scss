@@ -1,0 +1,96 @@
+:host {
+  display: block;
+}
+
+.form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 20px;
+  max-width: 640px;
+}
+
+.form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.form select,
+.form input {
+  width: 100%;
+  margin: 0;
+}
+
+.form .primary {
+  justify-self: start;
+}
+
+.wide {
+  grid-column: 1 / -1;
+}
+
+.warn {
+  margin: 0;
+  color: var(--late);
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: 160px minmax(0, 1fr);
+  gap: 8px 16px;
+  margin: 20px 0;
+  max-width: 640px;
+}
+
+.facts dt {
+  color: var(--muted);
+}
+
+.facts dd {
+  margin: 0;
+}
+
+.actions .quiet {
+  margin-inline-start: 0;
+}
+
+h2 {
+  margin-top: 8px;
+}
+
+.trail {
+  list-style: none;
+  margin: 0 0 16px;
+  padding: 0;
+  max-width: 640px;
+}
+
+.trail li {
+  display: grid;
+  grid-template-columns: 150px 140px minmax(0, 1fr);
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.when {
+  color: var(--muted);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 640px) {
+  .form,
+  .facts,
+  .trail li {
+    grid-template-columns: 1fr;
+  }
+
+  .trail li {
+    gap: 2px;
+  }
+}

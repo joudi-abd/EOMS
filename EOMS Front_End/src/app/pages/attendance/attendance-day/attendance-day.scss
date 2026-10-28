@@ -1,0 +1,100 @@
+:host {
+  display: block;
+}
+
+h2 {
+  margin-top: 28px;
+}
+
+.file,
+.form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px 24px;
+  margin-top: 20px;
+  max-width: 880px;
+}
+
+.file div,
+.form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+dt,
+.form label {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.form input,
+.form select,
+.form textarea {
+  width: 100%;
+  margin: 0;
+}
+
+.form .text,
+.form .quiet {
+  justify-self: start;
+  margin-inline-start: 0;
+}
+
+.form .quiet {
+  border: 1px solid #fecaca;
+}
+
+.inline-action {
+  min-height: 32px;
+  padding: 4px 10px;
+  margin-inline-start: 8px;
+}
+
+.form textarea {
+  font: inherit;
+  color: inherit;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  min-height: 88px;
+  padding: 10px;
+  resize: vertical;
+}
+
+.form .primary {
+  justify-self: start;
+}
+
+.wide {
+  grid-column: 1 / -1;
+}
+
+dd {
+  margin: 4px 0 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.punches {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-width: 640px;
+}
+
+.punches li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 640px) {
+  .file,
+  .form {
+    grid-template-columns: 1fr;
+  }
+}

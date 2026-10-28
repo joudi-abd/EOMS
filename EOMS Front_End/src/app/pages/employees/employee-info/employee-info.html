@@ -1,0 +1,94 @@
+@if (session.mayEdit(person().id, 'employee.edit') && person().status !== 'ended') {
+  <a class="text edit" [routerLink]="[]" [queryParams]="{ edit: 1 }" queryParamsHandling="merge">
+    <i class="fa-solid fa-pen" aria-hidden="true"></i>
+    {{ t('editEmployee') }}
+  </a>
+}
+<dl class="file">
+  <div>
+    <dt>{{ t('staffNo') }}</dt>
+    <dd class="mono">{{ person().staffNo }}</dd>
+  </div>
+  <div>
+    <dt>{{ t('jobTitle') }}</dt>
+    <dd>{{ text(person().title) || '—' }}</dd>
+  </div>
+  <div>
+    <dt>{{ t('department') }}</dt>
+    <dd>{{ department(person().department) }}</dd>
+  </div>
+  <div>
+    <dt>{{ t('state') }}</dt>
+    <dd [class.ok]="person().status === 'active'" [class.wait]="person().status === 'away' || person().status === 'leaving'" [class.late]="person().status === 'ended'">
+      {{ t(person().status) }}
+    </dd>
+  </div>
+  <div>
+    <dt>{{ t('manager') }}</dt>
+    <dd>
+      @if (manager(); as boss) {
+        {{ text(boss.name) }}
+      } @else {
+        {{ t('managerFallback') }}
+      }
+    </dd>
+  </div>
+  <div>
+    <dt>{{ t('hired') }}</dt>
+    <dd>{{ date(person().hired) }}</dd>
+  </div>
+  @if (person().sensitive) {
+    <div>
+      <dt>{{ t('birthDate') }}</dt>
+      <dd>{{ date(person().birthDate) }}</dd>
+    </div>
+    <div>
+      <dt>{{ t('phone') }}</dt>
+      <dd class="mono">{{ person().phone || '—' }}</dd>
+    </div>
+    <div>
+      <dt>{{ t('email') }}</dt>
+      <dd>{{ person().email || '—' }}</dd>
+    </div>
+  }
+  @if (person().financial) {
+    <div>
+      <dt>{{ t('wallet') }}</dt>
+      <dd class="mono">{{ person().wallet || '—' }}</dd>
+    </div>
+  }
+  @if (account(); as login) {
+    <div>
+      <dt>{{ t('loginAccount') }}</dt>
+      <dd [class.ok]="login.enabled" [class.late]="!login.enabled">
+        {{ login.enabled ? t('accountOn') : t('accountOff') }} · <span dir="ltr">{{ login.email }}</span>
+      </dd>
+    </div>
+  }
+  <div>
+    <dt>{{ t('fingerTitle') }}</dt>
+    <dd>
+      {{ t(fingerKey[person().fingerprint]) }}
+      @if (office.pinOf(person().id); as pin) {
+        · {{ t('pinLabel') }} <span class="mono">{{ pin }}</span>
+      }
+    </dd>
+  </div>
+  @if (person().endedOn) {
+    <div>
+      <dt>{{ t('offboardEnded') }}</dt>
+      <dd>{{ date(person().endedOn) }}</dd>
+    </div>
+  }
+  @if (person().sensitive) {
+    <div class="wide">
+      <dt>{{ t('address') }}</dt>
+      <dd>{{ person().address || '—' }}</dd>
+    </div>
+  }
+  <div class="wide">
+    <dt>{{ t('staffDocuments') }}</dt>
+    <dd>{{ documents() }}</dd>
+  </div>
+</dl>
+<p class="note">{{ t('sensitiveNote') }}</p>
