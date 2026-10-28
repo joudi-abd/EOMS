@@ -2,9 +2,11 @@
 
 namespace Tests\Feature\HR;
 
+use App\Modules\HR\Http\Resources\EmploymentContractResource;
 use App\Modules\HR\Models\Employee;
 use App\Modules\HR\Models\EmploymentContract;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Date;
 use Tests\TestCase;
@@ -45,6 +47,23 @@ class ExpiredContractTest extends TestCase
             'start_date' => '2026-01-01',
             'end_date' => '2026-12-31',
         ]);
+    }
+
+    public function test_contract_api_exposes_persisted_and_effective_status_separately(): void
+    {
+        $contract = $this->contract();
+        Date::setTestNow('2027-01-01');
+
+        $resource = new EmploymentContractResource($contract->fresh());
+        $data = $resource->toArray(Request::create('/api/v1/test', 'GET'));
+        $this->assertSame('active', $data['status']);
+        $this->assertSame('expired', $data['effective_status']);
+
+        Artisan::call('contracts:process-expired');
+        $resource = new EmploymentContractResource($contract->fresh());
+        $data = $resource->toArray(Request::create('/api/v1/test', 'GET'));
+        $this->assertSame('expired', $data['status']);
+        $this->assertSame('expired', $data['effective_status']);
     }
 
     public function test_contract_remains_active_on_its_end_date(): void

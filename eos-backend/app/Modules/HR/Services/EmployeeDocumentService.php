@@ -7,6 +7,8 @@ use App\Modules\HR\Models\EmployeeDocument;
 use App\Modules\Identity\Services\AuditLogger;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -31,26 +33,42 @@ class EmployeeDocumentService
     {
         // Laravel's local disk is private; no storage:link or public URL is used.
         $path = $file->store('employee-documents/'.$employee->id, 'local');
+        if ($path === false) {
+            throw new \RuntimeException('Unable to store employee document.');
+        }
 
         try {
-            $document = $employee->documents()->create([
-                'title' => $data['title'],
-                'document_type' => $data['document_type'] ?? 'other',
-                'description' => $data['description'] ?? null,
-                'file_path' => $path,
-                'original_name' => basename($file->getClientOriginalName()),
-                'mime_type' => $file->getMimeType() ?? 'application/octet-stream',
-                'file_size' => $file->getSize(),
-                'uploaded_by_user_id' => auth()->id(),
-            ]);
-            $this->audit->log('employee.document_uploaded', $document, null, [
-                'document_id' => $document->id,
-                'employee_id' => $employee->id,
-            ]);
+            return DB::transaction(function () use ($employee, $data, $file, $path) {
+                $document = $employee->documents()->create([
+                    'title' => $data['title'],
+                    'document_type' => $data['document_type'] ?? 'other',
+                    'description' => $data['description'] ?? null,
+                    'file_path' => $path,
+                    'original_name' => basename($file->getClientOriginalName()),
+                    'mime_type' => $file->getMimeType() ?? 'application/octet-stream',
+                    'file_size' => $file->getSize(),
+                    'uploaded_by_user_id' => auth()->id(),
+                ]);
+                $this->audit->log('employee.document_uploaded', $document, null, [
+                    'document_id' => $document->id,
+                    'employee_id' => $employee->id,
+                ]);
 
-            return $document;
+                return $document;
+            });
         } catch (\Throwable $e) {
-            Storage::disk('local')->delete($path);
+            // DB transaction rolls back both the document row and audit row.
+            // Storage is external to the DB; compensate by removing the uploaded file.
+            try {
+                if (! Storage::disk('local')->delete($path)) {
+                    Log::error('Employee document upload cleanup failed', ['path' => $path]);
+                }
+            } catch (\Throwable $cleanupException) {
+                Log::error('Employee document upload cleanup threw exception', [
+                    'path' => $path,
+                    'error' => $cleanupException->getMessage(),
+                ]);
+            }
             throw $e;
         }
     }
@@ -67,11 +85,22 @@ class EmployeeDocumentService
     {
         $document = $this->find($employee, $document);
         $path = $document->file_path;
-        $this->audit->log('employee.document_deleted', $document, [
-            'document_id' => $document->id,
-            'employee_id' => $employee->id,
-        ]);
-        $document->delete();
-        Storage::disk('local')->delete($path);
+        DB::transaction(function () use ($document, $employee) {
+            $this->audit->log('employee.document_deleted', $document, [
+                'document_id' => $document->id,
+                'employee_id' => $employee->id,
+            ]);
+            $document->delete();
+        });
+
+        // A failed physical delete leaves an orphan FILE, not a dangling DB record.
+        // Alert operators for cleanup; filesystem and DB cannot be truly atomic.
+        if (! Storage::disk('local')->delete($path)) {
+            Log::error('Employee document file deletion failed', [
+                'document_id' => $document->id,
+                'path' => $path,
+            ]);
+            throw new \RuntimeException('Document record deleted, but file cleanup failed.');
+        }
     }
 }

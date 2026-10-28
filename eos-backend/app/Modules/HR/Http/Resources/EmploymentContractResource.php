@@ -9,15 +9,26 @@ class EmploymentContractResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
-        $expired = $this->status === 'active' && $this->end_date !== null
-            && $this->end_date->startOfDay()->lt(today());
+        // status is the persisted lifecycle state. Do not impersonate the Scheduler.
+        $effectiveStatus = $this->status;
+        if ($this->status === 'active') {
+            if ($this->scheduled_termination_at !== null
+                && $this->scheduled_termination_at->lte(today())) {
+                $effectiveStatus = 'termination_due';
+            } elseif ($this->start_date !== null && $this->start_date->gt(today())) {
+                $effectiveStatus = 'upcoming';
+            } elseif ($this->end_date !== null && $this->end_date->lt(today())) {
+                $effectiveStatus = 'expired';
+            }
+        }
 
         return [
             'id' => $this->id,
             'employee_id' => $this->employee_id,
             'contract_number' => $this->contract_number,
             'type' => $this->type,
-            'status' => $expired ? 'expired' : $this->status,
+            'status' => $this->status,
+            'effective_status' => $effectiveStatus,
             'start_date' => $this->start_date?->format('Y-m-d'),
             'end_date' => $this->end_date?->format('Y-m-d'),
             'terminated_at' => $this->terminated_at?->format('Y-m-d'),
