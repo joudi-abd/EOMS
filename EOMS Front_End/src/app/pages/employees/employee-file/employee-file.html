@@ -1,0 +1,60 @@
+@if (creating()) {
+  <header class="heading">
+    <h1>{{ t('addEmployee') }}</h1>
+    <button class="text" type="button" (click)="back()">{{ t('backToStaff') }}</button>
+  </header>
+  @if (session.canAct('employee.add')) {
+    <app-employee-form />
+  } @else {
+    <p class="empty">{{ t('noAccess') }}</p>
+  }
+} @else if (employee(); as person) {
+  <header class="heading">
+    <div>
+      <h1>{{ text(person.name) }}</h1>
+      <p class="sub">{{ person.staffNo }} · {{ text(person.title) }}</p>
+    </div>
+    <button class="text" type="button" (click)="back()">{{ t('backToStaff') }}</button>
+  </header>
+
+  @if (editing() && session.mayEdit(person.id, 'employee.edit') && person.status !== 'ended') {
+    <h2>{{ t('editEmployee') }}</h2>
+    <app-employee-form [person]="person" />
+  } @else {
+    <nav class="tabs" [attr.aria-label]="t('fileTabs')">
+      @for (item of tabs; track item.id) {
+        <a
+          [routerLink]="[]"
+          [queryParams]="{ tab: item.id === 'info' ? null : item.id }"
+          queryParamsHandling="merge"
+          [class.active]="tab() === item.id"
+          [attr.aria-current]="tab() === item.id ? 'page' : null"
+        >
+          <i class="fa-solid {{ item.icon }}" aria-hidden="true"></i>
+          {{ t(item.label) }}
+        </a>
+      }
+    </nav>
+    @switch (tab()) {
+      @case ('contracts') {
+        <app-employee-contracts [person]="person" />
+      }
+      @case ('finger') {
+        <app-employee-finger [person]="person" />
+      }
+      @case ('history') {
+        <app-employee-history [person]="person" />
+      }
+      @case ('leaving') {
+        <app-employee-leaving [person]="person" />
+      }
+      @default {
+        <app-employee-info [person]="person" />
+      }
+    }
+  }
+} @else {
+  <h1>{{ t('employees') }}</h1>
+  <p class="empty" aria-live="polite">{{ office.loading() ? t('loading') : t('emptyStaff') }}</p>
+  <button class="text" type="button" (click)="back()">{{ t('backToStaff') }}</button>
+}

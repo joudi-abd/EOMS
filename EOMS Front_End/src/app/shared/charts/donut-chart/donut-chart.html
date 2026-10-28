@@ -1,0 +1,47 @@
+<figure class="donut">
+  <svg
+    class="chart-svg"
+    [attr.width]="size()"
+    [attr.height]="size()"
+    [attr.viewBox]="'0 0 ' + size() + ' ' + size()"
+    role="img"
+    [attr.aria-label]="label()"
+  >
+    <circle class="track" [attr.cx]="size() / 2" [attr.cy]="size() / 2" [attr.r]="radius()" />
+    @for (arc of arcs(); track arc.index) {
+      @if (arc.dash > 0) {
+        <circle
+          class="arc"
+          [class.dim]="active() !== null && active() !== arc.index"
+          [attr.cx]="size() / 2"
+          [attr.cy]="size() / 2"
+          [attr.r]="radius()"
+          [style.stroke]="arc.color"
+          [attr.stroke-dasharray]="arc.dash + ' ' + arc.gap"
+          [attr.stroke-dashoffset]="arc.offset"
+          [attr.transform]="'rotate(-90 ' + size() / 2 + ' ' + size() / 2 + ')'"
+          (pointerenter)="active.set(arc.index)"
+          (pointerleave)="active.set(null)"
+        />
+      }
+    }
+    <text class="total" [attr.x]="size() / 2" [attr.y]="size() / 2 + 2" text-anchor="middle">
+      {{ focus() ? format(focus()!.value) : format(total()) }}
+    </text>
+    <text class="caption" [attr.x]="size() / 2" [attr.y]="size() / 2 + 22" text-anchor="middle">
+      {{ focus() ? focus()!.label : center() }}
+    </text>
+  </svg>
+  <figcaption>
+    <ul class="list">
+      @for (slice of slices(); track slice.label; let index = $index) {
+        <li [class.on]="active() === index" (pointerenter)="active.set(index)" (pointerleave)="active.set(null)">
+          <i [style.background]="slice.color"></i>
+          <span class="title">{{ slice.label }}</span>
+          <b>{{ format(slice.value) }}</b>
+          <small>{{ percent(slice.value) }}</small>
+        </li>
+      }
+    </ul>
+  </figcaption>
+</figure>

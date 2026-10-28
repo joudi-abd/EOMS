@@ -1,0 +1,51 @@
+<section class="finger">
+  <p class="state" aria-live="polite">
+    <i class="fa-solid fa-fingerprint" aria-hidden="true"></i>
+    <strong
+      [class.ok]="person().fingerprint === 'enrolled'"
+      [class.wait]="busy()"
+      [class.late]="person().fingerprint === 'failed'"
+    >{{ t(fingerKey[person().fingerprint]) }}</strong>
+  </p>
+  <dl class="facts">
+    <div>
+      <dt>{{ t('pinLabel') }}</dt>
+      <dd class="mono">{{ pin() || '—' }}</dd>
+    </div>
+    <div>
+      <dt>{{ t('serial') }}</dt>
+      <dd class="mono">{{ device.model }} · {{ device.protocol }}</dd>
+    </div>
+  </dl>
+
+  <ol class="steps">
+    @for (step of steps(); track step.key) {
+      <li [class.done]="step.done" [class.failed]="step.failed">
+        <i
+          class="fa-solid"
+          [class.fa-circle-check]="step.done"
+          [class.fa-circle-xmark]="step.failed"
+          [class.fa-circle]="!step.done && !step.failed"
+          aria-hidden="true"
+        ></i>
+        <span>{{ t(step.key) }}</span>
+      </li>
+    }
+  </ol>
+
+  @if (person().fingerprint === 'waiting') {
+    <p class="note">{{ t('fingerInstructions') }}</p>
+  }
+
+  <p class="note">{{ t('fingerServerNote') }}</p>
+
+  @if (commands().length > 0) {
+    <h2>{{ t('admsCommands') }}</h2>
+    <div class="commands" dir="ltr" translate="no">
+      @for (line of commands(); track line) {
+        <code>{{ line }}</code>
+      }
+    </div>
+    <p class="note">{{ t('admsNote') }}</p>
+  }
+</section>

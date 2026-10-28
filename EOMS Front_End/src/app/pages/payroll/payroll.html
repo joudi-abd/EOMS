@@ -1,0 +1,77 @@
+<main class="work" id="content">
+  <button class="menu" type="button" (click)="chrome.toggle()">
+    <i class="fa-solid" [class.fa-bars]="!chrome.menuOpen()" [class.fa-xmark]="chrome.menuOpen()" aria-hidden="true"></i>
+    {{ chrome.menuOpen() ? t('closeMenu') : t('menu') }}
+  </button>
+
+  @if (!session.can('payroll')) {
+    <h1>{{ t('payroll') }}</h1>
+    <p class="empty">{{ t('noAccess') }}</p>
+    <a class="primary" routerLink="/">{{ t('back') }}</a>
+  } @else {
+    <app-notice />
+
+    @if (sheet()) {
+      <app-payroll-file />
+    } @else if (run()) {
+      <app-payroll-run />
+    } @else {
+      <header class="heading">
+        <h1>{{ t('payroll') }}</h1>
+      </header>
+      <p class="note">{{ t('payrollRules') }}</p>
+      <p class="note">{{ t('currencyNote') }}</p>
+      <p class="note">{{ t('separationRule') }}</p>
+
+      @if (session.canAct('payroll.prepare')) {
+        <form class="create" (submit)="create($event)">
+          <label>
+            <span>{{ t('runPeriod') }}</span>
+            <input name="period" type="month" autocomplete="off" required [value]="nextPeriod()" />
+          </label>
+          <button class="primary" type="submit">
+            <i class="fa-solid fa-file-invoice" aria-hidden="true"></i>
+            {{ t('newRun') }}
+          </button>
+          @if (exists()) {
+            <p class="warn">{{ t('runExists') }}</p>
+          }
+        </form>
+      }
+
+      <h2>{{ t('payrollRuns') }}</h2>
+      @if (office.runs().length === 0) {
+        <p class="empty">{{ t('noRuns') }}</p>
+      } @else {
+        <div class="sheet">
+          <table>
+            <thead>
+              <tr>
+                <th>{{ t('runPeriod') }}</th>
+                <th>{{ t('state') }}</th>
+                <th>{{ t('runEmployees') }}</th>
+                <th>{{ t('preparedByLabel') }}</th>
+                <th>{{ t('reviewedByLabel') }}</th>
+                <th>{{ t('approvedByLabel') }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (item of office.runs(); track item.id) {
+                <tr>
+                  <td>
+                    <a class="name" [routerLink]="[]" [queryParams]="{ run: item.id }" queryParamsHandling="merge">{{ month(item.period) }}</a>
+                  </td>
+                  <td [class]="tone(item)">{{ status(item) }}</td>
+                  <td class="num">{{ num(paid(item)) }} / {{ num(item.employeeIds.length) }} {{ t('paidCount') }}</td>
+                  <td>{{ actor(item.preparedBy) }}</td>
+                  <td>{{ actor(item.reviewedBy) }}</td>
+                  <td>{{ actor(item.approvedBy) }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    }
+  }
+</main>

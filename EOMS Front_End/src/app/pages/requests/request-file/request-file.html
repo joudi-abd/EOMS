@@ -1,0 +1,128 @@
+@if (creating()) {
+  <header class="heading">
+    <h1>{{ t(kindKey[draft()]) }}</h1>
+    <button class="text" type="button" (click)="back()">{{ t('backToRequests') }}</button>
+  </header>
+  <p class="note">{{ t('ownRequest') }} {{ t(kindEffect[draft()]) }}</p>
+  @if (session.hasFile()) {
+    <form class="form" (submit)="save($event)">
+      @switch (draft()) {
+        @case ('correction') {
+          <label>
+            <span>{{ t('requestDay') }}</span>
+            <input name="day" type="date" autocomplete="off" required />
+          </label>
+          <label>
+            <span>{{ t('arrival') }}</span>
+            <input name="checkIn" type="time" autocomplete="off" required />
+          </label>
+          <label>
+            <span>{{ t('departure') }}</span>
+            <input name="checkOut" type="time" autocomplete="off" required />
+          </label>
+        }
+        @case ('equipment') {
+          <label class="wide">
+            <span>{{ t('requestItem') }}</span>
+            <input name="item" type="text" autocomplete="off" required />
+          </label>
+        }
+        @case ('resignation') {
+          <label>
+            <span>{{ t('lastDay') }}</span>
+            <input name="day" type="date" autocomplete="off" required />
+          </label>
+        }
+      }
+      <label class="wide">
+        <span>{{ t('requestDetails') }}</span>
+        <textarea name="details" rows="3" [required]="draft() !== 'equipment'"></textarea>
+      </label>
+      @if (refused()) {
+        <p class="wide warn">{{ t('requestRefused') }}</p>
+      }
+      <button class="primary" type="submit">{{ t('saveRequest') }}</button>
+    </form>
+  } @else {
+    <p class="empty">{{ t('missingStaff') }}</p>
+  }
+} @else if (row(); as request) {
+  <header class="heading">
+    <h1>{{ text(office.personName(request.employeeId)) }}</h1>
+    <button class="text" type="button" (click)="back()">{{ t('backToRequests') }}</button>
+  </header>
+  <dl class="facts">
+    <dt>{{ t('kind') }}</dt>
+    <dd>{{ t(kindKey[request.kind]) }}</dd>
+    <dt>{{ t('filedAt') }}</dt>
+    <dd>{{ date(request.filedAt) }} {{ request.filedAt.slice(11, 16) }}</dd>
+    @if (request.kind === 'correction') {
+      <dt>{{ t('requestDay') }}</dt>
+      <dd>
+        <a class="name" routerLink="/modules/attendance" [queryParams]="{ who: request.employeeId, day: request.day }">{{ date(request.day) }}</a>
+      </dd>
+      <dt>{{ t('requestedTimes') }}</dt>
+      <dd class="num">{{ request.checkIn }} – {{ request.checkOut }}</dd>
+    }
+    @if (request.kind === 'equipment') {
+      <dt>{{ t('requestItem') }}</dt>
+      <dd>{{ request.item }}</dd>
+    }
+    @if (request.kind === 'resignation') {
+      <dt>{{ t('lastDay') }}</dt>
+      <dd>{{ date(request.day) }}</dd>
+    }
+    @if (request.details) {
+      <dt>{{ t('requestDetails') }}</dt>
+      <dd>{{ request.details }}</dd>
+    }
+    <dt>{{ t('state') }}</dt>
+    <dd [class]="tone(request.status)">{{ t(request.status) }}</dd>
+  </dl>
+  <p class="note">{{ t(kindEffect[request.kind]) }}</p>
+  @if (request.kind === 'resignation' && request.status === 'approved' && session.canAct('employee.end')) {
+    <p><a class="name" routerLink="/modules/employees" [queryParams]="{ file: request.employeeId, tab: 'leaving' }">{{ t('offboardTitle') }}</a></p>
+  }
+  @if (custodyFor(); as item) {
+    <p class="note">{{ t('custodyTitle') }}: {{ item.item }} · {{ date(item.since) }}</p>
+  }
+
+  <h2>{{ t('decisionsTitle') }}</h2>
+  <ol class="trail">
+    @for (decision of request.decisions; track $index) {
+      <li>
+        <span class="when">{{ date(decision.at) }} {{ decision.at.slice(11, 16) }}</span>
+        <span>{{ decision.stage === 'manager' ? t('stageManager') : decision.stage === 'self' ? t('stageSelf') : t('stageHr') }}</span>
+        <span [class.ok]="decision.decision === 'approved'" [class.late]="decision.decision === 'rejected'">
+          {{ actor(decision.actorId) }} {{ decision.decision === 'approved' ? t('decisionApproved') : t('decisionRejected') }}
+        </span>
+      </li>
+    }
+    @if (request.status === 'pending_manager' || request.status === 'pending_hr') {
+      <li>
+        <span class="when">—</span>
+        <span>{{ request.status === 'pending_manager' ? t('stageManager') : t('stageHr') }}</span>
+        <span class="wait">{{ t(request.status) }}</span>
+      </li>
+    }
+  </ol>
+
+  @if (office.canDecideRequest(request.id, session.account().id)) {
+    <div class="actions">
+      <button class="primary" type="button" (click)="decide(true)">
+        <i class="fa-solid fa-check" aria-hidden="true"></i>
+        {{ t('approve') }}
+      </button>
+      <button class="quiet" type="button" (click)="decide(false)">
+        <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+        {{ t('reject') }}
+      </button>
+    </div>
+  } @else if (request.employeeId === session.account().id && (request.status === 'pending_manager' || request.status === 'pending_hr')) {
+    <p class="note">{{ t('selfDecide') }}</p>
+  }
+} @else {
+  <h1>{{ t('requests') }}</h1>
+  <p class="empty">{{ t('missingRequest') }}</p>
+  <button class="text" type="button" (click)="back()">{{ t('backToRequests') }}</button>
+}

@@ -1,0 +1,52 @@
+<main class="work" id="content">
+  <button class="menu" type="button" (click)="chrome.toggle()">
+    <i class="fa-solid" [class.fa-bars]="!chrome.menuOpen()" [class.fa-xmark]="chrome.menuOpen()" aria-hidden="true"></i>
+    {{ chrome.menuOpen() ? t('closeMenu') : t('menu') }}
+  </button>
+
+  @if (!session.can('access')) {
+    <h1>{{ t('access') }}</h1>
+    <p class="empty">{{ t('noAccess') }}</p>
+    <a class="primary" routerLink="/">{{ t('back') }}</a>
+  } @else {
+    <app-notice />
+
+    @if (user()) {
+      <app-access-file />
+    } @else {
+      <header class="heading">
+        <h1>{{ t('access') }}</h1>
+        @if (session.canAct('account.add')) {
+          <button class="primary" type="button" (click)="openNew()">
+            <i class="fa-solid fa-user-plus" aria-hidden="true"></i>
+            {{ t('addAccount') }}
+          </button>
+        }
+      </header>
+      <p class="note">{{ t('rolesHint') }}</p>
+
+      <div class="filters">
+        <label>
+          <span>{{ t('searchAccounts') }}</span>
+          <input name="q" type="search" autocomplete="off" [value]="query()" (input)="onSearch($event)" />
+        </label>
+      </div>
+
+      @if (rows().length === 0) {
+        <p class="empty">{{ t('emptyAccounts') }}</p>
+        <button class="text" type="button" (click)="clearSearch()">{{ t('clearAccounts') }}</button>
+      } @else {
+        <app-access-table [rows]="rows()" />
+      }
+
+      @if (office.audit().length > 0) {
+        <h2>{{ t('auditTitle') }}</h2>
+        <ul class="audit">
+          @for (entry of office.audit(); track entry.id) {
+            <li>{{ when(entry.at) }} · {{ actor(entry.actorId) }} · {{ verb(entry.kind) }} · {{ text(entry.targetName) }}</li>
+          }
+        </ul>
+      }
+    }
+  }
+</main>

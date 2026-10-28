@@ -1,0 +1,33 @@
+:host {
+  display: block;
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: 180px minmax(0, 1fr);
+  gap: 8px 16px;
+  margin: 20px 0;
+  max-width: 640px;
+}
+
+.facts dt {
+  color: var(--muted);
+}
+
+.facts dd {
+  margin: 0;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+h2 {
+  margin-top: 24px;
+}
+
+@media (max-width: 640px) {
+  .facts {
+    grid-template-columns: 1fr;
+  }
+}

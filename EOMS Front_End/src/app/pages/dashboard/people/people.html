@@ -1,0 +1,32 @@
+<div class="grid-2">
+  @if (session.can('employees')) {
+    <section class="panel" data-print>
+      <header class="panel-head">
+        <div>
+          <h2>{{ t('departments') }}</h2>
+          <p>{{ t('headcountCaption') }}</p>
+        </div>
+      </header>
+      <app-rank-chart [rows]="insights.headcount()" [label]="t('departments')" />
+    </section>
+  }
+  @if (session.can('leave')) {
+    <section class="panel" data-print>
+      <header class="panel-head">
+        <div>
+          <h2>{{ t('leaveStatusTitle') }}</h2>
+          <p>{{ session.canAct('leave.decide') ? t('officeScope') : t('teamScope') }}</p>
+        </div>
+      </header>
+      @if (insights.leaveStatus().length === 0) {
+        <p class="empty">{{ t('noData') }}</p>
+      } @else {
+        <app-donut-chart [slices]="insights.leaveStatus()" [label]="t('leaveStatusTitle')" [center]="t('requests')" />
+      }
+      @if (insights.leaveByType().length > 0) {
+        <h3 class="sub-title">{{ t('leaveTypeTitle') }}</h3>
+        <app-rank-chart [rows]="insights.leaveByType()" [label]="t('leaveTypeTitle')" [color]="'var(--fill-info)'" />
+      }
+    </section>
+  }
+</div>

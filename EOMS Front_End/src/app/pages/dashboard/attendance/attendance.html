@@ -1,0 +1,43 @@
+<div class="grid-2">
+  <section class="panel span-2" data-print>
+    <header class="panel-head">
+      <div>
+        <h2>{{ t('trendTitle') }}</h2>
+        <p>{{ t('policyLine') }} {{ t('rangeFrom') }} {{ office.policy().start }} {{ t('rangeTo') }} {{ office.policy().end }} · {{ t('graceLabel') }} {{ num(office.policy().grace) }} {{ t('minutesUnit') }}</p>
+      </div>
+      <a class="text small" routerLink="/modules/attendance" [queryParams]="{ view: 'month' }">{{ t('openReport') }}</a>
+    </header>
+    <app-line-chart [data]="insights.attendanceTrend()" [series]="rateSeries()" [label]="t('trendTitle')" unit="%" [max]="100" [height]="280" />
+  </section>
+  <section class="panel" data-print>
+    <header class="panel-head">
+      <div>
+        <h2>{{ t('todayTitle') }}</h2>
+        <p>{{ date(office.lastWorkday()) }}</p>
+      </div>
+    </header>
+    <app-donut-chart [slices]="insights.todayMix()" [label]="t('todayTitle')" [center]="t('employeesLabel')" />
+  </section>
+  <section class="panel" data-print>
+    <header class="panel-head">
+      <div>
+        <h2>{{ t('issuesTitle') }}</h2>
+        <p>{{ t('issuesCaption') }}</p>
+      </div>
+    </header>
+    <app-bar-chart [data]="insights.attendanceTrend()" [series]="issueSeries()" [label]="t('issuesTitle')" [stacked]="true" [height]="260" />
+  </section>
+  <section class="panel" data-print>
+    <header class="panel-head">
+      <div>
+        <h2>{{ t('lateDeptTitle') }}</h2>
+        <p>{{ t('issuesCaption') }}</p>
+      </div>
+    </header>
+    @if (insights.lateByDepartment().length === 0) {
+      <p class="empty">{{ t('noData') }}</p>
+    } @else {
+      <app-rank-chart [rows]="insights.lateByDepartment()" [label]="t('lateDeptTitle')" [color]="'var(--fill-wait)'" />
+    }
+  </section>
+</div>

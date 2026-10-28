@@ -1,0 +1,63 @@
+:host {
+  display: block;
+}
+
+h2 {
+  margin-top: 28px;
+}
+
+.filters {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) repeat(3, minmax(140px, 1fr));
+  gap: 12px;
+  margin: 18px 0;
+}
+
+.filters label,
+.link label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 14px;
+  min-width: 0;
+}
+
+.filters select,
+.filters input,
+.link select {
+  width: 100%;
+  margin: 0;
+}
+
+.link {
+  display: flex;
+  align-items: end;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.link span {
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 900px) {
+  .filters {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .filters,
+  .link {
+    grid-template-columns: 1fr;
+    display: grid;
+  }
+
+  .link .primary {
+    width: 100%;
+  }
+}

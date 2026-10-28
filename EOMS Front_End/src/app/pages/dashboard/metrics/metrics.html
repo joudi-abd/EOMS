@@ -1,0 +1,9 @@
+<ul class="metrics">
+  @for (card of cards(); track card.label) {
+    <li class="metric">
+      <span class="label">{{ t(card.label) }}</span>
+      <strong>{{ card.value }}</strong>
+      <small [class]="card.tone ?? ''">{{ card.sub }}</small>
+    </li>
+  }
+</ul>

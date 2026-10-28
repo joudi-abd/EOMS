@@ -1,0 +1,47 @@
+<div class="sheet">
+  <table>
+    <thead>
+      <tr>
+        <th>{{ t('account') }}</th>
+        <th>{{ t('email') }}</th>
+        <th>{{ t('accountRoles') }}</th>
+        <th>{{ t('lastLogin') }}</th>
+        <th>{{ t('state') }}</th>
+        @if (session.canAct('account.toggle')) {
+          <th><span class="vh">{{ t('enableAccount') }}</span></th>
+        }
+      </tr>
+    </thead>
+    <tbody>
+      @for (account of rows(); track account.id) {
+        <tr>
+          <td>
+            @if (editable(account)) {
+              <a class="name" [routerLink]="[]" [queryParams]="{ user: account.id }" queryParamsHandling="merge">
+                {{ text(account.name) }}
+              </a>
+            } @else {
+              <span class="plain">{{ text(account.name) }}</span>
+              @if (account.roles.includes('company') && !session.isDirector()) {
+                <i class="fa-solid fa-lock lock" [attr.title]="t('directorOnly')" aria-hidden="true"></i>
+              }
+            }
+          </td>
+          <td dir="ltr" class="mail">{{ account.email }}</td>
+          <td>{{ roles(account) || '—' }}</td>
+          <td>{{ account.lastLogin ? short(account.lastLogin) : '—' }}</td>
+          <td [class.ok]="account.enabled" [class.late]="!account.enabled">
+            {{ account.enabled ? t('enabled') : t('disabled') }}
+          </td>
+          @if (session.canAct('account.toggle')) {
+            <td>
+              <button class="text" type="button" [disabled]="locked(account) || busy() === account.id" (click)="toggle(account)">
+                {{ account.enabled ? t('disableAccount') : t('enableAccount') }}
+              </button>
+            </td>
+          }
+        </tr>
+      }
+    </tbody>
+  </table>
+</div>

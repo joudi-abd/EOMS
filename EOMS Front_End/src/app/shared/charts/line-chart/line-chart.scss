@@ -1,0 +1,19 @@
+@use '../chart-base';
+
+.line {
+  fill: none;
+  stroke-width: 2.25;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.cursor {
+  stroke: var(--muted);
+  stroke-dasharray: 3 3;
+  opacity: 0.6;
+}
+
+.dot {
+  fill: var(--surface);
+  stroke-width: 2.5;
+}

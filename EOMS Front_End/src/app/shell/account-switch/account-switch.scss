@@ -1,0 +1,69 @@
+:host {
+  display: block;
+}
+
+.who {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  flex: none;
+  background: var(--action-tint);
+  color: var(--action-ink);
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.id {
+  display: grid;
+  min-width: 0;
+}
+
+.id strong {
+  font-size: 14px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.roles {
+  color: var(--muted);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.out {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 36px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.out:hover {
+  background: var(--hover);
+  border-color: var(--line-strong);
+}
+
+.out:disabled {
+  color: var(--soft);
+  cursor: progress;
+}

@@ -1,0 +1,35 @@
+{
+  "name": "eoms",
+  "version": "0.0.0",
+  "scripts": {
+    "ng": "ng",
+    "start": "fuser -k 4200/tcp >/dev/null 2>&1 || true; sleep 0.4; ng serve --host 127.0.0.1 --port 4200",
+    "build": "ng build",
+    "watch": "ng build --watch --configuration development",
+    "test": "ng test"
+  },
+  "private": true,
+  "packageManager": "npm@11.19.1",
+  "dependencies": {
+    "@angular/common": "^22.2.0",
+    "@angular/compiler": "^22.2.0",
+    "@angular/core": "^22.2.0",
+    "@angular/forms": "^22.2.0",
+    "@angular/platform-browser": "^22.2.0",
+    "@angular/router": "^22.2.0",
+    "@fontsource-variable/readex-pro": "^5.3.0",
+    "@fortawesome/fontawesome-free": "^7.3.1",
+    "exceljs": "^4.4.0",
+    "rxjs": "~7.8.0",
+    "tslib": "^2.3.0"
+  },
+  "devDependencies": {
+    "@angular/build": "^22.2.4",
+    "@angular/cli": "^22.2.4",
+    "@angular/compiler-cli": "^22.2.0",
+    "jsdom": "^30.0.0",
+    "prettier": "^3.8.1",
+    "typescript": "~6.0.2",
+    "vitest": "^5.0.0"
+  }
+}

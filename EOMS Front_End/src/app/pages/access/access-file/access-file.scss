@@ -1,0 +1,83 @@
+:host {
+  display: block;
+}
+
+.form {
+  display: grid;
+  gap: 16px;
+  margin-top: 20px;
+  max-width: 640px;
+}
+
+.form label,
+.form fieldset {
+  min-width: 0;
+}
+
+.form label span,
+.form legend {
+  display: block;
+  grid-column: 1 / -1;
+  color: var(--muted);
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.form {
+  grid-template-columns: 1fr 1fr;
+}
+
+.form input:not([type='checkbox']) {
+  width: 100%;
+  margin: 0;
+}
+
+.hint {
+  display: block;
+  margin-top: 4px;
+  color: var(--soft);
+  font-size: 12px;
+}
+
+fieldset {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 16px;
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+}
+
+.check input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--action);
+}
+
+.form .primary {
+  justify-self: start;
+}
+
+.wide {
+  grid-column: 1 / -1;
+}
+
+.warn {
+  margin: 0;
+  color: var(--late);
+}
+
+@media (max-width: 640px) {
+  .form,
+  fieldset {
+    grid-template-columns: 1fr;
+  }
+}

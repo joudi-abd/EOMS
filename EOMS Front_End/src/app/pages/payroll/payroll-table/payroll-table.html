@@ -1,0 +1,35 @@
+<div class="sheet">
+  <table>
+    <thead>
+      <tr>
+        <th>{{ t('employeeCol') }}</th>
+        <th>{{ t('presentDays') }}</th>
+        <th>{{ t('lateDays') }}</th>
+        <th>{{ t('reviewDays') }}</th>
+        <th>{{ t('overtimeHours') }}</th>
+        <th>{{ t('payrollPay') }}</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (line of lines(); track line.employee.id) {
+        <tr>
+          <td>
+            <a class="name" [routerLink]="[]" [queryParams]="{ sheet: line.employee.id }" queryParamsHandling="merge">{{ text(line.employee.name) }}</a>
+            <span class="sub">{{ line.employee.staffNo }} · {{ department(line.employee.department) }}</span>
+          </td>
+          <td class="num">{{ num(line.present) }}</td>
+          <td class="num" [class.wait]="line.late > 0">{{ num(line.late) }}</td>
+          <td class="num" [class.late]="line.review > 0">{{ num(line.review) }}</td>
+          <td class="num">{{ line.overtime ? hours(line.overtime) : '—' }}</td>
+          <td [class.ok]="line.payment" [class.wait]="!line.payment">
+            @if (line.payment; as pay) {
+              {{ pay.method === 'cash' ? t('payCash') : t('payWallet') }} · {{ pay.reference }} · {{ short(pay.paidOn) }}
+            } @else {
+              {{ t('notPaid') }}
+            }
+          </td>
+        </tr>
+      }
+    </tbody>
+  </table>
+</div>

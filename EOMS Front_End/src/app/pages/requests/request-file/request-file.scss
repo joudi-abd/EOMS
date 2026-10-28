@@ -1,0 +1,102 @@
+:host {
+  display: block;
+}
+
+.form {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 20px;
+  max-width: 720px;
+}
+
+.form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.form input,
+.form textarea {
+  width: 100%;
+  margin: 0;
+}
+
+.form textarea {
+  font: inherit;
+  color: inherit;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px;
+  resize: vertical;
+}
+
+.form .primary {
+  justify-self: start;
+}
+
+.wide {
+  grid-column: 1 / -1;
+}
+
+.warn {
+  margin: 0;
+  color: var(--late);
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: 160px minmax(0, 1fr);
+  gap: 8px 16px;
+  margin: 20px 0 8px;
+  max-width: 720px;
+}
+
+.facts dt {
+  color: var(--muted);
+}
+
+.facts dd {
+  margin: 0;
+}
+
+h2 {
+  margin-top: 24px;
+}
+
+.trail {
+  list-style: none;
+  margin: 0 0 16px;
+  padding: 0;
+  max-width: 720px;
+}
+
+.trail li {
+  display: grid;
+  grid-template-columns: 150px 140px minmax(0, 1fr);
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.when {
+  color: var(--muted);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.actions .quiet {
+  margin-inline-start: 0;
+}
+
+@media (max-width: 640px) {
+  .form,
+  .facts,
+  .trail li {
+    grid-template-columns: 1fr;
+  }
+}

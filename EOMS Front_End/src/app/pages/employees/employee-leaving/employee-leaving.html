@@ -1,0 +1,134 @@
+<h2>{{ t('custodyTitle') }}</h2>
+@if (items().length === 0) {
+  <p class="empty">{{ t('noCustody') }}</p>
+} @else {
+  <div class="sheet">
+    <table>
+      <thead>
+        <tr>
+          <th>{{ t('custodyItem') }}</th>
+          <th>{{ t('custodySince') }}</th>
+          <th>{{ t('state') }}</th>
+          <th><span class="vh">{{ t('returnCustody') }}</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (item of items(); track item.id) {
+          <tr>
+            <td>{{ item.item }}</td>
+            <td>{{ date(item.since) }}</td>
+            <td [class.ok]="item.returnedAt" [class.wait]="!item.returnedAt">
+              @if (item.returnedAt) {
+                {{ t('custodyBack') }} · {{ date(item.returnedAt) }} · {{ actor(item.returnedTo) }}
+              } @else {
+                {{ t('custodyHeld') }}
+              }
+            </td>
+            <td>
+              @if (!item.returnedAt && session.mayEdit(person().id, 'employee.end') && person().status !== 'ended') {
+                <button class="text" type="button" (click)="giveBack(item.id)">
+                  <i class="fa-solid fa-box-archive" aria-hidden="true"></i>
+                  {{ t('returnCustody') }}
+                </button>
+              }
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+}
+@if (session.mayEdit(person().id, 'employee.edit') && person().status !== 'ended') {
+  <form class="inline" (submit)="addCustody($event)">
+    <label>
+      <span>{{ t('custodyItem') }}</span>
+      <input name="item" type="text" autocomplete="off" required />
+    </label>
+    <label>
+      <span>{{ t('custodySince') }}</span>
+      <input name="since" type="date" autocomplete="off" required />
+    </label>
+    <button class="text" type="submit">
+      <i class="fa-solid fa-plus" aria-hidden="true"></i>
+      {{ t('addCustody') }}
+    </button>
+  </form>
+}
+
+<h2>{{ t('offboardTitle') }}</h2>
+<p class="note">{{ t('offboardKeeps') }}</p>
+<p class="note">{{ t('offboardOpenPoints') }}</p>
+
+@if (process(); as run) {
+  <dl class="facts">
+    <div>
+      <dt>{{ t('leavingReason') }}</dt>
+      <dd>{{ t(reasonKey[run.reason]) }}</dd>
+    </div>
+    <div>
+      <dt>{{ t('lastDay') }}</dt>
+      <dd>{{ date(run.lastDay) }}</dd>
+    </div>
+    <div>
+      <dt>{{ t('startedByLabel') }}</dt>
+      <dd>{{ actor(run.startedBy) }} · {{ date(run.startedAt) }}</dd>
+    </div>
+    @if (run.status === 'closed') {
+      <div>
+        <dt>{{ t('closedByLabel') }}</dt>
+        <dd>{{ actor(run.closedBy) }} · {{ date(run.closedAt) }}</dd>
+      </div>
+    }
+    @if (run.note) {
+      <div class="wide">
+        <dt>{{ t('notes') }}</dt>
+        <dd>{{ run.note }}</dd>
+      </div>
+    }
+    @if (run.requestId) {
+      <div class="wide">
+        <dt>{{ t('kindResignation') }}</dt>
+        <dd><a class="name" routerLink="/modules/requests" [queryParams]="{ req: run.requestId }">{{ t('requests') }}</a></dd>
+      </div>
+    }
+  </dl>
+  @if (run.status === 'open' && session.mayEdit(person().id, 'employee.end')) {
+    @if (openItems() > 0) {
+      <p class="warn">{{ t('offboardBlocked') }}</p>
+    }
+    <div class="actions">
+      <button class="primary" type="button" [disabled]="openItems() > 0" (click)="close()">
+        <i class="fa-solid fa-user-minus" aria-hidden="true"></i>
+        {{ t('closeOffboard') }}
+      </button>
+      <button class="text" type="button" (click)="cancel()">{{ t('cancelOffboard') }}</button>
+    </div>
+  }
+} @else if (session.canAct('employee.end') && session.mayManage(person().id) && (person().status === 'active' || person().status === 'away')) {
+  @if (self()) {
+    <p class="note">{{ t('selfOffboard') }}</p>
+  } @else {
+    <form class="form" (submit)="start($event)">
+      <label>
+        <span>{{ t('leavingReason') }}</span>
+        <select name="reason" autocomplete="off">
+          @for (reason of reasons; track reason) {
+            <option [value]="reason">{{ t(reasonKey[reason]) }}</option>
+          }
+        </select>
+      </label>
+      <label>
+        <span>{{ t('lastDay') }}</span>
+        <input name="lastDay" type="date" autocomplete="off" required />
+      </label>
+      <label class="wide">
+        <span>{{ t('notes') }}</span>
+        <input name="note" type="text" autocomplete="off" />
+      </label>
+      <button class="quiet" type="submit">
+        <i class="fa-solid fa-user-minus" aria-hidden="true"></i>
+        {{ t('startOffboard') }}
+      </button>
+    </form>
+  }
+}

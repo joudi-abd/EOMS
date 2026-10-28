@@ -1,0 +1,51 @@
+<a class="skip" href="#content">{{ t('skip') }}</a>
+<div class="app">
+  <aside class="rail" [class.is-open]="chrome.menuOpen()">
+    <div class="mark">
+      <img class="brand" src="/brand/ufuq.png" width="176" height="121" alt="UFUQ" />
+      <p class="brand-sub">{{ t('brand') }}</p>
+    </div>
+    <nav class="nav" [attr.aria-label]="t('mainNav')">
+      <a
+        routerLink="/"
+        routerLinkActive="is-on"
+        ariaCurrentWhenActive="page"
+        [routerLinkActiveOptions]="{ paths: 'exact', queryParams: 'ignored', matrixParams: 'ignored', fragment: 'ignored' }"
+        (click)="chrome.close()"
+      >
+        <i [class]="icons.dashboard" aria-hidden="true"></i>
+        <span>{{ t('dashboard') }}</span>
+      </a>
+      @for (group of groups(); track group.label) {
+        <p class="group">{{ t(group.label) }}</p>
+        @for (id of group.ids; track id) {
+          <a
+            [routerLink]="['/modules', id]"
+            routerLinkActive="is-on"
+            ariaCurrentWhenActive="page"
+            [routerLinkActiveOptions]="{ paths: 'subset', queryParams: 'ignored', matrixParams: 'ignored', fragment: 'ignored' }"
+            (click)="chrome.close()"
+          >
+            <i [class]="icons[id]" aria-hidden="true"></i>
+            <span>{{ t(id) }}</span>
+            @if (badge(id); as count) {
+              <b class="badge">{{ count }}</b>
+            }
+          </a>
+        }
+      }
+    </nav>
+    <div class="foot">
+      <app-account-switch />
+      <div class="foot-row">
+        <button class="lang" type="button" (click)="toggleLanguage()" [attr.aria-label]="t('switchLabel')">
+          <i class="fa-solid fa-language" aria-hidden="true"></i>
+          {{ t('switchTo') }}
+        </button>
+      </div>
+    </div>
+  </aside>
+  <div class="stage">
+    <router-outlet />
+  </div>
+</div>

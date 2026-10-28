@@ -1,0 +1,29 @@
+<div class="grid-2">
+  <section class="panel span-2" data-print>
+    <header class="panel-head">
+      <div>
+        <h2>{{ t('myHoursTitle') }}</h2>
+        <p>{{ t('policyLine') }} {{ t('rangeFrom') }} {{ office.policy().start }} {{ t('rangeTo') }} {{ office.policy().end }} · {{ t('dailyHours') }} {{ num(shift()) }}</p>
+      </div>
+      <a class="text small" routerLink="/modules/attendance" [queryParams]="{ view: 'month' }">{{ t('openReport') }}</a>
+    </header>
+    @if (insights.myMonth().hours.length === 0) {
+      <p class="empty">{{ t('noData') }}</p>
+    } @else {
+      <app-bar-chart [data]="insights.myMonth().hours" [series]="series()" [label]="t('myHoursTitle')" [max]="12" [height]="280" />
+    }
+  </section>
+  <section class="panel" data-print>
+    <header class="panel-head">
+      <div>
+        <h2>{{ t('myMonthTitle') }}</h2>
+        <p>{{ t('workedHours') }} {{ hours(insights.myMonth().worked) }} · {{ t('overtimeLabel') }} {{ hours(insights.myMonth().overtime) }}</p>
+      </div>
+    </header>
+    @if (insights.myMonth().slices.length === 0) {
+      <p class="empty">{{ t('noData') }}</p>
+    } @else {
+      <app-donut-chart [slices]="insights.myMonth().slices" [label]="t('myMonthTitle')" [center]="t('workdaysCol')" />
+    }
+  </section>
+</div>

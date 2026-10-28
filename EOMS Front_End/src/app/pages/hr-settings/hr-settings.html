@@ -1,0 +1,54 @@
+<main class="work" id="content">
+  <button class="menu" type="button" (click)="chrome.toggle()">
+    <i class="fa-solid" [class.fa-bars]="!chrome.menuOpen()" [class.fa-xmark]="chrome.menuOpen()" aria-hidden="true"></i>
+    {{ chrome.menuOpen() ? t('closeMenu') : t('menu') }}
+  </button>
+
+  @if (!session.can('hrSettings')) {
+    <h1>{{ t('hrSettings') }}</h1>
+    <p class="empty">{{ t('noAccess') }}</p>
+    <a class="primary" routerLink="/">{{ t('back') }}</a>
+  } @else {
+    <app-notice />
+    <header class="heading">
+      <h1>{{ t('hrSettings') }}</h1>
+    </header>
+    <p class="note">{{ t('settingsHint') }}</p>
+
+    <nav class="tabs" [attr.aria-label]="t('settingsTabs')">
+      @for (item of tabs; track item.id) {
+        <a
+          [routerLink]="[]"
+          [queryParams]="{ tab: item.id === 'shift' ? null : item.id }"
+          queryParamsHandling="merge"
+          [class.active]="tab() === item.id"
+          [attr.aria-current]="tab() === item.id ? 'page' : null"
+        >
+          <i class="fa-solid {{ item.icon }}" aria-hidden="true"></i>
+          {{ t(item.label) }}
+        </a>
+      }
+    </nav>
+
+    @switch (tab()) {
+      @case ('holidays') {
+        <app-settings-holidays />
+      }
+      @case ('structure') {
+        <div class="lists">
+          <app-settings-list list="departments" />
+          <app-settings-list list="titles" />
+        </div>
+      }
+      @case ('types') {
+        <div class="lists">
+          <app-settings-list list="leaveTypes" />
+          <app-settings-list list="contractTypes" />
+        </div>
+      }
+      @default {
+        <app-settings-shift />
+      }
+    }
+  }
+</main>
