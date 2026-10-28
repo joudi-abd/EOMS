@@ -19,3 +19,8 @@ Schedule::command('contracts:process-expired')
     ->dailyAt('00:10')
     ->timezone(config('app.timezone'))
     ->withoutOverlapping();
+
+// Retry cleanup of employee documents when private storage was unavailable.
+Schedule::command('documents:process-cleanups')
+    ->everyFiveMinutes()
+    ->withoutOverlapping();

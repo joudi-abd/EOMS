@@ -3,6 +3,7 @@
 namespace Tests\Feature\HR;
 
 use App\Modules\HR\Models\Employee;
+use App\Modules\HR\Services\PendingDocumentCleanupService;
 use App\Modules\Identity\Database\Seeders\RolePermissionSeeder;
 use App\Modules\Identity\Models\User;
 use App\Modules\Identity\Services\AuditLogger;
@@ -92,6 +93,51 @@ class EmployeeDocumentsTest extends TestCase
         $document = $owner->documents()->firstOrFail();
         $this->getJson("/api/v1/employees/{$other->id}/documents/{$document->id}/download")
             ->assertNotFound();
+    }
+
+    public function test_successful_delete_removes_document_and_cleanup_record(): void
+    {
+        $employee = $this->employee();
+        $this->login('hr_manager');
+        $this->post('/api/v1/employees/'.$employee->id.'/documents', [
+            'title' => 'Certificate',
+            'file' => UploadedFile::fake()->create('certificate.pdf', 5, 'application/pdf'),
+        ], ['Accept' => 'application/json'])->assertCreated();
+
+        $document = $employee->documents()->firstOrFail();
+        $path = $document->file_path;
+        $this->deleteJson('/api/v1/employees/'.$employee->id.'/documents/'.$document->id)->assertOk();
+
+        $this->assertDatabaseMissing('hr_employee_documents', ['id' => $document->id]);
+        $this->assertDatabaseCount('hr_pending_document_cleanups', 0);
+        Storage::disk('local')->assertMissing($path);
+    }
+
+    public function test_failed_disk_cleanup_is_retained_and_can_be_retried(): void
+    {
+        $employee = $this->employee();
+        $this->login('hr_manager');
+        $this->post('/api/v1/employees/'.$employee->id.'/documents', [
+            'title' => 'Certificate',
+            'file' => UploadedFile::fake()->create('certificate.pdf', 5, 'application/pdf'),
+        ], ['Accept' => 'application/json'])->assertCreated();
+
+        $document = $employee->documents()->firstOrFail();
+        $path = $document->file_path;
+        $cleanup = \Mockery::mock(PendingDocumentCleanupService::class)->makePartial();
+        $cleanup->shouldReceive('process')->once()->andReturn(false);
+        $this->app->instance(PendingDocumentCleanupService::class, $cleanup);
+
+        $this->deleteJson('/api/v1/employees/'.$employee->id.'/documents/'.$document->id)->assertOk();
+        $this->assertDatabaseMissing('hr_employee_documents', ['id' => $document->id]);
+        $this->assertDatabaseHas('hr_pending_document_cleanups', ['file_path' => $path]);
+        Storage::disk('local')->assertExists($path);
+
+        // Process with the real cleanup service after storage recovers.
+        $this->app->forgetInstance(PendingDocumentCleanupService::class);
+        $this->artisan('documents:process-cleanups')->assertExitCode(0);
+        $this->assertDatabaseCount('hr_pending_document_cleanups', 0);
+        Storage::disk('local')->assertMissing($path);
     }
 
     public function test_employee_without_document_permission_cannot_read_documents(): void

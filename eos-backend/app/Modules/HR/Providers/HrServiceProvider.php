@@ -3,6 +3,7 @@
 namespace App\Modules\HR\Providers;
 
 use App\Modules\HR\Console\Commands\ProcessExpiredContracts;
+use App\Modules\HR\Console\Commands\ProcessPendingDocumentCleanups;
 use App\Modules\HR\Console\Commands\ProcessScheduledContractTerminations;
 use App\Modules\HR\Listeners\ProtectEmployeeAccountProfile;
 use App\Modules\Identity\Events\UserProfileUpdating;
@@ -24,6 +25,7 @@ class HrServiceProvider extends ServiceProvider
         $this->commands([
             ProcessScheduledContractTerminations::class,
             ProcessExpiredContracts::class,
+            ProcessPendingDocumentCleanups::class,
         ]);
     }
 }

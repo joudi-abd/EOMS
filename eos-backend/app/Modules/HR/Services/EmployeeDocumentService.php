@@ -2,20 +2,23 @@
 
 namespace App\Modules\HR\Services;
 
+use App\Modules\HR\Models\PendingDocumentCleanup;
 use App\Modules\HR\Models\Employee;
 use App\Modules\HR\Models\EmployeeDocument;
 use App\Modules\Identity\Services\AuditLogger;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class EmployeeDocumentService
 {
-    public function __construct(private AuditLogger $audit) {}
+    public function __construct(
+        private AuditLogger $audit,
+        private PendingDocumentCleanupService $cleanup,
+    ) {}
 
     public function paginate(Employee $employee): LengthAwarePaginator
     {
@@ -57,18 +60,9 @@ class EmployeeDocumentService
                 return $document;
             });
         } catch (\Throwable $e) {
-            // DB transaction rolls back both the document row and audit row.
-            // Storage is external to the DB; compensate by removing the uploaded file.
-            try {
-                if (! Storage::disk('local')->delete($path)) {
-                    Log::error('Employee document upload cleanup failed', ['path' => $path]);
-                }
-            } catch (\Throwable $cleanupException) {
-                Log::error('Employee document upload cleanup threw exception', [
-                    'path' => $path,
-                    'error' => $cleanupException->getMessage(),
-                ]);
-            }
+            // DB transaction already rolled back. Clean the orphaned upload immediately.
+            // If storage is temporarily unavailable, persist a retry record.
+            $this->cleanup->removeOrQueue($path);
             throw $e;
         }
     }
@@ -85,22 +79,25 @@ class EmployeeDocumentService
     {
         $document = $this->find($employee, $document);
         $path = $document->file_path;
-        DB::transaction(function () use ($document, $employee) {
+
+        // Commit the cleanup intent with the deletion and audit, atomically.
+        // A failed disk operation never loses the file's cleanup path.
+        $pendingId = DB::transaction(function () use ($document, $employee, $path): int {
+            $pending = PendingDocumentCleanup::query()->create([
+                'disk' => 'local',
+                'file_path' => $path,
+            ]);
             $this->audit->log('employee.document_deleted', $document, [
                 'document_id' => $document->id,
                 'employee_id' => $employee->id,
             ]);
             $document->delete();
+
+            return $pending->id;
         });
 
-        // A failed physical delete leaves an orphan FILE, not a dangling DB record.
-        // Alert operators for cleanup; filesystem and DB cannot be truly atomic.
-        if (! Storage::disk('local')->delete($path)) {
-            Log::error('Employee document file deletion failed', [
-                'document_id' => $document->id,
-                'path' => $path,
-            ]);
-            throw new \RuntimeException('Document record deleted, but file cleanup failed.');
-        }
+        // Disk operations are outside the DB transaction. Failure is retried
+        // by the scheduler; the document is already logically removed.
+        $this->cleanup->process($pendingId);
     }
 }
