@@ -9,6 +9,7 @@ use App\Modules\Identity\Services\AuditLogger;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -34,14 +35,32 @@ class EmployeeDocumentService
 
     public function upload(Employee $employee, array $data, UploadedFile $file): EmployeeDocument
     {
-        // Laravel's local disk is private; no storage:link or public URL is used.
-        $path = $file->store('employee-documents/'.$employee->id, 'local');
-        if ($path === false) {
-            throw new \RuntimeException('Unable to store employee document.');
+        // A later outer rollback cannot compensate an already stored file.
+        // Keep uploads at the transaction boundary owned by this service.
+        if (DB::transactionLevel() !== 0) {
+            throw new \LogicException('Employee document uploads cannot run inside an existing transaction.');
         }
 
+        // Persist the cleanup intent BEFORE writing any bytes. It survives a
+        // crash or database outage after storage succeeds. The one-hour delay
+        // protects the brief interval before the upload acquires the row lock.
+        $path = 'employee-documents/'.$employee->id.'/'.$file->hashName();
+        $pending = PendingDocumentCleanup::query()->create([
+            'disk' => 'local',
+            'file_path' => $path,
+            'next_attempt_at' => now()->addHour(),
+        ]);
+
         try {
-            return DB::transaction(function () use ($employee, $data, $file, $path) {
+            return DB::transaction(function () use ($employee, $data, $file, $path, $pending) {
+                // Serialize the upload with cleanup workers. If a worker already
+                // removed an expired intent, fail before writing the file.
+                PendingDocumentCleanup::query()->lockForUpdate()->findOrFail($pending->id);
+                $stored = $file->storeAs(dirname($path), basename($path), 'local');
+                if ($stored === false) {
+                    throw new \RuntimeException('Unable to store employee document.');
+                }
+
                 $document = $employee->documents()->create([
                     'title' => $data['title'],
                     'document_type' => $data['document_type'] ?? 'other',
@@ -56,13 +75,22 @@ class EmployeeDocumentService
                     'document_id' => $document->id,
                     'employee_id' => $employee->id,
                 ]);
+                // Document creation and removal of its cleanup intent commit together.
+                $pending->delete();
 
                 return $document;
             });
         } catch (\Throwable $e) {
-            // DB transaction already rolled back. Clean the orphaned upload immediately.
-            // If storage is temporarily unavailable, persist a retry record.
-            $this->cleanup->removeOrQueue($path);
+            try {
+                // The original intent remains even if this update or cleanup fails.
+                PendingDocumentCleanup::query()->whereKey($pending->id)->update(['next_attempt_at' => null]);
+                $this->cleanup->process($pending->id);
+            } catch (\Throwable $cleanupException) {
+                Log::critical('Employee document immediate cleanup unavailable; durable intent retained', [
+                    'cleanup_id' => $pending->id,
+                    'exception' => $cleanupException,
+                ]);
+            }
             throw $e;
         }
     }
@@ -98,6 +126,6 @@ class EmployeeDocumentService
 
         // Disk operations are outside the DB transaction. Failure is retried
         // by the scheduler; the document is already logically removed.
-        $this->cleanup->process($pendingId);
+        DB::afterCommit(fn () => $this->cleanup->process($pendingId));
     }
 }

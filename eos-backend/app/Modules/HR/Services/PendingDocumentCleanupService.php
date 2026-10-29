@@ -25,12 +25,22 @@ class PendingDocumentCleanupService
 
     public function process(int $id): bool
     {
+        // Never perform irreversible I/O under a caller-owned transaction.
+        if (DB::transactionLevel() !== 0) {
+            return false;
+        }
+
         try {
             // Serialize concurrent workers and keep the cleanup row until deletion succeeds.
             return DB::transaction(function () use ($id): bool {
                 $pending = PendingDocumentCleanup::query()->lockForUpdate()->find($id);
                 if ($pending === null) {
                     return true;
+                }
+
+                // Another worker may have deferred this row while we waited.
+                if ($pending->next_attempt_at?->isFuture()) {
+                    return false;
                 }
 
                 if (! $this->deleteFile($pending->disk, $pending->file_path)) {
@@ -60,7 +70,7 @@ class PendingDocumentCleanupService
 
     private function deleteFile(string $disk, string $path): bool
     {
-        if ($disk !== 'local' || ! str_starts_with($path, 'employee-documents/')) {
+        if ($disk !== 'local' || ! $this->isSafePath($path)) {
             Log::error('Unsafe document cleanup target refused', ['disk' => $disk]);
 
             return false;
@@ -78,5 +88,21 @@ class PendingDocumentCleanupService
 
             return false;
         }
+    }
+
+    private function isSafePath(string $path): bool
+    {
+        if (! str_starts_with($path, 'employee-documents/')
+            || preg_match('/[\x00-\x1F\x7F\\\\]/', $path)) {
+            return false;
+        }
+
+        foreach (explode('/', $path) as $part) {
+            if ($part === '' || $part === '.' || $part === '..') {
+                return false;
+            }
+        }
+
+        return true;
     }
 }
