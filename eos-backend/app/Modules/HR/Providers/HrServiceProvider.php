@@ -2,9 +2,11 @@
 
 namespace App\Modules\HR\Providers;
 
+use App\Modules\HR\Console\Commands\ConfigureAttendanceDefaults;
 use App\Modules\HR\Console\Commands\ProcessExpiredContracts;
 use App\Modules\HR\Console\Commands\ProcessPendingDocumentCleanups;
 use App\Modules\HR\Console\Commands\ProcessScheduledContractTerminations;
+use App\Modules\HR\Console\Commands\RecalculateAttendance;
 use App\Modules\HR\Listeners\ProtectEmployeeAccountProfile;
 use App\Modules\Identity\Events\UserProfileUpdating;
 use Illuminate\Support\Facades\Event;
@@ -16,6 +18,7 @@ class HrServiceProvider extends ServiceProvider
     {
         $this->loadMigrationsFrom(__DIR__.'/../Database/Migrations');
         $this->loadRoutesFrom(__DIR__.'/../Routes/api.php');
+        $this->loadRoutesFrom(__DIR__.'/../Routes/attendance.php');
 
         Event::listen(
             UserProfileUpdating::class,
@@ -26,6 +29,8 @@ class HrServiceProvider extends ServiceProvider
             ProcessScheduledContractTerminations::class,
             ProcessExpiredContracts::class,
             ProcessPendingDocumentCleanups::class,
+            RecalculateAttendance::class,
+            ConfigureAttendanceDefaults::class,
         ]);
     }
 }

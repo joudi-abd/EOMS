@@ -24,3 +24,8 @@ Schedule::command('contracts:process-expired')
 Schedule::command('documents:process-cleanups')
     ->everyFiveMinutes()
     ->withoutOverlapping();
+
+// Refresh recent attendance; approved days retain their values and expose pending changes.
+Schedule::command('attendance:recalculate')
+    ->everyFifteenMinutes()
+    ->withoutOverlapping();

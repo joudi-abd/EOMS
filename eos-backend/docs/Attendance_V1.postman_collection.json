@@ -1,0 +1,456 @@
+{
+  "info": {
+    "name": "EOMS Attendance V2 - 45 minute grace and hour bands",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Read ATTENDANCE_API_AR.md first. Device JSON is for a trusted bridge, not native ADMS. Use a past working day. Set variables from actual responses; use a different reviewer account."
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{user_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "https://your-domain.example/api/v1"
+    },
+    {
+      "key": "user_token",
+      "value": ""
+    },
+    {
+      "key": "device_token",
+      "value": ""
+    },
+    {
+      "key": "employee_id",
+      "value": "1"
+    },
+    {
+      "key": "device_id",
+      "value": "1"
+    },
+    {
+      "key": "day_id",
+      "value": "1"
+    },
+    {
+      "key": "day_version",
+      "value": "1"
+    },
+    {
+      "key": "correction_id",
+      "value": "1"
+    },
+    {
+      "key": "binding_id",
+      "value": "1"
+    },
+    {
+      "key": "work_date",
+      "value": "2026-10-29"
+    },
+    {
+      "key": "future_policy_date",
+      "value": ""
+    },
+    {
+      "key": "binding_close_date",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "01 Create device - save returned token securely",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/attendance/devices",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Main office iFace 880 Plus\",\n  \"serial_number\": \"REPLACE_WITH_REAL_SERIAL\",\n  \"model\": \"iFace 880 Plus\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "02 List devices",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/attendance/devices"
+      }
+    },
+    {
+      "name": "03 Bind employee device number",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/attendance/devices/{{device_id}}/bindings",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"employee_id\": \"{{employee_id}}\",\n  \"device_user_id\": \"105\",\n  \"valid_from\": \"{{work_date}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "04 List bindings",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/attendance/devices/{{device_id}}/bindings"
+      }
+    },
+    {
+      "name": "05 Trusted bridge - ingest events",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/attendance/device-ingest",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"events\": [\n    {\n      \"external_id\": \"sample-in-{{work_date}}\",\n      \"device_user_id\": \"105\",\n      \"occurred_at\": \"{{work_date}}T09:00:00+03:00\",\n      \"direction\": \"unknown\"\n    },\n    {\n      \"external_id\": \"sample-out-{{work_date}}\",\n      \"device_user_id\": \"105\",\n      \"occurred_at\": \"{{work_date}}T16:00:00+03:00\",\n      \"direction\": \"unknown\"\n    }\n  ],\n  \"complete_through\": \"{{work_date}}T16:00:00+03:00\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{device_token}}",
+              "type": "string"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "06 Daily list",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/attendance/days?date={{work_date}}&per_page=20"
+      }
+    },
+    {
+      "name": "07 Employee day detail",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/employees/{{employee_id}}/attendance?date={{work_date}}"
+      }
+    },
+    {
+      "name": "08 Day by id",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/attendance/days/{{day_id}}"
+      }
+    },
+    {
+      "name": "09 Request correction",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/attendance/days/{{day_id}}/corrections",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"version\": \"{{day_version}}\",\n  \"type\": \"times\",\n  \"first_in\": \"{{work_date}}T09:00:00+03:00\",\n  \"last_out\": \"{{work_date}}T16:00:00+03:00\",\n  \"reason\": \"تم التحقق من حركة الخروج المفقودة\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "10 Review correction - DIFFERENT user token",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/attendance/corrections/{{correction_id}}/review",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"decision\": \"approve\",\n  \"reason\": \"تم التحقق من بيانات اليوم\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "11 Approve day - reload version first",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/attendance/days/{{day_id}}/approve",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"version\": \"{{day_version}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "12 Reopen day",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/attendance/days/{{day_id}}/reopen",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"version\": \"{{day_version}}\",\n  \"reason\": \"مراجعة حركة وصلت بعد الاعتماد\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "13 Employee report",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/employees/{{employee_id}}/attendance-report?from={{work_date}}&to={{work_date}}"
+      }
+    },
+    {
+      "name": "14 Unknown punches",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/attendance/unmatched-punches?per_page=50"
+      }
+    },
+    {
+      "name": "15 Policy versions",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/attendance/policies"
+      }
+    },
+    {
+      "name": "16 Create future policy - adjust effective date",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/attendance/policies",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"effective_from\": \"{{future_policy_date}}\",\n  \"timezone\": \"Asia/Damascus\",\n  \"working_days\": [\n    0,\n    1,\n    2,\n    3,\n    4,\n    6\n  ],\n  \"start_time\": \"09:00\",\n  \"end_time\": \"16:00\",\n  \"grace_minutes\": 45,\n  \"grace_mode\": \"completed_blocks\",\n  \"pairing_mode\": \"first_last\",\n  \"duplicate_seconds\": 60,\n  \"finalize_after_minutes\": 120,\n  \"late_block_minutes\": 60,\n  \"overtime_multiplier\": \"2.00\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "17 Close binding",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/attendance/bindings/{{binding_id}}/close",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"valid_to\": \"{{binding_close_date}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "18 Disable device",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/attendance/devices/{{device_id}}",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"is_active\": false\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "19 Rotate token - old token revoked",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/attendance/devices/{{device_id}}/rotate-token"
+      }
+    }
+  ]
+}
