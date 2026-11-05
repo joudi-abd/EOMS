@@ -11,7 +11,7 @@ class AttendanceDevice extends Model
 
     protected $fillable = [
         'name', 'serial_number', 'timezone', 'model', 'token_hash', 'is_active',
-        'last_seen_at', 'complete_through',
+        'last_seen_at', 'complete_through', 'connection_mode', 'adms_source_ip',
     ];
 
     protected $hidden = ['token_hash'];

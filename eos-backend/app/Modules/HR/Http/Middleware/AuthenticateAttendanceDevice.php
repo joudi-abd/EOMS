@@ -14,7 +14,7 @@ class AuthenticateAttendanceDevice
         $token = $request->bearerToken();
         abort_unless(is_string($token) && strlen($token) === 64, 401, 'اعتماد الجهاز غير صالح.');
         $device = AttendanceDevice::query()->where('token_hash', hash('sha256', $token))->first();
-        abort_unless($device && $device->is_active, 401, 'اعتماد الجهاز غير صالح.');
+        abort_unless($device && $device->is_active && $device->connection_mode === 'bridge', 401, 'اعتماد الجهاز غير صالح.');
         $request->attributes->set('attendance_device', $device);
 
         return $next($request);

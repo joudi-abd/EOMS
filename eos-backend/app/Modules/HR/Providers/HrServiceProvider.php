@@ -2,6 +2,7 @@
 
 namespace App\Modules\HR\Providers;
 
+use App\Modules\HR\Console\Commands\ConfigureAdmsDevice;
 use App\Modules\HR\Console\Commands\ConfigureAttendanceDefaults;
 use App\Modules\HR\Console\Commands\ProcessExpiredContracts;
 use App\Modules\HR\Console\Commands\ProcessPendingDocumentCleanups;
@@ -31,6 +32,7 @@ class HrServiceProvider extends ServiceProvider
             ProcessPendingDocumentCleanups::class,
             RecalculateAttendance::class,
             ConfigureAttendanceDefaults::class,
+            ConfigureAdmsDevice::class,
         ]);
     }
 }

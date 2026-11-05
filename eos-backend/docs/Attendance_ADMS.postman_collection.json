@@ -1,0 +1,179 @@
+{
+  "info": {
+    "name": "EOMS ADMS integration",
+    "description": "HR APIs only. Set device_ip to the device source IP. Native /iclock endpoints are called by the physical device, not Angular. Enrollment is experimental and disabled by default.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://10.42.0.1:8088"
+    },
+    {
+      "key": "hr_token",
+      "value": ""
+    },
+    {
+      "key": "device_ip",
+      "value": "10.42.0.61"
+    },
+    {
+      "key": "device_id",
+      "value": "1"
+    },
+    {
+      "key": "binding_id",
+      "value": "1"
+    },
+    {
+      "key": "enrollment_id",
+      "value": "1"
+    }
+  ],
+  "item": [
+    {
+      "name": "Configure device IP for ADMS",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/api/v1/attendance/devices/{{device_id}}/connection",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{hr_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"connection_mode\": \"adms\",\n  \"adms_source_ip\": \"{{device_ip}}\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Devices and last_seen_at",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/api/v1/attendance/devices",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{hr_token}}",
+              "type": "string"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Bind employee PIN",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/api/v1/attendance/devices/{{device_id}}/bindings",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{hr_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"employee_id\": 123,\n  \"device_user_id\": \"00105\",\n  \"valid_from\": \"2026-11-05\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Experimental enrollment: unused test PIN only",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/api/v1/attendance/bindings/{{binding_id}}/enroll-fingerprint",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{hr_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"finger_id\": 0,\n  \"confirm_user_update\": true\n}"
+        }
+      }
+    },
+    {
+      "name": "Enrollment status",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/api/v1/attendance/fingerprint-enrollments/{{enrollment_id}}",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{hr_token}}",
+              "type": "string"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Confirm a witnessed physical test",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/api/v1/attendance/fingerprint-enrollments/{{enrollment_id}}/confirm",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{hr_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"physical_test_passed\": true,\n  \"note\": \"شاهدت التحقق المنفصل تحت الرقم الصحيح\"\n}"
+        }
+      }
+    }
+  ]
+}

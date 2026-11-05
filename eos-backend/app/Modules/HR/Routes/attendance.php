@@ -1,10 +1,22 @@
 <?php
 
+use App\Modules\HR\Http\Controllers\AdmsController;
 use App\Modules\HR\Http\Controllers\AttendanceController;
 use App\Modules\HR\Http\Controllers\AttendanceIngestController;
 use App\Modules\HR\Http\Controllers\AttendanceSettingsController;
+use App\Modules\HR\Http\Middleware\AuthenticateAdmsDevice;
 use App\Modules\HR\Http\Middleware\AuthenticateAttendanceDevice;
 use Illuminate\Support\Facades\Route;
+
+// Native PUSH routes deliberately have no /api prefix or web/CSRF middleware.
+Route::middleware([AuthenticateAdmsDevice::class, 'throttle:600,1'])->group(function () {
+    foreach (['cdata', 'devicecmd', 'ping', 'registry'] as $action) {
+        Route::match(['GET', 'POST'], 'iclock/'.$action, [AdmsController::class, 'device']);
+        Route::match(['GET', 'POST'], 'iclock/'.$action.'.aspx', [AdmsController::class, 'device']);
+    }
+    Route::get('iclock/getrequest', [AdmsController::class, 'device']);
+    Route::get('iclock/getrequest.aspx', [AdmsController::class, 'device']);
+});
 
 Route::post('api/v1/attendance/device-ingest', [AttendanceIngestController::class, 'store'])
     ->middleware(['api', 'throttle:120,1', AuthenticateAttendanceDevice::class]);
@@ -21,6 +33,10 @@ Route::prefix('api/v1')->middleware(['api', 'auth:sanctum'])->group(function () 
     });
     Route::middleware('perm:attendance.manage')->group(function () {
         Route::post('attendance/policies', [AttendanceSettingsController::class, 'storePolicy']);
+        Route::patch('attendance/devices/{device}/connection', [AdmsController::class, 'configure']);
+        Route::post('attendance/bindings/{binding}/enroll-fingerprint', [AdmsController::class, 'enroll']);
+        Route::post('attendance/fingerprint-enrollments/{enrollment}/confirm', [AdmsController::class, 'confirm']);
+        Route::get('attendance/fingerprint-enrollments/{enrollment}', [AdmsController::class, 'status']);
         Route::get('attendance/devices', [AttendanceSettingsController::class, 'devices']);
         Route::post('attendance/devices', [AttendanceSettingsController::class, 'storeDevice']);
         Route::patch('attendance/devices/{device}', [AttendanceSettingsController::class, 'updateDevice']);
