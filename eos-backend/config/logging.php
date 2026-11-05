@@ -52,6 +52,14 @@ return [
 
     'channels' => [
 
+        'adms' => [
+            'driver' => 'single',
+            'path' => storage_path('logs/adms.log'),
+            'level' => 'debug',
+            'permission' => 0600,
+            'replace_placeholders' => true,
+        ],
+
         'stack' => [
             'driver' => 'stack',
             'channels' => explode(',', (string) env('LOG_STACK', 'single')),

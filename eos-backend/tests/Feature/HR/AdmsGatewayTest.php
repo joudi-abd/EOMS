@@ -13,10 +13,14 @@ use App\Modules\Identity\Database\Seeders\RolePermissionSeeder;
 use App\Modules\Identity\Models\User;
 use App\Modules\Identity\Services\AuditLogger;
 use Carbon\CarbonImmutable;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Testing\TestResponse;
 use Laravel\Sanctum\Sanctum;
+use Mockery\MockInterface;
+use Psr\Log\LoggerInterface;
 use Tests\TestCase;
 
 class AdmsGatewayTest extends TestCase
@@ -340,5 +344,117 @@ class AdmsGatewayTest extends TestCase
         $this->assertDatabaseHas('hr_attendance_devices', ['serial_number' => 'NEW_SERIAL', 'adms_source_ip' => '10.42.0.62']);
         $this->artisan('attendance:configure-adms', ['serial' => 'BAD_SERIAL', 'ip' => 'not-an-ip'])->assertFailed();
         $this->assertDatabaseMissing('hr_attendance_devices', ['serial_number' => 'BAD_SERIAL']);
+    }
+
+    private function diagnosticLog(): MockInterface
+    {
+        $logger = \Mockery::mock(LoggerInterface::class);
+        $logger->shouldReceive('log')->once()->andReturnNull();
+        Log::shouldReceive('channel')->with('adms')->once()->andReturn($logger);
+
+        return $logger;
+    }
+
+    public function test_future_device_clock_is_logged_without_payload_and_does_not_ack(): void
+    {
+        config(['attendance.adms.diagnostics' => false]);
+        $logger = $this->diagnosticLog();
+        $this->raw("900001\t2026-11-06 05:41:00\t0\t1")->assertUnprocessable()->assertContent('INVALID DATA');
+        $logger->shouldHaveReceived('log')->with('warning', 'adms.request', \Mockery::on(function ($context) {
+            $encoded = json_encode($context);
+            $this->assertStringNotContainsString('900001', $encoded);
+            $this->assertStringNotContainsString('IFACE_TEST', $encoded);
+
+            return $context['reason'] === 'future_event_time' && $context['http_status'] === 422
+                && $context['table'] === 'ATTLOG' && $context['first_line_fields'] === 4;
+        }));
+        $this->assertDatabaseCount('hr_adms_uploads', 0);
+        $this->assertDatabaseCount('hr_attendance_punches', 0);
+    }
+
+    public function test_record_format_rejection_is_logged_even_without_verbose_diagnostics(): void
+    {
+        config(['attendance.adms.diagnostics' => false]);
+        $logger = $this->diagnosticLog();
+        $this->raw('900001 2026-11-05 09:00:00 0 1')->assertUnprocessable();
+        $logger->shouldHaveReceived('log')->with('warning', 'adms.request', \Mockery::on(fn ($context) => $context['reason'] === 'invalid_attlog_record' && $context['first_line_fields'] === 1));
+    }
+
+    public function test_success_diagnostics_report_counts_without_raw_data_or_query_secrets(): void
+    {
+        config(['attendance.adms.diagnostics' => true]);
+        $logger = $this->diagnosticLog();
+        $this->raw("900001\t2026-11-05 09:00:00\t0\t1", 'cdata?table=ATTLOG&token=SECRET_TOKEN')->assertOk()->assertContent("OK: 1\n");
+        $logger->shouldHaveReceived('log')->with('info', 'adms.request', \Mockery::on(function ($context) {
+            $encoded = json_encode($context);
+            foreach (['900001', 'IFACE_TEST', 'SECRET_TOKEN', '09:00:00', 'raw_body'] as $secret) {
+                $this->assertStringNotContainsString($secret, $encoded);
+            }
+
+            return $context['http_status'] === 200 && $context['accepted_records'] === 1
+                && $context['reason'] === 'attlog_saved';
+        }));
+        $this->assertDatabaseCount('hr_attendance_punches', 1);
+    }
+
+    public function test_unsupported_upload_diagnostics_do_not_log_templates_or_unknown_table_names(): void
+    {
+        $logger = $this->diagnosticLog();
+        $this->raw('PRIVATE_BIOMETRIC_TEMPLATE', 'cdata?table=SECRET_PERSON')->assertStatus(503);
+        $logger->shouldHaveReceived('log')->with('warning', 'adms.request', \Mockery::on(function ($context) {
+            $encoded = json_encode($context);
+            $this->assertStringNotContainsString('PRIVATE_BIOMETRIC_TEMPLATE', $encoded);
+            $this->assertStringNotContainsString('SECRET_PERSON', $encoded);
+
+            return $context['table'] === 'OTHER' && $context['reason'] === 'unsupported_table';
+        }));
+    }
+
+    public function test_ip_rejection_is_visible_before_controller_without_logging_serial(): void
+    {
+        $this->device->update(['adms_source_ip' => '10.42.0.61']);
+        $logger = $this->diagnosticLog();
+        $this->get('/iclock/getrequest?SN=IFACE_TEST')->assertForbidden();
+        $logger->shouldHaveReceived('log')->with('warning', 'adms.request', \Mockery::on(fn ($context) => $context['http_status'] === 403 && $context['reason'] === 'source_ip_mismatch'
+            && ! str_contains(json_encode($context), 'IFACE_TEST')));
+    }
+
+    public function test_options_diagnostics_distinguish_heartbeat_from_attendance_upload(): void
+    {
+        config(['attendance.adms.diagnostics' => true]);
+        $logger = $this->diagnosticLog();
+        $this->raw('PRIVATE_DEVICE_OPTIONS', 'cdata?table=options')->assertOk();
+        $logger->shouldHaveReceived('log')->with('info', 'adms.request', \Mockery::on(fn ($context) => $context['table'] === 'OPTIONS' && $context['reason'] === 'options_received'
+            && ! array_key_exists('accepted_records', $context)
+            && ! str_contains(json_encode($context), 'PRIVATE_DEVICE_OPTIONS')));
+        $this->assertDatabaseCount('hr_adms_uploads', 0);
+    }
+
+    public function test_logging_failure_does_not_change_a_committed_upload_ack(): void
+    {
+        config(['attendance.adms.diagnostics' => true]);
+        Log::shouldReceive('channel')->with('adms')->once()->andThrow(new \RuntimeException('Log directory unavailable'));
+        $this->raw("900001\t2026-11-05 09:00:00\t0\t1")->assertOk()->assertContent("OK: 1\n");
+        $this->assertDatabaseCount('hr_adms_uploads', 1);
+        $this->assertDatabaseCount('hr_attendance_punches', 1);
+    }
+
+    public function test_database_failure_diagnostics_do_not_dump_sql_bindings(): void
+    {
+        $logger = $this->diagnosticLog();
+        $importer = \Mockery::mock(AttendanceImportService::class);
+        $importer->shouldReceive('import')->once()->andThrow(new QueryException(
+            'sqlite', 'INSERT PRIVATE_SQL', ['PRIVATE_BODY'], new \RuntimeException('PRIVATE_EXCEPTION')));
+        $this->app->instance(AttendanceImportService::class, $importer);
+        $this->raw("900001\t2026-11-05 09:00:00\t0\t1")->assertStatus(503);
+        $logger->shouldHaveReceived('log')->with('warning', 'adms.request', \Mockery::on(fn ($context) => $context['reason'] === 'database_error' && ! str_contains(json_encode($context), 'PRIVATE')));
+        $this->assertDatabaseCount('hr_adms_uploads', 0);
+    }
+
+    public function test_success_requests_do_not_log_when_verbose_diagnostics_are_disabled(): void
+    {
+        config(['attendance.adms.diagnostics' => false]);
+        Log::shouldReceive('channel')->never();
+        $this->get('/iclock/getrequest?SN=IFACE_TEST')->assertOk();
     }
 }

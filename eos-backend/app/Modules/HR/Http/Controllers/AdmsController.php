@@ -4,8 +4,10 @@ namespace App\Modules\HR\Http\Controllers;
 
 use App\Modules\HR\Models\AttendanceBinding;
 use App\Modules\HR\Models\AttendanceDevice;
+use App\Modules\HR\Services\Attendance\AdmsDiagnostics;
 use App\Modules\HR\Services\Attendance\AdmsGateway;
 use App\Support\ApiResponse;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
@@ -29,11 +31,21 @@ class AdmsController extends Controller
                 default => abort(404),
             };
         } catch (HttpExceptionInterface $e) {
+            if (! $request->attributes->has('adms_diagnostic_reason')) {
+                $request->attributes->set('adms_diagnostic_reason', 'request_rejected');
+            }
+
             return response('REQUEST REJECTED', $e->getStatusCode(), ['Content-Type' => 'text/plain', 'Cache-Control' => 'no-store']);
-        } catch (ValidationException) {
+        } catch (ValidationException $e) {
+            $request->attributes->set('adms_diagnostic_reason', AdmsDiagnostics::validationReason($e));
+
             return response('INVALID DATA', 422, ['Content-Type' => 'text/plain', 'Cache-Control' => 'no-store']);
-        } catch (\Throwable $e) {
-            report($e);
+        } catch (QueryException) {
+            $request->attributes->set('adms_diagnostic_reason', 'database_error');
+
+            return response('TEMPORARY ERROR', 503, ['Content-Type' => 'text/plain', 'Cache-Control' => 'no-store']);
+        } catch (\Throwable) {
+            $request->attributes->set('adms_diagnostic_reason', 'internal_error');
 
             return response('TEMPORARY ERROR', 503, ['Content-Type' => 'text/plain', 'Cache-Control' => 'no-store']);
         }
@@ -44,16 +56,23 @@ class AdmsController extends Controller
     private function upload(Request $request, AdmsGateway $gateway, AttendanceDevice $device): string
     {
         $table = $request->query('table');
+        $request->attributes->set('adms_diagnostic_reason', 'missing_table');
         abort_unless(is_string($table), 422);
         if (strcasecmp($table, 'ATTLOG') === 0) {
-            return 'OK: '.$gateway->ingest($device, $request->getContent())."\n";
+            $count = $gateway->ingest($device, $request->getContent());
+            $request->attributes->set('adms_diagnostic_reason', 'attlog_saved');
+            $request->attributes->set('adms_accepted_records', $count);
+
+            return 'OK: '.$count."\n";
         }
         if (strcasecmp($table, 'options') === 0) {
             $gateway->touch($device);
+            $request->attributes->set('adms_diagnostic_reason', 'options_received');
 
             return 'OK';
         }
         // Do not silently discard biometric templates/unknown upload formats.
+        $request->attributes->set('adms_diagnostic_reason', 'unsupported_table');
         abort(503, 'UNSUPPORTED UPLOAD TABLE');
     }
 
