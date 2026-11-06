@@ -22,6 +22,16 @@ export abstract class Ui {
     return iso ? this.language.formatDate(iso.slice(0, 10)) : '—';
   }
 
+  /** Two initials for an avatar; the Arabic definite article is not a name's first letter. */
+  protected initials(value: Text): string {
+    return this.text(value)
+      .trim()
+      .split(/\s+/)
+      .slice(0, 2)
+      .map((word) => word.replace(/^ال/, '').charAt(0))
+      .join('');
+  }
+
   protected num(value: number): string {
     return this.language.formatNumber(value);
   }

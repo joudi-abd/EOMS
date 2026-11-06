@@ -25,6 +25,9 @@ export class EmployeeForm extends Ui {
   /** Contact fields show only when creating, or when the server sent them for this file. */
   protected readonly showSensitive = computed(() => !this.person() || this.person()!.sensitive);
   protected readonly showWallet = computed(() => !this.person() || this.person()!.financial);
+  /** Only an account that manages users may open the login together with the file. */
+  protected readonly offerLogin = computed(() => !this.person() && this.session.canAct('account.add'));
+  protected readonly offerEnroll = computed(() => !this.person() && this.session.canAct('attendance.link'));
 
   protected cancel(): void {
     const editing = this.person();
@@ -40,6 +43,7 @@ export class EmployeeForm extends Ui {
     const editing = this.person();
     const shared = {
       firstName: read('firstName'),
+      fatherName: read('fatherName'),
       lastName: read('lastName'),
       birthDate: data.has('birthDate') ? read('birthDate') : (editing?.birthDate ?? ''),
       phone: data.has('phone') ? read('phone') : (editing?.phone ?? ''),
@@ -50,26 +54,25 @@ export class EmployeeForm extends Ui {
       managerId: read('manager'),
       wallet: data.has('wallet') ? read('wallet') : (editing?.wallet ?? ''),
     };
+    if (!editing && read('accountEmail') && String(data.get('accountPassword') ?? '').length < 10) {
+      this.problem.set(this.t('passwordHint'));
+      return;
+    }
     this.saving.set(true);
     this.problem.set('');
     const outcome = editing
-      ? await this.office.updateEmployee(editing.id, shared, actor)
-      : await this.office.hire(
-          {
-            ...shared,
-            nationalId: read('nationalId'),
-            hired: read('hired'),
-            accountEmail: read('accountEmail'),
-            accountPassword: String(data.get('accountPassword') ?? ''),
-          },
-          actor,
-        );
+      ? await this.office.updateEmployee(editing.id, { ...shared, effectiveDate: read('effectiveDate'), reason: read('reason') }, actor)
+      : await this.office.hire({ ...shared, nationalId: read('nationalId'), hired: read('hired') }, actor);
+    if (outcome.ok && !editing && outcome.id && read('accountEmail')) {
+      await this.office.createLogin(outcome.id, read('accountEmail'), String(data.get('accountPassword') ?? ''), actor);
+    }
     this.saving.set(false);
     if (!outcome.ok) {
       this.problem.set(outcome.error ?? '');
       return;
     }
-    const queryParams = editing ? { edit: null } : { file: outcome.id ?? null };
+    const enroll = !editing && data.get('enroll') === 'on';
+    const queryParams = editing ? { edit: null } : { file: outcome.id ?? null, tab: enroll ? 'finger' : null, enroll: enroll ? 1 : null };
     void this.router.navigate([], { queryParams, queryParamsHandling: 'merge' });
   }
 }

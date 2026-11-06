@@ -2,6 +2,26 @@
   display: block;
 }
 
-td:last-child {
+td {
   white-space: nowrap;
+}
+
+.person {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  flex: none;
+  background: var(--action-tint);
+  color: var(--action-ink);
+  font-size: 12px;
+  font-weight: 600;
 }

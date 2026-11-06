@@ -43,7 +43,7 @@ dt,
 }
 
 .form .quiet {
-  border: 1px solid #fecaca;
+  border: 1px solid var(--late-line);
 }
 
 .inline-action {
@@ -69,6 +69,18 @@ dt,
 
 .wide {
   grid-column: 1 / -1;
+}
+
+.acts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-top: 16px;
+}
+
+.form .acts {
+  margin-top: 0;
 }
 
 dd {

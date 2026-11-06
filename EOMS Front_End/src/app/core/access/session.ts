@@ -3,7 +3,7 @@ import { Auth } from '../api/auth';
 import { ModuleId, moduleIds } from '../copy';
 import { Language } from '../language';
 import { Office } from '../../data/office';
-import { Account, Action, grants, roleAreas, roleLabel, selfAreas } from './accounts';
+import { Account, Action, areaNeeds, grants, holds, Permission, permissionsOf, roleLabel, selfAreas } from './accounts';
 
 const nobody: Account = { id: '', userId: 0, name: { ar: '', en: '' }, roles: [], enabled: false, email: '', phone: '', lastLogin: '' };
 
@@ -21,21 +21,19 @@ export class Session {
 
   readonly manages = computed(() => this.office.team(this.account().id).length > 0);
 
+  /** What the backend lets this account do, rebuilt from its roles because `/auth/me` returns role names only. */
+  readonly permissions = computed(() => permissionsOf(this.account().roles));
+
   readonly areas = computed(() => {
     const roles = this.account().roles;
-    if (roles.includes('system')) {
-      return new Set<ModuleId>(moduleIds);
-    }
-    if (roles.includes('company')) {
-      return new Set<ModuleId>(moduleIds.filter((id) => id !== 'access'));
-    }
     const areas = new Set<ModuleId>();
-    for (const role of roles) {
-      if (role === 'company' || role === 'system') {
-        continue;
-      }
-      for (const area of roleAreas[role]) {
-        areas.add(area);
+    if (roles.length === 0) {
+      return areas;
+    }
+    for (const id of moduleIds) {
+      const needs = areaNeeds[id];
+      if (needs === 'open' || holds(roles, needs)) {
+        areas.add(id);
       }
     }
     if (this.hasFile()) {
@@ -50,6 +48,11 @@ export class Session {
 
   can(area: ModuleId): boolean {
     return this.areas().has(area);
+  }
+
+  /** The signed-in account holds this backend permission. */
+  has(permission: Permission): boolean {
+    return this.permissions().has(permission);
   }
 
   canAct(action: Action): boolean {

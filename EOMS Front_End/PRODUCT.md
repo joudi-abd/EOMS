@@ -14,7 +14,7 @@ Angular 22, SCSS, client-side routing, no SSR. Confirmed by the existing app and
 
 Primary user of the first surface: the company director (مدير الشركة), at a desk during the working day. That account sees every module and every figure.
 
-Other roles on the same shell: system manager, human resources officer, finance officer, project manager, engineer, procurement officer, and employee. An account can hold two roles at once, and then sees the union of those permissions. There is no inventory module. A user receives the least access their job needs. Shared records (leave decisions and purchase requests) live in one client store and update every open view immediately, including another tab, without reloading the page. There is still no server, so this sync is local to the browser.
+Other roles on the same shell: system manager, human resources officer, finance officer, project manager, engineer, procurement officer, and employee. An account can hold two roles at once, and then sees the union of those permissions. There is no inventory module. A user receives the least access their job needs. Sign-in, accounts, and permissions come from the Laravel backend (`/api/v1`, bearer token). `/auth/me` returns role names only, so the frontend rebuilds each role's permissions to match the backend's seeded role permissions and route middleware.
 
 ## Product Purpose
 
@@ -30,7 +30,7 @@ The firm is operated as linked records, not separate department tools. A project
 
 An engineering office: staff files, site attendance, project stages (client requirements, design, design approval, execution planning, site and materials, construction, quality, handover), client contracts, operating revenue and expense, purchase requests, stored materials, drawings and documents, equipment, and internal meetings.
 
-The working language is Arabic, right to left. English is available. There is no backend in this phase, so the home runs on labeled synthetic office data.
+The working language is Arabic, right to left. English is available. The backend (eos-backend, Laravel, with Identity, HR, and Settings modules) serves sign-in, access, employees, attendance, and HR settings. The dashboard and every module the backend does not yet have run on labeled synthetic office data.
 
 ## Capabilities and Constraints
 
@@ -52,9 +52,11 @@ Confirmed modules, in study order:
 - Notifications and approvals
 - Dashboard and reporting
 
-The director's dashboard, the application shell, users and permissions, and the human resources section are built: employees, attendance, leave, requests, payroll, and HR settings. The other module screens are not built yet.
+Built screens: the director's dashboard (synthetic figures), the application shell, users and permissions, employees (file, contracts, documents, job history, fingerprint enrollment, offboarding), attendance with reports, and HR settings. Leave, requests, and payroll are specified below but have no screen yet and open a "later" page, as do all other modules.
 
-The human resources section follows the company's HR requirements document (وثيقة المتطلبات الوظيفية). Decisions taken there:
+The backend is read-only from this repository's work. When frontend and backend disagree, the frontend is aligned to the backend and the gap is reported. Shift hours are versioned attendance policies (`/attendance/policies`): human resources saves a new version that rules from a chosen future date. The shift screen also edits grace mode, lateness block, overtime multiplier, pairing mode, duplicate window, and finalize delay. HR settings has a Devices tab (devices, connection mode, token renewal, device-number bindings) for `attendance.manage`, and fingerprint enrollment runs over the ADMS routes with a human test-and-confirm step.
+
+The human resources section follows the company's HR requirements document (وثيقة المتطلبات الوظيفية). Decisions taken there (leave, requests, and payroll rules are adopted but not yet built):
 
 - Every employee has a login account, created with the employee role when the file is saved. The national ID is required and unique. The staff number is generated on save as `U-` plus eight digits.
 - Saving a new employee can send them to the UA300 Pro over ADMS and start fingerprint enrollment. The file shows the stages (queued on the server, fetched by the device, finger placed, template received) and the ADMS commands. Without a backend, a labeled control stands in for the device replies.

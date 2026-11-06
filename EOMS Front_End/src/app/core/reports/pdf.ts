@@ -1,10 +1,29 @@
 import { ReportSpec } from './report';
 
-const escape = (value: string | number) =>
+export const escape = (value: string | number) =>
   String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char] ?? char);
 
+/**
+ * With no page margin the browser has nowhere to print its own URL, title, date, and page count.
+ * The frame's header and footer rows repeat on every printed page and stand in for that margin.
+ */
+export const frameCss = `
+.p-frame { width: 100%; border-collapse: collapse; }
+.p-frame > thead > tr > td, .p-frame > tfoot > tr > td { padding: 0; border: 0; background: none; }
+.p-frame > tbody > tr > td { padding: 0 12mm; border: 0; background: none; vertical-align: top; }
+.p-top { height: 12mm; }
+.p-bottom { height: 14mm; }
+`;
+
+export function framed(content: string): string {
+  return `<table class="p-frame" role="presentation"><thead><tr><td><div class="p-top"></div></td></tr></thead><tfoot><tr><td><div class="p-bottom"></div></td></tr></tfoot><tbody><tr><td>${content}</td></tr></tbody></table>`;
+}
+
+/** Latin codes, numbers, and e-mail addresses keep their own order inside right-to-left text. */
+export const isolate = (value: string | number) => `<bdi>${escape(value)}</bdi>`;
+
 const sheet = `
-@page { size: A4 var(--orientation); margin: 14mm 12mm 16mm; @bottom-center { content: counter(page) " / " counter(pages); font: 9px 'Readex Pro Variable', sans-serif; color: #6b7280; } }
+@page { size: A4 var(--orientation); margin: 0; }
 html, body { background: #fff !important; }
 body { margin: 0; color: #111827; font: 12px/1.5 'Readex Pro Variable', sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 .r-head { display: grid; justify-items: start; gap: 6px; padding-bottom: 12px; border-bottom: 2px solid #2563eb; }
@@ -29,7 +48,6 @@ table.r-table { width: 100%; border-collapse: collapse; font-size: 11px; font-va
 .r-table td { padding: 5px 8px; border-bottom: 1px solid #e5e7eb; text-align: start; }
 .r-table tr { break-inside: avoid; }
 .r-table tbody tr:nth-child(even) td { background: #f8fafc; }
-.r-table td.n { text-align: center; }
 .r-foot { margin-top: 14px; padding-top: 8px; border-top: 1px solid #e5e7eb; color: #6b7280; font-size: 10px; }
 `;
 
@@ -52,7 +70,7 @@ export function exportPdf(spec: ReportSpec, charts?: Element | null): void {
         })
         .join('\n')
     : '';
-  const meta = spec.meta.map(([label, value]) => `<div><dt>${escape(label)}</dt><dd>${escape(value)}</dd></div>`).join('');
+  const meta = spec.meta.map(([label, value]) => `<div><dt>${escape(label)}</dt><dd>${isolate(value)}</dd></div>`).join('');
   const figures = spec.figures.map((figure) => `<div class="r-figure"><span>${escape(figure.label)}</span><strong>${escape(figure.value)}</strong></div>`).join('');
   const tables = spec.tables
     .map(
@@ -61,7 +79,7 @@ export function exportPdf(spec: ReportSpec, charts?: Element | null): void {
       <table class="r-table">
         <thead><tr>${table.columns.map((column) => `<th>${escape(column.header)}</th>`).join('')}</tr></thead>
         <tbody>${table.rows
-          .map((row) => `<tr>${row.map((value, index) => `<td class="${table.columns[index]?.numeric ? 'n' : ''}">${escape(value ?? '')}</td>`).join('')}</tr>`)
+          .map((row) => `<tr>${row.map((value) => `<td>${isolate(value ?? '')}</td>`).join('')}</tr>`)
           .join('')}</tbody>
       </table>`,
     )
@@ -74,10 +92,10 @@ export function exportPdf(spec: ReportSpec, charts?: Element | null): void {
 <base href="${document.baseURI}" />
 <title>${escape(spec.title)}</title>
 ${styles}
-<style>:root { --orientation: ${spec.landscape ? 'landscape' : 'portrait'}; } ${sheet.replace('var(--orientation)', spec.landscape ? 'landscape' : 'portrait')}</style>
+<style>${sheet.replace('var(--orientation)', spec.landscape ? 'landscape' : 'portrait')}${frameCss}</style>
 </head>
 <body>
-<header class="r-head">
+${framed(`<header class="r-head">
   <img class="r-brand" src="${new URL('brand/ufuq.png', document.baseURI).href}" alt="UFUQ" />
   <p class="r-company">${escape(spec.brand)}</p>
 </header>
@@ -85,10 +103,15 @@ ${styles}
 ${figures ? `<section class="r-figures">${figures}</section>` : ''}
 ${chartHtml ? `<section class="r-charts">${chartHtml}</section>` : ''}
 ${tables}
-<footer class="r-foot">${escape(spec.footer)}</footer>
+<footer class="r-foot">${escape(spec.footer)}</footer>`)}
 </body>
 </html>`;
 
+  printDocument(html);
+}
+
+/** Writes a complete HTML document into a hidden frame and opens the print dialog, where it saves as PDF. */
+export function printDocument(html: string): void {
   const frame = document.createElement('iframe');
   frame.setAttribute('aria-hidden', 'true');
   frame.style.cssText = 'position:fixed;inset-inline-end:0;bottom:0;width:0;height:0;border:0;visibility:hidden;';
@@ -109,6 +132,19 @@ ${tables}
     view.print();
     setTimeout(finish, 60000);
   };
-  const ready = target.fonts?.ready ?? Promise.resolve();
-  Promise.race([ready, new Promise((resolve) => setTimeout(resolve, 1500))]).then(() => setTimeout(print, 250));
+  const fonts = Promise.race([target.fonts?.ready ?? Promise.resolve(), new Promise((resolve) => setTimeout(resolve, 1500))]);
+  const images = Promise.race([
+    Promise.all(
+      [...target.images].map((image) =>
+        image.complete
+          ? null
+          : new Promise((resolve) => {
+              image.addEventListener('load', resolve);
+              image.addEventListener('error', resolve);
+            }),
+      ),
+    ),
+    new Promise((resolve) => setTimeout(resolve, 15000)),
+  ]);
+  Promise.all([fonts, images]).then(() => setTimeout(print, 250));
 }

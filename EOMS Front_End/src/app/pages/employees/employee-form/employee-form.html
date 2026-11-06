@@ -4,6 +4,10 @@
     <input name="firstName" type="text" autocomplete="off" maxlength="80" required [value]="person()?.firstName ?? ''" />
   </label>
   <label>
+    <span>{{ t('fatherName') }}</span>
+    <input name="fatherName" type="text" autocomplete="off" maxlength="80" required [value]="person()?.fatherName ?? ''" />
+  </label>
+  <label>
     <span>{{ t('lastName') }}</span>
     <input name="lastName" type="text" autocomplete="off" maxlength="80" required [value]="person()?.lastName ?? ''" />
   </label>
@@ -68,16 +72,46 @@
       <input name="wallet" type="text" autocomplete="off" maxlength="30" dir="ltr" [value]="person()?.wallet ?? ''" />
     </label>
   }
-  @if (!person()) {
-    <label>
-      <span>{{ t('accountEmail') }}</span>
-      <input name="accountEmail" type="email" autocomplete="off" spellcheck="false" dir="ltr" required />
-    </label>
-    <label>
-      <span>{{ t('accountPassword') }}</span>
-      <input name="accountPassword" type="password" autocomplete="new-password" minlength="10" dir="ltr" required />
-      <small class="hint">{{ t('passwordHint') }}</small>
-    </label>
+  @if (person()) {
+    <fieldset class="wide group">
+      <legend>{{ t('changedEvent') }}</legend>
+      <p class="note">{{ t('changeHint') }}</p>
+      <div class="pair-fields">
+        <label>
+          <span>{{ t('effectiveDate') }}</span>
+          <input name="effectiveDate" type="date" autocomplete="off" [min]="person()!.hired" [max]="today" [value]="today" />
+        </label>
+        <label>
+          <span>{{ t('changeReason') }}</span>
+          <input name="reason" type="text" autocomplete="off" maxlength="500" />
+        </label>
+      </div>
+    </fieldset>
+  } @else {
+    @if (offerLogin()) {
+      <fieldset class="wide group">
+        <legend>{{ t('loginOptional') }}</legend>
+        <p class="note">{{ t('createLoginHint') }} {{ t('loginLater') }}</p>
+        <div class="pair-fields">
+          <label>
+            <span>{{ t('accountEmail') }}</span>
+            <input name="accountEmail" type="email" autocomplete="off" spellcheck="false" dir="ltr" />
+          </label>
+          <label>
+            <span>{{ t('accountPassword') }}</span>
+            <input name="accountPassword" type="password" autocomplete="new-password" minlength="10" dir="ltr" />
+            <small class="hint">{{ t('passwordHint') }}</small>
+          </label>
+        </div>
+      </fieldset>
+    }
+    @if (offerEnroll()) {
+      <label class="wide check">
+        <input name="enroll" type="checkbox" checked />
+        <i class="fa-solid fa-fingerprint" aria-hidden="true"></i>
+        <span>{{ t('enrollAfterSave') }}</span>
+      </label>
+    }
     <p class="wide note">{{ t('staffNoHint') }}</p>
   }
   @if (problem()) {

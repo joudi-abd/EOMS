@@ -14,7 +14,13 @@
       <h1>{{ text(person.name) }}</h1>
       <p class="sub">{{ person.staffNo }} · {{ text(person.title) }}</p>
     </div>
-    <button class="text" type="button" (click)="back()">{{ t('backToStaff') }}</button>
+    <div class="actions">
+      <button class="text" type="button" [disabled]="exporting()" [attr.aria-busy]="exporting()" (click)="exportDossier(person)">
+        <i class="fa-solid" [class.fa-file-pdf]="!exporting()" [class.fa-circle-notch]="exporting()" [class.spin]="exporting()" aria-hidden="true"></i>
+        {{ exporting() ? t('preparingDossier') : t('exportDossier') }}
+      </button>
+      <button class="text" type="button" (click)="back()">{{ t('backToStaff') }}</button>
+    </div>
   </header>
 
   @if (editing() && session.mayEdit(person.id, 'employee.edit') && person.status !== 'ended') {
@@ -22,7 +28,7 @@
     <app-employee-form [person]="person" />
   } @else {
     <nav class="tabs" [attr.aria-label]="t('fileTabs')">
-      @for (item of tabs; track item.id) {
+      @for (item of tabs(); track item.id) {
         <a
           [routerLink]="[]"
           [queryParams]="{ tab: item.id === 'info' ? null : item.id }"
@@ -38,6 +44,9 @@
     @switch (tab()) {
       @case ('contracts') {
         <app-employee-contracts [person]="person" />
+      }
+      @case ('documents') {
+        <app-employee-documents [person]="person" />
       }
       @case ('finger') {
         <app-employee-finger [person]="person" />

@@ -6,6 +6,34 @@ h2 {
   margin-top: 28px;
 }
 
+.facts {
+  display: grid;
+  gap: 6px;
+  margin: 12px 0 0;
+  padding: 10px 14px;
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.facts p {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0;
+  max-width: 96ch;
+}
+
+.facts i {
+  flex: none;
+  width: 16px;
+  text-align: center;
+  color: var(--soft);
+  font-size: 13px;
+}
+
 .filters {
   display: grid;
   grid-template-columns: minmax(0, 1.4fr) repeat(3, minmax(140px, 1fr));
@@ -57,7 +85,27 @@ h2 {
     display: grid;
   }
 
-  .link .primary {
+  .link .primary,
+  .link .quiet {
     width: 100%;
   }
+}
+
+.hold {
+  flex-wrap: wrap;
+  align-items: end;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line);
+}
+
+.hold > span {
+  flex: 1 1 100%;
+}
+
+.hold label {
+  flex: 1 1 180px;
+}
+
+.hold .quiet {
+  border: 1px solid var(--late-line);
 }

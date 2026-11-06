@@ -1,7 +1,6 @@
 import { afterNextRender, Component, computed, ElementRef, inject, input, OnDestroy, output, viewChild } from '@angular/core';
 import { CopyKey } from '../../../core/copy';
 import { Ui } from '../../../core/ui';
-import { device } from '../../../data/attendance';
 import { Employee } from '../../../data/employees';
 import { EnrollState, Enrollment } from '../../../data/enrollment';
 
@@ -10,7 +9,7 @@ type StepState = 'todo' | 'current' | 'done' | 'failed';
 const stepKeys: CopyKey[] = ['enrollStepQueue', 'enrollStepDevice', 'enrollStepFinger', 'enrollStepSave'];
 
 /** Which stage each server state has reached; a failure is shown on the finger stage. */
-const reached: Record<EnrollState, number> = { none: -1, queued: 0, sent: 1, scanning: 2, enrolled: 4, failed: 2 };
+const reached: Record<EnrollState, number> = { none: -1, queued: 0, sent: 1, scanning: 2, verify: 3, enrolled: 4, failed: 2 };
 
 const ring = 2 * Math.PI * 54;
 const gap = 10;
@@ -24,7 +23,6 @@ export class FingerDialog extends Ui implements OnDestroy {
   readonly person = input.required<Employee>();
   readonly closed = output<void>();
   protected readonly enrollment = inject(Enrollment);
-  protected readonly device = device;
   private readonly dialog = viewChild.required<ElementRef<HTMLDialogElement>>('dialog');
 
   protected readonly state = computed(() => this.enrollment.status().state);
@@ -62,11 +60,13 @@ export class FingerDialog extends Ui implements OnDestroy {
   protected readonly headline = computed<CopyKey>(() => {
     if (this.enrollment.available() === null) return 'enrollChecking';
     if (this.enrollment.available() === false) return 'enrollUnavailable';
+    if (this.state() === 'none' && this.enrollment.bindings().length === 0) return 'enrollNoBinding';
     const keys: Record<EnrollState, CopyKey> = {
       none: 'enrollIdle',
       queued: 'enrollQueued',
       sent: 'enrollSent',
       scanning: 'enrollScanning',
+      verify: 'enrollVerify',
       enrolled: 'enrollEnrolled',
       failed: 'enrollFailed',
     };
@@ -75,13 +75,15 @@ export class FingerDialog extends Ui implements OnDestroy {
 
   protected readonly detail = computed(() => {
     if (this.enrollment.available() === false) return this.t('enrollUnavailableNote');
+    if (this.state() === 'none' && this.enrollment.bindings().length === 0) return this.t('enrollNoBindingNote');
     const state = this.state();
-    if (state === 'scanning') return `${this.t('enrollPress')} ${this.num(Math.min(3, this.presses() + 1))} ${this.t('ofWord')} ${this.num(3)}`;
     if (state === 'failed') return this.enrollment.status().message || this.t('enrollFailedNote');
     const keys: Partial<Record<EnrollState, CopyKey>> = {
       none: 'enrollIdleNote',
       queued: 'enrollQueuedNote',
       sent: 'enrollSentNote',
+      scanning: 'enrollStepFinger',
+      verify: 'enrollVerifyNote',
       enrolled: 'enrollEnrolledNote',
     };
     const key = keys[state];
@@ -103,8 +105,19 @@ export class FingerDialog extends Ui implements OnDestroy {
     this.enrollment.stop();
   }
 
-  protected start(): void {
-    void this.enrollment.start(this.person().id);
+  protected begin(event: Event): void {
+    event.preventDefault();
+    const data = new FormData(event.target as HTMLFormElement);
+    const binding = Number(data.get('binding'));
+    const finger = Number(data.get('finger'));
+    if (!Number.isInteger(binding) || !Number.isInteger(finger)) return;
+    void this.enrollment.start(binding, finger);
+  }
+
+  protected async confirmTest(event: Event): Promise<void> {
+    event.preventDefault();
+    const data = new FormData(event.target as HTMLFormElement);
+    await this.enrollment.confirm(String(data.get('note') ?? '').trim());
   }
 
   protected close(): void {

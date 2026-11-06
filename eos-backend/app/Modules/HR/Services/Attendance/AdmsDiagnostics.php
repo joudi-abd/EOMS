@@ -11,7 +11,8 @@ class AdmsDiagnostics
 {
     public static function record(Request $request, int $status, string $reason): void
     {
-        if ($status < 400 && ! config('attendance.adms.diagnostics')) {
+        $hasQuarantine = $request->attributes->get('adms_quarantined_records', 0) > 0;
+        if ($status < 400 && ! $hasQuarantine && ! config('attendance.adms.diagnostics')) {
             return;
         }
         $table = $request->query('table');
@@ -39,9 +40,14 @@ class AdmsDiagnostics
         if ($request->attributes->has('adms_accepted_records')) {
             $context['accepted_records'] = $request->attributes->get('adms_accepted_records');
         }
+        foreach (['imported', 'quarantined', 'duplicate'] as $kind) {
+            if ($request->attributes->has('adms_'.$kind.'_records')) {
+                $context[$kind.'_records'] = $request->attributes->get('adms_'.$kind.'_records');
+            }
+        }
         try {
             // Never log SN, PIN, query strings, payloads, or exception messages with SQL bindings.
-            Log::channel('adms')->log($status >= 400 ? 'warning' : 'info', 'adms.request', $context);
+            Log::channel('adms')->log($status >= 400 || $hasQuarantine ? 'warning' : 'info', 'adms.request', $context);
         } catch (\Throwable) {
             // Diagnostics must not turn a committed upload's ACK into a failure/retry.
         }

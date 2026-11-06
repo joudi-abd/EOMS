@@ -14,11 +14,14 @@ export type Action =
   | 'employee.edit'
   | 'employee.evaluate'
   | 'employee.end'
+  | 'document.view'
+  | 'document.manage'
   | 'attendance.link'
   | 'attendance.correct'
   | 'attendance.office'
   | 'attendance.mission'
   | 'hr.settings'
+  | 'hr.shift'
   | 'account.add'
   | 'account.toggle'
   | 'account.update'
@@ -59,7 +62,7 @@ export function roleFrom(name: string): Role | null {
   return roleIds.find((role) => roleName[role] === name) ?? null;
 }
 
-/** The system administrator holds every backend permission; the company manager views and approves everything. */
+/** The system administrator and the company manager stand above the other roles. */
 export function isTop(roles: readonly Role[]): boolean {
   return roles.includes('system') || roles.includes('company');
 }
@@ -85,50 +88,139 @@ export const roleLabel: Record<Role, CopyKey> = {
   employee: 'employeeRole',
 };
 
-export const roleAreas: Record<Exclude<Role, 'company'>, readonly ModuleId[]> = {
-  system: ['access', 'alerts'],
-  hr: ['employees', 'attendance', 'leave', 'requests', 'payroll', 'hrSettings', 'meetings', 'alerts'],
-  finance: ['finance', 'payroll', 'clients', 'procurement', 'documents', 'alerts'],
-  project: ['projects', 'clients', 'documents', 'meetings', 'alerts'],
-  engineer: ['projects', 'documents', 'meetings'],
-  procurement: ['procurement', 'alerts'],
-  employee: ['attendance', 'leave', 'requests', 'alerts'],
-};
+/**
+ * The backend permissions (`usr_permissions.name`, Spatie, guard `web`), as `RolePermissionSeeder` creates them.
+ * `/auth/me` returns role names only, so the interface rebuilds a user's permissions from the roles it holds.
+ */
+export const permissionIds = [
+  'employees.view',
+  'employees.manage',
+  'employees.view_sensitive',
+  'employees.view_financial',
+  'employees.documents.view',
+  'employees.documents.manage',
+  'attendance.view',
+  'attendance.manage',
+  'attendance.adjust',
+  'attendance.approve',
+  'leaves.view',
+  'leaves.approve',
+  'payroll.view',
+  'payroll.manage',
+  'payroll.approve',
+  'finance.view',
+  'finance.manage',
+  'projects.view',
+  'projects.manage',
+  'purchases.view',
+  'purchases.manage',
+  'purchases.approve',
+  'assets.view',
+  'assets.manage',
+  'documents.view',
+  'documents.manage',
+  'meetings.view',
+  'meetings.manage',
+  'reports.view',
+  'audit.view',
+  'settings.view',
+  'settings.manage',
+  'users.manage',
+  'roles.assign',
+] as const;
 
-export const roleActions: Record<Exclude<Role, 'company'>, readonly Action[]> = {
-  system: ['account.add', 'account.toggle', 'account.update'],
+export type Permission = (typeof permissionIds)[number];
+
+/** Mirrors the seeder: the administrator holds all; the company manager every `.view` and `.approve`; the rest are listed. */
+export const rolePermissions: Record<Role, readonly Permission[]> = {
+  system: permissionIds,
+  company: permissionIds.filter((name) => name.endsWith('.view') || name.endsWith('.approve')),
   hr: [
-    'leave.decide',
-    'employee.add',
-    'employee.edit',
-    'employee.evaluate',
-    'employee.end',
-    'attendance.link',
-    'attendance.correct',
-    'attendance.office',
-    'attendance.mission',
-    'hr.settings',
-    'payroll.prepare',
+    'employees.view',
+    'employees.manage',
+    'employees.view_sensitive',
+    'employees.documents.view',
+    'employees.documents.manage',
+    'attendance.view',
+    'attendance.manage',
+    'attendance.adjust',
+    'attendance.approve',
+    'leaves.view',
+    'leaves.approve',
+    'documents.view',
+    'documents.manage',
+    'reports.view',
   ],
-  finance: ['purchase.add', 'purchase.decide', 'payroll.review', 'payroll.pay'],
-  project: [],
-  engineer: [],
-  procurement: ['purchase.add'],
+  finance: ['payroll.view', 'payroll.manage', 'finance.view', 'finance.manage', 'purchases.view', 'purchases.approve', 'reports.view'],
+  project: ['projects.view', 'projects.manage', 'meetings.view', 'meetings.manage', 'employees.view', 'documents.view', 'documents.manage', 'reports.view'],
+  engineer: ['projects.view', 'meetings.view', 'documents.view'],
+  procurement: ['purchases.view', 'purchases.manage', 'assets.view'],
   employee: [],
 };
 
-/** The company manager's backend role lacks `employees.manage`, `settings.manage`, and `users.manage`. */
-const companyWithheld: readonly Action[] = ['employee.add', 'employee.edit', 'hr.settings', 'account.add', 'account.toggle', 'account.update'];
+export function permissionsOf(roles: readonly Role[]): ReadonlySet<Permission> {
+  return new Set(roles.flatMap((role) => rolePermissions[role]));
+}
+
+/** An area opens with any one of these permissions; `open` areas belong to every account that holds a role. */
+export const areaNeeds: Record<ModuleId, readonly Permission[] | 'open'> = {
+  access: ['users.manage'],
+  employees: ['employees.view'],
+  attendance: ['attendance.view'],
+  leave: ['leaves.view'],
+  requests: ['leaves.view'],
+  payroll: ['payroll.view'],
+  hrSettings: ['attendance.view'],
+  projects: ['projects.view'],
+  // The backend has no client permission yet; clients follow the projects and finance they belong to.
+  clients: ['projects.view', 'finance.view'],
+  finance: ['finance.view'],
+  procurement: ['purchases.view'],
+  documents: ['documents.view'],
+  assets: ['assets.view'],
+  meetings: ['meetings.view'],
+  alerts: 'open',
+};
+
+/**
+ * An action needs any one of these permissions. Actions the backend has no route for yet
+ * (leave, payroll steps, evaluation, missions) follow the permission of the module they belong to.
+ */
+export const actionNeeds: Record<Action, readonly Permission[]> = {
+  'leave.decide': ['leaves.approve'],
+  'leave.request': [],
+  'purchase.add': ['purchases.manage'],
+  'purchase.decide': ['purchases.approve'],
+  'employee.add': ['employees.manage'],
+  'employee.edit': ['employees.manage'],
+  'employee.evaluate': ['employees.manage'],
+  'employee.end': ['employees.manage'],
+  'document.view': ['employees.documents.view'],
+  'document.manage': ['employees.documents.manage'],
+  'attendance.link': ['attendance.manage'],
+  'attendance.correct': ['attendance.adjust'],
+  'attendance.office': ['attendance.view'],
+  'attendance.mission': ['attendance.adjust'],
+  'hr.settings': ['employees.manage'],
+  // New shift versions are posted to `/attendance/policies`.
+  'hr.shift': ['attendance.manage'],
+  'account.add': ['users.manage'],
+  'account.toggle': ['users.manage'],
+  'account.update': ['users.manage'],
+  'payroll.prepare': ['payroll.manage'],
+  'payroll.review': ['payroll.manage'],
+  'payroll.approve': ['payroll.approve'],
+  'payroll.pay': ['payroll.manage'],
+};
+
+export function holds(roles: readonly Role[], needs: readonly Permission[]): boolean {
+  const held = permissionsOf(roles);
+  return needs.some((name) => held.has(name));
+}
 
 export function grants(roles: readonly Role[], action: Action, hasFile: boolean): boolean {
-  if (roles.includes('system')) {
-    return true;
-  }
-  if (roles.includes('company')) {
-    return !companyWithheld.includes(action);
-  }
   if (hasFile && selfActions.includes(action)) {
     return true;
   }
-  return roles.some((role) => role !== 'company' && roleActions[role].includes(action));
+  return holds(roles, actionNeeds[action]);
 }

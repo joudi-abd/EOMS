@@ -7,6 +7,7 @@ use App\Modules\HR\Models\AttendanceDevice;
 use App\Modules\HR\Models\AttendancePunch;
 use App\Modules\HR\Models\Employee;
 use App\Modules\HR\Services\Attendance\AdmsGateway;
+use App\Modules\HR\Services\Attendance\AdmsQuarantineService;
 use App\Modules\HR\Services\Attendance\AttendanceDeviceService;
 use App\Modules\HR\Services\Attendance\AttendanceImportService;
 use App\Modules\Identity\Database\Seeders\RolePermissionSeeder;
@@ -142,7 +143,7 @@ class AdmsGatewayTest extends TestCase
     public function test_invalid_batch_is_not_partly_saved_or_acknowledged(): void
     {
         foreach (['bad record', "00105\t2026-02-30 09:00:00\t0\t1", "00105\t2026-11-05 09:00:00\tbad\t1",
-            "00105\t2026-11-06 09:00:00\t0\t1", "00105\t2026-11-05 09:00:00\t0\t1\nBAD"] as $raw) {
+            "00105\t2026-11-05 09:00:00\t0\t1\nBAD"] as $raw) {
             $this->raw($raw)->assertUnprocessable()->assertDontSee('OK:');
         }
         $this->assertDatabaseCount('hr_adms_uploads', 0);
@@ -355,20 +356,21 @@ class AdmsGatewayTest extends TestCase
         return $logger;
     }
 
-    public function test_future_device_clock_is_logged_without_payload_and_does_not_ack(): void
+    public function test_future_device_clock_is_durably_quarantined_without_logging_payload(): void
     {
         config(['attendance.adms.diagnostics' => false]);
         $logger = $this->diagnosticLog();
-        $this->raw("900001\t2026-11-06 05:41:00\t0\t1")->assertUnprocessable()->assertContent('INVALID DATA');
+        $this->raw("900001\t2026-11-06 05:41:00\t0\t1")->assertOk()->assertContent("OK: 1\n");
         $logger->shouldHaveReceived('log')->with('warning', 'adms.request', \Mockery::on(function ($context) {
             $encoded = json_encode($context);
             $this->assertStringNotContainsString('900001', $encoded);
             $this->assertStringNotContainsString('IFACE_TEST', $encoded);
 
-            return $context['reason'] === 'future_event_time' && $context['http_status'] === 422
+            return $context['reason'] === 'attlog_saved_with_quarantine' && $context['http_status'] === 200
+                && $context['quarantined_records'] === 1 && $context['imported_records'] === 0
                 && $context['table'] === 'ATTLOG' && $context['first_line_fields'] === 4;
         }));
-        $this->assertDatabaseCount('hr_adms_uploads', 0);
+        $this->assertDatabaseCount('hr_adms_uploads', 1);
         $this->assertDatabaseCount('hr_attendance_punches', 0);
     }
 
@@ -456,5 +458,328 @@ class AdmsGatewayTest extends TestCase
         config(['attendance.adms.diagnostics' => false]);
         Log::shouldReceive('channel')->never();
         $this->get('/iclock/getrequest?SN=IFACE_TEST')->assertOk();
+    }
+
+    public function test_handshake_sends_device_timezone_not_application_server_timezone(): void
+    {
+        config(['app.timezone' => 'Asia/Tokyo']);
+        $this->get('/iclock/cdata?SN=IFACE_TEST')->assertOk()->assertSee("TimeZone=3\n", false);
+    }
+
+    public function test_push_timezone_encoding_supports_fractional_negative_and_large_offsets(): void
+    {
+        foreach (['UTC' => 0, 'Asia/Kolkata' => 330, 'Asia/Kathmandu' => 345,
+            'America/St_Johns' => -210, 'America/New_York' => -5, 'Pacific/Kiritimati' => 840] as $zone => $expected) {
+            $this->device->update(['timezone' => $zone]);
+            $this->get('/iclock/cdata?SN=IFACE_TEST')->assertOk()->assertSee("TimeZone={$expected}\n", false);
+        }
+    }
+
+    private function heldRecord(): object
+    {
+        $this->raw("00105\t2026-11-06 05:41:00\t0\t1")->assertOk()->assertContent("OK: 1\n");
+
+        return DB::table('hr_adms_quarantined_punches')->first();
+    }
+
+    public function test_mixed_batch_keeps_valid_punch_and_holds_future_record_before_ack(): void
+    {
+        $binding = $this->binding();
+        $raw = "00105\t2026-11-05 17:59:00\t0\t1\n00105\t2026-11-06 05:41:00\t0\t1\n";
+        $this->raw($raw)->assertOk()->assertContent("OK: 2\n");
+        $this->assertDatabaseCount('hr_adms_uploads', 1);
+        $this->assertDatabaseCount('hr_attendance_punches', 1);
+        $this->assertDatabaseCount('hr_adms_quarantined_punches', 1);
+        $this->assertDatabaseHas('hr_adms_uploads', ['raw_body' => $raw, 'record_count' => 2]);
+        $this->assertSame($binding->employee_id, AttendancePunch::firstOrFail()->employee_id);
+        $this->assertDatabaseHas('hr_adms_quarantined_punches', ['status' => 'pending', 'reason' => 'future_event_time']);
+        $this->assertNull($this->device->fresh()->complete_through);
+    }
+
+    public function test_quarantine_deduplicates_and_never_auto_imports_when_clock_catches_up(): void
+    {
+        $line = "00105\t2026-11-06 05:41:00\t0\t1";
+        $this->raw($line."\r\n")->assertOk();
+        $this->raw($line."\n")->assertOk();
+        $this->travel(24)->hours();
+        $this->raw($line."\n")->assertOk();
+        $this->assertDatabaseCount('hr_adms_quarantined_punches', 1);
+        $this->assertDatabaseCount('hr_attendance_punches', 0);
+        $this->assertDatabaseHas('hr_adms_quarantined_punches', ['status' => 'pending']);
+    }
+
+    public function test_import_failure_rolls_back_valid_future_and_archive_together(): void
+    {
+        $importer = \Mockery::mock(AttendanceImportService::class);
+        $importer->shouldReceive('import')->once()->andThrow(new \RuntimeException('Unavailable'));
+        $this->app->instance(AttendanceImportService::class, $importer);
+        $this->raw("00105\t2026-11-05 09:00:00\t0\t1\n00105\t2026-11-06 05:41:00\t0\t1")
+            ->assertStatus(503)->assertContent('TEMPORARY ERROR');
+        $this->assertDatabaseCount('hr_adms_uploads', 0);
+        $this->assertDatabaseCount('hr_adms_quarantined_punches', 0);
+        $this->assertDatabaseCount('hr_attendance_punches', 0);
+    }
+
+    public function test_quarantine_write_failure_never_acknowledges_or_commits_archive(): void
+    {
+        DB::connection()->beforeExecuting(function (string $query) {
+            if (str_starts_with(strtolower($query), 'insert') && str_contains($query, 'hr_adms_quarantined_punches')) {
+                throw new \RuntimeException('Quarantine storage unavailable');
+            }
+        });
+        $this->raw("00105\t2026-11-06 05:41:00\t0\t1")->assertStatus(503);
+        $this->assertDatabaseCount('hr_adms_uploads', 0);
+        $this->assertDatabaseCount('hr_attendance_punches', 0);
+    }
+
+    public function test_quarantine_list_is_permission_protected_and_never_exposes_raw_archive(): void
+    {
+        $this->heldRecord();
+        $this->actor('employee');
+        $this->getJson('/api/v1/attendance/quarantined-punches')->assertForbidden();
+        $this->actor();
+        $this->getJson('/api/v1/attendance/quarantined-punches?device_id='.$this->device->id)->assertOk()
+            ->assertJsonPath('meta.total', 1)->assertJsonPath('data.0.device_user_id', '00105')
+            ->assertJsonPath('data.0.status', 'pending')->assertJsonPath('data.0.occurred_at', '2026-11-06T02:41:00+00:00')
+            ->assertJsonMissingPath('data.0.raw_body');
+        $this->getJson('/api/v1/attendance/quarantined-punches?per_page=101')->assertUnprocessable();
+    }
+
+    public function test_hr_can_release_corrected_record_and_replay_does_not_restore_wrong_time(): void
+    {
+        $binding = $this->binding();
+        $held = $this->heldRecord();
+        $actor = $this->actor();
+        $url = '/api/v1/attendance/quarantined-punches/'.$held->id.'/review';
+        $body = ['action' => 'release', 'corrected_occurred_at' => '2026-11-05T17:30:00+03:00',
+            'reason' => 'Verified the correct time with HR and the employee'];
+        $this->postJson($url, $body)->assertOk()->assertJsonPath('data.status', 'released')
+            ->assertJsonPath('data.reviewed_by', $actor->id);
+        $punch = AttendancePunch::firstOrFail();
+        $this->assertSame($binding->employee_id, $punch->employee_id);
+        $this->assertSame('2026-11-05 14:30:00', $punch->occurred_at->format('Y-m-d H:i:s'));
+        $this->raw("00105\t2026-11-06 05:41:00\t0\t1")->assertOk();
+        $this->assertDatabaseCount('hr_attendance_punches', 1);
+        $this->assertDatabaseCount('hr_adms_quarantined_punches', 1);
+        $this->postJson($url, $body)->assertConflict();
+        $this->assertDatabaseHas('hr_adms_quarantined_punches', ['id' => $held->id,
+            'occurred_at' => '2026-11-06 02:41:00', 'punch_id' => $punch->id]);
+    }
+
+    public function test_dismissal_preserves_original_and_replay_cannot_import_it(): void
+    {
+        $held = $this->heldRecord();
+        $this->actor();
+        $this->postJson('/api/v1/attendance/quarantined-punches/'.$held->id.'/review',
+            ['action' => 'dismiss', 'reason' => 'Test event with an incorrect device clock'])->assertOk()->assertJsonPath('data.status', 'dismissed');
+        $this->travel(24)->hours();
+        $this->raw("00105\t2026-11-06 05:41:00\t0\t1")->assertOk();
+        $this->assertDatabaseCount('hr_attendance_punches', 0);
+        $this->assertDatabaseCount('hr_adms_uploads', 1);
+        $this->assertDatabaseCount('hr_adms_quarantined_punches', 1);
+    }
+
+    public function test_release_requires_permission_reason_and_valid_nonfuture_explicit_time(): void
+    {
+        $held = $this->heldRecord();
+        $url = '/api/v1/attendance/quarantined-punches/'.$held->id.'/review';
+        $this->actor('employee');
+        $this->postJson($url, ['action' => 'dismiss', 'reason' => 'Not authorized'])->assertForbidden();
+        $this->actor();
+        foreach ([['action' => 'release', 'reason' => 'Missing time'],
+            ['action' => 'release', 'reason' => 'Invalid time', 'corrected_occurred_at' => '2026-11-05 09:00:00'],
+            ['action' => 'release', 'reason' => 'Future time', 'corrected_occurred_at' => '2026-11-06T05:41:00+03:00'],
+            ['action' => 'dismiss']] as $body) {
+            $this->postJson($url, $body)->assertUnprocessable();
+        }
+        $this->assertDatabaseHas('hr_adms_quarantined_punches', ['id' => $held->id, 'status' => 'pending']);
+        $this->assertDatabaseCount('hr_attendance_punches', 0);
+    }
+
+    public function test_review_audit_failure_rolls_back_released_punch_and_review_state(): void
+    {
+        $held = $this->heldRecord();
+        $actor = $this->actor();
+        $audit = \Mockery::mock(AuditLogger::class);
+        $audit->shouldReceive('log')->once()->andThrow(new \RuntimeException('Audit unavailable'));
+        $service = new AdmsQuarantineService(app(AttendanceImportService::class), $audit);
+        try {
+            $service->review($held->id, ['action' => 'release', 'corrected_occurred_at' => '2026-11-05T17:30:00+03:00',
+                'reason' => 'Verified manual correction'], $actor->id);
+            $this->fail('Expected audit failure');
+        } catch (\RuntimeException $exception) {
+            $this->assertSame('Audit unavailable', $exception->getMessage());
+        }
+        $this->assertDatabaseCount('hr_attendance_punches', 0);
+        $this->assertDatabaseHas('hr_adms_quarantined_punches', ['id' => $held->id, 'status' => 'pending', 'punch_id' => null]);
+    }
+
+    public function test_new_valid_event_is_processed_while_older_future_event_stays_held(): void
+    {
+        $this->heldRecord();
+        $this->raw("00105\t2026-11-06 05:41:00\t0\t1\n00105\t2026-11-05 17:59:00\t0\t1")
+            ->assertOk()->assertContent("OK: 2\n");
+        $this->assertDatabaseCount('hr_attendance_punches', 1);
+        $this->assertDatabaseCount('hr_adms_quarantined_punches', 1);
+    }
+
+    public function test_standard_json_bridge_import_still_rejects_future_events(): void
+    {
+        $this->device->update(['connection_mode' => 'bridge']);
+        $this->withToken(str_repeat('a', 64))->postJson('/api/v1/attendance/device-ingest', [
+            'events' => [['external_id' => 'future-bridge', 'device_user_id' => '00105',
+                'occurred_at' => '2026-11-06T05:41:00+03:00']],
+        ])->assertUnprocessable();
+        $this->assertDatabaseCount('hr_attendance_punches', 0);
+        $this->assertDatabaseCount('hr_adms_quarantined_punches', 0);
+    }
+
+    private function acknowledgedEnrollment(): int
+    {
+        $id = $this->begin();
+        $this->get('/iclock/getrequest?SN=IFACE_TEST')->assertOk();
+        $user = DB::table('hr_adms_commands')->where('enrollment_id', $id)->where('kind', 'DATA')->first();
+        $this->raw("ID={$user->id}&Return=0&CMD=DATA", 'devicecmd')->assertOk();
+        $this->get('/iclock/getrequest?SN=IFACE_TEST')->assertOk();
+        $fp = DB::table('hr_adms_commands')->where('enrollment_id', $id)->where('kind', 'ENROLL_FP')->first();
+        $this->raw("ID={$fp->id}&Return=0&CMD=ENROLL_FP", 'devicecmd')->assertOk();
+
+        return $id;
+    }
+
+    private function confirmEnrollment(int $id): TestResponse
+    {
+        return $this->postJson('/api/v1/attendance/fingerprint-enrollments/'.$id.'/confirm',
+            ['physical_test_passed' => true, 'note' => 'Witnessed successful fingerprint recognition under the original PIN']);
+    }
+
+    public function test_successful_device_ack_does_not_expire_while_waiting_for_human_confirmation(): void
+    {
+        $id = $this->acknowledgedEnrollment();
+        $commands = DB::table('hr_adms_commands')->where('enrollment_id', $id)->orderBy('id')->get()->toJson();
+        $this->travel(24)->hours();
+        $this->get('/iclock/getrequest?SN=IFACE_TEST')->assertContent('OK');
+        $this->getJson('/api/v1/attendance/fingerprint-enrollments/'.$id)->assertOk()
+            ->assertJsonPath('data.enrollment.status', 'awaiting_physical_verification');
+        $this->confirmEnrollment($id)->assertOk()->assertJsonPath('data.enrollment.status', 'manually_confirmed')
+            ->assertJsonPath('data.operator_confirmed', true)->assertJsonPath('data.biometric_verified', false);
+        $this->assertSame($commands, DB::table('hr_adms_commands')->where('enrollment_id', $id)->orderBy('id')->get()->toJson());
+    }
+
+    public function test_legacy_timeout_with_both_successful_acknowledgements_can_be_confirmed_without_resending(): void
+    {
+        $id = $this->acknowledgedEnrollment();
+        DB::table('hr_adms_enrollments')->where('id', $id)->update(['status' => 'timeout']);
+        $this->travel(10)->minutes();
+        $this->confirmEnrollment($id)->assertOk()->assertJsonPath('data.enrollment.status', 'manually_confirmed');
+        $this->assertDatabaseCount('hr_adms_commands', 2);
+        $this->get('/iclock/getrequest?SN=IFACE_TEST')->assertContent('OK');
+    }
+
+    public function test_true_timeout_without_fingerprint_ack_cannot_be_confirmed(): void
+    {
+        $id = $this->begin();
+        $this->get('/iclock/getrequest?SN=IFACE_TEST')->assertOk();
+        $this->travel(10)->minutes();
+        $this->getJson('/api/v1/attendance/fingerprint-enrollments/'.$id)->assertOk()
+            ->assertJsonPath('data.enrollment.status', 'timeout');
+        $this->confirmEnrollment($id)->assertConflict();
+        $this->assertDatabaseHas('hr_adms_enrollments', ['id' => $id, 'status' => 'timeout', 'confirmed_at' => null]);
+    }
+
+    public function test_claimed_verification_state_without_successful_command_history_is_not_confirmable(): void
+    {
+        $id = $this->begin();
+        DB::table('hr_adms_enrollments')->where('id', $id)->update(['status' => 'awaiting_physical_verification']);
+        $this->confirmEnrollment($id)->assertConflict();
+        $this->assertDatabaseHas('hr_adms_enrollments', ['id' => $id, 'confirmed_at' => null]);
+    }
+
+    public function test_success_acknowledged_after_original_command_deadline_is_not_recoverable(): void
+    {
+        $id = $this->acknowledgedEnrollment();
+        $row = DB::table('hr_adms_enrollments')->find($id);
+        DB::table('hr_adms_commands')->where('enrollment_id', $id)->where('kind', 'ENROLL_FP')
+            ->update(['acknowledged_at' => $row->expires_at]);
+        DB::table('hr_adms_enrollments')->where('id', $id)->update(['status' => 'timeout']);
+        $this->confirmEnrollment($id)->assertConflict();
+    }
+
+    public function test_old_timeout_cannot_confirm_over_a_newer_enrollment_for_the_same_pin(): void
+    {
+        $id = $this->acknowledgedEnrollment();
+        DB::table('hr_adms_enrollments')->where('id', $id)->update(['status' => 'timeout']);
+        $binding = AttendanceBinding::firstOrFail();
+        $this->postJson('/api/v1/attendance/bindings/'.$binding->id.'/enroll-fingerprint',
+            ['finger_id' => 1, 'confirm_user_update' => true])->assertCreated();
+        $this->confirmEnrollment($id)->assertConflict();
+        $this->assertDatabaseHas('hr_adms_enrollments', ['id' => $id, 'status' => 'timeout']);
+    }
+
+    public function test_confirmation_requires_original_binding_to_still_be_active(): void
+    {
+        $id = $this->acknowledgedEnrollment();
+        AttendanceBinding::query()->update(['valid_to' => '2026-11-04']);
+        $this->confirmEnrollment($id)->assertConflict();
+    }
+
+    public function test_confirmation_audit_failure_preserves_successful_commands_and_pending_confirmation(): void
+    {
+        $id = $this->acknowledgedEnrollment();
+        $this->travel(10)->minutes();
+        $audit = \Mockery::mock(AuditLogger::class);
+        $audit->shouldReceive('log')->once()->andThrow(new \RuntimeException('Audit unavailable'));
+        $gateway = new AdmsGateway(app(AttendanceImportService::class), $audit);
+        try {
+            $gateway->confirm($id, (int) auth()->id(), 'Witnessed successful physical verification');
+            $this->fail('Expected audit failure');
+        } catch (\RuntimeException $exception) {
+            $this->assertSame('Audit unavailable', $exception->getMessage());
+        }
+        $this->assertDatabaseHas('hr_adms_enrollments', ['id' => $id,
+            'status' => 'awaiting_physical_verification', 'confirmed_at' => null]);
+        $this->assertSame(2, DB::table('hr_adms_commands')->where('enrollment_id', $id)->where('status', 'acknowledged')->count());
+    }
+
+    public function test_confirmation_retry_returns_saved_success_without_duplicate_audit_or_commands(): void
+    {
+        $id = $this->acknowledgedEnrollment();
+        $first = $this->confirmEnrollment($id)->assertOk()->json();
+        $saved = DB::table('hr_adms_enrollments')->find($id);
+        $commandSnapshot = DB::table('hr_adms_commands')->orderBy('id')->get()->toJson();
+        $this->travel(10)->minutes();
+        $second = $this->confirmEnrollment($id)->assertOk()->json();
+        $this->assertSame($first, $second);
+        $this->assertEquals($saved, DB::table('hr_adms_enrollments')->find($id));
+        $this->assertSame($commandSnapshot, DB::table('hr_adms_commands')->orderBy('id')->get()->toJson());
+        $this->assertSame(1, DB::table('usr_audit_logs')->where('action', 'attendance.enrollment_manually_confirmed')->count());
+    }
+
+    public function test_another_authorized_actor_retry_does_not_overwrite_original_confirmation(): void
+    {
+        $id = $this->acknowledgedEnrollment();
+        $this->confirmEnrollment($id)->assertOk();
+        $saved = DB::table('hr_adms_enrollments')->find($id);
+        $other = $this->actor();
+        $this->postJson('/api/v1/attendance/fingerprint-enrollments/'.$id.'/confirm',
+            ['physical_test_passed' => true, 'note' => 'Different note on a repeated request'])->assertOk()
+            ->assertJsonPath('data.enrollment.confirmed_by', $saved->confirmed_by)
+            ->assertJsonPath('data.enrollment.confirmation_note', $saved->confirmation_note);
+        $this->assertNotSame($saved->confirmed_by, $other->id);
+        $this->assertEquals($saved, DB::table('hr_adms_enrollments')->find($id));
+        $this->assertSame(1, DB::table('usr_audit_logs')->where('action', 'attendance.enrollment_manually_confirmed')->count());
+    }
+
+    public function test_confirmed_receipt_can_be_retried_after_device_disabled_or_binding_closed(): void
+    {
+        $id = $this->acknowledgedEnrollment();
+        $this->confirmEnrollment($id)->assertOk();
+        $saved = DB::table('hr_adms_enrollments')->find($id);
+        $this->device->update(['is_active' => false, 'connection_mode' => 'bridge']);
+        AttendanceBinding::query()->update(['valid_to' => '2026-11-04']);
+        $this->confirmEnrollment($id)->assertOk()->assertJsonPath('data.enrollment.status', 'manually_confirmed');
+        $this->assertEquals($saved, DB::table('hr_adms_enrollments')->find($id));
+        $this->actor('employee');
+        $this->confirmEnrollment($id)->assertForbidden();
     }
 }

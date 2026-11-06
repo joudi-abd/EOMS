@@ -1,11 +1,12 @@
-import { Component, computed, inject, input } from '@angular/core';
+import { Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { Session } from '../../../core/access/session';
 import { CopyKey } from '../../../core/copy';
 import { Ui } from '../../../core/ui';
 import { Employee } from '../../../data/employees';
-import { LeavingReason } from '../../../data/hr';
+import { isoDay, LeavingReason } from '../../../data/hr';
 import { Office } from '../../../data/office';
+import { Records } from '../../../data/records';
 
 export const reasonKey: Record<LeavingReason, CopyKey> = {
   resignation: 'reasonResignation',
@@ -14,6 +15,7 @@ export const reasonKey: Record<LeavingReason, CopyKey> = {
   other: 'reasonOther',
 };
 
+/** Ends the employment on the server; the server refuses while a contract is still active. */
 @Component({
   selector: 'app-employee-leaving',
   imports: [RouterLink],
@@ -24,46 +26,35 @@ export class EmployeeLeaving extends Ui {
   readonly person = input.required<Employee>();
   protected readonly office = inject(Office);
   protected readonly session = inject(Session);
+  private readonly records = inject(Records);
   protected readonly reasons: LeavingReason[] = ['resignation', 'termination', 'contractEnd', 'other'];
   protected readonly reasonKey = reasonKey;
+  protected readonly today = isoDay(new Date());
+  protected readonly problem = signal('');
+  protected readonly saving = signal(false);
 
-  protected readonly items = computed(() => this.office.custody().filter((item) => item.employeeId === this.person().id));
-  protected readonly openItems = computed(() => this.items().filter((item) => !item.returnedAt).length);
-  protected readonly process = computed(() => {
-    const list = this.office.offboardings().filter((item) => item.employeeId === this.person().id);
-    return list.find((item) => item.status === 'open') ?? list[list.length - 1];
-  });
   protected readonly self = computed(() => this.session.account().id === this.person().id);
+  protected readonly activeContract = computed(() => (this.records.contracts()[this.person().id] ?? []).some((item) => item.status === 'active'));
 
-  protected actor(id: string): string {
-    return id ? this.text(this.office.personName(id)) : '—';
+  constructor() {
+    super();
+    effect(() => {
+      const id = this.person().id;
+      untracked(() => void this.records.loadContracts(id));
+    });
   }
 
-  protected addCustody(event: Event): void {
+  protected async end(event: Event): Promise<void> {
     event.preventDefault();
-    const form = event.target as HTMLFormElement;
-    const data = new FormData(form);
-    if (this.office.addCustody(this.person().id, String(data.get('item') ?? ''), String(data.get('since') ?? ''), this.session.account().id)) {
-      form.reset();
-    }
-  }
-
-  protected giveBack(id: string): void {
-    this.office.returnCustody(id, this.session.account().id);
-  }
-
-  protected start(event: Event): void {
-    event.preventDefault();
+    if (this.saving()) return;
     const data = new FormData(event.target as HTMLFormElement);
     const reason = this.reasons.find((item) => item === data.get('reason')) ?? 'other';
-    this.office.startOffboarding(this.person().id, reason, String(data.get('lastDay') ?? ''), String(data.get('note') ?? ''), this.session.account().id);
-  }
-
-  protected close(): void {
-    this.office.closeOffboarding(this.person().id, this.session.account().id);
-  }
-
-  protected cancel(): void {
-    this.office.cancelOffboarding(this.person().id, this.session.account().id);
+    const note = String(data.get('note') ?? '').trim();
+    const text = note ? `${this.t(reasonKey[reason])} — ${note}` : this.t(reasonKey[reason]);
+    this.saving.set(true);
+    this.problem.set('');
+    const outcome = await this.office.terminate(this.person().id, String(data.get('date') ?? ''), text, this.session.account().id);
+    this.saving.set(false);
+    if (!outcome.ok) this.problem.set(outcome.error ?? '');
   }
 }

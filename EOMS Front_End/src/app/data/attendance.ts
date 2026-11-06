@@ -108,6 +108,15 @@ export function officeToday(now = new Date()): string {
   return `${now.getFullYear()}-${month}-${date}`;
 }
 
+/** The calendar day (`YYYY-MM-DD`) it is in an IANA time zone. */
+export function dayIn(zone: string, now = new Date()): string {
+  try {
+    return new Intl.DateTimeFormat('en-CA', { timeZone: zone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
+  } catch {
+    return officeToday(now);
+  }
+}
+
 export function holidayOn(day: string, holidays: Holiday[]): Holiday | undefined {
   return holidays.find((item) => item.day === day);
 }

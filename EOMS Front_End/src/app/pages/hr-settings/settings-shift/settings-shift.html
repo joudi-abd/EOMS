@@ -6,7 +6,7 @@
   </p>
   <p class="note">{{ t('noBreaks') }} {{ t('noDeduction') }}</p>
 
-  @if (session.canAct('hr.settings')) {
+  @if (session.canAct('hr.shift')) {
     <form class="form" (submit)="save($event)">
       <label>
         <span>{{ t('shiftStart') }}</span>
@@ -20,6 +20,10 @@
         <span>{{ t('graceMinutes') }}</span>
         <input name="grace" type="number" min="0" max="180" inputmode="numeric" required [value]="office.policy().grace" />
       </label>
+      <label>
+        <span>{{ t('policyEffectiveFrom') }}</span>
+        <input name="effective" type="date" required [min]="office.nextPolicyDay()" [value]="office.nextPolicyDay()" />
+      </label>
       <fieldset class="wide">
         <legend>{{ t('workdaysLabel') }}</legend>
         @for (day of days; track day) {
@@ -29,6 +33,45 @@
           </label>
         }
       </fieldset>
+      @if (current(); as now) {
+        <fieldset class="wide rules">
+          <legend>{{ t('policyRulesLegend') }}</legend>
+          <label>
+            <span>{{ t('graceModeLabel') }}</span>
+            <select name="graceMode">
+              @for (mode of ['threshold_full', 'excess_only', 'completed_blocks']; track mode) {
+                <option [value]="mode" [selected]="mode === now.grace_mode">{{ t(graceName(mode)) }}</option>
+              }
+            </select>
+          </label>
+          <label>
+            <span>{{ t('lateBlockMinutes') }}</span>
+            <input name="lateBlock" type="number" min="1" max="180" inputmode="numeric" required [value]="now.late_block_minutes" />
+          </label>
+          <label>
+            <span>{{ t('overtimeMultiplier') }}</span>
+            <input name="overtime" type="number" min="1" max="10" step="0.25" inputmode="decimal" required [value]="now.overtime_multiplier" />
+          </label>
+          <label>
+            <span>{{ t('pairingModeLabel') }}</span>
+            <select name="pairing">
+              @for (mode of ['first_last', 'directional']; track mode) {
+                <option [value]="mode" [selected]="mode === now.pairing_mode">{{ t(pairName(mode)) }}</option>
+              }
+            </select>
+          </label>
+          <label>
+            <span>{{ t('duplicateSeconds') }}</span>
+            <input name="duplicate" type="number" min="0" max="120" inputmode="numeric" required [value]="now.duplicate_seconds" />
+          </label>
+          <label>
+            <span>{{ t('finalizeAfter') }}</span>
+            <input name="finalize" type="number" min="0" max="1440" inputmode="numeric" required [value]="now.finalize_after_minutes" />
+          </label>
+          <p class="hint tz">{{ t('timezoneLabel') }}: <bdi>{{ now.timezone }}</bdi> · {{ t('timezoneNote') }}</p>
+        </fieldset>
+      }
+      <p class="wide hint">{{ t('policyEffectNote') }} {{ t('policyNoPay') }}</p>
       @if (problem()) {
         <p class="wide warn" role="alert">{{ problem() }}</p>
       }
@@ -37,5 +80,18 @@
         {{ t('savePolicy') }}
       </button>
     </form>
+  }
+
+  @if (versions().length > 1) {
+    <h2>{{ t('policyVersions') }}</h2>
+    <ol class="versions">
+      @for (item of versions(); track item.id) {
+        <li [class.now]="item.state === 'policyCurrent'">
+          <span class="when">{{ item.effective_from }}</span>
+          <span class="what">{{ item.start_time.slice(0, 5) }} – {{ item.end_time.slice(0, 5) }} · {{ t('graceLabel') }} {{ num(item.grace_minutes) }} {{ t('minutesUnit') }} · {{ t(graceName(item.grace_mode)) }} · {{ t(pairName(item.pairing_mode)) }}</span>
+          <span class="state" [class.ok]="item.state === 'policyCurrent'" [class.wait]="item.state === 'policyUpcoming'">{{ t(item.state) }}</span>
+        </li>
+      }
+    </ol>
   }
 </section>

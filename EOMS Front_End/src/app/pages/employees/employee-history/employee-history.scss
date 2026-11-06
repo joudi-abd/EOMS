@@ -7,8 +7,86 @@ h2 {
   margin-top: 28px;
 }
 
-.log,
-.docs {
+.timeline {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  border-inline-start: 2px solid var(--line);
+}
+
+.timeline li {
+  position: relative;
+  padding: 4px 0 20px;
+  padding-inline-start: 22px;
+}
+
+.timeline li::before {
+  content: '';
+  position: absolute;
+  top: 10px;
+  inset-inline-start: -7px;
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--action);
+  border-radius: 50%;
+  background: var(--surface);
+}
+
+.timeline li.start::before {
+  background: var(--action);
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+}
+
+.changes {
+  display: grid;
+  gap: 6px;
+  margin: 10px 0 0;
+}
+
+.changes div {
+  display: grid;
+  grid-template-columns: 130px minmax(0, 1fr);
+  gap: 12px;
+}
+
+dt {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+dd {
+  margin: 0;
+}
+
+.from {
+  color: var(--soft);
+  text-decoration: line-through;
+  text-decoration-color: var(--line-strong);
+}
+
+.flip {
+  margin: 0 8px;
+  color: var(--soft);
+  font-size: 12px;
+}
+
+.reason {
+  margin: 10px 0 0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--raised);
+  border: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.log {
   list-style: none;
   margin: 0 0 12px;
   padding: 0;
@@ -29,38 +107,8 @@ h2 {
   font-variant-numeric: tabular-nums;
 }
 
-.docs li {
-  padding: 6px 0;
-}
-
-.docs i {
-  color: var(--muted);
-  margin-inline-end: 6px;
-}
-
 :host-context([dir='ltr']) .flip {
   transform: scaleX(-1);
-}
-
-.inline {
-  display: flex;
-  align-items: end;
-  gap: 12px;
-}
-
-.inline label,
-.stack label {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  color: var(--muted);
-  font-size: 14px;
-  flex: 1;
-  max-width: 420px;
-}
-
-.inline input {
-  margin: 0;
 }
 
 .stack {
@@ -70,8 +118,12 @@ h2 {
 }
 
 .stack label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
   width: 100%;
-  max-width: none;
+  color: var(--muted);
+  font-size: 14px;
 }
 
 .stack textarea {
@@ -85,12 +137,9 @@ h2 {
 }
 
 @media (max-width: 640px) {
-  .log li {
+  .log li,
+  .changes div {
     grid-template-columns: 1fr;
     gap: 4px;
-  }
-
-  .inline {
-    display: grid;
   }
 }

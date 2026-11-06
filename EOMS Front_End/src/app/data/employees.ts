@@ -14,20 +14,13 @@ export interface Department {
 /** Follows the ADMS enrollment: queued on the server, picked up by the device, finger placed. */
 export type FingerprintState = 'none' | 'queued' | 'waiting' | 'enrolled' | 'failed';
 
-export interface EmploymentContract {
-  id: string;
-  type: string;
-  start: string;
-  end: string;
-  status: 'current' | 'previous' | 'closed';
-}
-
 export interface Employee {
   id: string;
   /** The login account (`usr_users.id`); empty when the server withholds it. */
   userId: string;
   name: Text;
   firstName: string;
+  fatherName: string;
   lastName: string;
   phone: string;
   email: string;
@@ -41,15 +34,15 @@ export interface Employee {
   hired: string;
   status: EmployeeStatus;
   endedOn: string;
-  contractEnd: string;
-  documents: Text[];
+  endReason: string;
+  /** A login account is linked, whether or not this user may see which one. */
+  hasAccount: boolean;
   projects: string[];
   nationalId: string;
   staffNo: string;
   /** The user number on the fingerprint device (`biometric_code`). */
   pin: string;
   fingerprint: FingerprintState;
-  contracts: EmploymentContract[];
   /** The server sent contact and identity fields, so editing them is safe. */
   sensitive: boolean;
   /** The server sent the wallet number. */
@@ -65,12 +58,13 @@ const statusFrom: Record<ApiEmployeeStatus, EmployeeStatus> = { active: 'active'
 const ref = (value: number | null | undefined): string => (value === null || value === undefined ? '' : String(value));
 
 export function employeeFrom(item: ApiEmployee): Employee {
-  const name = item.full_name || `${item.first_name} ${item.last_name}`.trim();
+  const name = item.full_name || [item.first_name, item.father_name, item.last_name].filter(Boolean).join(' ');
   return {
     id: String(item.id),
     userId: ref(item.user_id),
     name: plain(name),
     firstName: item.first_name,
+    fatherName: item.father_name ?? '',
     lastName: item.last_name,
     phone: item.phone ?? '',
     email: item.email ?? '',
@@ -84,14 +78,13 @@ export function employeeFrom(item: ApiEmployee): Employee {
     hired: item.hire_date ?? '',
     status: statusFrom[item.status] ?? 'active',
     endedOn: item.termination_date ?? '',
-    contractEnd: '',
-    documents: [],
+    endReason: item.termination_reason ?? '',
+    hasAccount: item.has_account ?? (item.user_id !== undefined && item.user_id !== null),
     projects: [],
     nationalId: '',
     staffNo: item.employee_no,
     pin: ref(item.biometric_code),
     fingerprint: item.biometric_code ? 'enrolled' : 'none',
-    contracts: [],
     sensitive: 'email' in item,
     financial: 'sham_cash_wallet' in item,
   };

@@ -53,6 +53,31 @@
   resize: vertical;
 }
 
+.group {
+  margin: 4px 0 0;
+  padding: 16px 18px 18px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.group legend {
+  padding: 0 6px;
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.group .note {
+  margin: 0 0 14px;
+}
+
+.pair-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px 24px;
+}
+
 .hint {
   color: var(--soft);
   font-size: 12px;
@@ -68,6 +93,7 @@
 }
 
 @media (max-width: 640px) {
+  .pair-fields,
   .form {
     grid-template-columns: 1fr;
   }

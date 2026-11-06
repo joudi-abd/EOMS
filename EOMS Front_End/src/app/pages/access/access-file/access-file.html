@@ -35,10 +35,10 @@
         />
         <small class="hint">{{ creating() ? t('passwordHint') : t('passwordKeep') }}</small>
       </label>
-      <fieldset class="wide">
+      <fieldset class="wide roles">
         <legend>{{ t('accountRoles') }}</legend>
         @for (role of roles; track role) {
-          <label class="check">
+          <label class="role" [class.on]="picked().includes(role)" [class.locked]="lockedRole(role)">
             <input
               type="checkbox"
               name="role"
@@ -47,7 +47,11 @@
               [disabled]="lockedRole(role)"
               (change)="toggle(role, $event)"
             />
-            <span>{{ t(roleLabel[role]) }}</span>
+            <span class="role-body">
+              <strong>{{ t(roleLabel[role]) }}</strong>
+              <small>{{ language.text(roleSummary[role]) }}</small>
+            </span>
+            <span class="role-count">{{ rolePermissions[role].length }}</span>
           </label>
         }
       </fieldset>
@@ -57,6 +61,31 @@
       @if (problem()) {
         <p class="wide warn" role="alert">{{ problem() }}</p>
       }
+      <section class="granted wide" aria-labelledby="granted-title">
+        <header>
+          <div>
+            <h2 id="granted-title">{{ t('grantedTitle') }}</h2>
+            <p>{{ t('grantedHint') }}</p>
+          </div>
+          <span class="total">{{ grantedTotal() }} {{ t('grantedCount') }}</span>
+        </header>
+        @if (granted().length === 0) {
+          <p class="none">{{ t('grantedNone') }}</p>
+        } @else {
+          <dl>
+            @for (group of granted(); track group.module) {
+              <div>
+                <dt>{{ language.text(group.label) }}</dt>
+                <dd>
+                  @for (item of group.items; track item.id) {
+                    <span class="chip">{{ language.text(item.label) }}</span>
+                  }
+                </dd>
+              </div>
+            }
+          </dl>
+        }
+      </section>
       <button class="primary" type="submit" [disabled]="picked().length === 0 || saving()">{{ t('saveAccount') }}</button>
     </form>
   }

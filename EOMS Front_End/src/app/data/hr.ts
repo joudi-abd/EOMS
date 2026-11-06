@@ -27,10 +27,6 @@ export interface LeaveTypeDef extends NamedItem {
   unit: 'day' | 'hour';
 }
 
-export interface ContractTypeDef extends NamedItem {
-  fixed: boolean;
-}
-
 export const defaultLeaveTypes: LeaveTypeDef[] = [
   { id: 'annual', name: { ar: 'سنوية', en: 'Annual' }, unit: 'day' },
   { id: 'sick', name: { ar: 'مرضية', en: 'Sick' }, unit: 'day' },
@@ -38,23 +34,6 @@ export const defaultLeaveTypes: LeaveTypeDef[] = [
   { id: 'occasion', name: { ar: 'مناسبة', en: 'Occasion' }, unit: 'day' },
   { id: 'hourly', name: { ar: 'بالساعات', en: 'Hourly' }, unit: 'hour' },
 ];
-
-export const defaultContractTypes: ContractTypeDef[] = [
-  { id: 'fixed', name: { ar: 'محدد المدة', en: 'Fixed term' }, fixed: true },
-  { id: 'open', name: { ar: 'غير محدد المدة', en: 'Open-ended' }, fixed: false },
-];
-
-export type HistoryField = 'name' | 'department' | 'title' | 'manager' | 'status' | 'phone' | 'email' | 'contract';
-
-export interface HistoryEntry {
-  id: string;
-  employeeId: string;
-  at: string;
-  actorId: string;
-  field: HistoryField;
-  from: Text;
-  to: Text;
-}
 
 export interface Evaluation {
   id: string;

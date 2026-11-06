@@ -38,15 +38,6 @@
       } @else {
         <app-access-table [rows]="rows()" />
       }
-
-      @if (office.audit().length > 0) {
-        <h2>{{ t('auditTitle') }}</h2>
-        <ul class="audit">
-          @for (entry of office.audit(); track entry.id) {
-            <li>{{ when(entry.at) }} · {{ actor(entry.actorId) }} · {{ verb(entry.kind) }} · {{ text(entry.targetName) }}</li>
-          }
-        </ul>
-      }
     }
   }
 </main>

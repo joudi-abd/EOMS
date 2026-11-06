@@ -6,3 +6,9 @@ td span + span::before {
   content: ' · ';
   color: var(--muted);
 }
+
+th,
+td,
+.name {
+  white-space: normal;
+}

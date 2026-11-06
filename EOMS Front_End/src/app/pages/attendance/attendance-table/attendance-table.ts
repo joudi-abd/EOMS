@@ -1,9 +1,9 @@
 import { Component, inject, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { Ui } from '../../../core/ui';
-import { DayMark, DayRow } from '../../../data/attendance';
-import { Employee } from '../../../data/employees';
-import { Office, projects } from '../../../data/office';
+import { DayMark } from '../../../data/attendance';
+import { RollLine } from '../../../data/attendance-book';
+import { Office } from '../../../data/office';
 import { markKey, markTone } from '../marks';
 
 @Component({
@@ -13,12 +13,12 @@ import { markKey, markTone } from '../marks';
   styleUrl: './attendance-table.scss',
 })
 export class AttendanceTable extends Ui {
-  readonly rows = input.required<Array<DayRow & { employee: Employee }>>();
+  readonly rows = input.required<RollLine[]>();
   private readonly office = inject(Office);
 
   protected department(id: string): string {
     const match = this.office.departmentList().find((item) => item.id === id);
-    return match ? this.text(match.name) : id;
+    return match ? this.text(match.name) : id || '—';
   }
 
   protected mark(mark: DayMark): string {
@@ -27,10 +27,5 @@ export class AttendanceTable extends Ui {
 
   protected tone(mark: DayMark): string {
     return markTone(mark);
-  }
-
-  protected project(id: string): string {
-    const match = projects.find((item) => item.id === id);
-    return match ? this.text(match.name) : '';
   }
 }

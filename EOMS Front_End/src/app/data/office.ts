@@ -1,23 +1,19 @@
 import { computed, effect, inject, Injectable, signal, untracked, WritableSignal } from '@angular/core';
-import { Account, Action, AuditEntry, AuditKind, grants, isTop, Role, roleFrom, roleIds, roleName } from '../core/access/accounts';
+import { Account, Action, AuditEntry, AuditKind, grants, holds, isTop, Permission, Role, roleFrom, roleIds, roleName } from '../core/access/accounts';
 import { Api, serverMessage, statusOf } from '../core/api/api';
 import { Auth } from '../core/api/auth';
-import { ApiDepartment, ApiEmployee, ApiItem, ApiJobTitle, ApiUser } from '../core/api/types';
+import { ApiDepartment, ApiEmployee, ApiItem, ApiJobTitle, ApiPolicy, ApiUser } from '../core/api/types';
 import { CopyKey } from '../core/copy';
 import { Language } from '../core/language';
-import { Adjustment, buildDay, DayInput, DayReport, isWorkday, officeToday, PinLink, Punch } from './attendance';
-import { Department, departmentFrom, Employee, employeeFrom, EmploymentContract, plain } from './employees';
+import { Adjustment, buildDay, DayInput, DayReport, dayIn, isWorkday, officeToday, PinLink, Punch } from './attendance';
+import { Department, departmentFrom, Employee, employeeFrom, plain } from './employees';
 import {
-  ContractTypeDef,
   Custody,
-  defaultContractTypes,
   defaultLeaveTypes,
   defaultPolicy,
   Evaluation,
   FlowStage,
   FlowStatus,
-  HistoryEntry,
-  HistoryField,
   Holiday,
   HrRequest,
   isoDay,
@@ -75,13 +71,22 @@ export interface Notice {
   error: boolean;
 }
 
+export interface PolicyRules {
+  graceMode: 'threshold_full' | 'excess_only' | 'completed_blocks';
+  lateBlock: number;
+  overtime: number;
+  pairing: 'first_last' | 'directional';
+  duplicateSeconds: number;
+  finalizeAfter: number;
+}
+
 export interface Outcome {
   ok: boolean;
   id?: string;
   error?: string;
 }
 
-export type NamedList = 'departments' | 'titles' | 'leaveTypes' | 'contractTypes';
+export type NamedList = 'departments' | 'titles' | 'leaveTypes';
 
 /** Work kept in this browser tab because the backend has no endpoint for it yet. */
 interface State {
@@ -94,8 +99,6 @@ interface State {
   audit: AuditEntry[];
   holidays: Holiday[];
   leaveTypes: LeaveTypeDef[];
-  contractTypes: ContractTypeDef[];
-  history: HistoryEntry[];
   evaluations: Evaluation[];
   missions: Mission[];
   resolutions: Resolution[];
@@ -108,6 +111,7 @@ interface State {
 
 export interface HireEntry {
   firstName: string;
+  fatherName: string;
   lastName: string;
   nationalId: string;
   birthDate: string;
@@ -119,12 +123,12 @@ export interface HireEntry {
   managerId: string;
   wallet: string;
   hired: string;
-  accountEmail: string;
-  accountPassword: string;
 }
 
+/** A change of department, title, or manager needs the date it takes effect and a reason; the server records it in the job history. */
 export interface EmployeePatch {
   firstName: string;
+  fatherName: string;
   lastName: string;
   birthDate: string;
   phone: string;
@@ -134,6 +138,8 @@ export interface EmployeePatch {
   department: string;
   managerId: string;
   wallet: string;
+  effectiveDate: string;
+  reason: string;
 }
 
 export interface AccountEntry {
@@ -172,6 +178,8 @@ export class Office {
   readonly departmentList = signal<Department[]>([]);
   readonly titles = signal<NamedItem[]>([]);
   readonly policy = signal<WorkPolicy>(defaultPolicy);
+  /** Every shift version the server holds, newest first. */
+  readonly policyVersions = signal<ApiPolicy[]>([]);
   readonly loading = signal(false);
   readonly loaded = signal(false);
 
@@ -184,8 +192,6 @@ export class Office {
   readonly audit = signal<AuditEntry[]>([]);
   readonly holidays = signal<Holiday[]>([]);
   readonly leaveTypes = signal<LeaveTypeDef[]>(defaultLeaveTypes);
-  readonly contractTypes = signal<ContractTypeDef[]>(defaultContractTypes);
-  readonly history = signal<HistoryEntry[]>([]);
   readonly evaluations = signal<Evaluation[]>([]);
   readonly missions = signal<Mission[]>([]);
   readonly resolutions = signal<Resolution[]>([]);
@@ -206,8 +212,6 @@ export class Office {
     audit: this.audit,
     holidays: this.holidays,
     leaveTypes: this.leaveTypes,
-    contractTypes: this.contractTypes,
-    history: this.history,
     evaluations: this.evaluations,
     missions: this.missions,
     resolutions: this.resolutions,
@@ -319,7 +323,16 @@ export class Office {
 
   async load(): Promise<void> {
     this.loading.set(true);
-    await Promise.all([this.loadDepartments(), this.loadTitles(), this.loadEmployees(), this.loadUsers(), this.loadPolicy()]);
+    // Ask only for what the roles allow, so a forbidden list is never requested.
+    const roles = this.self()?.roles ?? [];
+    const may = (permission: Permission) => holds(roles, [permission]);
+    await Promise.all([
+      may('employees.view') ? this.loadDepartments() : undefined,
+      may('employees.view') ? this.loadTitles() : undefined,
+      may('employees.view') ? this.loadEmployees() : undefined,
+      may('users.manage') ? this.loadUsers() : undefined,
+      may('attendance.view') ? this.loadPolicy() : undefined,
+    ]);
     this.loading.set(false);
     this.loaded.set(true);
   }
@@ -344,22 +357,24 @@ export class Office {
     if (rows) this.titles.set(rows.map((item) => ({ id: String(item.id), name: plain(item.name) })));
   }
 
+  /** The office zone is fixed by the first version, which the backend never replaces. */
+  private officeZone(versions: ApiPolicy[]): string {
+    return [...versions].sort((x, y) => x.effective_from.localeCompare(y.effective_from))[0]?.timezone ?? 'Asia/Damascus';
+  }
+
   private async loadPolicy(): Promise<void> {
-    const result = await this.fetch(() => this.api.get<ApiItem<Record<string, string> | unknown[]>>('/settings/config/attendance'));
-    if (!result || Array.isArray(result.data)) return;
-    const data = result.data;
-    const clockOf = (value: string | undefined, fallback: string) => (value && validClock(value.slice(0, 5)) ? value.slice(0, 5) : fallback);
-    const grace = Number(data['attendance.grace_minutes']);
-    const workdays = (data['attendance.workdays'] ?? '')
-      .split(',')
-      .filter((item) => item.trim() !== '')
-      .map(Number)
-      .filter((day) => Number.isInteger(day) && day >= 0 && day <= 6);
+    const result = await this.fetch(() => this.api.get<ApiItem<ApiPolicy[]>>('/attendance/policies'));
+    if (!result || !Array.isArray(result.data) || result.data.length === 0) return;
+    const versions = [...result.data].sort((x, y) => y.effective_from.localeCompare(x.effective_from));
+    const today = dayIn(this.officeZone(versions));
+    const current = versions.find((item) => item.effective_from <= today) ?? versions[versions.length - 1];
+    const clockOf = (value: string, fallback: string) => (validClock(value.slice(0, 5)) ? value.slice(0, 5) : fallback);
+    this.policyVersions.set(versions);
     this.policy.set({
-      start: clockOf(data['attendance.work_start'], defaultPolicy.start),
-      end: clockOf(data['attendance.work_end'], defaultPolicy.end),
-      grace: Number.isInteger(grace) && grace >= 0 ? grace : defaultPolicy.grace,
-      workdays: workdays.length ? workdays : defaultPolicy.workdays,
+      start: clockOf(current.start_time, defaultPolicy.start),
+      end: clockOf(current.end_time, defaultPolicy.end),
+      grace: current.grace_minutes,
+      workdays: [...current.working_days],
     });
   }
 
@@ -379,6 +394,7 @@ export class Office {
     this.departmentList.set([]);
     this.titles.set([]);
     this.policy.set(defaultPolicy);
+    this.policyVersions.set([]);
     this.restore(this.blank);
     this.notice.set(null);
     this.loaded.set(false);
@@ -605,6 +621,7 @@ export class Office {
     try {
       const result = await this.api.post<ApiItem<ApiEmployee>>('/employees', {
         first_name: entry.firstName.trim(),
+        father_name: entry.fatherName.trim(),
         last_name: entry.lastName.trim(),
         national_id: entry.nationalId.trim(),
         birth_date: entry.birthDate || null,
@@ -616,10 +633,9 @@ export class Office {
         manager_id: idOrNull(entry.managerId),
         sham_cash_wallet: entry.wallet.trim() || null,
         hire_date: entry.hired,
-        account: { email: entry.accountEmail.trim(), password: entry.accountPassword },
       });
-      await Promise.all([this.loadEmployees(), this.loadUsers()]);
-      this.record('added', actorId, plain(`${entry.firstName.trim()} ${entry.lastName.trim()}`));
+      await this.loadEmployees();
+      this.record('added', actorId, plain(result.data.full_name));
       this.done('addedEmployee');
       return { ok: true, id: String(result.data.id) };
     } catch (error) {
@@ -642,6 +658,7 @@ export class Office {
       if (next !== previous) body[key] = idOrNull(next);
     };
     text('first_name', patch.firstName, current.firstName, true);
+    text('father_name', patch.fatherName, current.fatherName, true);
     text('last_name', patch.lastName, current.lastName, true);
     text('birth_date', patch.birthDate, current.birthDate);
     text('phone', patch.phone, current.phone);
@@ -654,11 +671,17 @@ export class Office {
     if (Object.keys(body).length === 0) {
       return { ok: false, error: this.language.t('noChanges') };
     }
+    const reassigned = 'department_id' in body || 'job_title_id' in body || 'manager_id' in body;
+    if (reassigned) {
+      if (!validIsoDate(patch.effectiveDate) || !patch.reason.trim()) {
+        return { ok: false, error: this.language.t('changeNeedsReason') };
+      }
+      body['effective_date'] = patch.effectiveDate;
+      body['reason'] = patch.reason.trim();
+    }
     try {
       await this.api.put(`/employees/${id}`, body);
       await this.loadEmployees();
-      const next = this.person(id);
-      if (next) this.trackChanges(current, next, actorId);
       this.done('updatedEmployee');
       return { ok: true, id };
     } catch (error) {
@@ -666,65 +689,21 @@ export class Office {
     }
   }
 
-  private trackChanges(before: Employee, after: Employee, actorId: string): void {
-    const changes: [HistoryField, Text, Text][] = [];
-    const track = (field: HistoryField, from: Text, to: Text) => {
-      if (from.ar !== to.ar || from.en !== to.en) changes.push([field, from, to]);
-    };
-    track('name', before.name, after.name);
-    track('department', this.departmentName(before.department), this.departmentName(after.department));
-    track('title', before.title, after.title);
-    track('manager', this.managerName(before.managerId), this.managerName(after.managerId));
-    track('phone', plain(before.phone), plain(after.phone));
-    track('email', plain(before.email), plain(after.email));
-    if (changes.length === 0) return;
-    const at = stamp();
-    this.history.update((list) => [
-      ...changes.map(([field, from, to]) => ({ id: `h-${crypto.randomUUID()}`, employeeId: after.id, at, actorId, field, from, to })),
-      ...list,
-    ]);
-  }
-
-  renewContract(id: string, typeId: string, start: string, end: string, actorId: string): boolean {
-    const person = this.person(id);
-    const type = this.contractTypes().find((item) => item.id === typeId);
-    const current = person?.contracts.find((item) => item.status === 'current');
-    if (!person || person.status === 'ended' || !type || !this.mayEditFile(actorId, id, 'employee.edit') || !validIsoDate(start)) {
-      return false;
+  /** Opens a login account for an employee file; the server takes the name and phone from the file and gives the employee role. */
+  async createLogin(employeeId: string, email: string, password: string, actorId: string): Promise<Outcome> {
+    const person = this.person(employeeId);
+    if (!person || person.status === 'ended' || person.hasAccount || !this.actorCan(actorId, 'account.add')) {
+      return this.denied();
     }
-    if ((current && start <= current.start) || (type.fixed && (!validIsoDate(end) || end <= start))) {
-      return false;
+    try {
+      await this.api.post<ApiItem<ApiUser>>('/users', { employee_id: Number(employeeId), email: email.trim(), password });
+      await Promise.all([this.loadEmployees(), this.loadUsers()]);
+      this.record('added', actorId, person.name);
+      this.done('addedAccount');
+      return { ok: true, id: employeeId };
+    } catch (error) {
+      return this.fail(error);
     }
-    const next: EmploymentContract = { id: `c-${crypto.randomUUID()}`, type: type.id, start, end: type.fixed ? end : '', status: 'current' };
-    return this.commit('renewedContract', () => {
-      const contracts = [...person.contracts.map((item) => (item.status === 'current' ? { ...item, status: 'previous' as const } : item)), next];
-      this.patchLocal(id, { contracts, contractEnd: next.end });
-      this.history.update((list) => [
-        {
-          id: `h-${crypto.randomUUID()}`,
-          employeeId: id,
-          at: stamp(),
-          actorId,
-          field: 'contract',
-          from: current ? this.contractText(current) : { ar: '—', en: '—' },
-          to: this.contractText(next),
-        },
-        ...list,
-      ]);
-      return true;
-    });
-  }
-
-  addDocument(id: string, name: string, actorId: string): boolean {
-    const title = name.trim();
-    const person = this.person(id);
-    if (!title || !person || !this.mayEditFile(actorId, id, 'employee.edit')) {
-      return false;
-    }
-    return this.commit('addedDocument', () => {
-      this.patchLocal(id, { documents: [...person.documents, plain(title)] });
-      return true;
-    });
   }
 
   addEvaluation(id: string, note: string, actorId: string): boolean {
@@ -771,20 +750,6 @@ export class Office {
     });
   }
 
-  startOffboarding(employeeId: string, reason: LeavingReason, lastDay: string, note: string, actorId: string, requestId = ''): boolean {
-    const person = this.person(employeeId);
-    if (!person || (person.status !== 'active' && person.status !== 'away') || !validIsoDate(lastDay) || employeeId === actorId) {
-      return false;
-    }
-    if (!this.actorCan(actorId, 'employee.end') || !this.mayManage(actorId, employeeId)) {
-      return false;
-    }
-    return this.commit('startedOffboarding', () => {
-      this.beginLeaving(person, reason, lastDay, note, actorId, requestId);
-      return true;
-    });
-  }
-
   cancelOffboarding(employeeId: string, actorId: string): boolean {
     const process = this.offboardings().find((item) => item.employeeId === employeeId && item.status === 'open');
     if (!process || !this.mayEditFile(actorId, employeeId, 'employee.end')) {
@@ -797,35 +762,28 @@ export class Office {
     });
   }
 
-  closeOffboarding(employeeId: string, actorId: string): boolean {
-    const process = this.offboardings().find((item) => item.employeeId === employeeId && item.status === 'open');
-    const open = this.custody().some((item) => item.employeeId === employeeId && !item.returnedAt);
+  /** Ends the employment on the server, which refuses while a contract is active and disables the linked login. */
+  async terminate(employeeId: string, date: string, reason: string, actorId: string): Promise<Outcome> {
     const person = this.person(employeeId);
-    if (!process || !person || open || !this.mayEditFile(actorId, employeeId, 'employee.end')) {
-      return false;
+    if (!person || person.status === 'ended' || employeeId === actorId || !this.mayEditFile(actorId, employeeId, 'employee.end')) {
+      return this.denied();
     }
-    return this.commit('endedService', () => {
+    try {
+      await this.api.post(`/employees/${employeeId}/terminate`, { termination_date: date, reason: reason.trim() });
       const at = stamp();
-      this.offboardings.update((list) => list.map((item) => (item === process ? { ...item, status: 'closed', closedBy: actorId, closedAt: at } : item)));
-      this.patchLocal(employeeId, {
-        status: 'ended',
-        endedOn: process.lastDay,
-        contracts: person.contracts.map((contract) => (contract.status === 'current' ? { ...contract, status: 'closed' } : contract)),
+      this.offboardings.update((list) =>
+        list.map((item) => (item.employeeId === employeeId && item.status === 'open' ? { ...item, status: 'closed', closedBy: actorId, closedAt: at } : item)),
+      );
+      this.extras.update((all) => {
+        const { [employeeId]: _dropped, ...rest } = all;
+        return rest;
       });
-      this.history.update((list) => [
-        {
-          id: `h-${crypto.randomUUID()}`,
-          employeeId,
-          at,
-          actorId,
-          field: 'status',
-          from: plain('leaving'),
-          to: plain('ended'),
-        },
-        ...list,
-      ]);
-      return true;
-    });
+      await Promise.all([this.loadEmployees(), this.loadUsers()]);
+      this.done('endedService');
+      return { ok: true, id: employeeId };
+    } catch (error) {
+      return this.fail(error);
+    }
   }
 
   // Leave
@@ -1036,8 +994,15 @@ export class Office {
 
   // HR settings
 
-  /** The shift lives in the backend settings group `attendance`. */
-  async setPolicy(policy: WorkPolicy, actorId: string): Promise<Outcome> {
+  /** The earliest day a new version may start: tomorrow, in the office zone. */
+  nextPolicyDay(): string {
+    const zone = this.officeZone(this.policyVersions());
+    const [y, m, d] = dayIn(zone).split('-').map(Number);
+    return new Date(Date.UTC(y, m - 1, d + 1)).toISOString().slice(0, 10);
+  }
+
+  /** Shift hours are versioned: a save adds a version that rules from `effectiveFrom`, and earlier days keep theirs. */
+  async setPolicy(policy: WorkPolicy, effectiveFrom: string, actorId: string, rules?: PolicyRules): Promise<Outcome> {
     const valid =
       validClock(policy.start) &&
       validClock(policy.end) &&
@@ -1049,25 +1014,61 @@ export class Office {
     if (!valid) {
       return { ok: false, error: this.language.t('policyInvalid') };
     }
-    if (!this.actorCan(actorId, 'hr.settings')) {
+    if (!validIsoDate(effectiveFrom) || effectiveFrom < this.nextPolicyDay()) {
+      return { ok: false, error: this.language.t('policyDateInvalid') };
+    }
+    if (!this.actorCan(actorId, 'hr.shift')) {
       return this.denied();
     }
-    const workdays = [...new Set(policy.workdays)].sort();
-    const values: [string, string][] = [
-      ['attendance.work_start', policy.start],
-      ['attendance.work_end', policy.end],
-      ['attendance.grace_minutes', String(policy.grace)],
-      ['attendance.workdays', workdays.join(',')],
-    ];
+    // Everything the form does not ask for carries over from the version in force.
+    const base = this.policyVersions().find((item) => item.effective_from <= dayIn(this.officeZone(this.policyVersions())));
+    if (!base) {
+      return this.denied();
+    }
+    const chosen = rules ?? {
+      graceMode: base.grace_mode as PolicyRules['graceMode'],
+      lateBlock: base.late_block_minutes,
+      overtime: Number(base.overtime_multiplier),
+      pairing: base.pairing_mode as PolicyRules['pairing'],
+      duplicateSeconds: base.duplicate_seconds,
+      finalizeAfter: base.finalize_after_minutes,
+    };
+    const rulesOk =
+      (chosen.graceMode === 'threshold_full' || chosen.graceMode === 'excess_only' || chosen.graceMode === 'completed_blocks') &&
+      (chosen.pairing === 'first_last' || chosen.pairing === 'directional') &&
+      Number.isInteger(chosen.lateBlock) &&
+      chosen.lateBlock >= 1 &&
+      chosen.lateBlock <= 180 &&
+      chosen.overtime >= 1 &&
+      chosen.overtime <= 10 &&
+      Number.isInteger(chosen.duplicateSeconds) &&
+      chosen.duplicateSeconds >= 0 &&
+      chosen.duplicateSeconds <= 120 &&
+      Number.isInteger(chosen.finalizeAfter) &&
+      chosen.finalizeAfter >= 0 &&
+      chosen.finalizeAfter <= 1440;
+    if (!rulesOk) {
+      return { ok: false, error: this.language.t('policyInvalid') };
+    }
     try {
-      for (const [key, value] of values) {
-        await this.api.put(`/settings/config/${encodeURIComponent(key)}`, { value, group: 'attendance' });
-      }
-      this.policy.set({ ...policy, workdays });
+      await this.api.post('/attendance/policies', {
+        effective_from: effectiveFrom,
+        timezone: base.timezone,
+        working_days: [...new Set(policy.workdays)].sort(),
+        start_time: policy.start,
+        end_time: policy.end,
+        grace_minutes: policy.grace,
+        grace_mode: chosen.graceMode,
+        late_block_minutes: chosen.lateBlock,
+        overtime_multiplier: chosen.overtime,
+        pairing_mode: chosen.pairing,
+        duplicate_seconds: chosen.duplicateSeconds,
+        finalize_after_minutes: chosen.finalizeAfter,
+      });
+      await this.loadPolicy();
       this.done('savedPolicy');
       return { ok: true };
     } catch (error) {
-      await this.loadPolicy();
       return this.fail(error);
     }
   }
@@ -1093,8 +1094,8 @@ export class Office {
     });
   }
 
-  /** Departments and job titles are saved on the server; leave and contract types stay in this tab. */
-  async addNamed(list: NamedList, name: Text, actorId: string, extra: { unit?: 'day' | 'hour'; fixed?: boolean; code?: string } = {}): Promise<Outcome> {
+  /** Departments and job titles are saved on the server; leave types stay in this tab. */
+  async addNamed(list: NamedList, name: Text, actorId: string, extra: { unit?: 'day' | 'hour'; code?: string } = {}): Promise<Outcome> {
     const ar = name.ar.trim();
     const en = name.en.trim() || ar;
     if (!ar || !this.actorCan(actorId, 'hr.settings')) {
@@ -1121,8 +1122,7 @@ export class Office {
     const id = `${list}-${crypto.randomUUID()}`;
     const text = { ar, en };
     this.commit('addedSetting', () => {
-      if (list === 'leaveTypes') this.leaveTypes.update((items) => [...items, { id, name: text, unit: extra.unit === 'hour' ? 'hour' : 'day' }]);
-      if (list === 'contractTypes') this.contractTypes.update((items) => [...items, { id, name: text, fixed: extra.fixed !== false }]);
+      this.leaveTypes.update((items) => [...items, { id, name: text, unit: extra.unit === 'hour' ? 'hour' : 'day' }]);
       return true;
     });
     return { ok: true, id };
@@ -1151,8 +1151,7 @@ export class Office {
     }
     const text = { ar, en };
     this.commit('renamedSetting', () => {
-      if (list === 'leaveTypes') this.leaveTypes.update((items) => items.map((item) => (item.id === id ? { ...item, name: text } : item)));
-      if (list === 'contractTypes') this.contractTypes.update((items) => items.map((item) => (item.id === id ? { ...item, name: text } : item)));
+      this.leaveTypes.update((items) => items.map((item) => (item.id === id ? { ...item, name: text } : item)));
       return true;
     });
     return { ok: true, id };
@@ -1181,8 +1180,7 @@ export class Office {
   namedList(list: NamedList): NamedItem[] {
     if (list === 'departments') return this.departmentList();
     if (list === 'titles') return this.titles();
-    if (list === 'leaveTypes') return this.leaveTypes();
-    return this.contractTypes();
+    return this.leaveTypes();
   }
 
   // Purchases
@@ -1320,21 +1318,7 @@ export class Office {
     return this.employees().find((item) => item.id === id && item.status !== 'ended');
   }
 
-  private departmentName(id: string): Text {
-    return this.departmentList().find((item) => item.id === id)?.name ?? { ar: id || '—', en: id || '—' };
-  }
-
-  private managerName(id: string): Text {
-    return id ? this.personName(id) : { ar: '—', en: '—' };
-  }
-
-  private contractText(contract: EmploymentContract): Text {
-    const type = this.contractTypes().find((item) => item.id === contract.type)?.name ?? { ar: contract.type, en: contract.type };
-    const span = contract.end ? `${contract.start} – ${contract.end}` : contract.start;
-    return { ar: `${type.ar} · ${span}`, en: `${type.en} · ${span}` };
-  }
-
-  private done(message: NoticeMessage): void {
+  done(message: NoticeMessage): void {
     this.notice.set({ message, detail: '', undo: null, error: false });
   }
 
@@ -1342,7 +1326,7 @@ export class Office {
     return { ok: false, error: this.language.t('notAllowed') };
   }
 
-  private fail(error: unknown): Outcome {
+  fail(error: unknown): Outcome {
     const detail = serverMessage(error);
     const message: NoticeMessage = statusOf(error) === 0 ? 'serverDown' : 'requestFailed';
     this.notice.set({ message, detail, undo: null, error: true });

@@ -32,6 +32,8 @@ Route::prefix('api/v1')->middleware(['api', 'auth:sanctum'])->group(function () 
         Route::get('attendance/policies', [AttendanceSettingsController::class, 'policies']);
     });
     Route::middleware('perm:attendance.manage')->group(function () {
+        Route::get('attendance/quarantined-punches', [AdmsController::class, 'quarantined']);
+        Route::post('attendance/quarantined-punches/{quarantine}/review', [AdmsController::class, 'reviewQuarantined'])->middleware('perm:attendance.approve');
         Route::post('attendance/policies', [AttendanceSettingsController::class, 'storePolicy']);
         Route::patch('attendance/devices/{device}/connection', [AdmsController::class, 'configure']);
         Route::post('attendance/bindings/{binding}/enroll-fingerprint', [AdmsController::class, 'enroll']);

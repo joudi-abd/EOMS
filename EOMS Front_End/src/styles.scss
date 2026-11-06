@@ -16,6 +16,7 @@
   --ontime: #047857;
   --wait: #b45309;
   --late-tint: #fef2f2;
+  --late-line: #fecaca;
   --ontime-tint: #ecfdf5;
   --wait-tint: #fffbeb;
   --notice: #dbeafe;
@@ -58,7 +59,7 @@ body {
 }
 
 ::selection {
-  background: #dbe6ff;
+  background: var(--notice);
   color: var(--ink);
 }
 
@@ -475,6 +476,61 @@ input[type='radio'] {
   margin: 18px 0 4px;
 }
 
+/* A row of cards never leaves one alone: below the width where every card fits one row,
+   the grid is rebalanced for the count and the last card takes the remaining columns. */
+@mixin balanced($count, $columns, $last-span: 1) {
+  .summary:has(> :nth-child(#{$count}):last-child),
+  .stats:has(> .stat:nth-child(#{$count}):last-child) {
+    grid-template-columns: repeat($columns, minmax(0, 1fr));
+  }
+
+  @if $last-span > 1 {
+    .summary:has(> :nth-child(#{$count}):last-child) > :last-child,
+    .stats:has(> .stat:nth-child(#{$count}):last-child) > .stat:last-child {
+      grid-column: span $last-span;
+    }
+  }
+}
+
+@container work (min-width: 560px) {
+  @include balanced(8, 4);
+}
+
+@container work (min-width: 560px) and (max-width: 1023px) {
+  @include balanced(7, 4, 2);
+}
+
+@container work (min-width: 560px) and (max-width: 887px) {
+  @include balanced(6, 3);
+}
+
+@container work (min-width: 560px) and (max-width: 751px) {
+  @include balanced(5, 3, 2);
+}
+
+/* Two columns on a phone: an odd last card takes the full row instead of sitting alone. */
+@container work (max-width: 559px) {
+  .summary,
+  .stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .summary > :last-child:nth-child(odd),
+  .stats > .stat:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+
+  .summary p,
+  .stats .stat {
+    padding: 12px 14px;
+  }
+
+  .summary strong,
+  .stats .stat strong {
+    font-size: 22px;
+  }
+}
+
 .summary p,
 .stats .stat {
   margin: 0;
@@ -632,6 +688,7 @@ tbody tr:hover td {
   color: var(--action-ink);
   font-weight: 600;
   text-decoration: none;
+  white-space: nowrap;
 }
 
 .name:hover {
@@ -659,6 +716,13 @@ tbody tr:hover td {
 .wait {
   color: var(--wait);
   font-weight: 600;
+}
+
+td.ok,
+td.wait,
+td.late,
+td.num {
+  white-space: nowrap;
 }
 
 td.ok::before,

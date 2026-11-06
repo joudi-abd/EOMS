@@ -6,6 +6,7 @@ use App\Modules\HR\Models\AttendanceBinding;
 use App\Modules\HR\Models\AttendanceDevice;
 use App\Modules\HR\Services\Attendance\AdmsDiagnostics;
 use App\Modules\HR\Services\Attendance\AdmsGateway;
+use App\Modules\HR\Services\Attendance\AdmsQuarantineService;
 use App\Support\ApiResponse;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
@@ -59,11 +60,14 @@ class AdmsController extends Controller
         $request->attributes->set('adms_diagnostic_reason', 'missing_table');
         abort_unless(is_string($table), 422);
         if (strcasecmp($table, 'ATTLOG') === 0) {
-            $count = $gateway->ingest($device, $request->getContent());
-            $request->attributes->set('adms_diagnostic_reason', 'attlog_saved');
-            $request->attributes->set('adms_accepted_records', $count);
+            $result = $gateway->ingest($device, $request->getContent());
+            $request->attributes->set('adms_diagnostic_reason', $result['quarantined'] > 0 ? 'attlog_saved_with_quarantine' : 'attlog_saved');
+            $request->attributes->set('adms_accepted_records', $result['received']);
+            $request->attributes->set('adms_imported_records', $result['imported']);
+            $request->attributes->set('adms_quarantined_records', $result['quarantined']);
+            $request->attributes->set('adms_duplicate_records', $result['duplicates']);
 
-            return 'OK: '.$count."\n";
+            return 'OK: '.$result['received']."\n";
         }
         if (strcasecmp($table, 'options') === 0) {
             $gateway->touch($device);
@@ -101,6 +105,28 @@ class AdmsController extends Controller
         $gateway->touch($device);
 
         return 'OK';
+    }
+
+    public function quarantined(Request $request, AdmsQuarantineService $quarantine): JsonResponse
+    {
+        $data = $request->validate([
+            'device_id' => ['sometimes', 'integer', 'exists:hr_attendance_devices,id'],
+            'status' => ['sometimes', Rule::in(['pending', 'released', 'dismissed'])],
+            'per_page' => ['sometimes', 'integer', 'between:1,100'],
+        ]);
+
+        return ApiResponse::paginated($quarantine->list($data));
+    }
+
+    public function reviewQuarantined(Request $request, int $quarantine, AdmsQuarantineService $service): JsonResponse
+    {
+        $data = $request->validate([
+            'action' => ['required', Rule::in(['release', 'dismiss'])],
+            'corrected_occurred_at' => ['required_if:action,release', 'nullable', 'string', 'max:40'],
+            'reason' => ['required', 'string', 'min:5', 'max:500'],
+        ]);
+
+        return ApiResponse::ok($service->review($quarantine, $data, $request->user()->id));
     }
 
     public function configure(Request $request, AttendanceDevice $device, AdmsGateway $gateway): JsonResponse

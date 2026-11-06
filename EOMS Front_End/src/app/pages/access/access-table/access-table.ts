@@ -1,6 +1,6 @@
 import { Component, inject, input, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { Account, roleLabel } from '../../../core/access/accounts';
+import { Account, isTop, Role, roleLabel } from '../../../core/access/accounts';
 import { Session } from '../../../core/access/session';
 import { Ui } from '../../../core/ui';
 import { Office } from '../../../data/office';
@@ -16,9 +16,10 @@ export class AccessTable extends Ui {
   protected readonly session = inject(Session);
   private readonly office = inject(Office);
 
-  protected roles(account: Account): string {
-    const names = account.roles.map((role) => this.t(roleLabel[role]));
-    return this.language.lang() === 'ar' ? names.join(' و ') : names.join(', ');
+  protected readonly roleLabel = roleLabel;
+
+  protected isTop(role: Role): boolean {
+    return isTop([role]);
   }
 
   /** Nobody disables themselves, nobody below a director touches a director, and one director always stays enabled. */

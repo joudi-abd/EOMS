@@ -324,6 +324,42 @@
   font-size: 14px;
 }
 
+.setup {
+  display: grid;
+  gap: 12px;
+  margin: 16px 22px 0;
+}
+
+.setup label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 14px;
+  min-width: 0;
+}
+
+.setup input,
+.setup select {
+  width: 100%;
+  margin: 0;
+}
+
+.setup .check {
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.setup .check input {
+  width: auto;
+  margin-top: 3px;
+}
+
+.setup .primary {
+  justify-self: start;
+}
+
 .actions {
   display: flex;
   flex-wrap: wrap;

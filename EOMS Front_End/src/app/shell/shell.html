@@ -28,9 +28,6 @@
           >
             <i [class]="icons[id]" aria-hidden="true"></i>
             <span>{{ t(id) }}</span>
-            @if (badge(id); as count) {
-              <b class="badge">{{ count }}</b>
-            }
           </a>
         }
       }
