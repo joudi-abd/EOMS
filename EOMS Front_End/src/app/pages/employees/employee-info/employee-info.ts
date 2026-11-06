@@ -1,4 +1,4 @@
-import { Component, computed, inject, input } from '@angular/core';
+import { Component, computed, inject, input, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { Session } from '../../../core/access/session';
 import { CopyKey } from '../../../core/copy';
@@ -37,9 +37,20 @@ export class EmployeeInfo extends Ui {
     return match ? this.text(match.name) : '—';
   }
 
-  protected documents(): string {
-    const list = this.person().documents;
-    if (list.length === 0) return '—';
-    return list.map((item) => this.text(item)).join(this.language.lang() === 'ar' ? '، ' : ', ');
+  protected readonly problem = signal('');
+  protected readonly saving = signal(false);
+  protected readonly offerLogin = computed(
+    () => !this.person().hasAccount && this.person().status !== 'ended' && this.session.canAct('account.add'),
+  );
+
+  protected async openLogin(event: Event): Promise<void> {
+    event.preventDefault();
+    if (this.saving()) return;
+    const data = new FormData(event.target as HTMLFormElement);
+    this.saving.set(true);
+    this.problem.set('');
+    const outcome = await this.office.createLogin(this.person().id, String(data.get('email') ?? ''), String(data.get('password') ?? ''), this.session.account().id);
+    this.saving.set(false);
+    if (!outcome.ok) this.problem.set(outcome.error ?? '');
   }
 }

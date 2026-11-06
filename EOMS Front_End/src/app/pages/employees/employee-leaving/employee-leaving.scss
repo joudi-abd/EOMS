@@ -67,7 +67,7 @@ dd {
 .form .quiet {
   justify-self: start;
   margin-inline-start: 0;
-  border: 1px solid #fecaca;
+  border: 1px solid var(--late-line);
 }
 
 .warn {

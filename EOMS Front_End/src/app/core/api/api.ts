@@ -30,6 +30,11 @@ export class Api {
     return firstValueFrom(this.http.delete<T>(apiBase + path));
   }
 
+  /** Files sit behind the bearer token, so they are fetched as a blob rather than linked. */
+  blob(path: string): Promise<Blob> {
+    return firstValueFrom(this.http.get(apiBase + path, { responseType: 'blob' }));
+  }
+
   /** Walks every page of a paginated list. */
   async all<T>(path: string, params: Query = {}): Promise<T[]> {
     const rows: T[] = [];

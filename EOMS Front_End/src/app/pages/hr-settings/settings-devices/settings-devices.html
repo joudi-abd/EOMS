@@ -1,0 +1,202 @@
+<section class="devices">
+  @if (!session.has('attendance.manage')) {
+    <p class="empty">{{ t('devicesDenied') }}</p>
+  } @else {
+    <header class="head">
+      <h2>{{ t('devicesTitle') }}</h2>
+      <p class="note">{{ t('devicesNote') }}</p>
+    </header>
+
+    @if (reveal(); as token) {
+      <div class="token" role="status">
+        <div>
+          <strong>{{ t('tokenTitle') }} · {{ token.device }}</strong>
+          <p>{{ t('tokenNote') }}</p>
+          <code dir="ltr">{{ token.value }}</code>
+        </div>
+        <div class="token-actions">
+          <button class="text" type="button" (click)="copy()">
+            <i class="fa-solid" [class.fa-copy]="!copied()" [class.fa-check]="copied()" aria-hidden="true"></i>
+            {{ copied() ? t('tokenCopied') : t('tokenCopy') }}
+          </button>
+          <button class="text" type="button" (click)="reveal.set(null)">{{ t('dismiss') }}</button>
+        </div>
+      </div>
+    }
+
+    @if (problem()) {
+      <p class="warn" role="alert">{{ problem() }}</p>
+    }
+
+    @if (devices.devices().length === 0) {
+      <p class="empty">{{ devices.loading() ? '…' : t('devicesEmpty') }}</p>
+    } @else {
+      <ul class="list">
+        @for (device of devices.devices(); track device.id) {
+          <li [class.open]="openId() === device.id">
+            <div class="row">
+              <div class="who">
+                <strong>{{ device.name }}</strong>
+                <span class="sub"><bdi>{{ device.model }} · {{ device.serial_number }}</bdi></span>
+              </div>
+              <span class="mode">{{ t(modeName(device.connection_mode)) }}</span>
+              <span class="state" [class.ok]="device.is_active" [class.off]="!device.is_active">
+                {{ device.is_active ? t('deviceActive') : t('deviceInactive') }}
+              </span>
+              <span class="seen">{{ seen(device) }}</span>
+              <div class="acts">
+                <button class="text" type="button" [attr.aria-expanded]="openId() === device.id" (click)="open(device)">
+                  {{ openId() === device.id ? t('hideDevice') : t('openDevice') }}
+                </button>
+              </div>
+            </div>
+
+            @if (openId() === device.id) {
+              <div class="detail">
+                <dl class="facts">
+                  <div>
+                    <dt>{{ t('deviceCompleteThrough') }}</dt>
+                    <dd><bdi>{{ through(device) }}</bdi></dd>
+                  </div>
+                  <div>
+                    <dt>{{ t('timezoneLabel') }}</dt>
+                    <dd><bdi>{{ device.timezone }}</bdi></dd>
+                  </div>
+                </dl>
+
+                <div class="tools">
+                  <button class="text" type="button" [disabled]="working()" (click)="toggle(device)">
+                    <i class="fa-solid" [class.fa-pause]="device.is_active" [class.fa-play]="!device.is_active" aria-hidden="true"></i>
+                    {{ device.is_active ? t('deviceStop') : t('deviceStart') }}
+                  </button>
+                  <button class="text" type="button" [disabled]="working()" (click)="rotate(device)">
+                    <i class="fa-solid fa-key" aria-hidden="true"></i>
+                    {{ t('rotateToken') }}
+                  </button>
+                </div>
+
+                <h3>{{ t('connectionTitle') }}</h3>
+                <form class="form" (submit)="connect($event, device)">
+                  <label>
+                    <span>{{ t('deviceMode') }}</span>
+                    <select name="mode" (change)="mode.set($any($event.target).value)">
+                      <option value="bridge" [selected]="mode() === 'bridge'">{{ t('modeBridge') }}</option>
+                      <option value="adms" [selected]="mode() === 'adms'">{{ t('modeAdms') }}</option>
+                    </select>
+                  </label>
+                  @if (mode() === 'adms') {
+                    <label>
+                      <span>{{ t('deviceSourceIp') }}</span>
+                      <input name="ip" required dir="ltr" inputmode="decimal" autocomplete="off" [value]="device.adms_source_ip ?? ''" />
+                    </label>
+                    <p class="wide hint">{{ t('connectionAdmsNote') }}</p>
+                  }
+                  <button class="primary" type="submit" [disabled]="working()">
+                    <i class="fa-solid fa-check" aria-hidden="true"></i>
+                    {{ t('saveConnection') }}
+                  </button>
+                </form>
+
+                <h3>{{ t('bindingsTitle') }}</h3>
+                <p class="note">{{ t('bindingsNote') }}</p>
+                @if (rows(); as list) {
+                  @if (list.length === 0) {
+                    <p class="empty small">{{ t('bindingsEmpty') }}</p>
+                  } @else {
+                  <table class="grid">
+                    <thead>
+                      <tr>
+                        <th>{{ t('bindingEmployee') }}</th>
+                        <th>{{ t('bindingPin') }}</th>
+                        <th>{{ t('bindingFrom') }}</th>
+                        <th>{{ t('bindingTo') }}</th>
+                        <th><span class="sr">{{ t('closeBinding') }}</span></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (binding of list; track binding.id) {
+                        <tr>
+                          <td>{{ personName(binding) }}</td>
+                          <td><bdi>{{ binding.device_user_id }}</bdi></td>
+                          <td>{{ short(binding.valid_from) }}</td>
+                          <td>{{ binding.valid_to ? short(binding.valid_to) : t('bindingOpen') }}</td>
+                          <td class="end">
+                            @if (!binding.valid_to && device.connection_mode === 'adms') {
+                              <a class="text" [routerLink]="['/modules/employees']" [queryParams]="{ file: binding.employee_id, tab: 'finger', enroll: 1 }">{{ t('enrollOpen') }}</a>
+                            }
+                            @if (!binding.valid_to) {
+                              @if (closing() === binding.id) {
+                                <form class="inline" (submit)="closeBinding($event, binding)">
+                                  <label class="sr" [attr.for]="'until-' + binding.id">{{ t('closeBindingOn') }}</label>
+                                  <input [id]="'until-' + binding.id" name="until" type="date" required [min]="today(device)" [value]="today(device)" />
+                                  <button class="primary" type="submit" [disabled]="working()">{{ t('closeBinding') }}</button>
+                                </form>
+                              } @else {
+                                <button class="text" type="button" (click)="closing.set(binding.id)">{{ t('closeBinding') }}</button>
+                              }
+                            }
+                          </td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                  }
+                } @else {
+                  <p class="empty small">…</p>
+                }
+
+                <form class="form" (submit)="bind($event, device)">
+                  <label>
+                    <span>{{ t('bindingEmployee') }}</span>
+                    <select name="employee" required>
+                      <option value="">{{ t('pickEmployee') }}</option>
+                      @for (person of people(); track person.id) {
+                        <option [value]="person.id">{{ text(person.name) }} · {{ person.staffNo }}</option>
+                      }
+                    </select>
+                  </label>
+                  <label>
+                    <span>{{ t('bindingPin') }}</span>
+                    <input name="pin" required dir="ltr" maxlength="64" pattern="[A-Za-z0-9_\-]+" autocomplete="off" />
+                  </label>
+                  <label>
+                    <span>{{ t('bindingFrom') }}</span>
+                    <input name="from" type="date" required [value]="today(device)" />
+                  </label>
+                  <label>
+                    <span>{{ t('bindingTo') }}</span>
+                    <input name="to" type="date" />
+                  </label>
+                  <button class="primary" type="submit" [disabled]="working()">
+                    <i class="fa-solid fa-link" aria-hidden="true"></i>
+                    {{ t('addBinding') }}
+                  </button>
+                </form>
+              </div>
+            }
+          </li>
+        }
+      </ul>
+    }
+
+    <h3 class="add-title">{{ t('addDevice') }}</h3>
+    <form class="form" (submit)="add($event)">
+      <label>
+        <span>{{ t('deviceName') }}</span>
+        <input name="name" required maxlength="120" autocomplete="off" />
+      </label>
+      <label>
+        <span>{{ t('deviceModel') }}</span>
+        <input name="model" maxlength="64" dir="ltr" autocomplete="off" />
+      </label>
+      <label>
+        <span>{{ t('deviceSerial') }}</span>
+        <input name="serial" required maxlength="100" dir="ltr" autocomplete="off" />
+      </label>
+      <button class="primary" type="submit" [disabled]="working()">
+        <i class="fa-solid fa-plus" aria-hidden="true"></i>
+        {{ t('addDevice') }}
+      </button>
+    </form>
+  }
+</section>

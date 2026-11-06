@@ -15,39 +15,13 @@
         <i class="fa-solid fa-file-pdf" aria-hidden="true"></i>
         {{ t('exportDashboard') }}
       </button>
-      @if (session.can('leave') && decidesLeave()) {
-        <button class="primary" type="button" [attr.aria-expanded]="leaveOpen()" aria-controls="leave-queue" (click)="toggleLeave()">
-          <i class="fa-solid fa-calendar-check" aria-hidden="true"></i>
-          {{ t('approveLeave') }}
-        </button>
-      }
     </div>
   </header>
 
-  @if (session.can('leave')) {
-    <app-leave-queue />
-  }
-
   <app-metrics />
 
-  @if (session.can('attendance')) {
-    @if (officeView()) {
-      <app-attendance-block />
-    } @else if (session.hasFile()) {
-      <app-my-month />
-    }
-  }
-
-  @if (session.can('employees') || session.can('leave')) {
+  @if (session.can('employees')) {
     <app-people />
-  }
-
-  @if ((session.can('requests') && session.canAct('leave.decide')) || session.can('payroll')) {
-    <app-hr-flow />
-  }
-
-  @if (session.can('procurement')) {
-    <app-purchase-table />
   }
 
   @if (session.can('access')) {

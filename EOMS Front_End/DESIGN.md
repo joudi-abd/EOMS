@@ -19,6 +19,7 @@ colors:
   on-time: "#047857"
   waiting: "#b45309"
   late-tint: "#fef2f2"
+  late-line: "#fecaca"
   on-time-tint: "#ecfdf5"
   waiting-tint: "#fffbeb"
   notice: "#dbeafe"
@@ -65,10 +66,29 @@ typography:
     fontFamily: "Readex Pro Variable, sans-serif"
     fontSize: "13px"
     fontWeight: 400
+  axis:
+    fontFamily: "Readex Pro Variable, sans-serif"
+    fontSize: "12px"
+    fontWeight: 400
+  tab:
+    fontFamily: "Readex Pro Variable, sans-serif"
+    fontSize: "15px"
+    fontWeight: 400
+  metric:
+    fontFamily: "Readex Pro Variable, sans-serif"
+    fontSize: "32px"
+    fontWeight: 600
+  sign-in:
+    fontFamily: "Readex Pro Variable, sans-serif"
+    fontSize: "36px"
+    fontWeight: 600
 rounded:
   surface: "12px"
   control: "8px"
   track: "999px"
+  dialog: "16px"
+  field-large: "10px"
+  chip: "3px"
 spacing:
   rail: "248px"
   page-block: "28px"
@@ -112,6 +132,7 @@ The rail mark is the supplied UFUQ logo (the brown house mark over the black UFU
 - **Raised** (#fbfcfd): Table header rows inside panels and sheets.
 - **Desk Ink** (#111827), **Quiet Ink** (#4b5563), **Soft Ink** (#6b7280): Reading text, labels and captions, axis labels.
 - **Hairline** (#e5e7eb) and **Strong Line** (#d1d5db): Surface edges and field borders.
+- **Error Line** (#fecaca): The border of a Late Red tint (error notice, sign-in error, destructive panel). Always paired with Late Tint.
 
 ### Status
 
@@ -167,7 +188,7 @@ White, sticky, full height. The rail opens with the UFUQ logo, then the localize
 
 ### Stat cards
 
-A row of white cards (`.summary`, `.stats`) that fill the row (auto-fit, 136px minimum, figures never wrap, 12px gap): caption, figure, small caption. A figure may carry a status color when the number itself is a warning, for example open fingerprint enrollments. Dashboard metric cards are larger: label, 32px figure, and a sub-line in a status color when it reports a condition.
+A row of white cards (`.summary`, `.stats`) that fill the row (auto-fit, 136px minimum, figures never wrap, 12px gap; eight cards form two rows of four, and on a phone the grid is two columns with an odd last card taking the full row, so no card ever sits alone): caption, figure, small caption. A figure may carry a status color when the number itself is a warning, for example open fingerprint enrollments. Dashboard metric cards are larger: label, 32px figure, and a sub-line in a status color when it reports a condition.
 
 ### Panel
 
@@ -207,15 +228,37 @@ Every report has an Excel and a PDF action on the heading row.
 
 A Notice Wash banner with a check icon, the message, and an undo button at the inline end. It confirms a change the signed-in person just made, and clears itself after five seconds. A server error uses the Late Red tint with an exclamation icon.
 
+### Employee file records
+
+Contracts are white cards, one per contract: the number, a status chip (draft in Waiting Amber, active in On-Time Green, terminated in Late Red), the type and dates, then the actions under a hairline. Job history is a timeline on an inline-start rule, the hire as a filled dot and each change as a hollow one, with the old value struck through in Soft Ink and the reason in a Raised note. Documents are a list in one white surface with a tinted file-type icon, the title, and the type, file name, size, and date in a caption, with download and delete at the inline end.
+
+### Fingerprint enrollment dialog
+
+A native modal dialog, 540px, 16px radius, over a dimmed ground. A fingerprint sits in a tinted disc inside a ring of three arcs, one per press; the tint follows the state (quiet when idle, Action Blue while live, On-Time Green when enrolled, Late Red when it fails), a scan line sweeps the disc while the finger is down, and a small badge marks success or failure. Under it, the four stages run as a numbered list on a Raised panel, done stages filled in Action Blue, the current one with a spinner, and the finger stage carrying three press pills. When the server has no enrollment endpoint the headline turns Waiting Amber and starting stays disabled.
+
+### Tables and print
+
+Every header and cell aligns to the reading start, in the app, the PDF, and the Excel file. Latin values inside Arabic text (staff numbers, codes, e-mail addresses, amounts) are isolated so their order never flips. Printed documents use no page margin, so the browser prints no URL, title, or date; a frame whose header and footer rows repeat on every page gives the spacing instead.
+
 ### Sign-in
 
 A full-height split. The sign-in column is white: the language switch at the top, then a 36px title, a lede, 54px fields with a leading icon (the password field carries a show and hide eye at the inline end), a full-width primary button, and a hint about who resets passwords. The other column is a drafting sheet on Cool Ground: a 24px and 120px blueprint grid in faint Action Blue, the UFUQ logo, the company line at 34px, and building elevations drawn as Action Blue line work over a ground line. Below 960px the drafting sheet hides and the logo moves into the top bar.
 
 ## Permissions in the interface
 
-The interface only shows what the signed-in account may do; the store refuses the same actions again. The company director sees everything and may act on every record. Nobody else may act on a director's account or file, and only a director grants the director role. A locked row in the users screen shows a lock icon and no toggle. Edit buttons in an employee file appear only when the account may edit that file, and nobody edits their own file except the director.
+The backend is the source of truth. `/auth/me` returns role names only, so the interface rebuilds each account's permissions from its roles with the same table the backend seeder uses (`core/access/accounts.ts`), and every area and action names the permissions it needs. The store refuses the same actions again, and the server refuses them a third time.
 
-The dashboard is built from the same rules. A director sees every section. HR sees people, attendance, leave and requests, and payroll. Finance sees payroll, revenue and expense, budget, and purchases. A project manager sees projects and their team's decisions. An employee sees their own month: hours worked per day, their attendance mix, their leave, and their open requests. The system manager sees accounts by role and account state.
+- **System manager**: every permission, including accounts and role assignment. The only role that opens the users screen.
+- **Company manager**: every `.view` and `.approve` permission. Sees every module except users, decides leave, purchases, payroll and attendance, and edits nothing. Personal and salary fields stay hidden (no `view_sensitive`, no `view_financial`).
+- **HR**: employees, contracts, documents, attendance, leave, reports. No payroll, finance, or meetings. Reads personal data but not salary or wallet. HR edits the shift hours, which are versioned: a save posts a new version to `/attendance/policies` that rules from a chosen date (tomorrow or later), and the screen lists every version with its state.
+- **Finance**: payroll (prepare, review, pay), finance, and purchase approval. It cannot add purchases or approve payroll.
+- **Project manager**: projects, meetings, documents, reports, and a read-only employee list.
+- **Engineer** and **purchasing officer**: the engineer reads projects, meetings and documents; the purchasing officer adds purchases and reads assets.
+- **Employee**: no permissions. Reaches its own attendance, leave and requests through its employee file.
+
+A locked row in the users screen shows a lock icon and no toggle. Nobody below a director acts on a director's account or file, and only a system manager grants roles. The account form shows each role as a card with its permission count and a one-line summary, and a panel beneath lists the permissions the chosen roles grant, grouped by module. Edit buttons in an employee file appear only when the account may edit that file, and nobody edits their own file except a director.
+
+Lists are requested only when the account holds the permission to read them, so a role never triggers a forbidden request.
 
 ## Do's and Don'ts
 

@@ -3,14 +3,13 @@ import { Session } from '../../../core/access/session';
 import { CopyKey } from '../../../core/copy';
 import { Ui } from '../../../core/ui';
 import { Department } from '../../../data/employees';
-import { ContractTypeDef, LeaveTypeDef, NamedItem } from '../../../data/hr';
+import { LeaveTypeDef, NamedItem } from '../../../data/hr';
 import { NamedList, Office } from '../../../data/office';
 
 const titleKey: Record<NamedList, CopyKey> = {
   departments: 'listDepartments',
   titles: 'listTitles',
   leaveTypes: 'listLeaveTypes',
-  contractTypes: 'listContractTypes',
 };
 
 @Component({
@@ -37,7 +36,6 @@ export class SettingsList extends Ui {
 
   protected extra(item: NamedItem): string {
     if (this.list() === 'leaveTypes') return (item as LeaveTypeDef).unit === 'hour' ? this.t('unitHour') : this.t('unitDay');
-    if (this.list() === 'contractTypes') return (item as ContractTypeDef).fixed ? this.t('hasEnd') : this.t('noEndType');
     if (this.list() === 'departments') {
       const count = this.office.departments().find((row) => row.id === item.id)?.count ?? 0;
       return `${this.code(item)} · ${this.num(count)} ${this.t('employeesLabel')}`;
@@ -63,7 +61,7 @@ export class SettingsList extends Ui {
     const form = event.target as HTMLFormElement;
     const data = new FormData(form);
     const name = { ar: String(data.get('ar') ?? ''), en: String(data.get('en') ?? '') };
-    const extra = { unit: data.get('unit') === 'hour' ? ('hour' as const) : ('day' as const), fixed: data.get('fixed') !== 'open', code: String(data.get('code') ?? '') };
+    const extra = { unit: data.get('unit') === 'hour' ? ('hour' as const) : ('day' as const), code: String(data.get('code') ?? '') };
     await this.run(() => this.office.addNamed(this.list(), name, this.session.account().id, extra), () => form.reset());
   }
 

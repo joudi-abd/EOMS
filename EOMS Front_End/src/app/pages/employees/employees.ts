@@ -62,13 +62,13 @@ export class Employees extends Ui {
       total: rows.length,
       active: rows.filter((item) => item.status === 'active').length,
       away: rows.filter((item) => item.status === 'away').length,
-      leaving: rows.filter((item) => item.status === 'leaving').length,
+      ended: rows.filter((item) => item.status === 'ended').length,
       fingers: rows.filter((item) => item.fingerprint === 'enrolled').length,
     };
   });
 
   protected readonly statusMix = computed<ChartSlice[]>(() =>
-    (['active', 'away', 'leaving', 'ended'] as EmployeeStatus[])
+    (['active', 'away', 'ended'] as EmployeeStatus[])
       .map((status) => ({ label: this.t(status), value: this.rows().filter((item) => item.status === status).length, color: statusFill[status] }))
       .filter((slice) => slice.value > 0),
   );
@@ -109,7 +109,7 @@ export class Employees extends Ui {
         { label: this.t('employeesLabel'), value: this.num(stats.total) },
         { label: this.t('active'), value: this.num(stats.active) },
         { label: this.t('away'), value: this.num(stats.away) },
-        { label: this.t('leaving'), value: this.num(stats.leaving) },
+        { label: this.t('ended'), value: this.num(stats.ended) },
         { label: this.t('fingerOk'), value: this.num(stats.fingers) },
       ],
       tables: [

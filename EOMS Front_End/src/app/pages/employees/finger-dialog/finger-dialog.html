@@ -68,7 +68,7 @@
   <dl class="facts">
     <div>
       <dt>{{ t('enrollDevice') }}</dt>
-      <dd><bdi>{{ device.model }} · {{ device.protocol }}</bdi></dd>
+      <dd><bdi>{{ enrollment.deviceName() || '—' }}</bdi></dd>
     </div>
     <div>
       <dt>{{ t('pinLabel') }}</dt>
@@ -80,17 +80,62 @@
     <p class="warn" role="alert">{{ enrollment.problem() }}</p>
   }
 
+  @if (state() === 'none' && enrollment.available() && enrollment.bindings().length > 0) {
+    <form class="setup" (submit)="begin($event)">
+      <label>
+        <span>{{ t('enrollDevice') }}</span>
+        <select name="binding" required>
+          @for (binding of enrollment.bindings(); track binding.id) {
+            <option [value]="binding.id">{{ binding.deviceName }} · {{ binding.pin }}</option>
+          }
+        </select>
+      </label>
+      <label>
+        <span>{{ t('enrollFinger') }}</span>
+        <select name="finger" required>
+          @for (finger of [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]; track finger) {
+            <option [value]="finger">{{ num(finger) }}</option>
+          }
+        </select>
+      </label>
+      <label class="check">
+        <input name="ack" type="checkbox" required />
+        <span>{{ t('enrollConfirmUser') }}</span>
+      </label>
+      <button class="primary" type="submit" [disabled]="enrollment.starting()">
+        <i class="fa-solid fa-fingerprint" aria-hidden="true"></i>
+        {{ t('enrollStart') }}
+      </button>
+    </form>
+  }
+
+  @if (state() === 'verify') {
+    <form class="setup" (submit)="confirmTest($event)">
+      <label>
+        <span>{{ t('enrollVerify') }}</span>
+        <input name="note" type="text" autocomplete="off" minlength="5" required />
+      </label>
+      <button class="primary" type="submit">
+        <i class="fa-solid fa-check" aria-hidden="true"></i>
+        {{ t('enrollConfirm') }}
+      </button>
+    </form>
+  }
+
   <footer class="actions">
     @if (state() === 'enrolled') {
       <button class="primary" type="button" (click)="close()">
         <i class="fa-solid fa-check" aria-hidden="true"></i>
         {{ t('enrollDone') }}
       </button>
-    } @else {
-      <button class="primary" type="button" [disabled]="!enrollment.available() || busy() || enrollment.starting()" (click)="start()">
-        <i class="fa-solid fa-fingerprint" aria-hidden="true"></i>
-        {{ state() === 'failed' ? t('enrollRetry') : t('enrollStart') }}
+    } @else if (state() === 'failed') {
+      <button class="text" type="button" (click)="enrollment.status.set({ state: 'none', presses: 0, pin: pin(), message: '' })">
+        {{ t('enrollRetry') }}
       </button>
+      <button class="text" type="button" (click)="close()">{{ t('dismiss') }}</button>
+    } @else if (state() !== 'none' && state() !== 'verify') {
+      <button class="text" type="button" (click)="close()">{{ t('dismiss') }}</button>
+    } @else {
       <button class="text" type="button" (click)="close()">{{ t('dismiss') }}</button>
     }
   </footer>

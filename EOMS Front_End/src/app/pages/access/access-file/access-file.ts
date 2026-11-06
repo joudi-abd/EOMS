@@ -1,7 +1,8 @@
 import { Component, computed, effect, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
-import { isTop, Role, roleIds, roleLabel } from '../../../core/access/accounts';
+import { isTop, Role, roleIds, roleLabel, rolePermissions, permissionsOf } from '../../../core/access/accounts';
+import { permissionGroups, roleSummary } from '../../../core/access/permission-copy';
 import { Session } from '../../../core/access/session';
 import { CopyKey } from '../../../core/copy';
 import { Language } from '../../../core/language';
@@ -18,6 +19,8 @@ export class AccessFile {
   protected readonly session = inject(Session);
   protected readonly roles = roleIds;
   protected readonly roleLabel = roleLabel;
+  protected readonly roleSummary = roleSummary;
+  protected readonly rolePermissions = rolePermissions;
   protected readonly picked = signal<Role[]>(['employee']);
   protected readonly draftName = signal('');
   protected readonly limit = signal(false);
@@ -26,6 +29,9 @@ export class AccessFile {
   private loaded = '';
   private readonly router = inject(Router);
   private readonly params = toSignal(inject(ActivatedRoute).queryParamMap);
+
+  protected readonly granted = computed(() => permissionGroups(permissionsOf(this.picked())));
+  protected readonly grantedTotal = computed(() => this.granted().reduce((sum, group) => sum + group.items.length, 0));
 
   protected readonly user = computed(() => this.params()?.get('user') ?? '');
   protected readonly creating = computed(() => this.user() === 'new');

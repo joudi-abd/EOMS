@@ -77,15 +77,6 @@
           </select>
         </label>
       }
-      @if (list() === 'contractTypes') {
-        <label>
-          <span>{{ t('contractEnd') }}</span>
-          <select name="fixed" autocomplete="off">
-            <option value="fixed">{{ t('hasEnd') }}</option>
-            <option value="open">{{ t('noEndType') }}</option>
-          </select>
-        </label>
-      }
       <button class="text" type="submit" [disabled]="busy()">
         <i class="fa-solid fa-plus" aria-hidden="true"></i>
         {{ t('addItem') }}

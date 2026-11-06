@@ -17,13 +17,18 @@ class AdmsGateway
     {
         $this->touch($device);
 
+        // PUSH interprets Date (GMT) using this offset; omission can retain the device's old zone.
+        $offset = CarbonImmutable::now($device->timezone)->getOffset();
+        $timeZone = $offset % 3600 === 0 && abs($offset) < 12 * 3600
+            ? intdiv($offset, 3600) : intdiv($offset, 60);
+
         // Start with history requested, never the laboratory probe's high-water 9999.
         return "GET OPTION FROM: {$device->serial_number}\nATTLOGStamp=0\nOPERLOGStamp=0\nATTPHOTOStamp=0\n"
             ."ErrorDelay=30\nDelay=10\nTransTimes=00:00;14:05\nTransInterval=1\n"
-            ."TransFlag=AttLog\nRealtime=1\nEncrypt=0\nServerVer=2.4.1\n";
+            ."TransFlag=AttLog\nTimeZone={$timeZone}\nRealtime=1\nEncrypt=0\nServerVer=2.4.1\n";
     }
 
-    public function ingest(AttendanceDevice $device, string $raw): int
+    public function ingest(AttendanceDevice $device, string $raw): array
     {
         $lines = array_values(array_filter(preg_split('/\r\n|\n|\r/', $raw), fn ($line) => trim($line) !== ''));
         if (count($lines) > config('attendance.adms.max_records')) {
@@ -57,14 +62,54 @@ class AdmsGateway
         return DB::transaction(function () use ($device, $events, $raw, $lines) {
             $device = $this->lock($device);
             $hash = hash('sha256', $raw);
-            if (! DB::table('hr_adms_uploads')->where('device_id', $device->id)->where('body_hash', $hash)->exists()) {
-                DB::table('hr_adms_uploads')->insert(['device_id' => $device->id, 'body_hash' => $hash,
-                    'raw_body' => $raw, 'record_count' => count($lines), 'received_at' => $this->now()]);
-            }
-            // A received push/heartbeat does NOT prove all older records were uploaded.
-            $this->importer->import($device, $events, null);
+            $upload = DB::table('hr_adms_uploads')->where('device_id', $device->id)->where('body_hash', $hash)->first();
+            $uploadId = $upload?->id ?? DB::table('hr_adms_uploads')->insertGetId([
+                'device_id' => $device->id, 'body_hash' => $hash, 'raw_body' => $raw,
+                'record_count' => count($lines), 'received_at' => $this->now(),
+            ]);
+            $valid = [];
+            $quarantined = $known = 0;
+            $cutoff = CarbonImmutable::now('UTC')->addMinutes(5);
+            foreach ($events as $event) {
+                // Quarantine is sticky, including after time catches up or a manual review.
+                $held = DB::table('hr_adms_quarantined_punches')->where('device_id', $device->id)
+                    ->where('external_id', $event['external_id'])->first();
+                if ($held) {
+                    if ($held->status === 'pending') {
+                        $quarantined++;
+                    } else {
+                        $known++;
+                    }
 
-            return count($lines);
+                    continue;
+                }
+                $at = CarbonImmutable::parse($event['occurred_at'])->utc();
+                if ($at->greaterThan($cutoff)) {
+                    // An already imported event remains a duplicate even after a server clock rollback.
+                    if (DB::table('hr_attendance_punches')->where('device_id', $device->id)
+                        ->where('external_id', $event['external_id'])->exists()) {
+                        $known++;
+
+                        continue;
+                    }
+                    DB::table('hr_adms_quarantined_punches')->insert([
+                        'device_id' => $device->id, 'upload_id' => $uploadId,
+                        'external_id' => $event['external_id'], 'device_user_id' => $event['device_user_id'],
+                        'occurred_at' => $at->format('Y-m-d H:i:s'), 'direction' => $event['direction'],
+                        'reason' => 'future_event_time', 'status' => 'pending', 'received_at' => $this->now(),
+                        'created_at' => $this->now(), 'updated_at' => $this->now(),
+                    ]);
+                    $quarantined++;
+
+                    continue;
+                }
+                $valid[] = $event;
+            }
+            // Original body + held events + valid punches all commit before OK: N.
+            $result = $this->importer->import($device, $valid, null);
+
+            return ['received' => count($lines), 'imported' => $result['inserted'],
+                'duplicates' => $known + $result['duplicates'], 'quarantined' => $quarantined];
         }, 3);
     }
 
@@ -193,7 +238,14 @@ class AdmsGateway
             $device = AttendanceDevice::query()->lockForUpdate()->findOrFail($row->device_id);
             $this->activeEnrollment($device);
         }, 3);
+
+        return $this->enrollmentSnapshot($id);
+    }
+
+    private function enrollmentSnapshot(int $id): array
+    {
         $row = DB::table('hr_adms_enrollments')->find($id);
+        abort_unless($row, 404);
         $commands = DB::table('hr_adms_commands')->where('enrollment_id', $id)->orderBy('id')
             ->get(['id', 'kind', 'status', 'return_code', 'delivered_at', 'acknowledged_at']);
 
@@ -207,26 +259,54 @@ class AdmsGateway
         return DB::transaction(function () use ($id, $actor, $note) {
             $row = DB::table('hr_adms_enrollments')->find($id);
             abort_unless($row, 404);
-            $device = $this->lock(AttendanceDevice::findOrFail($row->device_id));
+            $device = AttendanceDevice::query()->lockForUpdate()->findOrFail($row->device_id);
+            $row = DB::table('hr_adms_enrollments')->where('id', $id)->lockForUpdate()->first();
+            if ($row->status === 'manually_confirmed') {
+                return $this->enrollmentSnapshot($id);
+            }
+            $device = $this->lock($device);
             $this->activeEnrollment($device);
             $row = DB::table('hr_adms_enrollments')->find($id);
-            abort_unless($row->status === 'awaiting_physical_verification', 409, 'A successful ENROLL_FP acknowledgement is required.');
+            abort_unless(in_array($row->status, ['awaiting_physical_verification', 'timeout'], true), 409,
+                'Enrollment cannot be confirmed in its current state.');
+            abort_unless($this->hasSuccessfulEnrollmentCommands($row), 409,
+                'A successful ENROLL_FP acknowledgement is required.');
+            $binding = AttendanceBinding::query()->lockForUpdate()->findOrFail($row->binding_id);
+            $today = CarbonImmutable::now($device->timezone)->toDateString();
+            abort_unless((int) $binding->device_id === (int) $device->id && $binding->device_user_id === $row->device_user_id
+                && $binding->valid_from->format('Y-m-d') <= $today
+                && ($binding->valid_to === null || $binding->valid_to->format('Y-m-d') >= $today), 409,
+                'The original employee binding is no longer active.');
+            abort_if(DB::table('hr_adms_enrollments')->where('device_id', $device->id)
+                ->where('device_user_id', $row->device_user_id)->where('id', '>', $id)->exists(), 409,
+                'A newer enrollment exists for this device user; review the latest enrollment.');
             DB::table('hr_adms_enrollments')->where('id', $id)->update([
                 'status' => 'manually_confirmed', 'confirmed_by' => $actor,
                 'confirmed_at' => $this->now(), 'confirmation_note' => $note, 'updated_at' => $this->now(),
             ]);
             $this->audit->log('attendance.enrollment_manually_confirmed', AttendanceBinding::findOrFail($row->binding_id),
-                null, ['enrollment_id' => $id, 'note' => $note], $actor);
+                ['status' => $row->status], ['enrollment_id' => $id, 'note' => $note, 'status' => 'manually_confirmed'], $actor);
 
-            return $this->enrollment($id);
+            return $this->enrollmentSnapshot($id);
         }, 3);
+    }
+
+    private function hasSuccessfulEnrollmentCommands(object $enrollment): bool
+    {
+        // Both steps must have succeeded before the original command deadline.
+        return DB::table('hr_adms_commands')->where('device_id', $enrollment->device_id)
+            ->where('enrollment_id', $enrollment->id)->whereIn('kind', ['DATA', 'ENROLL_FP'])
+            ->where('status', 'acknowledged')->where('return_code', '0')
+            ->whereNotNull('delivered_at')->whereNotNull('acknowledged_at')
+            ->whereColumn('delivered_at', '<=', 'acknowledged_at')
+            ->where('acknowledged_at', '<', $enrollment->expires_at)->count() === 2;
     }
 
     private function activeEnrollment(AttendanceDevice $device): ?object
     {
         $now = $this->now();
         $expired = DB::table('hr_adms_enrollments')->where('device_id', $device->id)
-            ->whereIn('status', ['queued_user', 'await_user_ack', 'queued_enroll', 'await_enroll_ack', 'awaiting_physical_verification'])
+            ->whereIn('status', ['queued_user', 'await_user_ack', 'queued_enroll', 'await_enroll_ack'])
             ->where('expires_at', '<=', $now)->pluck('id');
         if ($expired->isNotEmpty()) {
             DB::table('hr_adms_enrollments')->whereIn('id', $expired)->update(['status' => 'timeout', 'updated_at' => $now]);

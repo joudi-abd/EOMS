@@ -22,7 +22,7 @@
 
 .facts {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 280px);
   gap: 12px 24px;
   margin: 0 0 20px;
 }
@@ -86,35 +86,6 @@ dd {
 
 h2 {
   margin-top: 28px;
-}
-
-.commands {
-  margin: 0;
-  padding: 12px 14px;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  font-size: 13px;
-  line-height: 1.7;
-  overflow-x: auto;
-  text-align: left;
-}
-
-.commands code {
-  display: block;
-  white-space: pre;
-  font-family: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
-}
-
-.simulate {
-  margin-top: 8px;
-  padding: 4px 16px 16px;
-  border: 1px dashed var(--line);
-  border-radius: var(--radius);
-}
-
-.actions .quiet {
-  margin-inline-start: 0;
 }
 
 @media (max-width: 640px) {

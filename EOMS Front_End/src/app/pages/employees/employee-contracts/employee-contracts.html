@@ -1,55 +1,178 @@
-<div class="sheet">
-  <table>
-    <thead>
-      <tr>
-        <th>{{ t('contractType') }}</th>
-        <th>{{ t('contractStart') }}</th>
-        <th>{{ t('contractEnd') }}</th>
-        <th>{{ t('state') }}</th>
-      </tr>
-    </thead>
-    <tbody>
-      @for (contract of rows(); track contract.id) {
-        <tr>
-          <td>{{ typeName(contract.type) }}</td>
-          <td>{{ date(contract.start) }}</td>
-          <td>{{ contract.end ? date(contract.end) : t('noEnd') }}</td>
-          <td [class.ok]="contract.status === 'current'">{{ state(contract) }}</td>
-        </tr>
-      }
-    </tbody>
-  </table>
-</div>
-<p class="note">{{ t('contractRenewHint') }}</p>
-<p class="note">{{ t('contractOpenPoints') }}</p>
-
-@if (session.mayEdit(person().id, 'employee.edit') && person().status !== 'ended') {
-  <h2>{{ t('renewContract') }}</h2>
-  <form class="form" (submit)="renew($event)">
-    <label>
-      <span>{{ t('contractType') }}</span>
-      <select name="type" autocomplete="off" (change)="onType($event)">
-        @for (item of office.contractTypes(); track item.id) {
-          <option [value]="item.id" [selected]="typeId() === item.id">{{ text(item.name) }}</option>
-        }
-      </select>
-    </label>
-    <label>
-      <span>{{ t('contractStart') }}</span>
-      <input name="start" type="date" autocomplete="off" required />
-    </label>
-    @if (fixedTerm()) {
-      <label>
-        <span>{{ t('contractEnd') }}</span>
-        <input name="end" type="date" autocomplete="off" required />
-      </label>
-    }
-    <button class="text" type="submit">
-      <i class="fa-solid fa-file-signature" aria-hidden="true"></i>
-      {{ t('renewContract') }}
+<header class="bar">
+  <p class="note">{{ t('contractFlowHint') }}</p>
+  @if (manages() && step()?.kind !== 'new') {
+    <button class="primary" type="button" (click)="open('new')">
+      <i class="fa-solid fa-file-circle-plus" aria-hidden="true"></i>
+      {{ t('newContract') }}
     </button>
-    @if (refused()) {
-      <p class="warn wide">{{ t('hireInvalid') }}</p>
+  }
+</header>
+
+@if (rows().length === 0) {
+  <p class="empty" aria-live="polite">{{ loading() ? t('loading') : t('noContracts') }}</p>
+} @else {
+  <ul class="contracts">
+    @for (contract of rows(); track contract.id) {
+      <li class="contract" [class.is-active]="contract.status === 'active'">
+        <div class="top">
+          <strong class="number" dir="ltr">{{ contract.number }}</strong>
+          <span
+            class="chip"
+            [class.ok]="contract.status === 'active'"
+            [class.wait]="contract.status === 'draft'"
+            [class.late]="contract.status === 'terminated'"
+          >{{ t(statusKey[contract.status]) }}</span>
+          @if (renewed(contract)) {
+            <span class="chip quiet-chip">{{ t('renewedMark') }}</span>
+          }
+        </div>
+        <dl class="facts">
+          <div>
+            <dt>{{ t('contractType') }}</dt>
+            <dd>{{ t(typeKey[contract.type]) }}</dd>
+          </div>
+          <div>
+            <dt>{{ t('contractStart') }}</dt>
+            <dd>{{ date(contract.start) }}</dd>
+          </div>
+          <div>
+            <dt>{{ t('contractEnd') }}</dt>
+            <dd>{{ contract.end ? date(contract.end) : t('noEnd') }}</dd>
+          </div>
+          @if (contract.salary) {
+            <div>
+              <dt>{{ t('baseSalary') }}</dt>
+              <dd class="num">{{ contract.salary }} {{ contract.currency }}</dd>
+            </div>
+          }
+          @if (contract.terminatedAt) {
+            <div>
+              <dt>{{ t('terminationDate') }}</dt>
+              <dd>{{ date(contract.terminatedAt) }}</dd>
+            </div>
+          }
+        </dl>
+        @if (contract.scheduledAt) {
+          <p class="scheduled">
+            <i class="fa-solid fa-calendar-xmark" aria-hidden="true"></i>
+            {{ t('scheduledFor') }} {{ date(contract.scheduledAt) }}
+            @if (contract.scheduledReason) {
+              · {{ contract.scheduledReason }}
+            }
+          </p>
+        }
+        @if (manages() && (contract.status === 'draft' || contract.status === 'active' || !renewed(contract))) {
+          <div class="row-actions">
+            @if (contract.status === 'draft') {
+              <button class="text small" type="button" [disabled]="saving()" (click)="activate(contract)">
+                <i class="fa-solid fa-check" aria-hidden="true"></i>
+                {{ t('activateContract') }}
+              </button>
+            }
+            @if (contract.status !== 'draft' && !renewed(contract)) {
+              <button class="text small" type="button" (click)="open('renew', contract)">
+                <i class="fa-solid fa-rotate" aria-hidden="true"></i>
+                {{ t('renewContract') }}
+              </button>
+            }
+            @if (contract.status === 'active') {
+              @if (contract.scheduledAt) {
+                <button class="text small" type="button" [disabled]="saving()" (click)="cancelSchedule(contract)">{{ t('cancelSchedule') }}</button>
+              } @else {
+                <button class="text small" type="button" (click)="open('schedule', contract)">
+                  <i class="fa-solid fa-calendar-day" aria-hidden="true"></i>
+                  {{ t('scheduleTermination') }}
+                </button>
+              }
+              <button class="quiet small" type="button" (click)="open('end', contract)">{{ t('terminateContract') }}</button>
+            }
+          </div>
+        }
+      </li>
     }
+  </ul>
+}
+
+@if (step(); as current) {
+  <form class="panel-form" (submit)="submit($event)">
+    <h2>
+      @switch (current.kind) {
+        @case ('new') { {{ t('newContract') }} }
+        @case ('renew') { {{ t('renewContract') }} · <span dir="ltr">{{ current.contract?.number }}</span> }
+        @case ('end') { {{ t('terminateContract') }} · <span dir="ltr">{{ current.contract?.number }}</span> }
+        @case ('schedule') { {{ t('scheduleTermination') }} · <span dir="ltr">{{ current.contract?.number }}</span> }
+      }
+    </h2>
+    <div class="fields">
+      @if (current.kind === 'new' || current.kind === 'renew') {
+        <label>
+          <span>{{ t('contractNumber') }}</span>
+          <input name="number" type="text" autocomplete="off" maxlength="50" dir="ltr" required [value]="suggestedNumber()" />
+        </label>
+        <label>
+          <span>{{ t('contractType') }}</span>
+          <select name="type" autocomplete="off" (change)="onType($event)">
+            <option value="fixed_term" [selected]="draftType() === 'fixed_term'">{{ t('contractFixed') }}</option>
+            <option value="indefinite" [selected]="draftType() === 'indefinite'">{{ t('contractOpen') }}</option>
+          </select>
+        </label>
+        <label>
+          <span>{{ t('contractStart') }}</span>
+          <input name="start" type="date" autocomplete="off" required [min]="current.contract?.start ?? person().hired" />
+        </label>
+        @if (draftType() === 'fixed_term') {
+          <label>
+            <span>{{ t('contractEnd') }}</span>
+            <input name="end" type="date" autocomplete="off" required />
+          </label>
+        }
+        @if (person().financial) {
+          <label>
+            <span>{{ t('baseSalary') }}</span>
+            <input name="salary" type="number" min="0" step="0.01" inputmode="decimal" autocomplete="off" dir="ltr" />
+            <small class="hint">{{ t('salaryHint') }}</small>
+          </label>
+          <label>
+            <span>{{ t('currency') }}</span>
+            <select name="currency" autocomplete="off">
+              @for (item of records.currencies(); track item.code) {
+                <option [value]="item.code">{{ item.name }} ({{ item.code }})</option>
+              }
+            </select>
+          </label>
+        }
+      } @else {
+        <label>
+          <span>{{ t('terminationDate') }}</span>
+          @if (current.kind === 'end') {
+            <input name="date" type="date" autocomplete="off" required [min]="current.contract?.start ?? ''" [max]="today" [value]="today" />
+          } @else {
+            <input name="date" type="date" autocomplete="off" required [min]="tomorrow" [max]="current.contract?.end ?? ''" />
+          }
+        </label>
+        <label class="wide">
+          <span>{{ t('terminationReason') }}</span>
+          <input name="reason" type="text" autocomplete="off" maxlength="500" required />
+        </label>
+      }
+    </div>
+    @if (problem()) {
+      <p class="warn" role="alert">{{ problem() }}</p>
+    }
+    <div class="actions">
+      @if (current.kind === 'end') {
+        <button class="primary" type="submit" [disabled]="saving()">{{ t('terminateContract') }}</button>
+      } @else if (current.kind === 'schedule') {
+        <button class="primary" type="submit" [disabled]="saving()">{{ t('scheduleTermination') }}</button>
+      } @else {
+        <button class="primary" type="submit" [disabled]="saving()">
+          <i class="fa-solid fa-floppy-disk" aria-hidden="true"></i>
+          {{ t('saveDraft') }}
+        </button>
+      }
+      <button class="text" type="button" (click)="close()">{{ t('cancel') }}</button>
+    </div>
   </form>
+} @else if (problem()) {
+  <p class="warn" role="alert">{{ problem() }}</p>
 }

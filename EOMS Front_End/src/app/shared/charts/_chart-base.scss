@@ -7,6 +7,13 @@
 .chart {
   margin: 0;
   position: relative;
+  min-width: 0;
+}
+
+table.vh {
+  table-layout: fixed;
+  width: 1px;
+  max-width: 1px;
 }
 
 svg {

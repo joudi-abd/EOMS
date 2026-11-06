@@ -16,7 +16,7 @@
     <p class="note">{{ t('settingsHint') }}</p>
 
     <nav class="tabs" [attr.aria-label]="t('settingsTabs')">
-      @for (item of tabs; track item.id) {
+      @for (item of tabs(); track item.id) {
         <a
           [routerLink]="[]"
           [queryParams]="{ tab: item.id === 'shift' ? null : item.id }"
@@ -31,20 +31,14 @@
     </nav>
 
     @switch (tab()) {
-      @case ('holidays') {
-        <app-settings-holidays />
-      }
       @case ('structure') {
         <div class="lists">
           <app-settings-list list="departments" />
           <app-settings-list list="titles" />
         </div>
       }
-      @case ('types') {
-        <div class="lists">
-          <app-settings-list list="leaveTypes" />
-          <app-settings-list list="contractTypes" />
-        </div>
+      @case ('devices') {
+        <app-settings-devices />
       }
       @default {
         <app-settings-shift />

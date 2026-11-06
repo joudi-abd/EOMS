@@ -1,11 +1,15 @@
-import { Component, computed, inject } from '@angular/core';
+import { Component, computed, effect, inject, untracked } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Session } from '../../../core/access/session';
+import { ApiAttendanceCorrection, ApiAttendanceDay } from '../../../core/api/types';
+import { CopyKey } from '../../../core/copy';
 import { Ui } from '../../../core/ui';
-import { DayMark, officeToday, PunchStatus } from '../../../data/attendance';
-import { Office, projects } from '../../../data/office';
-import { directionKey, markKey, markTone } from '../marks';
+import { DayMark } from '../../../data/attendance';
+import { AttendanceBook, clockOf, lineOf } from '../../../data/attendance-book';
+import { plain } from '../../../data/employees';
+import { Office } from '../../../data/office';
+import { markKey, markTone } from '../marks';
 
 @Component({
   selector: 'app-attendance-day',
@@ -14,26 +18,43 @@ import { directionKey, markKey, markTone } from '../marks';
 })
 export class AttendanceDay extends Ui {
   protected readonly office = inject(Office);
+  protected readonly book = inject(AttendanceBook);
   protected readonly session = inject(Session);
-  protected readonly projects = projects;
   private readonly router = inject(Router);
   private readonly params = toSignal(inject(ActivatedRoute).queryParamMap);
 
-  protected readonly day = computed(() => this.params()?.get('day') || officeToday());
+  protected readonly day = computed(() => this.params()?.get('day') || this.office.lastWorkday());
   protected readonly who = computed(() => this.params()?.get('who') ?? '');
-  protected readonly employee = computed(() => this.office.person(this.who()));
   protected readonly allowed = computed(() => {
-    const actor = this.session.account().id;
-    return this.session.canAct('attendance.office') || this.who() === actor || this.employee()?.managerId === actor;
+    if (!/^\d+$/.test(this.who())) return false;
+    return this.session.has('attendance.view') || this.who() === this.session.account().id;
   });
 
-  protected readonly report = computed(() => this.office.day(this.day()));
-  protected readonly row = computed(() => this.report().rows.find((item) => item.employeeId === this.who()));
-  protected readonly punches = computed(() => this.report().log.filter((item) => item.employeeId === this.who()));
-  protected readonly correction = computed(() => this.office.adjustments().find((item) => item.employeeId === this.who() && item.day === this.day()));
-  protected readonly mission = computed(() => this.office.missions().find((item) => item.employeeId === this.who() && item.day === this.day()));
-  protected readonly resolution = computed(() => this.office.resolutions().find((item) => item.employeeId === this.who() && item.day === this.day()));
-  protected readonly mayMission = computed(() => this.office.mayRecordMission(this.who(), this.session.account().id));
+  protected readonly bundle = computed(() => {
+    const detail = this.book.detail();
+    if (!detail || String(detail.day.employee.id) !== this.who() || detail.day.work_date !== this.day()) return null;
+    return detail;
+  });
+  protected readonly row = computed(() => {
+    const day = this.bundle()?.day;
+    if (!day) return null;
+    const person = this.office.person(String(day.employee.id));
+    return lineOf(day, person ? { name: person.name, department: person.department, staffNo: person.staffNo } : undefined);
+  });
+  protected readonly name = computed(() => this.row()?.name ?? plain(''));
+  protected readonly punches = computed(() => this.bundle()?.punches ?? []);
+  protected readonly corrections = computed(() => this.bundle()?.corrections ?? []);
+
+  constructor() {
+    super();
+    effect(() => {
+      const id = this.who();
+      const day = this.day();
+      const allowed = this.allowed();
+      if (!allowed) return;
+      untracked(() => void this.book.loadDetail(id, day));
+    });
+  }
 
   protected mark(mark: DayMark): string {
     return this.t(markKey[mark]);
@@ -43,64 +64,84 @@ export class AttendanceDay extends Ui {
     return markTone(mark);
   }
 
-  protected direction(status: PunchStatus): string {
-    return this.t(directionKey[status]);
+  protected direction(value: string): string {
+    if (value === 'in') return this.t('checkIn');
+    if (value === 'out') return this.t('checkOut');
+    return this.t('punchUnknown');
   }
 
-  protected actor(id: string): string {
-    return this.text(this.office.personName(id));
+  protected statusLabel(status: string): string {
+    const key = status === 'pending' || status === 'approved' || status === 'rejected' ? status : 'pending';
+    return this.t(key as CopyKey);
   }
 
-  protected project(id: string): string {
-    const match = projects.find((item) => item.id === id);
-    return match ? this.text(match.name) : id;
+  protected clock(iso: string | null, day: ApiAttendanceDay): string {
+    return clockOf(iso, day.policy.timezone) ?? '—';
   }
 
   protected department(id: string): string {
     const match = this.office.departmentList().find((item) => item.id === id);
-    return match ? this.text(match.name) : id;
+    return match ? this.text(match.name) : id || '—';
+  }
+
+  protected canReview(correction: ApiAttendanceCorrection): boolean {
+    return (
+      this.session.has('attendance.approve') &&
+      correction.status === 'pending' &&
+      correction.requested_by !== this.session.account().userId
+    );
   }
 
   protected back(): void {
     void this.router.navigate([], { queryParams: { who: null }, queryParamsHandling: 'merge' });
   }
 
-  protected save(event: Event): void {
+  protected async save(event: Event): Promise<void> {
     event.preventDefault();
-    const person = this.employee();
-    if (!person) return;
+    const day = this.bundle()?.day;
+    if (!day) return;
     const form = event.target as HTMLFormElement;
     const data = new FormData(form);
-    const saved = this.office.correctDay({
-      employeeId: person.id,
-      day: this.day(),
-      checkIn: String(data.get('checkIn') ?? ''),
-      checkOut: String(data.get('checkOut') ?? ''),
-      note: String(data.get('note') ?? '').trim(),
-      by: this.session.account().id,
+    const saved = await this.book.correct(day, {
+      type: 'times',
+      first: String(data.get('checkIn') ?? ''),
+      last: String(data.get('checkOut') ?? ''),
+      reason: String(data.get('note') ?? '').trim(),
     });
     if (saved) form.reset();
   }
 
-  protected saveMission(event: Event): void {
+  protected async absence(event: Event): Promise<void> {
     event.preventDefault();
-    const data = new FormData(event.target as HTMLFormElement);
-    this.office.addMission({
-      employeeId: this.who(),
-      day: this.day(),
-      projectId: String(data.get('project') ?? ''),
-      note: String(data.get('note') ?? '').trim(),
-      actorId: this.session.account().id,
-    });
+    const day = this.bundle()?.day;
+    if (!day) return;
+    const form = event.target as HTMLFormElement;
+    const data = new FormData(form);
+    const saved = await this.book.correct(day, { type: 'absence', reason: String(data.get('note') ?? '').trim() });
+    if (saved) form.reset();
   }
 
-  protected confirm(event: Event): void {
+  protected async decide(event: Event, correction: ApiAttendanceCorrection): Promise<void> {
     event.preventDefault();
+    const day = this.bundle()?.day;
+    const decision = (event as SubmitEvent).submitter?.getAttribute('value');
+    if (!day || (decision !== 'approve' && decision !== 'reject')) return;
     const data = new FormData(event.target as HTMLFormElement);
-    this.office.confirmAbsence(this.who(), this.day(), String(data.get('note') ?? ''), this.session.account().id);
+    await this.book.review(day, correction, decision, String(data.get('note') ?? '').trim());
   }
 
-  protected reopen(): void {
-    this.office.reopenDay(this.who(), this.day(), this.session.account().id);
+  protected approve(): void {
+    const day = this.bundle()?.day;
+    if (day) void this.book.approve(day);
+  }
+
+  protected async reopen(event: Event): Promise<void> {
+    event.preventDefault();
+    const day = this.bundle()?.day;
+    if (!day) return;
+    const form = event.target as HTMLFormElement;
+    const data = new FormData(form);
+    const saved = await this.book.reopen(day, String(data.get('note') ?? '').trim());
+    if (saved) form.reset();
   }
 }

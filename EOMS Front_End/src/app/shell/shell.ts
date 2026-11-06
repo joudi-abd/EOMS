@@ -4,7 +4,6 @@ import { ActivatedRoute, Router, RouterLink, RouterLinkActive, RouterOutlet } fr
 import { Session } from '../core/access/session';
 import { CopyKey, ModuleId } from '../core/copy';
 import { Language } from '../core/language';
-import { Office } from '../data/office';
 import { AccountSwitch } from './account-switch/account-switch';
 import { Chrome } from './chrome';
 import { moduleIcon } from './icons';
@@ -27,7 +26,6 @@ export class Shell {
   protected readonly chrome = inject(Chrome);
   protected readonly session = inject(Session);
   protected readonly icons = moduleIcon;
-  private readonly office = inject(Office);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   private readonly params = toSignal(this.route.queryParamMap);
@@ -37,17 +35,6 @@ export class Shell {
     navGroups.map((group) => ({ label: group.label, ids: group.ids.filter((id) => this.session.can(id)) })).filter((group) => group.ids.length > 0),
   );
 
-  /** Items waiting for this account's decision. */
-  private readonly waiting = computed(() => {
-    const actor = this.session.account().id;
-    return {
-      leave: this.office.leaves().filter((item) => this.office.canAdvanceLeave(item.id, actor)).length,
-      requests: this.office.requests().filter((item) => this.office.canDecideRequest(item.id, actor)).length,
-      payroll: this.office.runs().filter((item) => this.office.runStep(item, actor) !== null && item.status !== 'draft').length,
-      procurement: this.session.canAct('purchase.decide') ? this.office.purchases().filter((item) => item.status === 'pending').length : 0,
-    } as Partial<Record<ModuleId, number>>;
-  });
-
   constructor() {
     effect(() => {
       const lang = this.params()?.get('lang');
@@ -55,11 +42,6 @@ export class Shell {
         this.language.set(lang);
       }
     });
-  }
-
-  protected badge(id: ModuleId): string {
-    const count = this.waiting()[id] ?? 0;
-    return count > 0 ? this.language.formatNumber(count) : '';
   }
 
   protected t(key: CopyKey): string {

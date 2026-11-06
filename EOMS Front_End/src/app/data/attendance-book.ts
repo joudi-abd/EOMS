@@ -9,6 +9,7 @@ import {
   ApiAttendanceReport,
   ApiItem,
   ApiPage,
+  ApiQuarantine,
 } from '../core/api/types';
 import { CopyKey } from '../core/copy';
 import { DayMark } from './attendance';
@@ -45,6 +46,7 @@ export class AttendanceBook {
 
   readonly roll = signal<ApiAttendanceDay[]>([]);
   readonly unmatched = signal<ApiAttendancePunch[]>([]);
+  readonly held = signal<ApiQuarantine[]>([]);
   readonly detail = signal<ApiAttendanceBundle | null>(null);
   readonly reports = signal<Record<string, ApiAttendanceDay[]>>({});
   readonly loading = signal(false);
@@ -105,6 +107,29 @@ export class AttendanceBook {
       this.unmatched.set(page.data);
     } catch (error) {
       this.office.fail(error);
+    }
+  }
+
+  async loadHeld(): Promise<void> {
+    try {
+      const page = await this.api.get<ApiPage<ApiQuarantine>>('/attendance/quarantined-punches', { status: 'pending', per_page: 50 });
+      this.held.set(page.data);
+    } catch (error) {
+      this.office.fail(error);
+    }
+  }
+
+  async reviewHeld(id: number, action: 'release' | 'dismiss', reason: string, correctedAt: string | null): Promise<boolean> {
+    const body: Record<string, unknown> = { action, reason };
+    if (action === 'release') body['corrected_occurred_at'] = correctedAt;
+    try {
+      await this.api.post(`/attendance/quarantined-punches/${id}/review`, body);
+      this.office.done(action === 'release' ? 'quarantineReleased' : 'quarantineDismissed');
+      await this.loadHeld();
+      return true;
+    } catch (error) {
+      this.office.fail(error);
+      return false;
     }
   }
 

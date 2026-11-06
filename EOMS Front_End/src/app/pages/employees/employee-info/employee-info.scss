@@ -41,7 +41,61 @@ dd {
   grid-column: 1 / -1;
 }
 
+.login {
+  display: grid;
+  gap: 12px;
+  max-width: 880px;
+  margin: 8px 0 20px;
+  padding: 18px 20px 20px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.login h2 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.login .note {
+  margin: 0;
+}
+
+.fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px 24px;
+}
+
+.fields label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.fields input {
+  width: 100%;
+  margin: 0;
+}
+
+.hint {
+  color: var(--soft);
+  font-size: 12px;
+}
+
+.warn {
+  margin: 0;
+  color: var(--late);
+}
+
+.login .text {
+  width: fit-content;
+}
+
 @media (max-width: 640px) {
+  .fields,
   .file {
     grid-template-columns: 1fr;
   }

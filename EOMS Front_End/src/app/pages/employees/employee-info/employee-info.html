@@ -57,14 +57,16 @@
       <dd class="mono">{{ person().wallet || '—' }}</dd>
     </div>
   }
-  @if (account(); as login) {
-    <div>
-      <dt>{{ t('loginAccount') }}</dt>
+  <div>
+    <dt>{{ t('loginAccount') }}</dt>
+    @if (account(); as login) {
       <dd [class.ok]="login.enabled" [class.late]="!login.enabled">
         {{ login.enabled ? t('accountOn') : t('accountOff') }} · <span dir="ltr">{{ login.email }}</span>
       </dd>
-    </div>
-  }
+    } @else {
+      <dd>{{ person().hasAccount ? t('accountLinked') : t('noLoginAccount') }}</dd>
+    }
+  </div>
   <div>
     <dt>{{ t('fingerTitle') }}</dt>
     <dd>
@@ -79,6 +81,12 @@
       <dt>{{ t('offboardEnded') }}</dt>
       <dd>{{ date(person().endedOn) }}</dd>
     </div>
+    @if (person().endReason) {
+      <div>
+        <dt>{{ t('endReason') }}</dt>
+        <dd>{{ person().endReason }}</dd>
+      </div>
+    }
   }
   @if (person().sensitive) {
     <div class="wide">
@@ -86,9 +94,30 @@
       <dd>{{ person().address || '—' }}</dd>
     </div>
   }
-  <div class="wide">
-    <dt>{{ t('staffDocuments') }}</dt>
-    <dd>{{ documents() }}</dd>
-  </div>
 </dl>
+
+@if (offerLogin()) {
+  <form class="login" (submit)="openLogin($event)">
+    <h2>{{ t('createLogin') }}</h2>
+    <p class="note">{{ t('createLoginHint') }}</p>
+    <div class="fields">
+      <label>
+        <span>{{ t('accountEmail') }}</span>
+        <input name="email" type="email" autocomplete="off" spellcheck="false" dir="ltr" required [value]="person().email" />
+      </label>
+      <label>
+        <span>{{ t('accountPassword') }}</span>
+        <input name="password" type="password" autocomplete="new-password" minlength="10" dir="ltr" required />
+        <small class="hint">{{ t('passwordHint') }}</small>
+      </label>
+    </div>
+    @if (problem()) {
+      <p class="warn" role="alert">{{ problem() }}</p>
+    }
+    <button class="text" type="submit" [disabled]="saving()">
+      <i class="fa-solid fa-user-plus" aria-hidden="true"></i>
+      {{ t('createLogin') }}
+    </button>
+  </form>
+}
 <p class="note">{{ t('sensitiveNote') }}</p>

@@ -27,8 +27,14 @@
               }
             }
           </td>
-          <td dir="ltr" class="mail">{{ account.email }}</td>
-          <td>{{ roles(account) || '—' }}</td>
+          <td class="mail"><bdi>{{ account.email }}</bdi></td>
+          <td>
+            @for (role of account.roles; track role) {
+              <span class="role" [class.top]="isTop(role)">{{ t(roleLabel[role]) }}</span>
+            } @empty {
+              —
+            }
+          </td>
           <td>{{ account.lastLogin ? short(account.lastLogin) : '—' }}</td>
           <td [class.ok]="account.enabled" [class.late]="!account.enabled">
             {{ account.enabled ? t('enabled') : t('disabled') }}

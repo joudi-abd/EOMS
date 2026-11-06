@@ -82,7 +82,7 @@ export async function exportExcel(spec: ReportSpec): Promise<void> {
       cell.value = column.header;
       cell.font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
       cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: action } };
-      cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true, readingOrder: spec.rtl ? 'rtl' : 'ltr' };
+      cell.alignment = { horizontal: spec.rtl ? 'right' : 'left', vertical: 'middle', wrapText: true, readingOrder: spec.rtl ? 'rtl' : 'ltr' };
       cell.border = { bottom: { style: 'thin', color: { argb: action } } };
     });
     headerRow.height = 26;
@@ -91,10 +91,9 @@ export async function exportExcel(spec: ReportSpec): Promise<void> {
       const row = sheet.getRow(cursor + 1 + rowIndex);
       values.forEach((value, index) => {
         const cell = row.getCell(index + 1);
-        const numeric = table.columns[index]?.numeric && typeof value === 'number';
         cell.value = value;
         cell.font = { name: 'Arial', size: 10, color: { argb: ink } };
-        cell.alignment = { horizontal: numeric ? 'center' : spec.rtl ? 'right' : 'left', vertical: 'middle', readingOrder: spec.rtl ? 'rtl' : 'ltr' };
+        cell.alignment = { horizontal: spec.rtl ? 'right' : 'left', vertical: 'middle', readingOrder: spec.rtl ? 'rtl' : 'ltr' };
         cell.border = { bottom: { style: 'hair', color: { argb: line } } };
         if (rowIndex % 2 === 1) {
           cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: zebra } };

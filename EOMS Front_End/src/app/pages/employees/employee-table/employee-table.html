@@ -14,11 +14,14 @@
     <tbody>
       @for (employee of rows(); track employee.id) {
         <tr>
-          <td class="num">{{ employee.staffNo }}</td>
+          <td class="num"><bdi>{{ employee.staffNo }}</bdi></td>
           <td>
-            <a class="name" [routerLink]="[]" [queryParams]="{ file: employee.id }" queryParamsHandling="merge">
-              {{ text(employee.name) }}
-            </a>
+            <div class="person">
+              <span class="avatar" aria-hidden="true">{{ initials(employee.name) }}</span>
+              <a class="name" [routerLink]="[]" [queryParams]="{ file: employee.id }" queryParamsHandling="merge">
+                {{ text(employee.name) }}
+              </a>
+            </div>
           </td>
           <td>{{ text(employee.title) || '—' }}</td>
           <td>{{ department(employee.department) }}</td>

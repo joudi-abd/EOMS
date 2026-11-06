@@ -13,14 +13,14 @@
       </tr>
     </thead>
     <tbody>
-      @for (row of rows(); track row.employeeId) {
+      @for (row of rows(); track row.dayId) {
         <tr>
           <td>
-            <a class="name" [routerLink]="[]" [queryParams]="{ who: row.employee.id }" queryParamsHandling="merge">
-              {{ text(row.employee.name) }}
+            <a class="name" [routerLink]="[]" [queryParams]="{ who: row.employeeId }" queryParamsHandling="merge">
+              {{ text(row.name) }}
             </a>
           </td>
-          <td>{{ department(row.employee.department) }}</td>
+          <td>{{ department(row.department) }}</td>
           <td [class]="tone(row.mark)">{{ mark(row.mark) }}</td>
           <td class="num">{{ row.checkIn ?? '—' }}</td>
           <td class="num">{{ row.checkOut ?? '—' }}</td>
@@ -30,14 +30,17 @@
             @if (row.lateBy !== null) {
               <span>{{ num(row.lateBy) }} {{ t('minutesUnit') }} {{ t('lateBy') }}</span>
             }
-            @if (row.projectId) {
-              <span>{{ project(row.projectId) }}</span>
+            @if (row.earlyBy !== null && row.lateBy === null) {
+              <span>{{ num(row.earlyBy) }} {{ t('minutesUnit') }}</span>
             }
             @if (row.duplicate) {
               <span class="wait">{{ t('duplicateFlag') }}</span>
             }
-            @if (row.corrected) {
-              <span>{{ t('correctedFlag') }}</span>
+            @if (row.pending) {
+              <span>{{ t('pending') }}</span>
+            }
+            @if (row.approved) {
+              <span>{{ t('approved') }}</span>
             }
           </td>
         </tr>

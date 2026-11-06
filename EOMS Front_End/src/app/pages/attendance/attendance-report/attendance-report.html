@@ -49,6 +49,10 @@
   }
 </div>
 
+@if (span().clipped) {
+  <p class="note">{{ t('reportSpan') }}</p>
+}
+
 <div class="bar">
   <p class="period">{{ date(from()) }} – {{ date(to()) }}</p>
   <div class="actions">
@@ -115,8 +119,6 @@
               <th>{{ t('lateDays') }}</th>
               <th>{{ t('reviewDays') }}</th>
               <th>{{ t('absentDays') }}</th>
-              <th>{{ t('leaveCount') }}</th>
-              <th>{{ t('missionDays') }}</th>
               <th>{{ t('workedHours') }}</th>
               <th>{{ t('requiredHours') }}</th>
               <th>{{ t('overtimeHours') }}</th>
@@ -134,8 +136,6 @@
                 <td class="num" [class.wait]="row.late > 0">{{ num(row.late) }}</td>
                 <td class="num" [class.late]="row.review > 0">{{ num(row.review) }}</td>
                 <td class="num">{{ num(row.absent) }}</td>
-                <td class="num">{{ num(row.leave) }}</td>
-                <td class="num">{{ num(row.mission) }}</td>
                 <td class="num">{{ hours(row.worked) }}</td>
                 <td class="num">{{ hours(row.required) }}</td>
                 <td class="num">{{ row.overtime ? hours(row.overtime) : '—' }}</td>

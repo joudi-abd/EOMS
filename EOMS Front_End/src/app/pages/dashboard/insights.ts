@@ -58,6 +58,18 @@ export class Insights {
       .sort((a, b) => b.value - a.value),
   );
 
+  readonly staffStatus = computed<ChartSlice[]>(() => {
+    const list = this.office.employees();
+    const statuses: { id: 'active' | 'away' | 'ended'; color: string }[] = [
+      { id: 'active', color: tone.ok },
+      { id: 'away', color: tone.wait },
+      { id: 'ended', color: tone.quiet },
+    ];
+    return statuses
+      .map((status) => ({ label: this.t(status.id), value: list.filter((item) => item.status === status.id).length, color: status.color }))
+      .filter((slice) => slice.value > 0);
+  });
+
   readonly lateByDepartment = computed<ChartRow[]>(() => {
     const counts = new Map<string, number>();
     for (const day of this.recentDays()) {
