@@ -1,15 +1,45 @@
 <section class="finger">
   <p class="state" aria-live="polite">
     <i class="fa-solid fa-fingerprint" aria-hidden="true"></i>
-    <strong [class.ok]="person().fingerprint === 'enrolled'">{{ t(fingerKey[person().fingerprint]) }}</strong>
+    <strong [class.ok]="person().fingerprint === 'enrolled'">{{
+      t(fingerKey[person().fingerprint])
+    }}</strong>
   </p>
   <dl class="facts">
     <div>
       <dt>{{ t('pinLabel') }}</dt>
-      <dd class="mono"><bdi>{{ pin() || '—' }}</bdi></dd>
+      <dd class="mono">
+        <bdi>{{ pin() || '—' }}</bdi>
+      </dd>
     </div>
+    @for (device of person().fingerprintDevices ?? []; track device.binding_id) {
+      <div>
+        <dt>{{ device.device_name }}</dt>
+        <dd>
+          <bdi>{{ device.device_user_id }}</bdi> ·
+          {{
+            t(
+              device.status === 'enrolled'
+                ? 'fingerEnrolled'
+                : device.status === 'waiting'
+                  ? 'fingerWaiting'
+                  : device.status === 'queued'
+                    ? 'fingerQueued'
+                    : device.status === 'failed'
+                      ? 'fingerFailed'
+                      : 'fingerLinked'
+            )
+          }}
+        </dd>
+      </div>
+    }
   </dl>
   @if (mayEnroll()) {
+    @if (!pin()) {
+      <a class="text" routerLink="/modules/hrSettings" [queryParams]="{ tab: 'devices' }">{{
+        t('addBinding')
+      }}</a>
+    }
     <button class="primary" type="button" (click)="openEnroll()">
       <i class="fa-solid fa-fingerprint" aria-hidden="true"></i>
       {{ t('enrollOpen') }}

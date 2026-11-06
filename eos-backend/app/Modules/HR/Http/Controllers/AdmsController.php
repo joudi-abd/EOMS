@@ -161,6 +161,18 @@ class AdmsController extends Controller
         return ApiResponse::ok($gateway->confirm($enrollment, $request->user()->id, $data['note']));
     }
 
+    public function latest(AttendanceBinding $binding, AdmsGateway $gateway): JsonResponse
+    {
+        return ApiResponse::ok($gateway->latestForBinding($binding));
+    }
+
+    public function cancel(Request $request, int $enrollment, AdmsGateway $gateway): JsonResponse
+    {
+        $data = $request->validate(['note' => ['required', 'string', 'min:5', 'max:500']]);
+
+        return ApiResponse::ok($gateway->cancel($enrollment, $request->user()->id, $data['note']));
+    }
+
     public function status(int $enrollment, AdmsGateway $gateway): JsonResponse
     {
         return ApiResponse::ok($gateway->enrollment($enrollment));

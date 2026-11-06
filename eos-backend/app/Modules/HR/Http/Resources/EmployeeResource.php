@@ -2,6 +2,7 @@
 
 namespace App\Modules\HR\Http\Resources;
 
+use App\Modules\HR\Services\Attendance\EmployeeFingerprintStatus;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -16,6 +17,7 @@ class EmployeeResource extends JsonResource
             'id' => $this->id,
             'employee_no' => $this->employee_no,
             'has_account' => $this->user_id !== null,
+            'fingerprint' => app(EmployeeFingerprintStatus::class)->summarize($this->resource, $canSensitive || $request->user()?->can('attendance.view') || (int) $this->user_id === (int) $request->user()?->id),
             'first_name' => $this->first_name,
             'father_name' => $this->father_name,
             'last_name' => $this->last_name,

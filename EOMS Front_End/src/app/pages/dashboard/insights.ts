@@ -1,10 +1,13 @@
-import { computed, inject, Injectable } from '@angular/core';
+import { computed, effect, inject, Injectable, signal, untracked } from '@angular/core';
 import { roleIds, roleLabel } from '../../core/access/accounts';
 import { Session } from '../../core/access/session';
+import { Api, serverMessage } from '../../core/api/api';
+import { ApiAttendanceDay, ApiAttendanceReport, ApiItem } from '../../core/api/types';
+import { markOf } from '../../data/attendance-book';
 import { CopyKey } from '../../core/copy';
 import { Language } from '../../core/language';
 import { DayMark, isWorkday, minutesOf } from '../../data/attendance';
-import { isoDay, monthBounds, parseDay, daysBetween } from '../../data/hr';
+import { isoDay, monthBounds, parseDay } from '../../data/hr';
 import { Office } from '../../data/office';
 import { ChartDatum, ChartRow, ChartSlice, tone } from '../../shared/charts/chart';
 import { markFill as markTone, markKey } from '../attendance/marks';
@@ -15,6 +18,73 @@ export class Insights {
   private readonly office = inject(Office);
   private readonly session = inject(Session);
   private readonly language = inject(Language);
+  private readonly api = inject(Api);
+  private readonly serverDays = signal<Record<string, ApiAttendanceDay[]>>({});
+  private readonly ownDays = signal<ApiAttendanceDay[]>([]);
+  readonly attendanceLoading = signal(false);
+  readonly attendanceProblem = signal('');
+  private generation = 0;
+
+  constructor() {
+    effect(() => {
+      const ready = this.office.loaded();
+      const dates = this.recentDays();
+      const officeWide = this.session.has('attendance.view');
+      const own = this.session.hasFile() ? this.session.account().id : '';
+      untracked(() => {
+        if (ready) void this.loadAttendance(dates, officeWide, own);
+      });
+    });
+  }
+
+  async refreshAttendance(): Promise<void> {
+    await this.loadAttendance(
+      this.recentDays(),
+      this.session.has('attendance.view'),
+      this.session.hasFile() ? this.session.account().id : '',
+    );
+  }
+
+  private async loadAttendance(dates: string[], officeWide: boolean, own: string): Promise<void> {
+    const generation = ++this.generation;
+    this.attendanceLoading.set(true);
+    this.attendanceProblem.set('');
+    this.serverDays.set({});
+    this.ownDays.set([]);
+    try {
+      if (officeWide) {
+        const results: Record<string, ApiAttendanceDay[]> = {};
+        // Keep at most three day requests in flight, including pagination.
+        for (let offset = 0; offset < dates.length; offset += 3) {
+          if (generation !== this.generation) return;
+          await Promise.all(
+            dates.slice(offset, offset + 3).map(async (date) => {
+              results[date] = await this.api.all<ApiAttendanceDay>('/attendance/days', {
+                date,
+                per_page: 100,
+              });
+            }),
+          );
+        }
+        if (generation === this.generation) this.serverDays.set(results);
+      } else if (own) {
+        const last = this.office.lastWorkday();
+        const { first } = monthBounds(last.slice(0, 7));
+        const response = await this.api.get<ApiItem<ApiAttendanceReport>>(
+          `/employees/${own}/attendance-report`,
+          { from: first, to: last },
+        );
+        if (generation === this.generation) this.ownDays.set(response.data.days);
+      }
+    } catch (error) {
+      if (generation === this.generation)
+        this.attendanceProblem.set(
+          serverMessage(error) || this.office.fail(error).error || 'Attendance request failed.',
+        );
+    } finally {
+      if (generation === this.generation) this.attendanceLoading.set(false);
+    }
+  }
 
   private t(key: CopyKey): string {
     return this.language.t(key);
@@ -34,20 +104,40 @@ export class Insights {
 
   readonly attendanceTrend = computed<ChartDatum[]>(() =>
     this.recentDays().map((day) => {
-      const report = this.office.day(day);
-      const expected = Math.max(1, report.expected - report.mission);
+      const rows = this.serverDays()[day] ?? [];
+      const expected = rows.filter((row) => row.status !== 'day_off').length;
+      const arrived = rows.filter(
+        (row) => row.status !== 'day_off' && row.first_in !== null,
+      ).length;
       return {
         label: this.language.formatDayShort(day),
-        values: { rate: Math.round((report.arrived / expected) * 100), late: report.late, review: report.review },
+        values: {
+          rate: expected ? Math.round((arrived / expected) * 100) : 0,
+          late: rows.filter((row) => markOf(row) === 'late').length,
+          review: rows.filter((row) => markOf(row) === 'review' || row.pending_changes).length,
+        },
       };
     }),
   );
 
   readonly todayMix = computed<ChartSlice[]>(() => {
-    const report = this.office.attendanceToday();
-    const marks: DayMark[] = ['present', 'late', 'early', 'incomplete', 'review', 'absent', 'leave', 'mission'];
+    const rows = this.serverDays()[this.office.lastWorkday()] ?? [];
+    const marks: DayMark[] = [
+      'present',
+      'late',
+      'early',
+      'incomplete',
+      'review',
+      'absent',
+      'leave',
+      'mission',
+    ];
     return marks
-      .map((mark) => ({ label: this.t(markKey[mark]), value: report.rows.filter((row) => row.mark === mark).length, color: markTone[mark] }))
+      .map((mark) => ({
+        label: this.t(markKey[mark]),
+        value: rows.filter((row) => markOf(row) === mark).length,
+        color: markTone[mark],
+      }))
       .filter((slice) => slice.value > 0);
   });
 
@@ -66,16 +156,20 @@ export class Insights {
       { id: 'ended', color: tone.quiet },
     ];
     return statuses
-      .map((status) => ({ label: this.t(status.id), value: list.filter((item) => item.status === status.id).length, color: status.color }))
+      .map((status) => ({
+        label: this.t(status.id),
+        value: list.filter((item) => item.status === status.id).length,
+        color: status.color,
+      }))
       .filter((slice) => slice.value > 0);
   });
 
   readonly lateByDepartment = computed<ChartRow[]>(() => {
     const counts = new Map<string, number>();
     for (const day of this.recentDays()) {
-      for (const row of this.office.day(day).rows) {
-        if (row.mark !== 'late') continue;
-        const dept = this.office.person(row.employeeId)?.department ?? '';
+      for (const row of this.serverDays()[day] ?? []) {
+        if (markOf(row) !== 'late') continue;
+        const dept = this.office.person(String(row.employee.id))?.department ?? '';
         counts.set(dept, (counts.get(dept) ?? 0) + 1);
       }
     }
@@ -89,22 +183,49 @@ export class Insights {
   readonly leaveStatus = computed<ChartSlice[]>(() => {
     const rows = this.visibleLeaves();
     return [
-      { label: this.t('pending_manager'), value: rows.filter((row) => row.status === 'pending_manager').length, color: tone.wait },
-      { label: this.t('pending_hr'), value: rows.filter((row) => row.status === 'pending_hr').length, color: tone.sky },
-      { label: this.t('approved'), value: rows.filter((row) => row.status === 'approved').length, color: tone.ok },
-      { label: this.t('rejected'), value: rows.filter((row) => row.status === 'rejected').length, color: tone.late },
+      {
+        label: this.t('pending_manager'),
+        value: rows.filter((row) => row.status === 'pending_manager').length,
+        color: tone.wait,
+      },
+      {
+        label: this.t('pending_hr'),
+        value: rows.filter((row) => row.status === 'pending_hr').length,
+        color: tone.sky,
+      },
+      {
+        label: this.t('approved'),
+        value: rows.filter((row) => row.status === 'approved').length,
+        color: tone.ok,
+      },
+      {
+        label: this.t('rejected'),
+        value: rows.filter((row) => row.status === 'rejected').length,
+        color: tone.late,
+      },
     ].filter((slice) => slice.value > 0);
   });
 
   readonly leaveByType = computed<ChartRow[]>(() => {
     const year = this.office.lastWorkday().slice(0, 4);
-    const rows = this.visibleLeaves().filter((row) => row.status === 'approved' && row.from.startsWith(year));
+    const rows = this.visibleLeaves().filter(
+      (row) => row.status === 'approved' && row.from.startsWith(year),
+    );
     return this.office
       .leaveTypes()
       .map((type) => {
         const list = rows.filter((row) => row.typeId === type.id);
-        const amount = list.reduce((sum, row) => sum + (row.kind === 'permit' ? (minutesOf(row.end) - minutesOf(row.start)) / 60 : row.days), 0);
-        return { label: this.language.text(type.name), value: amount, unit: type.unit === 'hour' ? this.t('hoursShort') : this.t('days') };
+        const amount = list.reduce(
+          (sum, row) =>
+            sum +
+            (row.kind === 'permit' ? (minutesOf(row.end) - minutesOf(row.start)) / 60 : row.days),
+          0,
+        );
+        return {
+          label: this.language.text(type.name),
+          value: amount,
+          unit: type.unit === 'hour' ? this.t('hoursShort') : this.t('days'),
+        };
       })
       .filter((row) => row.value > 0);
   });
@@ -112,7 +233,14 @@ export class Insights {
   readonly requestsByKind = computed<ChartDatum[]>(() => {
     const actor = this.session.account().id;
     const all = this.session.canAct('leave.decide');
-    const rows = this.office.requests().filter((row) => all || row.employeeId === actor || this.office.person(row.employeeId)?.managerId === actor);
+    const rows = this.office
+      .requests()
+      .filter(
+        (row) =>
+          all ||
+          row.employeeId === actor ||
+          this.office.person(row.employeeId)?.managerId === actor,
+      );
     const kinds: { id: 'correction' | 'equipment' | 'resignation'; label: CopyKey }[] = [
       { id: 'correction', label: 'kindCorrection' },
       { id: 'equipment', label: 'kindEquipment' },
@@ -123,7 +251,9 @@ export class Insights {
       return {
         label: this.t(kind.label),
         values: {
-          waiting: list.filter((row) => row.status === 'pending_manager' || row.status === 'pending_hr').length,
+          waiting: list.filter(
+            (row) => row.status === 'pending_manager' || row.status === 'pending_hr',
+          ).length,
           approved: list.filter((row) => row.status === 'approved').length,
           rejected: list.filter((row) => row.status === 'rejected').length,
         },
@@ -141,7 +271,11 @@ export class Insights {
       month: this.language.formatMonth(new Date(year, month - 1, 1)),
       slices: [
         { label: this.t('paidCount'), value: paid, color: tone.ok },
-        { label: this.t('notPaid'), value: Math.max(0, run.employeeIds.length - paid), color: tone.quiet },
+        {
+          label: this.t('notPaid'),
+          value: Math.max(0, run.employeeIds.length - paid),
+          color: tone.quiet,
+        },
       ],
     };
   });
@@ -149,15 +283,31 @@ export class Insights {
   readonly purchaseMix = computed<ChartSlice[]>(() => {
     const rows = this.office.purchases();
     return [
-      { label: this.t('pending'), value: rows.filter((row) => row.status === 'pending').length, color: tone.wait },
-      { label: this.t('approved'), value: rows.filter((row) => row.status === 'approved').length, color: tone.ok },
-      { label: this.t('rejected'), value: rows.filter((row) => row.status === 'rejected').length, color: tone.late },
+      {
+        label: this.t('pending'),
+        value: rows.filter((row) => row.status === 'pending').length,
+        color: tone.wait,
+      },
+      {
+        label: this.t('approved'),
+        value: rows.filter((row) => row.status === 'approved').length,
+        color: tone.ok,
+      },
+      {
+        label: this.t('rejected'),
+        value: rows.filter((row) => row.status === 'rejected').length,
+        color: tone.late,
+      },
     ].filter((slice) => slice.value > 0);
   });
 
   readonly accountsByRole = computed<ChartRow[]>(() =>
     roleIds
-      .map((role) => ({ label: this.t(roleLabel[role]), value: this.office.accounts().filter((item) => item.enabled && item.roles.includes(role)).length }))
+      .map((role) => ({
+        label: this.t(roleLabel[role]),
+        value: this.office.accounts().filter((item) => item.enabled && item.roles.includes(role))
+          .length,
+      }))
       .filter((row) => row.value > 0)
       .sort((a, b) => b.value - a.value),
   );
@@ -165,35 +315,60 @@ export class Insights {
   readonly accountState = computed<ChartSlice[]>(() => {
     const list = this.office.accounts();
     return [
-      { label: this.t('enabled'), value: list.filter((item) => item.enabled).length, color: tone.ok },
-      { label: this.t('disabled'), value: list.filter((item) => !item.enabled).length, color: tone.quiet },
+      {
+        label: this.t('enabled'),
+        value: list.filter((item) => item.enabled).length,
+        color: tone.ok,
+      },
+      {
+        label: this.t('disabled'),
+        value: list.filter((item) => !item.enabled).length,
+        color: tone.quiet,
+      },
     ].filter((slice) => slice.value > 0);
   });
 
   /** The signed-in person's own month so far. */
   readonly myMonth = computed(() => {
-    const id = this.session.account().id;
-    const last = this.office.lastWorkday();
-    const { first } = monthBounds(last.slice(0, 7));
     const counts = new Map<DayMark, number>();
     const hours: ChartDatum[] = [];
     let worked = 0;
     let overtime = 0;
-    for (const day of daysBetween(first, last)) {
-      const row = this.office.day(day).rows.find((item) => item.employeeId === id);
-      if (!row || row.mark === 'off' || row.mark === 'holiday') continue;
-      counts.set(row.mark, (counts.get(row.mark) ?? 0) + 1);
-      worked += row.minutes ?? 0;
-      overtime += row.overtime;
-      hours.push({ label: this.language.formatDayShort(day), values: { hours: Math.round(((row.minutes ?? 0) / 60) * 10) / 10 } });
+    for (const row of this.ownDays()) {
+      const mark = markOf(row);
+      if (mark === 'off' || mark === 'holiday') continue;
+      counts.set(mark, (counts.get(mark) ?? 0) + 1);
+      worked += row.worked_minutes ?? 0;
+      overtime += row.extra_minutes_unapproved ?? 0;
+      hours.push({
+        label: this.language.formatDayShort(row.work_date),
+        values: { hours: Math.round(((row.worked_minutes ?? 0) / 60) * 10) / 10 },
+      });
     }
-    const slices = [...counts.entries()].map(([mark, value]) => ({ label: this.t(markKey[mark]), value, color: markTone[mark] }));
-    return { slices, hours: hours.slice(-12), worked, overtime, days: [...counts.values()].reduce((sum, value) => sum + value, 0) };
+    const slices = [...counts.entries()].map(([mark, value]) => ({
+      label: this.t(markKey[mark]),
+      value,
+      color: markTone[mark],
+    }));
+    return {
+      slices,
+      hours: hours.slice(-12),
+      worked,
+      overtime,
+      days: [...counts.values()].reduce((sum, value) => sum + value, 0),
+    };
   });
 
   private visibleLeaves() {
     const actor = this.session.account().id;
     const all = this.session.canAct('leave.decide');
-    return this.office.leaves().filter((row) => all || row.employeeId === actor || this.office.person(row.employeeId)?.managerId === actor);
+    return this.office
+      .leaves()
+      .filter(
+        (row) =>
+          all ||
+          row.employeeId === actor ||
+          this.office.person(row.employeeId)?.managerId === actor,
+      );
   }
 }

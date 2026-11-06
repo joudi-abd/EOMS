@@ -31,21 +31,25 @@ function readAsDataUrl(blob: Blob): Promise<string> {
 async function pdfPages(blob: Blob): Promise<{ pages: string[]; truncated: boolean }> {
   const pdfjs = await import('pdfjs-dist');
   pdfjs.GlobalWorkerOptions.workerSrc = new URL('pdfjs/pdf.worker.min.mjs', document.baseURI).href;
-  const pdf = await pdfjs.getDocument({ data: new Uint8Array(await blob.arrayBuffer()) }).promise;
-  const pages: string[] = [];
-  const count = Math.min(pdf.numPages, pageLimit);
-  for (let number = 1; number <= count; number++) {
-    const page = await pdf.getPage(number);
-    const viewport = page.getViewport({ scale: 1.6 });
-    const canvas = document.createElement('canvas');
-    canvas.width = Math.ceil(viewport.width);
-    canvas.height = Math.ceil(viewport.height);
-    await page.render({ canvas, viewport }).promise;
-    pages.push(canvas.toDataURL('image/jpeg', 0.86));
-    page.cleanup();
+  const task = pdfjs.getDocument({ data: new Uint8Array(await blob.arrayBuffer()) });
+  try {
+    const pdf = await task.promise;
+    const pages: string[] = [];
+    const count = Math.min(pdf.numPages, pageLimit);
+    for (let number = 1; number <= count; number++) {
+      const page = await pdf.getPage(number);
+      const viewport = page.getViewport({ scale: 1.6 });
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.ceil(viewport.width);
+      canvas.height = Math.ceil(viewport.height);
+      await page.render({ canvas, viewport }).promise;
+      pages.push(canvas.toDataURL('image/jpeg', 0.86));
+      page.cleanup();
+    }
+    return { pages, truncated: pdf.numPages > pageLimit };
+  } finally {
+    await task.destroy();
   }
-  await pdf.destroy();
-  return { pages, truncated: pdf.numPages > pageLimit };
 }
 
 /** Builds the printable employee file from what the server holds for this account to see. */

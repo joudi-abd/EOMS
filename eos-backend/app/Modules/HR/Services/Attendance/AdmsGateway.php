@@ -242,6 +242,42 @@ class AdmsGateway
         return $this->enrollmentSnapshot($id);
     }
 
+    public function latestForBinding(AttendanceBinding $binding): array
+    {
+        return DB::transaction(function () use ($binding) {
+            $device = AttendanceDevice::query()->lockForUpdate()->findOrFail($binding->device_id);
+            $this->activeEnrollment($device);
+            $id = DB::table('hr_adms_enrollments')->where('binding_id', $binding->id)->max('id');
+
+            return $id ? $this->enrollmentSnapshot($id) : ['enrollment' => null, 'commands' => [],
+                'biometric_verified' => false, 'operator_confirmed' => false,
+                'physical_test_required' => false, 'can_confirm' => false, 'can_cancel' => false];
+        }, 3);
+    }
+
+    public function cancel(int $id, int $actor, string $note): array
+    {
+        return DB::transaction(function () use ($id, $actor, $note) {
+            $row = DB::table('hr_adms_enrollments')->find($id);
+            abort_unless($row, 404);
+            $device = AttendanceDevice::query()->lockForUpdate()->findOrFail($row->device_id);
+            $this->activeEnrollment($device);
+            $row = DB::table('hr_adms_enrollments')->where('id', $id)->lockForUpdate()->first();
+            if ($row->status === 'cancelled') {
+                return $this->enrollmentSnapshot($id);
+            }
+            abort_unless(in_array($row->status, ['queued_user', 'awaiting_physical_verification', 'failed', 'timeout'], true),
+                409, 'Wait for the device acknowledgement or command timeout before cancelling.');
+            DB::table('hr_adms_enrollments')->where('id', $id)->update(['status' => 'cancelled', 'updated_at' => $this->now()]);
+            DB::table('hr_adms_commands')->where('enrollment_id', $id)->whereIn('status', ['queued', 'delivered'])
+                ->update(['status' => 'cancelled', 'updated_at' => $this->now()]);
+            $this->audit->log('attendance.enrollment_cancelled', AttendanceBinding::findOrFail($row->binding_id),
+                ['status' => $row->status], ['enrollment_id' => $id, 'note' => $note], $actor);
+
+            return $this->enrollmentSnapshot($id);
+        }, 3);
+    }
+
     private function enrollmentSnapshot(int $id): array
     {
         $row = DB::table('hr_adms_enrollments')->find($id);
@@ -251,7 +287,9 @@ class AdmsGateway
 
         return ['enrollment' => $row, 'commands' => $commands,
             'biometric_verified' => false, 'operator_confirmed' => $row->status === 'manually_confirmed',
-            'physical_test_required' => $row->status !== 'manually_confirmed'];
+            'physical_test_required' => in_array($row->status, ['awaiting_physical_verification', 'timeout'], true) && $this->hasSuccessfulEnrollmentCommands($row),
+            'can_confirm' => in_array($row->status, ['awaiting_physical_verification', 'timeout'], true) && $this->hasSuccessfulEnrollmentCommands($row),
+            'can_cancel' => in_array($row->status, ['queued_user', 'awaiting_physical_verification', 'failed', 'timeout'], true)];
     }
 
     public function confirm(int $id, int $actor, string $note): array

@@ -31,6 +31,11 @@ class Employee extends Model
         ];
     }
 
+    public function attendanceBindings(): HasMany
+    {
+        return $this->hasMany(AttendanceBinding::class, 'employee_id');
+    }
+
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
