@@ -2,7 +2,9 @@
   <header class="top">
     <div>
       <h2 id="enroll-title">{{ t('enrollTitle') }}</h2>
-      <p class="who">{{ text(person().name) }} · <bdi>{{ person().staffNo }}</bdi></p>
+      <p class="who">
+        {{ text(person().name) }} · <bdi>{{ person().staffNo }}</bdi>
+      </p>
     </div>
     <button class="x" type="button" [attr.aria-label]="t('dismiss')" (click)="close()">
       <i class="fa-solid fa-xmark" aria-hidden="true"></i>
@@ -47,10 +49,18 @@
       <li class="step {{ step.mark }}">
         <span class="dot" aria-hidden="true">
           @switch (step.mark) {
-            @case ('done') { <i class="fa-solid fa-check"></i> }
-            @case ('failed') { <i class="fa-solid fa-xmark"></i> }
-            @case ('current') { <span class="spinner"></span> }
-            @default { {{ num(index + 1) }} }
+            @case ('done') {
+              <i class="fa-solid fa-check"></i>
+            }
+            @case ('failed') {
+              <i class="fa-solid fa-xmark"></i>
+            }
+            @case ('current') {
+              <span class="spinner"></span>
+            }
+            @default {
+              {{ num(index + 1) }}
+            }
           }
         </span>
         <span class="label">{{ t(step.key) }}</span>
@@ -68,11 +78,15 @@
   <dl class="facts">
     <div>
       <dt>{{ t('enrollDevice') }}</dt>
-      <dd><bdi>{{ enrollment.deviceName() || '—' }}</bdi></dd>
+      <dd>
+        <bdi>{{ enrollment.deviceName() || '—' }}</bdi>
+      </dd>
     </div>
     <div>
       <dt>{{ t('pinLabel') }}</dt>
-      <dd><bdi>{{ pin() || '—' }}</bdi></dd>
+      <dd>
+        <bdi>{{ pin() || '—' }}</bdi>
+      </dd>
     </div>
   </dl>
 
@@ -115,9 +129,22 @@
         <span>{{ t('enrollVerify') }}</span>
         <input name="note" type="text" autocomplete="off" minlength="5" required />
       </label>
-      <button class="primary" type="submit">
+      <button class="primary" type="submit" [disabled]="enrollment.saving()">
         <i class="fa-solid fa-check" aria-hidden="true"></i>
         {{ t('enrollConfirm') }}
+      </button>
+    </form>
+  }
+
+  @if (enrollment.canCancel()) {
+    <form class="setup" (submit)="cancelTask($event)">
+      <p>{{ t('enrollCancelNote') }}</p>
+      <label
+        ><span>{{ t('enrollCancelReason') }}</span
+        ><input name="note" type="text" minlength="5" maxlength="500" required
+      /></label>
+      <button class="text" type="submit" [disabled]="enrollment.saving()">
+        {{ t('enrollCancel') }}
       </button>
     </form>
   }
@@ -129,7 +156,11 @@
         {{ t('enrollDone') }}
       </button>
     } @else if (state() === 'failed') {
-      <button class="text" type="button" (click)="enrollment.status.set({ state: 'none', presses: 0, pin: pin(), message: '' })">
+      <button
+        class="text"
+        type="button"
+        (click)="enrollment.status.set({ state: 'none', presses: 0, pin: pin(), message: '' })"
+      >
         {{ t('enrollRetry') }}
       </button>
       <button class="text" type="button" (click)="close()">{{ t('dismiss') }}</button>

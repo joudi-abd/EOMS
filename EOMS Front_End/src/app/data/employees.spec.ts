@@ -37,11 +37,32 @@ describe('employeeFrom', () => {
     const hidden = employeeFrom(base);
     expect(hidden.sensitive).toBe(false);
     expect(hidden.financial).toBe(false);
-    const shown = employeeFrom({ ...base, email: null, phone: '0944', user_id: 12, biometric_code: 1004, sham_cash_wallet: null });
+    const shown = employeeFrom({
+      ...base,
+      email: null,
+      phone: '0944',
+      user_id: 12,
+      biometric_code: 1004,
+      sham_cash_wallet: null,
+    });
     expect(shown.sensitive).toBe(true);
     expect(shown.financial).toBe(true);
     expect(shown.userId).toBe('12');
-    expect(shown.pin).toBe('1004');
-    expect(shown.fingerprint).toBe('enrolled');
+    expect(shown.pin).toBe('');
+    expect(shown.fingerprint).toBe('none');
+  });
+  it('uses the active binding PIN and its explicit confirmation status across employee screens', () => {
+    const linked = employeeFrom({
+      ...base,
+      biometric_code: 123,
+      fingerprint: { status: 'linked', device_user_id: '00900002', bindings: [] },
+    });
+    expect(linked.pin).toBe('00900002');
+    expect(linked.fingerprint).toBe('linked');
+    const confirmed = employeeFrom({
+      ...base,
+      fingerprint: { status: 'enrolled', device_user_id: '00900002', bindings: [] },
+    });
+    expect(confirmed.fingerprint).toBe('enrolled');
   });
 });

@@ -236,6 +236,7 @@ export class Office {
     const list = this.users();
     const all = me && !list.some((item) => item.id === me.id) ? [me, ...list] : list;
     const files = new Map(this.records().filter((item) => item.userId).map((item) => [item.userId, item.id]));
+    if (me?.employee_id) files.set(String(me.id), String(me.employee_id));
     return all.map((user) => accountFrom(user, files.get(String(user.id))));
   });
 
@@ -323,6 +324,8 @@ export class Office {
 
   async load(): Promise<void> {
     this.loading.set(true);
+    const own = this.auth.user()?.employee;
+    if (own) this.records.set([employeeFrom(own)]);
     // Ask only for what the roles allow, so a forbidden list is never requested.
     const roles = this.self()?.roles ?? [];
     const may = (permission: Permission) => holds(roles, [permission]);
@@ -335,6 +338,11 @@ export class Office {
     ]);
     this.loading.set(false);
     this.loaded.set(true);
+  }
+
+  async refreshEmployee(employeeId: string): Promise<void> {
+    const result = await this.api.get<ApiItem<ApiEmployee>>(`/employees/${employeeId}`);
+    this.records.update((rows) => rows.map((row) => row.id === employeeId ? employeeFrom(result.data) : row));
   }
 
   private async loadEmployees(): Promise<void> {

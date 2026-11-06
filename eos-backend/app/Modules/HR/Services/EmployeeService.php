@@ -63,7 +63,7 @@ class EmployeeService
         $search = trim((string) ($filters['q'] ?? ''));
 
         return Employee::query()
-            ->with(['department:id,name', 'jobTitle:id,name'])
+            ->with(['department:id,name', 'jobTitle:id,name', 'attendanceBindings.device', 'attendanceBindings.latestEnrollment'])
             ->when($search !== '', fn ($q) => $q->where(fn ($w) => $w
                 ->where('first_name', 'like', "%{$search}%")
                 ->orWhere('last_name', 'like', "%{$search}%")

@@ -38,6 +38,8 @@ Route::prefix('api/v1')->middleware(['api', 'auth:sanctum'])->group(function () 
         Route::patch('attendance/devices/{device}/connection', [AdmsController::class, 'configure']);
         Route::post('attendance/bindings/{binding}/enroll-fingerprint', [AdmsController::class, 'enroll']);
         Route::post('attendance/fingerprint-enrollments/{enrollment}/confirm', [AdmsController::class, 'confirm']);
+        Route::get('attendance/bindings/{binding}/fingerprint-enrollment', [AdmsController::class, 'latest']);
+        Route::post('attendance/fingerprint-enrollments/{enrollment}/cancel', [AdmsController::class, 'cancel']);
         Route::get('attendance/fingerprint-enrollments/{enrollment}', [AdmsController::class, 'status']);
         Route::get('attendance/devices', [AttendanceSettingsController::class, 'devices']);
         Route::post('attendance/devices', [AttendanceSettingsController::class, 'storeDevice']);

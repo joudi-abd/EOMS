@@ -7,6 +7,7 @@ import { Office } from '../../../data/office';
 
 const fingerShort: Record<FingerprintState, CopyKey> = {
   none: 'fingerMissing',
+  linked: 'fingerLinked',
   queued: 'fingerPending',
   waiting: 'fingerPending',
   enrolled: 'fingerOk',

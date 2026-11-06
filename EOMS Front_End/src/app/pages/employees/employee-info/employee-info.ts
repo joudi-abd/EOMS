@@ -8,6 +8,7 @@ import { Office } from '../../../data/office';
 
 export const fingerKey: Record<FingerprintState, CopyKey> = {
   none: 'fingerNone',
+  linked: 'fingerLinked',
   queued: 'fingerQueued',
   waiting: 'fingerWaiting',
   enrolled: 'fingerEnrolled',
@@ -26,7 +27,9 @@ export class EmployeeInfo extends Ui {
   protected readonly session = inject(Session);
   protected readonly fingerKey = fingerKey;
 
-  protected readonly account = computed(() => this.office.accounts().find((item) => item.id === this.person().id));
+  protected readonly account = computed(() =>
+    this.office.accounts().find((item) => item.id === this.person().id),
+  );
   protected readonly manager = computed(() => {
     const id = this.person().managerId;
     return id ? this.office.person(id) : undefined;
@@ -40,7 +43,10 @@ export class EmployeeInfo extends Ui {
   protected readonly problem = signal('');
   protected readonly saving = signal(false);
   protected readonly offerLogin = computed(
-    () => !this.person().hasAccount && this.person().status !== 'ended' && this.session.canAct('account.add'),
+    () =>
+      !this.person().hasAccount &&
+      this.person().status !== 'ended' &&
+      this.session.canAct('account.add'),
   );
 
   protected async openLogin(event: Event): Promise<void> {
@@ -49,7 +55,12 @@ export class EmployeeInfo extends Ui {
     const data = new FormData(event.target as HTMLFormElement);
     this.saving.set(true);
     this.problem.set('');
-    const outcome = await this.office.createLogin(this.person().id, String(data.get('email') ?? ''), String(data.get('password') ?? ''), this.session.account().id);
+    const outcome = await this.office.createLogin(
+      this.person().id,
+      String(data.get('email') ?? ''),
+      String(data.get('password') ?? ''),
+      this.session.account().id,
+    );
     this.saving.set(false);
     if (!outcome.ok) this.problem.set(outcome.error ?? '');
   }

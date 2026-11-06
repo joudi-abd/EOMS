@@ -37,7 +37,7 @@ class AuthController extends Controller
 
         return ApiResponse::ok([
             'token' => $this->auth->issueToken($user),
-            'user' => new UserResource($user),
+            'user' => (new UserResource($user))->withOwnEmployee(),
         ]);
     }
 
@@ -60,6 +60,6 @@ class AuthController extends Controller
      */
     public function me(Request $request)
     {
-        return ApiResponse::ok(['user' => new UserResource($request->user())]);
+        return ApiResponse::ok(['user' => (new UserResource($request->user()))->withOwnEmployee()]);
     }
 }

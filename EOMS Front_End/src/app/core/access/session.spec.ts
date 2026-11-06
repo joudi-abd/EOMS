@@ -4,11 +4,21 @@ import { TestBed } from '@angular/core/testing';
 import { Auth } from '../api/auth';
 import { ApiUser } from '../api/types';
 import { moduleIds } from '../copy';
+import { Office } from '../../data/office';
 import { Session } from './session';
 
 function signIn(roles: string[]): Session {
   TestBed.configureTestingModule({ providers: [provideHttpClient(), provideHttpClientTesting()] });
-  const user: ApiUser = { id: 1, name: 'Test User', email: 'test@example.com', phone: null, status: 'active', roles, last_login_at: null, created_at: null };
+  const user: ApiUser = {
+    id: 1,
+    name: 'Test User',
+    email: 'test@example.com',
+    phone: null,
+    status: 'active',
+    roles,
+    last_login_at: null,
+    created_at: null,
+  };
   TestBed.inject(Auth).user.set(user);
   return TestBed.inject(Session);
 }
@@ -117,5 +127,29 @@ describe('Session', () => {
     const session = signIn(['auditor']);
     expect(session.account().roles).toEqual([]);
     expect(session.modules().length).toBe(0);
+  });
+  it('lets an employee reach own attendance using auth employee identity without loading the directory', async () => {
+    const session = signIn(['employee']);
+    TestBed.inject(Auth).user.update((user) => ({
+      ...user!,
+      employee_id: 7,
+      employee: {
+        id: 7,
+        employee_no: 'U-00000007',
+        first_name: 'Test',
+        last_name: 'Employee',
+        full_name: 'Test Employee',
+        department_id: null,
+        job_title_id: null,
+        manager_id: null,
+        status: 'active',
+        hire_date: '2026-01-01',
+      },
+    }));
+    await TestBed.inject(Office).load();
+    expect(session.account().id).toBe('7');
+    expect(session.hasFile()).toBe(true);
+    expect(session.can('attendance')).toBe(true);
+    expect(session.can('employees')).toBe(false);
   });
 });

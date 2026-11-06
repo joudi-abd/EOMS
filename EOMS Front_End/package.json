@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "scripts": {
     "ng": "ng",
-    "start": "fuser -k 4200/tcp >/dev/null 2>&1 || true; sleep 0.4; ng serve --host 127.0.0.1 --port 4200",
+    "start": "ng serve --host 127.0.0.1 --port 4200",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
     "test": "ng test"
@@ -20,7 +20,7 @@
     "@fontsource-variable/readex-pro": "^5.3.0",
     "@fortawesome/fontawesome-free": "^7.3.1",
     "exceljs": "^4.4.0",
-    "pdfjs-dist": "^5.7.284",
+    "pdfjs-dist": "^6.5.438",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0"
   },
@@ -32,5 +32,13 @@
     "prettier": "^3.8.1",
     "typescript": "~6.0.2",
     "vitest": "^5.0.0"
+  },
+  "overrides": {
+    "exceljs": {
+      "uuid": "^11.1.1"
+    },
+    "@angular/build": {
+      "vite": "^8.3.5"
+    }
   }
 }

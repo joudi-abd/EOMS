@@ -7,6 +7,8 @@ export interface ApiUser {
   phone: string | null;
   status: 'active' | 'disabled';
   roles: string[];
+  employee_id?: number | null;
+  employee?: ApiEmployee | null;
   last_login_at: string | null;
   created_at: string | null;
 }
@@ -30,6 +32,11 @@ export interface ApiEmployee {
   id: number;
   employee_no: string;
   has_account?: boolean;
+  fingerprint?: {
+    status: 'none' | 'linked' | 'queued' | 'waiting' | 'enrolled' | 'failed';
+    device_user_id: string | null;
+    bindings: { binding_id: number; device_id: number; device_name: string; device_user_id: string; status: string; enrollment_id: number | null; confirmed_at: string | null }[];
+  };
   first_name: string;
   father_name?: string | null;
   last_name: string;
@@ -290,4 +297,6 @@ export interface ApiEnrollmentView {
   biometric_verified: boolean;
   operator_confirmed: boolean;
   physical_test_required: boolean;
+  can_confirm?: boolean;
+  can_cancel?: boolean;
 }

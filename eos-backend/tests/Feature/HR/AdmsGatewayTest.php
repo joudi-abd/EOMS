@@ -35,7 +35,11 @@ class AdmsGatewayTest extends TestCase
         parent::setUp();
         $this->seed(RolePermissionSeeder::class);
         $this->travelTo(CarbonImmutable::parse('2026-11-05T18:00:00+03:00'));
-        config(['attendance.adms.enabled' => true, 'attendance.adms.allow_http' => true]);
+        config([
+            'attendance.adms.enabled' => true,
+            'attendance.adms.allow_http' => true,
+            'attendance.adms.remote_enrollment' => false,
+        ]);
         $this->device = AttendanceDevice::create(['name' => 'Office', 'serial_number' => 'IFACE_TEST',
             'timezone' => 'Asia/Damascus', 'token_hash' => hash('sha256', str_repeat('a', 64)),
             'connection_mode' => 'adms', 'adms_source_ip' => '127.0.0.1']);

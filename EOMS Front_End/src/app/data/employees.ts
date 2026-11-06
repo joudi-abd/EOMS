@@ -12,7 +12,7 @@ export interface Department {
 }
 
 /** Follows the ADMS enrollment: queued on the server, picked up by the device, finger placed. */
-export type FingerprintState = 'none' | 'queued' | 'waiting' | 'enrolled' | 'failed';
+export type FingerprintState = 'none' | 'linked' | 'queued' | 'waiting' | 'enrolled' | 'failed';
 
 export interface Employee {
   id: string;
@@ -43,6 +43,7 @@ export interface Employee {
   /** The user number on the fingerprint device (`biometric_code`). */
   pin: string;
   fingerprint: FingerprintState;
+  fingerprintDevices?: NonNullable<ApiEmployee['fingerprint']>['bindings'];
   /** The server sent contact and identity fields, so editing them is safe. */
   sensitive: boolean;
   /** The server sent the wallet number. */
@@ -83,8 +84,9 @@ export function employeeFrom(item: ApiEmployee): Employee {
     projects: [],
     nationalId: '',
     staffNo: item.employee_no,
-    pin: ref(item.biometric_code),
-    fingerprint: item.biometric_code ? 'enrolled' : 'none',
+    pin: item.fingerprint?.device_user_id ?? '',
+    fingerprint: item.fingerprint?.status ?? 'none',
+    fingerprintDevices: item.fingerprint?.bindings ?? [],
     sensitive: 'email' in item,
     financial: 'sham_cash_wallet' in item,
   };
