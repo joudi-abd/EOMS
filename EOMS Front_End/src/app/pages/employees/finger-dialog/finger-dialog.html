@@ -1,0 +1,97 @@
+<dialog #dialog class="enroll" aria-labelledby="enroll-title" (close)="onClosed()">
+  <header class="top">
+    <div>
+      <h2 id="enroll-title">{{ t('enrollTitle') }}</h2>
+      <p class="who">{{ text(person().name) }} · <bdi>{{ person().staffNo }}</bdi></p>
+    </div>
+    <button class="x" type="button" [attr.aria-label]="t('dismiss')" (click)="close()">
+      <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+    </button>
+  </header>
+
+  <div class="stage {{ tone() }}">
+    <div class="scanner" aria-hidden="true">
+      <svg class="ring" viewBox="0 0 120 120">
+        <circle class="track" cx="60" cy="60" r="54" />
+        @for (arc of arcs(); track $index) {
+          <circle
+            class="arc"
+            [class.filled]="arc.filled"
+            cx="60"
+            cy="60"
+            r="54"
+            [attr.stroke-dasharray]="arc.dash"
+            [attr.stroke-dashoffset]="arc.offset"
+          />
+        }
+      </svg>
+      <div class="pad">
+        <i class="fa-solid fa-fingerprint print"></i>
+        @if (state() === 'scanning') {
+          <span class="beam"></span>
+        }
+        @if (state() === 'enrolled') {
+          <span class="badge ok"><i class="fa-solid fa-check"></i></span>
+        }
+        @if (state() === 'failed') {
+          <span class="badge fail"><i class="fa-solid fa-xmark"></i></span>
+        }
+      </div>
+    </div>
+    <p class="headline" aria-live="polite">{{ t(headline()) }}</p>
+    <p class="detail">{{ detail() }}</p>
+  </div>
+
+  <ol class="steps" [attr.aria-label]="t('enrollSteps')">
+    @for (step of steps(); track step.key; let index = $index) {
+      <li class="step {{ step.mark }}">
+        <span class="dot" aria-hidden="true">
+          @switch (step.mark) {
+            @case ('done') { <i class="fa-solid fa-check"></i> }
+            @case ('failed') { <i class="fa-solid fa-xmark"></i> }
+            @case ('current') { <span class="spinner"></span> }
+            @default { {{ num(index + 1) }} }
+          }
+        </span>
+        <span class="label">{{ t(step.key) }}</span>
+        @if (index === 2) {
+          <span class="presses" aria-hidden="true">
+            @for (press of [0, 1, 2]; track press) {
+              <i [class.on]="press < presses()"></i>
+            }
+          </span>
+        }
+      </li>
+    }
+  </ol>
+
+  <dl class="facts">
+    <div>
+      <dt>{{ t('enrollDevice') }}</dt>
+      <dd><bdi>{{ device.model }} · {{ device.protocol }}</bdi></dd>
+    </div>
+    <div>
+      <dt>{{ t('pinLabel') }}</dt>
+      <dd><bdi>{{ pin() || '—' }}</bdi></dd>
+    </div>
+  </dl>
+
+  @if (enrollment.problem()) {
+    <p class="warn" role="alert">{{ enrollment.problem() }}</p>
+  }
+
+  <footer class="actions">
+    @if (state() === 'enrolled') {
+      <button class="primary" type="button" (click)="close()">
+        <i class="fa-solid fa-check" aria-hidden="true"></i>
+        {{ t('enrollDone') }}
+      </button>
+    } @else {
+      <button class="primary" type="button" [disabled]="!enrollment.available() || busy() || enrollment.starting()" (click)="start()">
+        <i class="fa-solid fa-fingerprint" aria-hidden="true"></i>
+        {{ state() === 'failed' ? t('enrollRetry') : t('enrollStart') }}
+      </button>
+      <button class="text" type="button" (click)="close()">{{ t('dismiss') }}</button>
+    }
+  </footer>
+</dialog>

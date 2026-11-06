@@ -1,0 +1,9 @@
+.notice.is-error {
+  background: var(--late-tint);
+  border-color: var(--late-line);
+}
+
+.notice.is-error::before {
+  content: '\f06a';
+  color: var(--late);
+}

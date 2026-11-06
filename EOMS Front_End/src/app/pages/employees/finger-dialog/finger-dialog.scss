@@ -1,0 +1,363 @@
+:host {
+  display: contents;
+}
+
+.enroll {
+  width: min(540px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface);
+  color: var(--ink);
+  overflow: auto;
+}
+
+.enroll::backdrop {
+  background: rgb(17 24 39 / 0.45);
+}
+
+.top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 20px 22px 0;
+}
+
+.top h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.who {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.x {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.x:hover {
+  background: var(--hover);
+  color: var(--ink);
+}
+
+/* The print and its three presses */
+
+.stage {
+  --tone: var(--soft);
+  --tone-tint: var(--hover);
+  display: grid;
+  justify-items: center;
+  padding: 22px 22px 6px;
+  text-align: center;
+}
+
+.stage.is-live {
+  --tone: var(--action);
+  --tone-tint: var(--action-tint);
+}
+
+.stage.is-done {
+  --tone: var(--ontime);
+  --tone-tint: var(--ontime-tint);
+}
+
+.stage.is-off .headline {
+  color: var(--wait);
+}
+
+.stage.is-failed {
+  --tone: var(--late);
+  --tone-tint: var(--late-tint);
+}
+
+.scanner {
+  position: relative;
+  width: 168px;
+  height: 168px;
+}
+
+.ring {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.ring circle {
+  fill: none;
+  stroke-width: 6;
+}
+
+.track {
+  stroke: var(--hover);
+}
+
+.arc {
+  stroke: var(--line-strong);
+  stroke-linecap: round;
+  transition: stroke 240ms ease-out;
+}
+
+.arc.filled {
+  stroke: var(--tone);
+}
+
+.pad {
+  position: absolute;
+  inset: 24px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--tone-tint);
+  overflow: hidden;
+  transition: background-color 240ms ease-out;
+}
+
+.print {
+  font-size: 64px;
+  color: var(--tone);
+  transition: color 240ms ease-out;
+}
+
+.is-live .pad {
+  animation: breathe 1.8s ease-in-out infinite;
+}
+
+.beam {
+  position: absolute;
+  inset-inline: 10%;
+  top: 0;
+  height: 3px;
+  border-radius: 3px;
+  background: var(--action);
+  animation: sweep 1.6s ease-in-out infinite alternate;
+}
+
+.badge {
+  position: absolute;
+  inset-inline-end: 10px;
+  bottom: 10px;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 3px solid var(--surface);
+  border-radius: 50%;
+  color: #fff;
+  font-size: 13px;
+}
+
+.badge.ok {
+  background: var(--ontime);
+}
+
+.badge.fail {
+  background: var(--late);
+}
+
+.headline {
+  margin: 16px 0 0;
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.detail {
+  margin: 4px 0 0;
+  max-width: 40ch;
+  min-height: 1.5em;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+/* Stages */
+
+.steps {
+  display: grid;
+  gap: 0;
+  margin: 18px 22px 0;
+  padding: 14px 16px;
+  list-style: none;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--raised);
+}
+
+.step {
+  position: relative;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+}
+
+.step + .step::before {
+  content: '';
+  position: absolute;
+  inset-inline-start: 13px;
+  top: -8px;
+  height: 16px;
+  width: 2px;
+  background: var(--line);
+}
+
+.step.done + .step::before,
+.step.done + .step.current::before {
+  background: var(--action);
+}
+
+.dot {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 2px solid var(--line-strong);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--soft);
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.step.current .dot {
+  border-color: var(--action);
+  color: var(--action);
+}
+
+.step.done .dot {
+  border-color: var(--action);
+  background: var(--action);
+  color: #fff;
+}
+
+.step.failed .dot {
+  border-color: var(--late);
+  background: var(--late);
+  color: #fff;
+}
+
+.label {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.step.current .label,
+.step.done .label {
+  color: var(--ink);
+}
+
+.step.current .label {
+  font-weight: 600;
+}
+
+.step.failed .label {
+  color: var(--late);
+  font-weight: 600;
+}
+
+.spinner {
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--action-tint);
+  border-top-color: var(--action);
+  border-radius: 50%;
+  animation: spin 800ms linear infinite;
+}
+
+.presses {
+  display: flex;
+  gap: 4px;
+}
+
+.presses i {
+  width: 16px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--line-strong);
+  transition: background-color 240ms ease-out;
+}
+
+.presses i.on {
+  background: var(--action);
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 16px;
+  margin: 14px 22px 0;
+}
+
+.facts div {
+  display: grid;
+  gap: 2px;
+}
+
+.facts dt {
+  color: var(--soft);
+  font-size: 13px;
+}
+
+.facts dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.warn {
+  margin: 12px 22px 0;
+  color: var(--late);
+  font-size: 14px;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 18px;
+  padding: 16px 22px 20px;
+  border-top: 1px solid var(--line);
+}
+
+@keyframes sweep {
+  from {
+    top: 12%;
+  }
+  to {
+    top: 86%;
+  }
+}
+
+@keyframes breathe {
+  50% {
+    background-color: var(--surface);
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .beam,
+  .is-live .pad,
+  .spinner {
+    animation: none;
+  }
+}

@@ -1,0 +1,104 @@
+<p class="note">{{ t('documentRules') }}</p>
+
+@if (rows().length === 0) {
+  <p class="empty" aria-live="polite">{{ loading() ? t('loading') : t('noDocuments') }}</p>
+} @else {
+  <ul class="docs">
+    @for (doc of rows(); track doc.id) {
+      <li>
+        <i class="fa-solid {{ icon(doc.fileName) }} kind-icon" aria-hidden="true"></i>
+        <div class="meta">
+          <strong>{{ doc.title }}</strong>
+          <span class="sub">
+            {{ kindLabel(doc.type) }} · <span dir="ltr">{{ doc.fileName }}</span> · <span dir="ltr">{{ size(doc.size) }}</span>
+            @if (doc.createdAt) {
+              · {{ date(doc.createdAt) }}
+            }
+          </span>
+          @if (doc.description) {
+            <span class="desc">{{ doc.description }}</span>
+          }
+        </div>
+        <div class="row-actions">
+          <button class="text small" type="button" (click)="download(doc)">
+            <i class="fa-solid fa-download" aria-hidden="true"></i>
+            {{ t('downloadDocument') }}
+          </button>
+          @if (manages()) {
+            <button class="quiet small" type="button" [disabled]="removing() === doc.id" (click)="remove(doc)">
+              <i class="fa-solid fa-trash" aria-hidden="true"></i>
+              {{ t('deleteItem') }}
+            </button>
+          }
+        </div>
+      </li>
+    }
+  </ul>
+}
+
+@if (manages()) {
+  <form class="upload" (submit)="upload($event)">
+    <h2>{{ t('uploadDocument') }}</h2>
+    <div class="fields">
+      <label>
+        <span>{{ t('documentTitle') }}</span>
+        <input name="title" type="text" autocomplete="off" maxlength="160" required [value]="draftTitle()" (input)="onTitle($event)" />
+      </label>
+      <label>
+        <span>{{ t('documentType') }}</span>
+        <select name="type" autocomplete="off">
+          @for (kind of kinds; track kind.id) {
+            <option [value]="kind.id">{{ t(kind.label) }}</option>
+          }
+        </select>
+      </label>
+      <div class="wide picker">
+        <span class="picker-label" id="file-label">{{ t('documentFile') }}</span>
+        @if (picked(); as file) {
+          <div class="chosen">
+            <i class="fa-solid {{ icon(file.name) }} kind-icon" aria-hidden="true"></i>
+            <div class="meta">
+              <strong dir="ltr">{{ file.name }}</strong>
+              <span class="sub" dir="ltr">{{ size(file.size) }}</span>
+            </div>
+            <label class="text small change">
+              <input type="file" class="vh" [accept]="accept" (change)="onPick($event)" />
+              <i class="fa-solid fa-arrows-rotate" aria-hidden="true"></i>
+              {{ t('changeFile') }}
+            </label>
+            <button class="clear" type="button" [attr.aria-label]="t('removeFile')" [attr.title]="t('removeFile')" (click)="clearFile()">
+              <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+            </button>
+          </div>
+        } @else {
+          <label
+            class="drop"
+            [class.is-over]="dragging()"
+            aria-labelledby="file-label"
+            (dragover)="onDrag($event, true)"
+            (dragleave)="onDrag($event, false)"
+            (drop)="onDrop($event)"
+          >
+            <input type="file" class="vh" [accept]="accept" (change)="onPick($event)" />
+            <span class="drop-icon" aria-hidden="true"><i class="fa-solid fa-cloud-arrow-up"></i></span>
+            <span class="drop-text">
+              {{ t('dropHint') }} <span class="drop-link">{{ t('chooseFile') }}</span>
+            </span>
+            <span class="drop-types">{{ t('dropTypes') }}</span>
+          </label>
+        }
+      </div>
+      <label class="wide">
+        <span>{{ t('documentDescription') }}</span>
+        <input name="description" type="text" autocomplete="off" maxlength="2000" />
+      </label>
+    </div>
+    @if (problem()) {
+      <p class="warn" role="alert">{{ problem() }}</p>
+    }
+    <button class="primary" type="submit" [disabled]="saving()">
+      <i class="fa-solid" [class.fa-upload]="!saving()" [class.fa-circle-notch]="saving()" [class.spin]="saving()" aria-hidden="true"></i>
+      {{ t('uploadDocument') }}
+    </button>
+  </form>
+}
