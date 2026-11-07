@@ -1,0 +1,122 @@
+@if (error()) { <p role="alert" class="error">{{ error() }}</p> }
+@if (settings(); as data) {
+  <section>
+    <h2>{{ t('listLeaveTypes') }}</h2>
+    <form (submit)="submitType($event)">
+      <label>{{ t('leaveSetupName') }} <input name="name" required maxlength="100" /></label>
+      <button type="submit" [disabled]="busy()">{{ t('leaveSetupAdd') }}</button>
+    </form>
+    <ul>
+      @for (type of data.types; track type.id) {
+        <li>{{ type.name }} · {{ t(type.active ? 'leaveSetupActive' : 'leaveSetupInactive') }}
+          <button type="button" [disabled]="busy()" (click)="toggle(type)">{{ t(type.active ? 'leaveSetupDeactivate' : 'leaveSetupActivate') }}</button>
+        </li>
+      }
+    </ul>
+  </section>
+
+  <section>
+    <h2>{{ t('leaveSetupPolicies') }}</h2>
+    <label>{{ t('listLeaveTypes') }}
+      <select [value]="selectedType()" [disabled]="busy()" (change)="selectedType.set(+$any($event.target).value)">
+        @for (type of data.types; track type.id) { <option [value]="type.id">{{ type.name }}</option> }
+      </select>
+    </label>
+    <form (submit)="submitPolicy($event)">
+      <label>{{ t('leaveSetupEffective') }} <input type="date" name="effective_from" [min]="data.today" [value]="data.today" required /></label>
+      <label>{{ t('leaveSetupPay') }} <input type="number" name="pay_percent" min="0" max="100" step="1" required /></label>
+      <label>{{ t('leaveSetupRetro') }} <input type="number" name="retroactive_days" min="0" max="366" value="0" required /></label>
+      <label><input type="checkbox" [checked]="tracked()" (change)="tracked.set($any($event.target).checked)" /> {{ t('leaveSetupTracked') }}</label>
+      @if (tracked()) {
+        <label>{{ t('leaveSetupAnnual') }} <input name="annual_days" type="number" min="0" max="366" step="0.000001" required /></label>
+        <label>{{ t('leaveSetupGrant') }}
+          <select name="grant_method" [value]="monthly() ? 'monthly' : 'upfront'" (change)="monthly.set($any($event.target).value === 'monthly')">
+            <option value="upfront">{{ t('leaveSetupUpfront') }}</option><option value="monthly">{{ t('leaveSetupMonthly') }}</option>
+          </select>
+        </label>
+        <label>{{ t('leaveSetupYear') }}
+          <select name="year_basis" [value]="fixed() ? 'fixed' : 'anniversary'" (change)="fixed.set($any($event.target).value === 'fixed')">
+            <option value="fixed">{{ t('leaveSetupFixed') }}</option><option value="anniversary">{{ t('leaveSetupAnniversary') }}</option>
+          </select>
+        </label>
+        @if (fixed()) {
+          <label>{{ t('leaveSetupYearStart') }} <input name="year_start" value="01-01" pattern="[0-9]{2}-[0-9]{2}" required dir="ltr" /></label>
+        }
+        @if (monthly()) {
+          <label>{{ t('leaveSetupFirstYear') }}
+            <select name="first_year_method">
+              <option value="upfront">{{ t('leaveSetupUpfront') }}</option><option value="remaining">{{ t('leaveSetupRemaining') }}</option>
+            </select>
+          </label>
+        }
+      }
+      <button type="submit" [disabled]="busy() || !selectedType()">{{ t('leaveSetupPublish') }}</button>
+    </form>
+    <ul>
+      @for (policy of policies(); track policy.id) {
+        <li>{{ policy.effective_from }} · {{ t('leaveSetupPay') }} {{ policy.pay_percent }}% ·
+          {{ policy.annual_days ?? t('leaveSetupUntracked') }}
+          @if (policy.grant_method) {
+            · {{ t(policy.grant_method === 'monthly' ? 'leaveSetupMonthly' : 'leaveSetupUpfront') }}
+            · {{ policy.year_basis === 'anniversary' ? t('leaveSetupAnniversary') : policy.year_start }}
+            @if (policy.first_year_method) {
+              · {{ t('leaveSetupFirstYear') }} {{ t(policy.first_year_method === 'remaining' ? 'leaveSetupRemaining' : 'leaveSetupUpfront') }}
+            }
+          }
+          · {{ t('leaveSetupRetro') }} {{ policy.retroactive_days }}
+        </li>
+      }
+    </ul>
+  </section>
+
+  <section>
+    <h2>{{ t('leaveSetupHolidays') }}</h2>
+    <form (submit)="submitHoliday($event)">
+      <label>{{ t('leaveSetupName') }} <input name="name" required maxlength="100" /></label>
+      <label>{{ t('leaveSetupDate') }} <input name="date" type="date" required /></label>
+      <button type="submit" [disabled]="busy()">{{ t('leaveSetupAdd') }}</button>
+    </form>
+    <ul>
+      @for (holiday of data.holidays; track holiday.id) {
+        <li>{{ holiday.date }} · {{ holiday.name }}
+          <button type="button" [disabled]="busy()" (click)="removeHoliday(holiday.id)">{{ t('leaveSetupRemove') }}</button>
+        </li>
+      }
+    </ul>
+  </section>
+
+  <section>
+    <h2>{{ t('leaveSetupBalances') }}</h2>
+    <label>{{ t('employeeCol') }}
+      <select [disabled]="busy()" (change)="selectEmployee($any($event.target).value)">
+        <option value="">{{ t('leaveSetupChooseEmployee') }}</option>
+        @for (employee of office.employees(); track employee.id) {
+          <option [value]="employee.id">{{ employee.staffNo }} · {{ text(employee.name) }}</option>
+        }
+      </select>
+    </label>
+    @if (employeeId()) {
+      <form (submit)="submitBalance($event)">
+        <label>{{ t('listLeaveTypes') }}
+          <select name="leave_type_id">
+            @for (type of data.types; track type.id) { <option [value]="type.id">{{ type.name }}</option> }
+          </select>
+        </label>
+        <label>{{ t('leaveSetupMovement') }}
+          <select name="kind"><option value="opening">{{ t('leaveSetupOpening') }}</option><option value="adjustment">{{ t('leaveSetupAdjustment') }}</option></select>
+        </label>
+        <label>{{ t('leaveSetupDays') }} <input name="days" type="number" min="-9999" max="9999" step="0.000001" required /></label>
+        <label>{{ t('leaveSetupReason') }} <input name="reason" required maxlength="500" /></label>
+        <button type="submit" [disabled]="busy()">{{ t('leaveSetupSave') }}</button>
+      </form>
+      <ul>
+        @for (entry of entries(); track entry.id) {
+          <li>{{ entry.cycle_start }} · {{ typeNames().get(entry.leave_type_id) }} ·
+            {{ t(entry.kind === 'opening' ? 'leaveSetupOpening' : 'leaveSetupAdjustment') }} ·
+            {{ entry.day_units / 1000000 }} · {{ entry.reason }}
+          </li>
+        }
+      </ul>
+    }
+  </section>
+}

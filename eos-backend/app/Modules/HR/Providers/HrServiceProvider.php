@@ -20,6 +20,7 @@ class HrServiceProvider extends ServiceProvider
         $this->loadMigrationsFrom(__DIR__.'/../Database/Migrations');
         $this->loadRoutesFrom(__DIR__.'/../Routes/api.php');
         $this->loadRoutesFrom(__DIR__.'/../Routes/attendance.php');
+        $this->loadRoutesFrom(__DIR__.'/../Routes/leaves.php');
 
         Event::listen(
             UserProfileUpdating::class,
