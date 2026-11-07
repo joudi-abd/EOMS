@@ -37,6 +37,9 @@
           <app-settings-list list="titles" />
         </div>
       }
+      @case ('leaves') {
+        <app-settings-leaves />
+      }
       @case ('devices') {
         <app-settings-devices />
       }
