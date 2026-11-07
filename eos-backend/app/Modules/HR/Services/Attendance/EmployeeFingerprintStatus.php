@@ -17,8 +17,7 @@ class EmployeeFingerprintStatus
             }
             $today = CarbonImmutable::now($device->timezone)->toDateString();
 
-            return $binding->valid_from->format('Y-m-d') <= $today
-                && (! $binding->valid_to || $binding->valid_to->format('Y-m-d') >= $today);
+            return $binding->isValidOn($today);
         })->map(function ($binding) {
             $enrollment = $binding->latestEnrollment;
             $state = $enrollment?->status;

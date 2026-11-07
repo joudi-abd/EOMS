@@ -173,4 +173,13 @@ describe('Enrollment integration', () => {
     expect(all).not.toHaveBeenCalled();
     expect(service.bindings()).toEqual([]);
   });
+  it('does not resume a retired PIN binding after a return to service', async () => {
+    const { service, all } = setup(view('awaiting_physical_verification'));
+    const retired = { id: 2, employee_id: 1, device_user_id: '00900002', valid_from: '2020-01-01', valid_to: null, revoked_from: '2020-02-01' };
+    all.mockResolvedValueOnce([retired]);
+    await service.open('1');
+    expect(service.bindings()).toEqual([]);
+    expect(service.status().state).toBe('none');
+  });
+
 });

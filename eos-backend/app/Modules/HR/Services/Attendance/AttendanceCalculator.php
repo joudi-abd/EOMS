@@ -9,6 +9,7 @@ use App\Modules\HR\Models\AttendanceDevice;
 use App\Modules\HR\Models\AttendancePolicy;
 use App\Modules\HR\Models\AttendancePunch;
 use App\Modules\HR\Models\Employee;
+use App\Modules\HR\Services\EmploymentPeriodService;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 
@@ -19,6 +20,8 @@ class AttendanceCalculator
         return DB::transaction(function () use ($employee, $date) {
             // One lock order for calculation, corrections and approvals: employee -> day.
             $employee = Employee::query()->lockForUpdate()->findOrFail($employee->id);
+            [$serviceStart, $serviceEnd] = app(EmploymentPeriodService::class)->bounds($employee, $date);
+            $inService = $date >= $serviceStart && ($serviceEnd === null || $date <= $serviceEnd);
             $policy = AttendancePolicy::query()->where('effective_from', '<=', $date)
                 ->orderByDesc('effective_from')->firstOrFail();
             $day = AttendanceDay::query()->firstOrCreate([
@@ -33,8 +36,7 @@ class AttendanceCalculator
                 ->where('occurred_at', '<', $localDay->addDay()->utc()->format('Y-m-d H:i:s'))
                 ->orderBy('occurred_at')->orderBy('id')->get();
             $deviceIds = AttendanceBinding::query()->where('employee_id', $employee->id)
-                ->where('valid_from', '<=', $date)
-                ->where(fn ($q) => $q->whereNull('valid_to')->orWhere('valid_to', '>=', $date))
+                ->validOn($date)
                 ->pluck('device_id')->unique();
             $devices = AttendanceDevice::query()->whereIn('id', $deviceIds)->get();
             // Disabled devices are NOT silently excluded from historical coverage.
@@ -44,11 +46,9 @@ class AttendanceCalculator
                 ->where('status', 'approved')->orderByDesc('id')->first();
             $phaseSensitive = $raw->isEmpty() && $correction === null
                 && in_array($localDay->dayOfWeek, $policy->working_days, true)
-                && $date >= $employee->hire_date->format('Y-m-d')
-                && ($employee->termination_date === null || $date <= $employee->termination_date->format('Y-m-d'));
+                && $inService;
             $signature = hash('sha256', json_encode([
-                $policy->id, $employee->hire_date?->format('Y-m-d'),
-                $employee->termination_date?->format('Y-m-d'),
+                $policy->id, $serviceStart, $serviceEnd,
                 $employee->status === 'on_leave' && $date === CarbonImmutable::now($policy->timezone)->toDateString(),
                 $raw->map(fn ($p) => [$p->id, $p->occurred_at->timestamp, $p->direction])->all(),
                 $deviceIds->sort()->values()->all(), $covered,
@@ -108,8 +108,7 @@ class AttendanceCalculator
                 $last = $correction->last_out;
                 $flags = ['manual_correction'];
             }
-            $outside = $date < $employee->hire_date->format('Y-m-d')
-                || ($employee->termination_date && $date > $employee->termination_date->format('Y-m-d'));
+            $outside = ! $inService;
             $working = in_array($localDay->dayOfWeek, $policy->working_days, true);
             $validPair = $first && $last && $last->greaterThan($first);
             $lateActual = $first ? max(0, (int) ceil(($first->timestamp - $start->timestamp) / 60)) : null;

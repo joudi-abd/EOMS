@@ -6,6 +6,8 @@ use App\Modules\HR\Models\AttendanceBinding;
 use App\Modules\HR\Models\AttendanceDevice;
 use App\Modules\HR\Models\AttendancePolicy;
 use App\Modules\HR\Models\AttendancePunch;
+use App\Modules\HR\Models\Employee;
+use App\Modules\HR\Services\EmploymentPeriodService;
 use App\Modules\Identity\Services\AuditLogger;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
@@ -55,10 +57,15 @@ class AttendanceDeviceService
     {
         return DB::transaction(function () use ($device, $data) {
             $device = AttendanceDevice::query()->lockForUpdate()->findOrFail($device->id);
+            $employee = Employee::query()->lockForUpdate()->findOrFail($data['employee_id']);
+            abort_if($employee->status === 'terminated', 422, 'Cannot bind a terminated employee.');
+            app(EmploymentPeriodService::class)->validateContractStart($employee, $data['valid_from'], 'valid_from');
             $overlap = AttendanceBinding::query()->where('device_id', $device->id)
                 ->where(fn ($q) => $q->where('device_user_id', $data['device_user_id'])
                     ->orWhere('employee_id', $data['employee_id']))
-                ->where('valid_from', '<=', $data['valid_to'] ?? '9999-12-31')
+                ->where(fn ($q) => $q->whereNull('revoked_from')->orWhereDate('revoked_from', '>', $data['valid_from']))
+                ->where(fn ($q) => $q->whereNull('revoked_from')->orWhereColumn('revoked_from', '>', 'valid_from'))
+                ->whereDate('valid_from', '<=', $data['valid_to'] ?? '9999-12-31')
                 ->where(fn ($q) => $q->whereNull('valid_to')->orWhere('valid_to', '>=', $data['valid_from']))
                 ->exists();
             if ($overlap) {
@@ -72,8 +79,7 @@ class AttendanceDeviceService
                 ->orderBy('id')->chunkById(100, function ($punches) use ($binding, $officeZone) {
                     foreach ($punches as $punch) {
                         $date = $punch->occurred_at->setTimezone($officeZone)->toDateString();
-                        if ($date >= $binding->valid_from->format('Y-m-d')
-                            && ($binding->valid_to === null || $date <= $binding->valid_to->format('Y-m-d'))) {
+                        if ($binding->isValidOn($date)) {
                             $punch->update(['employee_id' => $binding->employee_id]);
                         }
                     }
@@ -90,7 +96,7 @@ class AttendanceDeviceService
             AttendanceDevice::query()->lockForUpdate()->findOrFail($binding->device_id);
             $binding = AttendanceBinding::query()->lockForUpdate()->findOrFail($binding->id);
             $zone = AttendancePolicy::query()->orderBy('effective_from')->value('timezone');
-            if ($date < CarbonImmutable::now($zone)->toDateString()
+            if ($binding->revoked_from !== null || $date < CarbonImmutable::now($zone)->toDateString()
                 || $date < $binding->valid_from->format('Y-m-d') || $binding->valid_to !== null) {
                 throw ValidationException::withMessages(['valid_to' => ['يمكن إغلاق ربط مفتوح من اليوم أو بتاريخ لاحق فقط.']]);
             }

@@ -17,8 +17,9 @@ class EmployeeJobHistoryController extends Controller
     /**
      * List employee job history.
      *
-     * Returns the initial assignment and subsequent department,
-     * job title, and reporting-manager changes. Requires employees.view.
+     * Returns assignment and contract lifecycle events, with their dates, actor,
+     * and contract snapshots. Employment-termination events require sensitive access.
+     * Requires employees.view.
      */
     public function index(Employee $employee)
     {

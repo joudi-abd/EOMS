@@ -88,4 +88,14 @@ describe('Dashboard attendance source', () => {
     expect(insights.attendanceProblem()).toBe('Attendance unavailable');
     expect(insights.todayMix()).toEqual([]);
   });
+  it('excludes employees outside service from the expected attendance denominator', async () => {
+    const { insights, all } = setup(true);
+    all.mockResolvedValue([
+      { employee: { id: 7 }, work_date: '2026-11-07', status: 'present', first_in: '2026-11-07T06:00:00Z', late_minutes: 0, early_minutes: 0, pending_changes: false } as ApiAttendanceDay,
+      { employee: { id: 8 }, work_date: '2026-11-07', status: 'outside_service', first_in: null, late_minutes: null, pending_changes: false } as ApiAttendanceDay,
+    ]);
+    await insights.refreshAttendance();
+    expect(insights.attendanceTrend().at(-1)?.values['rate']).toBe(100);
+  });
+
 });

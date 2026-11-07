@@ -32,6 +32,8 @@ export interface Employee {
   department: string;
   managerId: string;
   hired: string;
+  currentServiceStart?: string;
+  servicePeriods?: { id: number; start_date: string; end_date: string | null }[];
   status: EmployeeStatus;
   endedOn: string;
   endReason: string;
@@ -77,6 +79,8 @@ export function employeeFrom(item: ApiEmployee): Employee {
     department: ref(item.department_id),
     managerId: ref(item.manager_id),
     hired: item.hire_date ?? '',
+    currentServiceStart: item.current_service_start ?? item.hire_date ?? '',
+    servicePeriods: item.service_periods ?? [],
     status: statusFrom[item.status] ?? 'active',
     endedOn: item.termination_date ?? '',
     endReason: item.termination_reason ?? '',

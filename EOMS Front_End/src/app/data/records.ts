@@ -36,13 +36,24 @@ export interface ContractEntry {
 /** Each pair is the value before and after; ids refer to departments, job titles, and employees. */
 export interface JobChange {
   id: string;
-  event: 'hired' | 'assignment_changed';
+  event: ApiJobChange['event_type'];
+  contract: ApiJobChange['contract'];
+  recordedBy: string;
+  recordedAt: string;
   reason: string;
   effective: string;
   department: [string, string];
   title: [string, string];
   manager: [string, string];
 }
+
+export const jobEventLabel: Record<ApiJobChange['event_type'], CopyKey> = {
+  hired: 'hiredEvent', assignment_changed: 'changedEvent',
+  contract_created: 'historyContractCreated', contract_renewal_created: 'historyContractRenewal',
+  contract_activated: 'historyContractActivated', contract_terminated: 'historyContractTerminated',
+  contract_expired: 'historyContractExpired', contract_end_scheduled: 'historyContractScheduled',
+  contract_end_cancelled: 'historyContractCancelled', employment_terminated: 'historyEmploymentTerminated', employment_rehired: 'historyEmploymentRehired', employment_end_recorded: 'historyLegacyEmploymentEnd',
+};
 
 export interface EmployeeDocument {
   id: string;
@@ -84,10 +95,13 @@ function contractFrom(item: ApiContract): Contract {
   };
 }
 
-function changeFrom(item: ApiJobChange): JobChange {
+export function changeFrom(item: ApiJobChange): JobChange {
   return {
     id: String(item.id),
     event: item.event_type,
+    contract: item.contract ?? null,
+    recordedBy: item.recorded_by?.name ?? '',
+    recordedAt: item.recorded_at ?? '',
     reason: item.reason ?? '',
     effective: item.effective_date ?? '',
     department: [ref(item.old_department_id), ref(item.new_department_id)],
@@ -256,7 +270,7 @@ export class Records {
   private async contractStep(employeeId: string, run: () => Promise<unknown>, message: CopyKey): Promise<Outcome> {
     try {
       await run();
-      await this.loadContracts(employeeId);
+      await Promise.all([this.loadContracts(employeeId), this.loadHistory(employeeId)]);
       this.office.done(message);
       return { ok: true };
     } catch (error) {

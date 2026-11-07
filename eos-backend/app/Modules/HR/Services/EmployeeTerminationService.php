@@ -2,11 +2,14 @@
 
 namespace App\Modules\HR\Services;
 
+use App\Modules\HR\Models\AttendanceBinding;
 use App\Modules\HR\Models\Employee;
+use App\Modules\HR\Models\EmployeeJobHistory;
 use App\Modules\HR\Models\EmploymentContract;
 use App\Modules\Identity\Models\User;
 use App\Modules\Identity\Services\AuditLogger;
 use App\Modules\Identity\Services\UserService;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -40,6 +43,12 @@ class EmployeeTerminationService
                 ]);
             }
 
+            app(EmploymentPeriodService::class)->close($employee, $data['termination_date']);
+            $cutoff = Carbon::parse($data['termination_date'])->addDay()->toDateString();
+            AttendanceBinding::query()->where('employee_id', $employee->id)
+                ->where(fn ($query) => $query->whereNull('revoked_from')->orWhere('revoked_from', '>', $cutoff))
+                ->update(['revoked_from' => $cutoff]);
+
             if ($employee->user_id !== null) {
                 $linkedUser = User::query()->findOrFail($employee->user_id);
                 $this->users->setStatus($linkedUser, 'disabled', $actor);
@@ -49,6 +58,12 @@ class EmployeeTerminationService
                 'status' => 'terminated',
                 'termination_date' => $data['termination_date'],
                 'termination_reason' => $data['reason'],
+            ]);
+
+            EmployeeJobHistory::create([
+                'employee_id' => $employee->id, 'event_type' => 'employment_terminated',
+                'effective_date' => $data['termination_date'], 'reason' => $data['reason'],
+                'recorded_by_user_id' => $actor->id,
             ]);
 
             $this->audit->log('employee.terminated', $employee, null, [

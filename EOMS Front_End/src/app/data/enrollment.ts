@@ -81,6 +81,7 @@ export class Enrollment {
           if (String(row.employee_id) !== employeeId) continue;
           if (row.valid_from > today) continue;
           if (row.valid_to && row.valid_to < today) continue;
+          if (row.revoked_from && row.revoked_from <= today) continue;
           open.push({
             id: row.id,
             deviceId: device.id,

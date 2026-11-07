@@ -4,6 +4,7 @@ namespace App\Modules\HR\Services\Attendance;
 
 use App\Modules\HR\Models\AttendanceBinding;
 use App\Modules\HR\Models\AttendanceDevice;
+use App\Modules\HR\Models\Employee;
 use App\Modules\Identity\Services\AuditLogger;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
@@ -148,8 +149,7 @@ class AdmsGateway
             $device = $this->lock(AttendanceDevice::findOrFail($binding->device_id));
             $binding = AttendanceBinding::query()->lockForUpdate()->findOrFail($binding->id);
             $today = CarbonImmutable::now($device->timezone)->toDateString();
-            abort_if($binding->valid_from->format('Y-m-d') > $today
-                || ($binding->valid_to && $binding->valid_to->format('Y-m-d') < $today), 422, 'Binding is not currently valid.');
+            abort_unless($binding->isValidOn($today) && Employee::query()->whereKey($binding->employee_id)->where('status', '!=', 'terminated')->exists(), 422, 'Binding or employment is not currently valid.');
             abort_unless(preg_match('/^[0-9]{1,12}$/D', $binding->device_user_id), 422, 'Remote enrollment requires a numeric PIN of 1–12 digits.');
             abort_if($this->activeEnrollment($device), 409, 'Another enrollment is active on this device.');
             $now = $this->now();
@@ -180,7 +180,10 @@ class AdmsGateway
             }
             $binding = AttendanceBinding::findOrFail($enrollment->binding_id);
             $today = CarbonImmutable::now($device->timezone)->toDateString();
-            if ($binding->valid_from->format('Y-m-d') > $today || ($binding->valid_to && $binding->valid_to->format('Y-m-d') < $today)) {
+            if (! $binding->isValidOn($today) || ! Employee::query()->whereKey($binding->employee_id)->where('status', '!=', 'terminated')->exists()) {
+                if (in_array($enrollment->status, ['await_user_ack', 'await_enroll_ack'], true)) {
+                    return 'OK';
+                }
                 DB::table('hr_adms_enrollments')->where('id', $enrollment->id)->update(['status' => 'failed', 'updated_at' => $this->now()]);
                 DB::table('hr_adms_commands')->where('enrollment_id', $enrollment->id)->where('status', 'queued')->update(['status' => 'cancelled']);
 
@@ -214,9 +217,14 @@ class AdmsGateway
                 if (! in_array($enrollment->status, ['await_user_ack', 'await_enroll_ack'], true)) {
                     continue;
                 }
-                $success = $fields['Return'] === '0';
+                $ackSucceeded = $fields['Return'] === '0';
+                $binding = AttendanceBinding::find($enrollment->binding_id);
+                $today = CarbonImmutable::now($device->timezone)->toDateString();
+                $contextValid = $binding && $binding->isValidOn($today)
+                    && Employee::query()->whereKey($binding->employee_id)->where('status', '!=', 'terminated')->exists();
+                $success = $ackSucceeded && $contextValid;
                 DB::table('hr_adms_commands')->where('id', $command->id)->update([
-                    'status' => $success ? 'acknowledged' : 'failed', 'return_code' => $fields['Return'],
+                    'status' => $ackSucceeded ? 'acknowledged' : 'failed', 'return_code' => $fields['Return'],
                     'acknowledged_at' => $this->now(), 'updated_at' => $this->now(),
                 ]);
                 $status = ! $success ? 'failed' : ($command->kind === 'DATA' ? 'queued_enroll' : 'awaiting_physical_verification');
@@ -312,8 +320,8 @@ class AdmsGateway
             $binding = AttendanceBinding::query()->lockForUpdate()->findOrFail($row->binding_id);
             $today = CarbonImmutable::now($device->timezone)->toDateString();
             abort_unless((int) $binding->device_id === (int) $device->id && $binding->device_user_id === $row->device_user_id
-                && $binding->valid_from->format('Y-m-d') <= $today
-                && ($binding->valid_to === null || $binding->valid_to->format('Y-m-d') >= $today), 409,
+                && $binding->isValidOn($today)
+                && Employee::query()->whereKey($binding->employee_id)->where('status', '!=', 'terminated')->exists(), 409,
                 'The original employee binding is no longer active.');
             abort_if(DB::table('hr_adms_enrollments')->where('device_id', $device->id)
                 ->where('device_user_id', $row->device_user_id)->where('id', '>', $id)->exists(), 409,
@@ -352,8 +360,25 @@ class AdmsGateway
                 ->update(['status' => 'timeout', 'updated_at' => $now]);
         }
 
-        return DB::table('hr_adms_enrollments')->where('device_id', $device->id)
-            ->whereIn('status', ['queued_user', 'await_user_ack', 'queued_enroll', 'await_enroll_ack', 'awaiting_physical_verification'])->orderBy('id')->first();
+        $pending = DB::table('hr_adms_enrollments')->where('device_id', $device->id)
+            ->whereIn('status', ['queued_user', 'await_user_ack', 'queued_enroll', 'await_enroll_ack', 'awaiting_physical_verification'])->orderBy('id')->get();
+        $today = CarbonImmutable::now($device->timezone)->toDateString();
+        foreach ($pending as $row) {
+            $binding = AttendanceBinding::find($row->binding_id);
+            if ($binding && $binding->isValidOn($today)
+                && Employee::query()->whereKey($binding->employee_id)->where('status', '!=', 'terminated')->exists()) {
+                return $row;
+            }
+            // An already delivered command can still be executing on the physical device.
+            // Keep its slot until ACK/timeout, even when its employee or binding was retired.
+            if (in_array($row->status, ['await_user_ack', 'await_enroll_ack'], true)) {
+                return $row;
+            }
+            DB::table('hr_adms_enrollments')->where('id', $row->id)->update(['status' => 'failed', 'updated_at' => $now]);
+            DB::table('hr_adms_commands')->where('enrollment_id', $row->id)->where('status', 'queued')->update(['status' => 'cancelled', 'updated_at' => $now]);
+        }
+
+        return null;
     }
 
     private function command(int $deviceId, int $enrollmentId, string $kind, string $payload): void

@@ -12,7 +12,7 @@ use Illuminate\Validation\ValidationException;
 
 class EmploymentContractService
 {
-    public function __construct(private AuditLogger $audit) {}
+    public function __construct(private AuditLogger $audit, private EmployeeJobHistoryService $history) {}
 
     public function paginate(Employee $employee): LengthAwarePaginator
     {
@@ -45,6 +45,8 @@ class EmploymentContractService
                 ]);
             }
 
+            app(EmploymentPeriodService::class)->validateContractStart($employee, $data['start_date']);
+
             if ($previous !== null) {
                 $previous = EmploymentContract::query()->lockForUpdate()->findOrFail($previous->id);
                 $this->find($employee, $previous);
@@ -67,6 +69,9 @@ class EmploymentContractService
                 'renewed_from_id' => $previous?->id,
                 'currency_code' => isset($data['currency_code']) ? strtoupper($data['currency_code']) : null,
             ]);
+
+            $this->history->recordContract($contract,
+                $previous ? 'contract_renewal_created' : 'contract_created', today()->toDateString(), auth()->id());
 
             $this->audit->log('contract.created', $contract, null, [
                 'contract_id' => $contract->id,
@@ -120,7 +125,10 @@ class EmploymentContractService
                 ]);
             }
 
+            app(EmploymentPeriodService::class)->validateContractStart($employee, $contract->start_date->format('Y-m-d'));
             $contract->update(['status' => 'active']);
+            $this->history->recordContract($contract, 'contract_activated',
+                $contract->start_date->format('Y-m-d'), auth()->id());
             $this->audit->log('contract.activated', $contract, null, [
                 'contract_id' => $contract->id,
                 'employee_id' => $employee->id,
@@ -153,6 +161,8 @@ class EmploymentContractService
                 'scheduled_termination_reason' => null,
             ]);
 
+            $this->history->recordContract($contract, 'contract_terminated',
+                $date->toDateString(), auth()->id(), $data['reason']);
             $this->audit->log('contract.terminated', $contract, null, [
                 'contract_id' => $contract->id,
                 'employee_id' => $employee->id,
@@ -191,6 +201,8 @@ class EmploymentContractService
                 'scheduled_termination_reason' => trim($data['reason']),
             ]);
 
+            $this->history->recordContract($contract, 'contract_end_scheduled',
+                today()->toDateString(), auth()->id(), trim($data['reason']), $date->toDateString());
             $this->audit->log('contract.termination_scheduled', $contract, null, [
                 'contract_id' => $contract->id,
                 'employee_id' => $employee->id,
@@ -222,6 +234,8 @@ class EmploymentContractService
                 'scheduled_termination_reason' => null,
             ]);
 
+            $this->history->recordContract($contract, 'contract_end_cancelled',
+                today()->toDateString(), auth()->id(), null, $plannedDate);
             $this->audit->log('contract.termination_schedule_cancelled', $contract, [
                 'scheduled_termination_at' => $plannedDate,
             ], [
@@ -264,6 +278,8 @@ class EmploymentContractService
                 'scheduled_termination_reason' => null,
             ]);
 
+            $this->history->recordContract($contract, 'contract_terminated',
+                $plannedDate, null, $contract->termination_reason);
             $this->audit->log('contract.terminated', $contract, null, [
                 'contract_id' => $contract->id,
                 'employee_id' => $contract->employee_id,
@@ -328,6 +344,8 @@ class EmploymentContractService
                 'scheduled_termination_reason' => null,
             ]);
 
+            $this->history->recordContract($contract, 'contract_expired',
+                $contract->end_date->format('Y-m-d'), null);
             $this->audit->log(
                 'contract.expired',
                 $contract,

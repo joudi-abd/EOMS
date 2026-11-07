@@ -32,6 +32,8 @@ export interface ApiEmployee {
   id: number;
   employee_no: string;
   has_account?: boolean;
+  current_service_start?: string | null;
+  service_periods?: { id: number; start_date: string; end_date: string | null }[];
   fingerprint?: {
     status: 'none' | 'linked' | 'queued' | 'waiting' | 'enrolled' | 'failed';
     device_user_id: string | null;
@@ -82,7 +84,10 @@ export interface ApiContract {
 export interface ApiJobChange {
   id: number;
   employee_id: number;
-  event_type: 'hired' | 'assignment_changed';
+  event_type: 'hired' | 'assignment_changed' | 'contract_created' | 'contract_renewal_created' | 'contract_activated' | 'contract_terminated' | 'contract_expired' | 'contract_end_scheduled' | 'contract_end_cancelled' | 'employment_terminated' | 'employment_rehired' | 'employment_end_recorded';
+  contract?: { id: number; number: string; previous_id: number | null; previous_number: string | null; start_date: string; end_date: string | null; scheduled_for: string | null } | null;
+  recorded_by?: { id: number; name: string } | null;
+  recorded_at?: string | null;
   reason: string | null;
   old_department_id: number | null;
   new_department_id: number | null;
@@ -262,6 +267,7 @@ export interface ApiBinding {
   device_user_id: string;
   valid_from: string;
   valid_to: string | null;
+  revoked_from?: string | null;
   created_at: string | null;
   updated_at: string | null;
 }
