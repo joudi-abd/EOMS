@@ -126,6 +126,9 @@ export function isWorkday(day: string, policy: WorkPolicy = defaultPolicy, holid
 }
 
 export function onRoll(employee: Employee, day: string): boolean {
+  if (employee.servicePeriods?.length) {
+    return employee.servicePeriods.some((period) => period.start_date <= day && (!period.end_date || period.end_date >= day));
+  }
   if (employee.hired && employee.hired > day) {
     return false;
   }

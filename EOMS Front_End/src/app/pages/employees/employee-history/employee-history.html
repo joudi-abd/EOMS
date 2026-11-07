@@ -6,7 +6,7 @@
     @for (entry of entries(); track entry.id) {
       <li [class.start]="entry.event === 'hired'">
         <div class="head">
-          <strong>{{ entry.event === 'hired' ? t('hiredEvent') : t('changedEvent') }}</strong>
+          <strong>{{ t(eventLabel[entry.event]) }}</strong>
           <span class="when">{{ t('effectiveFrom') }} {{ date(entry.effective) }}</span>
         </div>
         <dl class="changes">
@@ -23,6 +23,24 @@
             </div>
           }
         </dl>
+        @if (entry.contract; as contract) {
+          <dl class="changes">
+            <div><dt>{{ t('contractNumber') }}</dt><dd><bdi>{{ contract.number }}</bdi></dd></div>
+            @if (contract.previous_number) {
+              <div><dt>{{ t('historyPreviousContract') }}</dt><dd><bdi>{{ contract.previous_number }}</bdi></dd></div>
+            }
+            <div><dt>{{ t('contractStart') }}</dt><dd>{{ date(contract.start_date) }}</dd></div>
+            @if (contract.end_date) {
+              <div><dt>{{ t('historyContractEnd') }}</dt><dd>{{ date(contract.end_date) }}</dd></div>
+            }
+            @if (contract.scheduled_for) {
+              <div><dt>{{ t('historyScheduledDate') }}</dt><dd>{{ date(contract.scheduled_for) }}</dd></div>
+            }
+          </dl>
+        }
+        <p class="reason">{{ t('historyActor') }}: {{ entry.recordedBy || t('historySystemActor') }}
+          @if (entry.recordedAt) { · {{ t('historyRecordedAt') }} {{ date(entry.recordedAt) }} }
+        </p>
         @if (entry.reason) {
           <p class="reason">{{ entry.reason }}</p>
         }

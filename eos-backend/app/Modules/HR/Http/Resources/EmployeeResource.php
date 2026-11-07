@@ -13,6 +13,10 @@ class EmployeeResource extends JsonResource
         $canSensitive = (bool) $request->user()?->can('employees.view_sensitive');
         $canFinancial = (bool) $request->user()?->can('employees.view_financial');
 
+        $this->resource->loadMissing('servicePeriods');
+        $periods = $this->servicePeriods;
+        $current = $periods->firstWhere('end_date', null);
+
         return [
             'id' => $this->id,
             'employee_no' => $this->employee_no,
@@ -27,6 +31,11 @@ class EmployeeResource extends JsonResource
             'manager_id' => $this->manager_id,
             'status' => $this->status,
             'hire_date' => $this->hire_date?->format('Y-m-d'),
+            'current_service_start' => $current?->start_date->format('Y-m-d') ?? ($this->status !== 'terminated' ? $this->hire_date?->format('Y-m-d') : null),
+            'service_periods' => $this->when($canSensitive, fn () => $periods->map(fn ($period) => [
+                'id' => $period->id, 'start_date' => $period->start_date->format('Y-m-d'),
+                'end_date' => $period->end_date?->format('Y-m-d'),
+            ])->values()),
             'department' => $this->whenLoaded('department'),
             'job_title' => $this->whenLoaded('jobTitle'),
             'manager' => $this->whenLoaded('manager'),

@@ -4,6 +4,7 @@ use App\Modules\HR\Http\Controllers\DepartmentController;
 use App\Modules\HR\Http\Controllers\EmployeeController;
 use App\Modules\HR\Http\Controllers\EmployeeDocumentController;
 use App\Modules\HR\Http\Controllers\EmployeeJobHistoryController;
+use App\Modules\HR\Http\Controllers\EmployeeRehireController;
 use App\Modules\HR\Http\Controllers\EmployeeTerminationController;
 use App\Modules\HR\Http\Controllers\EmploymentContractController;
 use App\Modules\HR\Http\Controllers\JobTitleController;
@@ -50,6 +51,7 @@ Route::prefix('api/v1')->middleware(['api', 'auth:sanctum'])->group(function () 
 
     // Create account in an optional second step. The form can reuse existing User UI.
     Route::middleware('perm:employees.manage')->group(function () {
+        Route::post('employees/{employee}/rehire', [EmployeeRehireController::class, 'store']);
         Route::post('employees/{employee}/terminate', [EmployeeTerminationController::class, 'store']);
     });
 

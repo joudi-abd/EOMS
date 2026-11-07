@@ -76,6 +76,9 @@
       }
     </dd>
   </div>
+  @if (person().currentServiceStart && person().currentServiceStart !== person().hired && person().status !== 'ended') {
+    <div><dt>{{ t('currentServiceStart') }}</dt><dd>{{ date(person().currentServiceStart || '') }}</dd></div>
+  }
   @if (person().endedOn) {
     <div>
       <dt>{{ t('offboardEnded') }}</dt>

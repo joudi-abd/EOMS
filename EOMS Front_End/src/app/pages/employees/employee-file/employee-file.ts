@@ -40,7 +40,7 @@ export class EmployeeFile extends Ui {
         { id: 'documents', label: 'tabDocuments', icon: 'fa-folder-open' },
         { id: 'finger', label: 'tabFinger', icon: 'fa-fingerprint' },
         { id: 'history', label: 'tabHistory', icon: 'fa-clock-rotate-left' },
-        { id: 'leaving', label: 'offboardTitle', icon: 'fa-user-minus' },
+        { id: 'leaving', label: 'serviceStatusTitle', icon: 'fa-user-minus' },
       ] as { id: Tab; label: CopyKey; icon: string }[]
     ).filter((item) => item.id !== 'documents' || this.session.canAct('document.view')),
   );

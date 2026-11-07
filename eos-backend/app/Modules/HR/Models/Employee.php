@@ -31,6 +31,11 @@ class Employee extends Model
         ];
     }
 
+    public function servicePeriods(): HasMany
+    {
+        return $this->hasMany(EmployeeServicePeriod::class, 'employee_id')->orderBy('start_date');
+    }
+
     public function attendanceBindings(): HasMany
     {
         return $this->hasMany(AttendanceBinding::class, 'employee_id');

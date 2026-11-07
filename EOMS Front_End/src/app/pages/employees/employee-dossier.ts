@@ -6,7 +6,7 @@ import { DossierAttachment, DossierSection, printDossier } from '../../core/repo
 import { stampNow } from '../../core/reports/report';
 import { Employee } from '../../data/employees';
 import { Office } from '../../data/office';
-import { ContractStatus, documentKinds, EmployeeDocument, JobChange, Records } from '../../data/records';
+import { ContractStatus, documentKinds, EmployeeDocument, JobChange, jobEventLabel, Records } from '../../data/records';
 import { fingerKey } from './employee-info/employee-info';
 
 const pageLimit = 40;
@@ -143,6 +143,9 @@ export class EmployeeDossier {
       { label: this.t('loginAccount'), value: login },
       { label: this.t('fingerTitle'), value: `${this.t(fingerKey[person.fingerprint])}${person.pin ? ` · ${this.t('pinLabel')} ${person.pin}` : ''}` },
     ];
+    if (person.currentServiceStart && person.currentServiceStart !== person.hired && person.status !== 'ended') {
+      fields.push({ label: this.t('currentServiceStart'), value: this.date(person.currentServiceStart) });
+    }
     if (person.endedOn) {
       fields.push({ label: this.t('offboardEnded'), value: this.date(person.endedOn) }, { label: this.t('endReason'), value: person.endReason });
     }
@@ -187,8 +190,8 @@ export class EmployeeDossier {
       title: this.t('historyTitle'),
       empty: this.t('noHistory'),
       table: {
-        columns: [this.t('effectiveDate'), this.t('eventCol'), this.t('changeCol'), this.t('reasonCol')],
-        rows: rows.map((row) => [this.date(row.effective), this.t(row.event === 'hired' ? 'hiredEvent' : 'changedEvent'), this.changes(row), row.reason]),
+        columns: [this.t('effectiveDate'), this.t('eventCol'), this.t('changeCol'), this.t('reasonCol'), this.t('historyActor')],
+        rows: rows.map((row) => [this.date(row.effective), this.t(jobEventLabel[row.event]), this.changes(row), row.reason, row.recordedBy || this.t('historySystemActor')]),
       },
     };
   }
@@ -232,6 +235,16 @@ export class EmployeeDossier {
   }
 
   private changes(row: JobChange): string {
+    if (row.contract) {
+      const c = row.contract;
+      return [
+        `${this.t('contractNumber')}: ${c.number}`,
+        c.previous_number ? `${this.t('historyPreviousContract')}: ${c.previous_number}` : '',
+        `${this.t('contractStart')}: ${this.date(c.start_date)}`,
+        c.end_date ? `${this.t('historyContractEnd')}: ${this.date(c.end_date)}` : '',
+        c.scheduled_for ? `${this.t('historyScheduledDate')}: ${this.date(c.scheduled_for)}` : '',
+      ].filter(Boolean).join(' · ');
+    }
     const pairs: [CopyKey, [string, string], (id: string) => string][] = [
       ['fieldDepartment', row.department, (id) => this.department(id)],
       ['fieldTitle', row.title, (id) => this.title(id)],

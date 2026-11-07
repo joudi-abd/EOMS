@@ -14,6 +14,7 @@ export type Action =
   | 'employee.edit'
   | 'employee.evaluate'
   | 'employee.end'
+  | 'employee.rehire'
   | 'document.view'
   | 'document.manage'
   | 'attendance.link'
@@ -195,6 +196,7 @@ export const actionNeeds: Record<Action, readonly Permission[]> = {
   'employee.edit': ['employees.manage'],
   'employee.evaluate': ['employees.manage'],
   'employee.end': ['employees.manage'],
+  'employee.rehire': ['employees.manage'],
   'document.view': ['employees.documents.view'],
   'document.manage': ['employees.documents.manage'],
   'attendance.link': ['attendance.manage'],

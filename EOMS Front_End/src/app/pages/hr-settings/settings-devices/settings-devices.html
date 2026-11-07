@@ -119,12 +119,12 @@
                           <td>{{ personName(binding) }}</td>
                           <td><bdi>{{ binding.device_user_id }}</bdi></td>
                           <td>{{ short(binding.valid_from) }}</td>
-                          <td>{{ binding.valid_to ? short(binding.valid_to) : t('bindingOpen') }}</td>
+                          <td>{{ binding.revoked_from ? t('bindingRevoked') + ' ' + short(binding.revoked_from) : binding.valid_to ? short(binding.valid_to) : t('bindingOpen') }}</td>
                           <td class="end">
-                            @if (!binding.valid_to && device.connection_mode === 'adms') {
+                            @if (!binding.valid_to && !binding.revoked_from && device.connection_mode === 'adms') {
                               <a class="text" [routerLink]="['/modules/employees']" [queryParams]="{ file: binding.employee_id, tab: 'finger', enroll: 1 }">{{ t('enrollOpen') }}</a>
                             }
-                            @if (!binding.valid_to) {
+                            @if (!binding.valid_to && !binding.revoked_from) {
                               @if (closing() === binding.id) {
                                 <form class="inline" (submit)="closeBinding($event, binding)">
                                   <label class="sr" [attr.for]="'until-' + binding.id">{{ t('closeBindingOn') }}</label>

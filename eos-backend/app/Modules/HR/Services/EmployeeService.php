@@ -3,6 +3,7 @@
 namespace App\Modules\HR\Services;
 
 use App\Modules\HR\Models\Employee;
+use App\Modules\HR\Models\EmployeeServicePeriod;
 use App\Modules\Identity\Models\User;
 use App\Modules\Identity\Services\AuditLogger;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -38,6 +39,9 @@ class EmployeeService
                 ]
             ));
             $this->employeeJobHistoryService->recordHire($employee);
+            EmployeeServicePeriod::create([
+                'employee_id' => $employee->id, 'start_date' => $employee->hire_date->format('Y-m-d'),
+            ]);
 
             // Never include address, ID, birthdate or wallet details in audit logs.
             $this->audit->log('employee.created', $employee, null, [
@@ -63,7 +67,7 @@ class EmployeeService
         $search = trim((string) ($filters['q'] ?? ''));
 
         return Employee::query()
-            ->with(['department:id,name', 'jobTitle:id,name', 'attendanceBindings.device', 'attendanceBindings.latestEnrollment'])
+            ->with(['department:id,name', 'jobTitle:id,name', 'attendanceBindings.device', 'attendanceBindings.latestEnrollment', 'servicePeriods'])
             ->when($search !== '', fn ($q) => $q->where(fn ($w) => $w
                 ->where('first_name', 'like', "%{$search}%")
                 ->orWhere('last_name', 'like', "%{$search}%")

@@ -105,10 +105,9 @@ export class Insights {
   readonly attendanceTrend = computed<ChartDatum[]>(() =>
     this.recentDays().map((day) => {
       const rows = this.serverDays()[day] ?? [];
-      const expected = rows.filter((row) => row.status !== 'day_off').length;
-      const arrived = rows.filter(
-        (row) => row.status !== 'day_off' && row.first_in !== null,
-      ).length;
+      const eligible = rows.filter((row) => row.status !== 'day_off' && row.status !== 'outside_service');
+      const expected = eligible.length;
+      const arrived = eligible.filter((row) => row.first_in !== null).length;
       return {
         label: this.language.formatDayShort(day),
         values: {

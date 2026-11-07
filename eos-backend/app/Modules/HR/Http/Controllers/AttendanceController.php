@@ -120,7 +120,7 @@ class AttendanceController extends Controller
                 'days' => $days->count(), 'by_status' => $days->countBy('status'),
                 'worked_minutes' => $days->sum('worked_minutes'), 'late_minutes' => $days->sum('late_minutes'),
                 'early_minutes' => $days->sum('early_minutes'), 'approved_days' => $days->whereNotNull('approved_at')->count(),
-                'unknown_worked_days' => $days->whereNull('worked_minutes')->count(),
+                'unknown_worked_days' => $days->where('status', '!=', 'outside_service')->whereNull('worked_minutes')->count(),
                 'pending_change_days' => $days->where('pending_changes', true)->count(),
                 'financial_effect_applied' => false,
             ],

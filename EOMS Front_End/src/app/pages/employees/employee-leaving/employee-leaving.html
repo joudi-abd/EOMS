@@ -1,4 +1,4 @@
-<h2>{{ t('offboardTitle') }}</h2>
+<h2>{{ t('serviceStatusTitle') }}</h2>
 <p class="note">{{ t('offboardKeeps') }}</p>
 
 @if (person().status === 'ended') {
@@ -14,6 +14,18 @@
       </div>
     }
   </dl>
+  @if (!self() && session.mayEdit(person().id, 'employee.rehire')) {
+    <h3>{{ t('rehireService') }}</h3>
+    <p class="note">{{ t('rehireNote') }}</p>
+    @if (rehireMin()) { <p class="note">{{ t('rehireEarliest') }} {{ date(rehireMin()) }}</p> }
+    <form class="form" (submit)="rehire($event)">
+      <label><span>{{ t('rehireDate') }}</span><input name="return_date" type="date" required [min]="rehireMin()" [max]="today()" [value]="today()" /></label>
+      <label class="wide"><span>{{ t('rehireReason') }}</span><input name="return_reason" type="text" required minlength="5" maxlength="500" /></label>
+      <label class="wide"><input type="checkbox" name="confirm_period" required /><span>{{ t('rehireConfirm') }}</span></label>
+      @if (problem()) { <p class="wide warn" role="alert">{{ problem() }}</p> }
+      <div class="wide actions"><button class="primary" type="submit" [disabled]="saving() || !person().endedOn || rehireMin() > today()">{{ t('rehireService') }}</button></div>
+    </form>
+  }
 } @else if (self()) {
   <p class="note">{{ t('selfOffboard') }}</p>
 } @else if (session.mayEdit(person().id, 'employee.end')) {
@@ -34,7 +46,7 @@
     </label>
     <label>
       <span>{{ t('endDate') }}</span>
-      <input name="date" type="date" autocomplete="off" required [min]="person().hired" [max]="today" [value]="today" />
+      <input name="date" type="date" autocomplete="off" required [min]="person().currentServiceStart || person().hired" [max]="today()" [value]="today()" />
     </label>
     <label class="wide">
       <span>{{ t('notes') }}</span>
@@ -52,4 +64,13 @@
   </form>
 } @else {
   <p class="empty">{{ t('noAccess') }}</p>
+}
+
+@if ((person().servicePeriods?.length ?? 0) > 0) {
+  <h3>{{ t('servicePeriodsTitle') }}</h3>
+  <dl class="facts">
+    @for (period of person().servicePeriods ?? []; track period.id) {
+      <div><dt>{{ t('rangeFrom') }} {{ date(period.start_date) }}</dt><dd>{{ period.end_date ? t('rangeTo') + ' ' + date(period.end_date) : t('servicePeriodOpen') }}</dd></div>
+    }
+  </dl>
 }

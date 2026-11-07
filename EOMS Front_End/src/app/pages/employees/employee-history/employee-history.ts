@@ -3,7 +3,7 @@ import { CopyKey } from '../../../core/copy';
 import { Ui } from '../../../core/ui';
 import { Employee } from '../../../data/employees';
 import { Office } from '../../../data/office';
-import { JobChange, Records } from '../../../data/records';
+import { JobChange, jobEventLabel, Records } from '../../../data/records';
 
 interface Line {
   field: CopyKey;
@@ -20,6 +20,7 @@ export class EmployeeHistory extends Ui {
   readonly person = input.required<Employee>();
   protected readonly office = inject(Office);
   protected readonly records = inject(Records);
+  protected readonly eventLabel = jobEventLabel;
 
   protected readonly entries = computed(() => this.records.history()[this.person().id] ?? []);
   protected readonly loading = computed(() => this.records.isLoading('history', this.person().id));

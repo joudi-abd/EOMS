@@ -23,7 +23,7 @@ class AttendanceImportService
         }
 
         return DB::transaction(function () use ($device, $parsed, $marker) {
-            $device = AttendanceDevice::query()->lockForUpdate()->findOrFail($device->id);
+            $device = AttendanceDevice::query()->lockForUpdate()->findOrFail($device->getKey());
             abort_unless($device->is_active, 403, 'الجهاز معطل.');
             $officeZone = AttendancePolicy::query()->orderBy('effective_from')->value('timezone');
             $inserted = $duplicates = $unmatched = 0;
@@ -43,8 +43,7 @@ class AttendanceImportService
                 }
                 $date = $at->setTimezone($officeZone)->toDateString();
                 $binding = AttendanceBinding::query()->where('device_id', $device->id)
-                    ->where('device_user_id', $event['device_user_id'])->where('valid_from', '<=', $date)
-                    ->where(fn ($q) => $q->whereNull('valid_to')->orWhere('valid_to', '>=', $date))->first();
+                    ->where('device_user_id', $event['device_user_id'])->validOn($date)->first();
                 AttendancePunch::create([
                     'device_id' => $device->id, 'employee_id' => $binding?->employee_id,
                     'external_id' => $event['external_id'], 'device_user_id' => $event['device_user_id'],

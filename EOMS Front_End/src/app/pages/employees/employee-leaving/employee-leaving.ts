@@ -4,7 +4,8 @@ import { Session } from '../../../core/access/session';
 import { CopyKey } from '../../../core/copy';
 import { Ui } from '../../../core/ui';
 import { Employee } from '../../../data/employees';
-import { isoDay, LeavingReason } from '../../../data/hr';
+import { dayIn } from '../../../data/attendance';
+import { isoDay, parseDay, LeavingReason } from '../../../data/hr';
 import { Office } from '../../../data/office';
 import { Records } from '../../../data/records';
 
@@ -29,7 +30,13 @@ export class EmployeeLeaving extends Ui {
   private readonly records = inject(Records);
   protected readonly reasons: LeavingReason[] = ['resignation', 'termination', 'contractEnd', 'other'];
   protected readonly reasonKey = reasonKey;
-  protected readonly today = isoDay(new Date());
+  protected readonly today = computed(() => dayIn(this.office.policyVersions()[0]?.timezone ?? 'Asia/Damascus'));
+  protected readonly rehireMin = computed(() => {
+    if (!this.person().endedOn) return '';
+    const day = parseDay(this.person().endedOn);
+    day.setDate(day.getDate() + 1);
+    return isoDay(day);
+  });
   protected readonly problem = signal('');
   protected readonly saving = signal(false);
 
@@ -42,6 +49,25 @@ export class EmployeeLeaving extends Ui {
       const id = this.person().id;
       untracked(() => void this.records.loadContracts(id));
     });
+  }
+
+  protected async rehire(event: Event): Promise<void> {
+    event.preventDefault();
+    if (this.saving()) return;
+    const data = new FormData(event.target as HTMLFormElement);
+    if (data.get('confirm_period') !== 'on') {
+      this.problem.set(this.t('rehireConsentRequired'));
+      return;
+    }
+    this.saving.set(true);
+    this.problem.set('');
+    try {
+      const outcome = await this.office.rehire(this.person().id, String(data.get('return_date') ?? ''), String(data.get('return_reason') ?? '').trim(), this.session.account().id);
+      if (!outcome.ok) this.problem.set(outcome.error ?? '');
+      else await this.records.loadHistory(this.person().id);
+    } finally {
+      this.saving.set(false);
+    }
   }
 
   protected async end(event: Event): Promise<void> {

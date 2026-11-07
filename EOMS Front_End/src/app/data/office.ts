@@ -770,6 +770,23 @@ export class Office {
     });
   }
 
+  async rehire(employeeId: string, date: string, reason: string, actorId: string): Promise<Outcome> {
+    const person = this.person(employeeId);
+    if (!person || person.status !== 'ended' || employeeId === actorId || !this.mayEditFile(actorId, employeeId, 'employee.rehire')) return this.denied();
+    try {
+      await this.api.post(`/employees/${employeeId}/rehire`, { effective_date: date, reason: reason.trim(), confirm_new_service_period: true });
+      this.extras.update((all) => {
+        const { [employeeId]: _dropped, ...rest } = all;
+        return rest;
+      });
+      await this.refreshEmployee(employeeId);
+      this.done('rehiredService');
+      return { ok: true };
+    } catch (error) {
+      return this.fail(error);
+    }
+  }
+
   /** Ends the employment on the server, which refuses while a contract is active and disables the linked login. */
   async terminate(employeeId: string, date: string, reason: string, actorId: string): Promise<Outcome> {
     const person = this.person(employeeId);
