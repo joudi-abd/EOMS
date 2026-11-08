@@ -5,7 +5,7 @@ use App\Modules\HR\Http\Controllers\LeaveSettingsController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('api/v1/leave-settings')
-    ->middleware(['api', 'auth:sanctum', 'perm:employees.manage'])
+    ->middleware(['api', 'auth:sanctum', 'perm:leaves.manage'])
     ->controller(LeaveSettingsController::class)
     ->group(function () {
         Route::get('/', 'index');
@@ -17,6 +17,7 @@ Route::prefix('api/v1/leave-settings')
         Route::post('holidays', 'storeHoliday');
         Route::delete('holidays/{holiday}', 'destroyHoliday');
         Route::get('balance-entries', 'balanceEntries');
+        Route::get('pending-openings', 'pendingOpenings');
         Route::post('balance-entries', 'storeBalanceEntry');
     });
 
@@ -24,7 +25,7 @@ Route::prefix('api/v1/leaves')->middleware(['api', 'auth:sanctum'])
     ->controller(LeaveRequestController::class)
     ->group(function () {
         Route::get('options', 'options');
-        Route::put('half-days', 'halfDays')->middleware('perm:employees.manage');
+        Route::put('half-days', 'halfDays')->middleware('perm:leaves.manage');
         Route::get('/', 'index');
         Route::get('calendar', 'calendar');
         Route::get('export', 'export');

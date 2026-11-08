@@ -12,7 +12,7 @@ class RolePermissionSeeder extends Seeder
     private const MODULES = [
         'employees' => ['view', 'manage', 'view_sensitive', 'view_financial', 'documents.view', 'documents.manage'],
         'attendance' => ['view', 'view_department', 'manage', 'adjust', 'approve'],
-        'leaves' => ['view', 'view_department', 'approve'],
+        'leaves' => ['view', 'view_department', 'manage', 'approve'],
         'payroll' => ['view', 'manage', 'approve'],
         'finance' => ['view', 'manage'],
         'projects' => ['view', 'manage'],
@@ -48,7 +48,7 @@ class RolePermissionSeeder extends Seeder
                 'employees.view', 'employees.manage', 'employees.view_sensitive',
                 'employees.documents.view', 'employees.documents.manage',
                 'attendance.view', 'attendance.manage', 'attendance.adjust', 'attendance.approve',
-                'leaves.view', 'leaves.approve',
+                'leaves.view', 'leaves.manage', 'leaves.approve',
                 'documents.view', 'documents.manage', 'reports.view',
             ],
             'finance_manager' => [

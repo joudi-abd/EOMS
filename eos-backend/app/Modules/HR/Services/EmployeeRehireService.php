@@ -64,6 +64,9 @@ class EmployeeRehireService
                 ['status' => 'terminated', 'termination_date' => $lastEnd],
                 ['status' => 'active', 'effective_date' => $data['effective_date']], $actor->id);
 
+            // Leave balances of a returning employee wait for an HR opening entry (see LeaveBalanceService::sync).
+            app(HrNotifier::class)->openingBalanceNeeded($employee);
+
             // Login status, roles, contracts and device registration are deliberately separate decisions.
             return $employee->refresh();
         }, 3);

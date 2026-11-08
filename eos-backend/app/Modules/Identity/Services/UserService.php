@@ -2,7 +2,7 @@
 
 namespace App\Modules\Identity\Services;
 
-use App\Modules\HR\Models\Employee;
+use App\Modules\Identity\Contracts\EmployeeDirectory;
 use App\Modules\Identity\Events\UserProfileUpdating;
 use App\Modules\Identity\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -13,7 +13,7 @@ use Illuminate\Validation\ValidationException;
 
 class UserService
 {
-    public function __construct(private AuditLogger $audit) {}
+    public function __construct(private AuditLogger $audit, private EmployeeDirectory $employees) {}
 
     private function ensureRoleAdministrator(): void
     {
@@ -33,37 +33,12 @@ class UserService
                 $this->ensureRoleAdministrator();
             }
 
-            $employee = null;
             if ($employeeId !== null) {
-                // Lock before creating the user to prevent duplicate links.
-                $employee = Employee::query()
-                    ->lockForUpdate()
-                    ->findOrFail($employeeId);
-
-                if ($employee->user_id !== null) {
-                    throw ValidationException::withMessages([
-                        'employee_id' => ['هذا الموظف مرتبط بحساب مسبقاً.'],
-                    ]);
-                }
-
-                if ($employee->status === 'terminated') {
-                    throw ValidationException::withMessages([
-                        'employee_id' => ['لا يمكن إنشاء حساب لموظف انتهت خدمته.'],
-                    ]);
-                }
-
                 // Name and phone always come from HR; ignore client-supplied values.
-                $data['name'] = $employee->full_name;
-                $data['phone'] = $employee->phone;
+                $profile = $this->employees->lockForAccount((int) $employeeId);
+                $data['name'] = $profile['name'];
+                $data['phone'] = $profile['phone'];
                 $data['status'] = 'active';
-
-                if ($employee->phone !== null && User::query()
-                    ->where('phone', $employee->phone)->exists()) {
-                    throw ValidationException::withMessages([
-                        'phone' => ['رقم هاتف الموظف مستخدم لحساب آخر.'],
-                    ]);
-                }
-
                 // No explicit roles: provision regular employee account.
                 // Authorized system_admin may explicitly select other roles.
                 $roles ??= ['employee'];
@@ -75,14 +50,8 @@ class UserService
                 $user->syncRoles($roles);
             }
 
-            if ($employee !== null) {
-                $employee->user_id = $user->id;
-                $employee->save();
-
-                $this->audit->log('employee.account_linked', $employee, null, [
-                    'employee_id' => $employee->id,
-                    'user_id' => $user->id,
-                ]);
+            if ($employeeId !== null) {
+                $this->employees->linkAccount((int) $employeeId, $user->id);
             }
 
             $this->audit->log('user.created', $user, null, [

@@ -2,8 +2,7 @@
 
 namespace App\Modules\Identity\Http\Resources;
 
-use App\Modules\HR\Http\Resources\EmployeeResource;
-use App\Modules\HR\Models\Employee;
+use App\Modules\Identity\Contracts\EmployeeDirectory;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -21,9 +20,8 @@ class UserResource extends JsonResource
     public function toArray(Request $request): array
     {
         $self = $this->includeOwnEmployee;
-        $employee = $self ? Employee::query()->where('user_id', $this->id)
-            ->with(['department:id,name', 'jobTitle:id,name'])->first() : null;
-        $employeeId = $self ? $employee?->id : Employee::where('user_id', $this->id)->value('id');
+        $directory = app(EmployeeDirectory::class);
+        $employeeId = $directory->employeeIdForUser($this->id);
 
         return [
             'id' => $this->id,
@@ -32,8 +30,8 @@ class UserResource extends JsonResource
             'phone' => $this->phone,
             'status' => $this->status,
             'roles' => $this->getRoleNames(),
-            'employee_id' => $employeeId === null ? null : (int) $employeeId,
-            'employee' => $this->when($self, fn () => $employee ? new EmployeeResource($employee) : null),
+            'employee_id' => $employeeId,
+            'employee' => $this->when($self, fn () => $directory->profileForUser($this->id)),
             'last_login_at' => $this->last_login_at?->toIso8601String(),
             'created_at' => $this->created_at?->toIso8601String(),
         ];
