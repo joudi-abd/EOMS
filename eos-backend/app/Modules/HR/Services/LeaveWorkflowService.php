@@ -10,6 +10,7 @@ use App\Modules\HR\Models\LeaveRequest;
 use App\Modules\HR\Models\LeaveRequestDay;
 use App\Modules\HR\Models\LeaveType;
 use App\Modules\HR\Models\OfficeHoliday;
+use App\Modules\HR\Services\Attendance\AttendanceLeaveSync;
 use App\Modules\Identity\Models\User;
 use App\Modules\Identity\Services\AuditLogger;
 use Carbon\CarbonImmutable;
@@ -18,7 +19,7 @@ use Illuminate\Validation\ValidationException;
 
 class LeaveWorkflowService
 {
-    public function __construct(private LeaveBalanceService $balances, private EmploymentPeriodService $employment, private AuditLogger $audit) {}
+    public function __construct(private LeaveBalanceService $balances, private EmploymentPeriodService $employment, private AuditLogger $audit, private AttendanceLeaveSync $attendance) {}
 
     public function employeeFor(User $actor): Employee
     {
@@ -314,6 +315,10 @@ class LeaveWorkflowService
             $request->version++;
             $request->save();
             $this->audit->log('leave.'.$action, $request, $old, $request->getAttributes(), $actor->id);
+            // Only approved leave changes attendance: approval adds it, an approved cancel/shorten removes it.
+            if ($action === 'approve' || $action === 'approve-change') {
+                $this->attendance->employeeDates($request->employee_id, $request->days()->pluck('date'));
+            }
             return $request->load('days');
         }, 3);
     }
@@ -360,6 +365,34 @@ class LeaveWorkflowService
         }
     }
 
+
+    /**
+     * Leave cannot outlive the service period: days after the end date are released back to the period's ledger.
+     * Caller holds the employee row lock inside the termination transaction. The calendar lock is deliberately
+     * not taken here, because leave actions lock calendar → employee and termination already holds the employee.
+     */
+    public function serviceEnded(Employee $employee, string $endDate, int $actor): void
+    {
+        $from = CarbonImmutable::parse($endDate)->addDay()->toDateString();
+        $requests = LeaveRequest::query()->where('employee_id', $employee->id)->whereIn('status', ['pending', 'approved'])
+            ->whereHas('days', fn ($q) => $q->where('active', true)->where('date', '>=', $from))->orderBy('id')->get();
+        foreach ($requests as $request) {
+            $old = $request->getAttributes();
+            $released = $request->days()->where('active', true)->where('date', '>=', $from)->pluck('date');
+            $this->release($request, $actor, 'انتهاء الخدمة', $from);
+            if (! $request->days()->where('active', true)->exists()) {
+                $request->status = 'cancelled';
+            } elseif ($request->status === 'pending') {
+                $request->expires_on = $request->days()->where('active', true)->min('cycle_end');
+            }
+            // A pending cancel/shorten was written against days that may no longer exist; it must be re-requested.
+            $request->change_request = null;
+            $request->version++;
+            $request->save();
+            $this->audit->log('leave.service_ended', $request, $old, ['end_date' => $endDate, 'released_dates' => $released->all()], $actor);
+            $this->attendance->employeeDates($employee->id, $released);
+        }
+    }
 
     /** Caller holds the calendar lock, within the holiday creation transaction. */
     public function holidayAdded(string $date): void

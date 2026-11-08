@@ -9,6 +9,7 @@ use App\Modules\HR\Models\AttendanceDevice;
 use App\Modules\HR\Models\AttendancePolicy;
 use App\Modules\HR\Models\AttendancePunch;
 use App\Modules\HR\Models\Employee;
+use App\Modules\HR\Models\LeaveRequestDay;
 use App\Modules\HR\Services\EmploymentPeriodService;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
@@ -44,16 +45,29 @@ class AttendanceCalculator
             $closed = CarbonImmutable::now('UTC')->greaterThanOrEqualTo($end->addMinutes($policy->finalize_after_minutes));
             $correction = AttendanceCorrection::query()->where('day_id', $day->id)
                 ->where('status', 'approved')->orderByDesc('id')->first();
-            $phaseSensitive = $raw->isEmpty() && $correction === null
-                && in_array($localDay->dayOfWeek, $policy->working_days, true)
-                && $inService;
-            $signature = hash('sha256', json_encode([
-                $policy->id, $serviceStart, $serviceEnd,
-                $employee->status === 'on_leave' && $date === CarbonImmutable::now($policy->timezone)->toDateString(),
+            $working = in_array($localDay->dayOfWeek, $policy->working_days, true);
+            // Leave and holidays only matter on scheduled working days inside the service period.
+            $context = app(AttendanceLeaveContext::class);
+            $holiday = $working && $inService ? $context->holiday($date) : null;
+            $leave = $working && $inService && ! $holiday ? $this->leaveWindow($context, $employee->id, $date, $policy, $start, $end) : null;
+            $fullLeave = $leave !== null && $leave['full'];
+            $phaseSensitive = $raw->isEmpty() && $correction === null && $working && $inService
+                && ! $holiday && ! $fullLeave;
+            $legacyLeaveStatus = $employee->status === 'on_leave' && $leave === null
+                && $date === CarbonImmutable::now($policy->timezone)->toDateString();
+            $source = [
+                $policy->id, $serviceStart, $serviceEnd, $legacyLeaveStatus,
                 $raw->map(fn ($p) => [$p->id, $p->occurred_at->timestamp, $p->direction])->all(),
                 $deviceIds->sort()->values()->all(), $covered,
                 $phaseSensitive ? $closed : null, $correction?->id,
-            ], JSON_THROW_ON_ERROR));
+            ];
+            // Appended only when present, so days without leave or holidays keep their existing signature
+            // and previously approved days do not all turn into pending changes after deployment.
+            if ($holiday || $leave) {
+                $source[] = ['holiday' => $holiday?->id,
+                    'leave' => $leave === null ? null : [$leave['day']->id, $leave['from']->timestamp, $leave['to']->timestamp]];
+            }
+            $signature = hash('sha256', json_encode($source, JSON_THROW_ON_ERROR));
             if ($day->approved_at !== null) {
                 $day->update(['pending_changes' => $signature !== $day->source_signature]);
 
@@ -109,18 +123,43 @@ class AttendanceCalculator
                 $flags = ['manual_correction'];
             }
             $outside = ! $inService;
-            $working = in_array($localDay->dayOfWeek, $policy->working_days, true);
+            // Partial leave at an edge moves the required window; leave in the middle keeps both edges.
+            $requiredStart = $start;
+            $requiredEnd = $end;
+            $leaveSeconds = 0;
+            if ($leave !== null) {
+                $leaveSeconds = $leave['to']->timestamp - $leave['from']->timestamp;
+                if (! $fullLeave && $leave['from']->lessThanOrEqualTo($start)) {
+                    $requiredStart = $leave['to'];
+                }
+                if (! $fullLeave && $leave['to']->greaterThanOrEqualTo($end)) {
+                    $requiredEnd = $leave['from'];
+                }
+            }
             $validPair = $first && $last && $last->greaterThan($first);
-            $lateActual = $first ? max(0, (int) ceil(($first->timestamp - $start->timestamp) / 60)) : null;
+            $lateActual = $first ? max(0, (int) ceil(($first->timestamp - $requiredStart->timestamp) / 60)) : null;
             $late = $first ? app(LatenessCharge::class)->minutes(
-                $first->timestamp - $start->timestamp,
+                $first->timestamp - $requiredStart->timestamp,
                 $policy->grace_minutes,
                 $policy->grace_mode,
                 $policy->late_block_minutes,
             ) : null;
-            $worked = $validPair ? (int) floor(($last->timestamp - $first->timestamp) / 60) : null;
-            $early = $last ? max(0, (int) ceil(($end->timestamp - $last->timestamp) / 60)) : null;
+            $worked = null;
+            if ($validPair) {
+                $overlap = $leave === null ? 0 : max(0, min($last->timestamp, $leave['to']->timestamp) - max($first->timestamp, $leave['from']->timestamp));
+                $worked = (int) floor(($last->timestamp - $first->timestamp - $overlap) / 60);
+            }
+            $early = $last ? max(0, (int) ceil(($requiredEnd->timestamp - $last->timestamp) / 60)) : null;
+            // Overtime is measured from the scheduled end, never from a leave-shortened end.
             $extra = $last ? max(0, (int) floor(($last->timestamp - $end->timestamp) / 60)) : null;
+            $required = $working && ! $outside && ! $holiday
+                ? intdiv($end->timestamp - $start->timestamp - $leaveSeconds, 60) : null;
+            if ($leave !== null && ! $fullLeave) {
+                $flags[] = 'partial_leave';
+                if (collect($punches)->contains(fn ($p) => $p->occurred_at->greaterThan($leave['from']) && $p->occurred_at->lessThan($leave['to']))) {
+                    $flags[] = 'punch_during_leave';
+                }
+            }
             if ($outside) {
                 $status = 'outside_service';
                 $worked = $lateActual = $late = $early = $extra = null;
@@ -132,6 +171,23 @@ class AttendanceCalculator
                 $lateActual = $late = $early = null;
                 if ($raw->isNotEmpty()) {
                     $flags[] = 'work_on_day_off';
+                }
+            } elseif ($holiday) {
+                $status = 'holiday';
+                $lateActual = $late = $early = null;
+                if ($raw->isNotEmpty()) {
+                    $flags[] = 'work_on_holiday';
+                }
+            } elseif ($fullLeave) {
+                // The approved leave wins; punches stay stored and surface as a conflict for HR.
+                $status = 'on_leave';
+                $worked = 0;
+                $lateActual = $late = $early = $extra = null;
+                if ($correction) {
+                    $flags = ['correction_superseded_by_leave'];
+                }
+                if ($raw->isNotEmpty()) {
+                    $flags[] = 'punch_on_leave_day';
                 }
             } elseif ($correction?->type === 'absence') {
                 $status = 'absent';
@@ -147,10 +203,10 @@ class AttendanceCalculator
                 $status = $covered ? 'absent' : 'absent_unconfirmed';
                 $worked = $covered ? 0 : null;
             }
-            if (! $covered && ! $outside && $working) {
+            if (! $covered && ! $outside && $working && ! $holiday && ! $fullLeave) {
                 $flags[] = 'sync_unconfirmed';
             }
-            if ($employee->status === 'on_leave' && $date === CarbonImmutable::now($policy->timezone)->toDateString()) {
+            if ($legacyLeaveStatus) {
                 $flags[] = 'leave_requires_review';
                 if ($status === 'absent') {
                     $status = 'absent_unconfirmed';
@@ -160,6 +216,8 @@ class AttendanceCalculator
             $day->fill([
                 'policy_id' => $policy->id, 'status' => $status, 'first_in' => $first,
                 'last_out' => $last, 'worked_minutes' => $worked,
+                'leave_request_day_id' => $leave['day']->id ?? null, 'required_minutes' => $required,
+                'leave_minutes' => $leave === null ? null : intdiv($leaveSeconds, 60),
                 'late_actual_minutes' => $lateActual, 'late_minutes' => $late,
                 'early_minutes' => $early, 'extra_minutes' => $extra,
                 'coverage_complete' => $covered, 'flags' => array_values(array_unique($flags)),
@@ -169,5 +227,27 @@ class AttendanceCalculator
 
             return $day->refresh();
         }, 3);
+    }
+
+    /**
+     * The approved leave interval clipped to this day's schedule, or null when it covers no scheduled time.
+     *
+     * @return array{day: LeaveRequestDay, from: CarbonImmutable, to: CarbonImmutable, full: bool}|null
+     */
+    private function leaveWindow(AttendanceLeaveContext $context, int $employeeId, string $date, AttendancePolicy $policy, CarbonImmutable $start, CarbonImmutable $end): ?array
+    {
+        $leaveDay = $context->approvedDay($employeeId, $date);
+        if (! $leaveDay) {
+            return null;
+        }
+        // Leave times are office-local wall clock times, like the attendance schedule.
+        $from = AttendanceClock::at($date, substr($leaveDay->start_time, 0, 5), $policy->timezone)->max($start);
+        $to = AttendanceClock::at($date, substr($leaveDay->end_time, 0, 5), $policy->timezone)->min($end);
+        if (! $to->greaterThan($from)) {
+            return null;
+        }
+
+        return ['day' => $leaveDay, 'from' => $from, 'to' => $to,
+            'full' => $from->lessThanOrEqualTo($start) && $to->greaterThanOrEqualTo($end)];
     }
 }

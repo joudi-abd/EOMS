@@ -33,6 +33,10 @@ class AttendanceReviewService
             if (in_array($day->status, ['outside_service', 'day_off'], true)) {
                 throw ValidationException::withMessages(['day' => ['تصحيح يوم راحة أو خارج الخدمة غير مدعوم في هذه النسخة.']]);
             }
+            if (in_array($day->status, ['holiday', 'on_leave'], true)) {
+                // The leave or calendar decides these days; a time correction would be silently ignored.
+                throw ValidationException::withMessages(['day' => ['اليوم عطلة رسمية أو إجازة معتمدة؛ عدّل الإجازة أو التقويم بدلاً من الحضور.']]);
+            }
             if (AttendanceCorrection::query()->where('day_id', $day->id)->where('status', 'pending')->exists()) {
                 abort(409, 'يوجد طلب تصحيح قيد المراجعة لهذا اليوم.');
             }
@@ -92,9 +96,10 @@ class AttendanceReviewService
             abort_if(CarbonImmutable::now('UTC')->lessThan(AttendanceClock::at($day->work_date->format('Y-m-d'), $policy->end_time, $policy->timezone)), 409, 'لم ينته وقت الدوام بعد.');
             abort_if(AttendanceCorrection::query()->where('day_id', $day->id)->where('status', 'pending')->exists(), 409, 'يوجد تصحيح معلق.');
             $manual = in_array('manual_correction', $day->flags, true);
-            abort_unless(in_array($day->status, ['present', 'absent', 'day_off', 'outside_service'], true), 409, 'السجل غير مكتمل للاعتماد.');
+            abort_unless(in_array($day->status, ['present', 'absent', 'day_off', 'outside_service', 'holiday', 'on_leave'], true), 409, 'السجل غير مكتمل للاعتماد.');
             abort_if(in_array('leave_requires_review', $day->flags, true), 409, 'يجب تسوية حالة الإجازة قبل الاعتماد.');
-            abort_if(! $day->coverage_complete && ! $manual && ! in_array($day->status, ['day_off', 'outside_service'], true), 409, 'المزامنة غير مؤكدة؛ يلزم تأكيد المصدر أو تصحيح معتمد.');
+            // Holidays and full-day approved leave do not depend on device sync; a punch there is a reviewed conflict.
+            abort_if(! $day->coverage_complete && ! $manual && ! in_array($day->status, ['day_off', 'outside_service', 'holiday', 'on_leave'], true), 409, 'المزامنة غير مؤكدة؛ يلزم تأكيد المصدر أو تصحيح معتمد.');
             $day->update(['approved_by' => $actor->id, 'approved_at' => CarbonImmutable::now('UTC'), 'version' => $day->version + 1]);
             $this->audit->log('attendance.day_approved', $day);
 

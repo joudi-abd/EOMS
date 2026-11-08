@@ -44,6 +44,7 @@ class EmployeeTerminationService
             }
 
             app(EmploymentPeriodService::class)->close($employee, $data['termination_date']);
+            app(LeaveWorkflowService::class)->serviceEnded($employee, $data['termination_date'], $actor->id);
             $cutoff = Carbon::parse($data['termination_date'])->addDay()->toDateString();
             AttendanceBinding::query()->where('employee_id', $employee->id)
                 ->where(fn ($query) => $query->whereNull('revoked_from')->orWhere('revoked_from', '>', $cutoff))

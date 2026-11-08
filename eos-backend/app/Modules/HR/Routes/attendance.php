@@ -24,6 +24,7 @@ Route::post('api/v1/attendance/device-ingest', [AttendanceIngestController::clas
 Route::prefix('api/v1')->middleware(['api', 'auth:sanctum'])->group(function () {
     Route::get('employees/{employee}/attendance', [AttendanceController::class, 'employee']);
     Route::get('employees/{employee}/attendance-report', [AttendanceController::class, 'report']);
+    Route::get('employees/{employee}/payroll-inputs', [AttendanceController::class, 'payrollInputs']);
     Route::get('attendance/days/{day}', [AttendanceController::class, 'show']);
     Route::post('attendance/days/{day}/corrections', [AttendanceController::class, 'requestCorrection']);
 

@@ -7,6 +7,7 @@ use App\Modules\HR\Models\LeaveBalanceEntry;
 use App\Modules\HR\Models\LeavePolicy;
 use App\Modules\HR\Models\LeaveType;
 use App\Modules\HR\Models\OfficeHoliday;
+use App\Modules\HR\Services\Attendance\AttendanceLeaveSync;
 use App\Modules\Identity\Services\AuditLogger;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -85,6 +86,8 @@ class LeaveSettingsService
             DB::table('hr_leave_half_days')->lockForUpdate()->find(1);
             $holiday = OfficeHoliday::create($data);
             app(LeaveWorkflowService::class)->holidayAdded($holiday->date->toDateString());
+            // Leave refunds above run first, so attendance sees the holiday and no stale leave day.
+            app(AttendanceLeaveSync::class)->date($holiday->date->toDateString());
             $this->audit->log('leave.holiday_created', $holiday, null, $holiday->getAttributes());
 
             return $holiday;
@@ -102,7 +105,9 @@ class LeaveSettingsService
                 }
             }
             $this->audit->log('leave.holiday_removed', $holiday, $holiday->getAttributes());
+            $date = $holiday->date->toDateString();
             $holiday->delete();
+            app(AttendanceLeaveSync::class)->date($date);
         }, 3);
     }
 

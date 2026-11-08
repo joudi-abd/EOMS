@@ -11,6 +11,7 @@ use App\Modules\HR\Models\Employee;
 use App\Modules\HR\Services\Attendance\AttendanceAccess;
 use App\Modules\HR\Services\Attendance\AttendanceCalculator;
 use App\Modules\HR\Services\Attendance\AttendanceReviewService;
+use App\Modules\HR\Services\Attendance\PayrollInputService;
 use App\Support\ApiResponse;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
@@ -28,7 +29,8 @@ class AttendanceController extends Controller
             'date' => ['required', 'date_format:Y-m-d', 'after_or_equal:1970-01-01'],
             'employee_id' => ['nullable', 'integer', 'exists:hr_employees,id'],
             'department_id' => ['nullable', 'integer', 'exists:hr_departments,id'],
-            'status' => ['nullable', Rule::in(['pending', 'present', 'incomplete', 'absent', 'absent_unconfirmed', 'day_off', 'outside_service'])],
+            'status' => ['nullable', Rule::in(['pending', 'present', 'incomplete', 'absent', 'absent_unconfirmed', 'day_off', 'outside_service', 'holiday', 'on_leave'])],
+            'flag' => ['nullable', 'string', 'max:64', 'regex:/^[a-z_]+$/'],
             'review_status' => ['nullable', Rule::in(['draft', 'approved'])],
             'per_page' => ['sometimes', 'integer', 'between:1,100'],
         ]);
@@ -42,7 +44,9 @@ class AttendanceController extends Controller
         });
         $query = AttendanceDay::query()->where('work_date', $data['date'])
             ->whereIn('employee_id', (clone $employees)->select('id'))
-            ->when($data['status'] ?? null, fn ($q, $status) => $q->where('status', $status));
+            ->when($data['status'] ?? null, fn ($q, $status) => $q->where('status', $status))
+            // e.g. flag=punch_on_leave_day lists leave/attendance conflicts for HR review.
+            ->when($data['flag'] ?? null, fn ($q, $flag) => $q->whereJsonContains('flags', $flag));
         if (($data['review_status'] ?? null) === 'approved') {
             $query->whereNotNull('approved_at');
         } elseif (($data['review_status'] ?? null) === 'draft') {
@@ -120,11 +124,23 @@ class AttendanceController extends Controller
                 'days' => $days->count(), 'by_status' => $days->countBy('status'),
                 'worked_minutes' => $days->sum('worked_minutes'), 'late_minutes' => $days->sum('late_minutes'),
                 'early_minutes' => $days->sum('early_minutes'), 'approved_days' => $days->whereNotNull('approved_at')->count(),
-                'unknown_worked_days' => $days->where('status', '!=', 'outside_service')->whereNull('worked_minutes')->count(),
+                'unknown_worked_days' => $days->whereNotIn('status', ['outside_service', 'holiday', 'on_leave'])->whereNull('worked_minutes')->count(),
+                'leave_days' => $days->where('status', 'on_leave')->count(),
+                'leave_minutes' => $days->sum('leave_minutes'), 'required_minutes' => $days->sum('required_minutes'),
+                'holiday_days' => $days->where('status', 'holiday')->count(),
                 'pending_change_days' => $days->where('pending_changes', true)->count(),
                 'financial_effect_applied' => false,
             ],
         ]);
+    }
+
+    /** Finance (payroll.view) and HR (attendance.view) read the facts a payroll run will use; no money is computed. */
+    public function payrollInputs(Request $request, Employee $employee, PayrollInputService $inputs): JsonResponse
+    {
+        abort_unless($request->user()->can('payroll.view') || $request->user()->can('attendance.view'), 403);
+        $data = $request->validate(['month' => ['required', 'date_format:Y-m', 'after_or_equal:1970-01']]);
+
+        return ApiResponse::ok($inputs->month($employee, $data['month']));
     }
 
     public function requestCorrection(Request $request, AttendanceDay $day, AttendanceReviewService $reviews): JsonResponse
