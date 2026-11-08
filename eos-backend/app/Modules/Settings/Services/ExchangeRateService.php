@@ -42,6 +42,30 @@ class ExchangeRateService
         );
     }
 
+    /**
+     * The rate recorded for exactly this date, read directly or as the inverse of the opposite pair.
+     * Returns null when no rate exists for that day: callers must not guess with an older rate.
+     */
+    public function rateOn(string $from, string $to, string $date): ?float
+    {
+        $from = strtoupper($from);
+        $to = strtoupper($to);
+        if ($from === $to) {
+            return 1.0;
+        }
+        $find = fn (string $a, string $b) => ExchangeRate::query()
+            ->where('from_currency_id', Currency::where('code', $a)->value('id'))
+            ->where('to_currency_id', Currency::where('code', $b)->value('id'))
+            ->whereDate('rate_date', $date)->value('rate');
+        $direct = $find($from, $to);
+        if ($direct !== null && (float) $direct > 0) {
+            return (float) $direct;
+        }
+        $inverse = $find($to, $from);
+
+        return $inverse !== null && (float) $inverse > 0 ? 1 / (float) $inverse : null;
+    }
+
     private function cacheKey(string $from, string $to): string
     {
         return 'fx:latest:'.strtoupper($from).':'.strtoupper($to);

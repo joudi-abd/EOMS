@@ -13,11 +13,11 @@ class EmploymentContract extends Model
     protected $fillable = [
         'employee_id', 'contract_number', 'type', 'status',
         'start_date', 'end_date', 'terminated_at', 'termination_reason',
-        'renewed_from_id', 'base_salary', 'currency_code',
+        'renewed_from_id', 'base_salary', 'currency_code', 'pay_type',
         'scheduled_termination_at', 'scheduled_termination_reason',
     ];
 
-    protected $hidden = ['base_salary', 'currency_code'];
+    protected $hidden = ['base_salary', 'currency_code', 'pay_type'];
 
     protected function casts(): array
     {

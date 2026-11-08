@@ -4,6 +4,7 @@ namespace App\Modules\HR\Services\Attendance;
 
 use App\Modules\HR\Models\AttendanceCorrection;
 use App\Modules\HR\Models\AttendanceDay;
+use App\Modules\HR\Models\AttendancePolicy;
 use App\Modules\HR\Models\Employee;
 use App\Modules\HR\Models\LeaveRequest;
 use App\Modules\HR\Models\LeaveRequestDay;
@@ -33,8 +34,12 @@ class PayrollInputService
         $pendingCorrections = AttendanceCorrection::query()->whereIn('day_id', $days->pluck('id'))
             ->where('status', 'pending')->pluck('day_id')->flip();
 
-        $rows = $days->map(function (AttendanceDay $day) use ($leaveDays, $requests, $pendingCorrections) {
+        $policies = AttendancePolicy::query()->whereIn('id', $days->pluck('policy_id')->unique())->get()->keyBy('id');
+        $rows = $days->map(function (AttendanceDay $day) use ($leaveDays, $requests, $pendingCorrections, $policies) {
             $date = $day->work_date->format('Y-m-d');
+            $policy = $policies->get($day->policy_id);
+            $start = AttendanceClock::at($date, $policy->start_time, $policy->timezone);
+            $end = AttendanceClock::at($date, $policy->end_time, $policy->timezone);
             $leaveDay = $leaveDays->get($day->leave_request_day_id);
             $request = $leaveDay ? $requests->get($leaveDay->leave_request_id) : null;
             $blockers = [];
@@ -60,6 +65,12 @@ class PayrollInputService
                 'required_minutes' => $day->required_minutes, 'worked_minutes' => $day->worked_minutes,
                 'late_minutes' => $day->late_minutes, 'early_minutes' => $day->early_minutes,
                 'extra_minutes' => $day->extra_minutes, 'leave_minutes' => $day->leave_minutes,
+                // Schedule facts payroll needs to price the day; independent of whether the employee worked.
+                'scheduled_working_day' => in_array($start->dayOfWeek, $policy->working_days, true),
+                'schedule_minutes' => intdiv($end->timestamp - $start->timestamp, 60),
+                'early_arrival_minutes' => $day->first_in && $day->first_in->lessThan($start)
+                    ? intdiv($start->timestamp - $day->first_in->timestamp, 60) : 0,
+                'overtime_multiplier' => (float) $policy->overtime_multiplier,
                 'leave' => $leaveDay ? [
                     'request_id' => $leaveDay->leave_request_id, 'leave_type_id' => $request?->leave_type_id,
                     'full_day' => $day->status === 'on_leave', 'pay_percent' => $leaveDay->pay_percent,

@@ -37,6 +37,7 @@ class EmploymentContractResource extends JsonResource
             'renewed_from_id' => $this->renewed_from_id,
             'base_salary' => $this->when($request->user()?->can('employees.view_financial'), fn () => $this->base_salary),
             'currency_code' => $this->when($request->user()?->can('employees.view_financial'), fn () => $this->currency_code),
+            'pay_type' => $this->when($request->user()?->can('employees.view_financial'), fn () => $this->pay_type),
         ];
     }
 }
