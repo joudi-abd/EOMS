@@ -3,7 +3,7 @@
   <aside class="rail" [class.is-open]="chrome.menuOpen()">
     <div class="mark">
       <img class="brand" src="/brand/ufuq.png" width="176" height="121" alt="UFUQ" />
-      <p class="brand-sub">{{ t('brand') }}</p>
+      <p class="brand-sub">{{ company() || t('brand') }}</p>
     </div>
     <nav class="nav" [attr.aria-label]="t('mainNav')">
       <a
@@ -28,6 +28,9 @@
           >
             <i [class]="icons[id]" aria-hidden="true"></i>
             <span>{{ t(id) }}</span>
+            @if (id === 'alerts' && notes.unread() > 0) {
+              <bdi class="count">{{ notes.unread() }}</bdi>
+            }
           </a>
         }
       }

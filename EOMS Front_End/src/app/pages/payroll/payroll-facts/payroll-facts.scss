@@ -1,0 +1,38 @@
+:host {
+  display: block;
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.filters label {
+  display: grid;
+  gap: 4px;
+  min-width: 180px;
+}
+
+.summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.summary p {
+  margin: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.summary span {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.warn {
+  color: #a21b26;
+}

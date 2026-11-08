@@ -72,9 +72,40 @@
         }
       </section>
     }
+    @if (session.has('leaves.view')) {
+      <section class="panel">
+        <h2>{{ l('من في إجازة', 'Who is away') }}</h2>
+        <form (ngSubmit)="loadCalendar()">
+          <fieldset [disabled]="busy()">
+            <label>{{ l('من تاريخ', 'From date') }}<input type="date" name="calendarFrom" required [(ngModel)]="calendarFrom"></label>
+            <label>{{ l('إلى تاريخ', 'To date') }}<input type="date" name="calendarTo" required [(ngModel)]="calendarTo"></label>
+            <label>{{ l('القسم', 'Department') }}
+              <select name="calendarDepartment" [(ngModel)]="calendarDepartment">
+                <option value="">{{ l('كل الأقسام', 'All departments') }}</option>
+                @for (item of office.departmentList(); track item.id) { <option [value]="item.id">{{ text(item.name) }}</option> }
+              </select>
+            </label>
+            <label class="check"><input type="checkbox" name="includePending" [(ngModel)]="includePending">{{ l('إظهار الطلبات قيد المراجعة', 'Include requests still under review') }}</label>
+            <button type="submit">{{ l('عرض التقويم', 'Show the calendar') }}</button>
+          </fieldset>
+        </form>
+        @if (calendar(); as board) {
+          @if (board.holidays.length) {
+            <p>@for (holiday of board.holidays; track holiday.id) { <span>{{ holiday.date }} {{ holiday.name }} · </span> }</p>
+          }
+          @if (board.days.length === 0) { <p>{{ l('لا إجازات في هذه الفترة.', 'No leave in this period.') }}</p> }
+          @else {
+            <div class="table-wrap"><table><thead><tr><th>{{ l('التاريخ', 'Date') }}</th><th>{{ l('الموظف', 'Employee') }}</th><th>{{ l('النوع', 'Type') }}</th><th>{{ l('الحالة', 'Status') }}</th><th>{{ l('الفترة', 'Period') }}</th></tr></thead>
+              <tbody>@for (day of board.days; track day.request_id + day.date) { <tr><td>{{ day.date }}</td><td>{{ day.employee_name }}</td><td>{{ day.leave_type.name }}</td><td>{{ label(day.status) }}</td><td>{{ day.full_day ? l('يوم كامل', 'Full day') : day.start_time + '–' + day.end_time }}</td></tr> }</tbody>
+            </table></div>
+          }
+        }
+      </section>
+    }
     <nav class="tabs">
       <button type="button" [disabled]="busy() || scope === 'mine'" (click)="changeScope('mine')">{{ l('طلباتي', 'My requests') }}</button>
       @if (settings.can_review) { <button type="button" [disabled]="busy() || scope === 'review'" (click)="changeScope('review')">{{ l('مراجعة الطلبات', 'Review requests') }}</button> }
+      <button type="button" [disabled]="busy()" (click)="exportRequests()">{{ l('تنزيل CSV', 'Download CSV') }}</button>
     </nav>
     @for (row of rows(); track row.id) {
       <article class="panel">

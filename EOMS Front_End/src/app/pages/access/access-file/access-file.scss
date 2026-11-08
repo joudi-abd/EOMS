@@ -14,7 +14,7 @@
   min-width: 0;
 }
 
-.form > label > span,
+.form > label > span:not(.login-mail),
 .form legend {
   display: block;
   grid-column: 1 / -1;
@@ -30,6 +30,21 @@
 .form input:not([type='checkbox']) {
   width: 100%;
   margin: 0;
+}
+
+.form .login-mail input {
+  grid-column: 1;
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+}
+
+.form .login-mail input:hover,
+.form .login-mail input:focus-visible {
+  border-color: transparent;
+  outline: none;
 }
 
 .hint {

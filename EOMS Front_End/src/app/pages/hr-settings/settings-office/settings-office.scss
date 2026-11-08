@@ -1,0 +1,6 @@
+:host { display: block; }
+.list { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.list li { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+form { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; }
+label { display: grid; gap: 4px; }
+.warn { color: #a21b26; }

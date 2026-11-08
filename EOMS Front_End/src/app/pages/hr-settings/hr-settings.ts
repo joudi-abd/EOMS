@@ -12,12 +12,13 @@ import { SettingsList } from './settings-list/settings-list';
 import { SettingsShift } from './settings-shift/settings-shift';
 
 import { SettingsLeaves } from './settings-leaves/settings-leaves';
+import { SettingsOffice } from './settings-office/settings-office';
 
-type Tab = 'shift' | 'structure' | 'devices' | 'leaves';
+type Tab = 'shift' | 'structure' | 'devices' | 'leaves' | 'office';
 
 @Component({
   selector: 'app-hr-settings',
-  imports: [Notice, RouterLink, SettingsShift, SettingsList, SettingsDevices, SettingsLeaves],
+  imports: [Notice, RouterLink, SettingsShift, SettingsList, SettingsDevices, SettingsLeaves, SettingsOffice],
   templateUrl: './hr-settings.html',
   styleUrl: './hr-settings.scss',
 })
@@ -35,6 +36,7 @@ export class HrSettings extends Ui {
     ];
     if (this.session.has('attendance.manage')) list.push({ id: 'devices', label: 'tabDevices', icon: 'fa-fingerprint' });
     if (this.session.has('employees.manage')) list.push({ id: 'leaves', label: 'leaveSetupTab', icon: 'fa-calendar-days' });
+    if (this.session.has('settings.view')) list.push({ id: 'office', label: 'companySettings', icon: 'fa-building' });
     return list;
   });
 

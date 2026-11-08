@@ -14,12 +14,13 @@ import { EmployeeForm } from '../employee-form/employee-form';
 import { EmployeeHistory } from '../employee-history/employee-history';
 import { EmployeeInfo } from '../employee-info/employee-info';
 import { EmployeeLeaving } from '../employee-leaving/employee-leaving';
+import { PayrollFacts } from '../../payroll/payroll-facts/payroll-facts';
 
-type Tab = 'info' | 'contracts' | 'documents' | 'finger' | 'history' | 'leaving';
+type Tab = 'info' | 'contracts' | 'documents' | 'finger' | 'history' | 'leaving' | 'payroll';
 
 @Component({
   selector: 'app-employee-file',
-  imports: [RouterLink, EmployeeForm, EmployeeInfo, EmployeeContracts, EmployeeDocuments, EmployeeFinger, EmployeeHistory, EmployeeLeaving],
+  imports: [RouterLink, EmployeeForm, EmployeeInfo, EmployeeContracts, EmployeeDocuments, EmployeeFinger, EmployeeHistory, EmployeeLeaving, PayrollFacts],
   templateUrl: './employee-file.html',
   styleUrl: './employee-file.scss',
 })
@@ -41,8 +42,10 @@ export class EmployeeFile extends Ui {
         { id: 'finger', label: 'tabFinger', icon: 'fa-fingerprint' },
         { id: 'history', label: 'tabHistory', icon: 'fa-clock-rotate-left' },
         { id: 'leaving', label: 'serviceStatusTitle', icon: 'fa-user-minus' },
+        { id: 'payroll', label: 'payrollFactsTitle', icon: 'fa-clipboard-list' },
       ] as { id: Tab; label: CopyKey; icon: string }[]
-    ).filter((item) => item.id !== 'documents' || this.session.canAct('document.view')),
+    ).filter((item) => item.id !== 'documents' || this.session.canAct('document.view'))
+      .filter((item) => item.id !== 'payroll' || this.session.has('payroll.view') || this.session.has('attendance.view')),
   );
 
   protected readonly creating = computed(() => this.params()?.get('file') === 'new');

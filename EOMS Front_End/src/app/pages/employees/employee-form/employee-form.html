@@ -95,7 +95,13 @@
         <div class="pair-fields">
           <label>
             <span>{{ t('accountEmail') }}</span>
-            <input name="accountEmail" type="email" autocomplete="off" spellcheck="false" dir="ltr" />
+            <span class="login-mail" dir="ltr">
+              <input name="accountEmail" type="text" autocomplete="off" spellcheck="false" dir="ltr" maxlength="64" (input)="onMail($event)" />
+              <bdi class="domain">@ufuq.com</bdi>
+            </span>
+            @if (mailNote()) {
+              <small class="warn" role="alert">{{ mailNote() }}</small>
+            }
           </label>
           <label>
             <span>{{ t('accountPassword') }}</span>

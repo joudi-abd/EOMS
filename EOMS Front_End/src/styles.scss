@@ -371,6 +371,35 @@ input[type='radio'] {
   accent-color: var(--action);
 }
 
+.login-mail {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  direction: ltr;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.login-mail:focus-within {
+  border-color: var(--action);
+}
+
+.login-mail .domain {
+  grid-column: 2;
+  padding: 0 12px 0 8px;
+  color: var(--muted);
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.login-mail + .warn {
+  display: block;
+  margin-top: 4px;
+}
+
 .filters {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));

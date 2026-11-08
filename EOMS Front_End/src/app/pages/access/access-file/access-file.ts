@@ -6,6 +6,7 @@ import { permissionGroups, roleSummary } from '../../../core/access/permission-c
 import { Session } from '../../../core/access/session';
 import { CopyKey } from '../../../core/copy';
 import { Language } from '../../../core/language';
+import { loginMail, loginUserRejected } from '../../../core/login-mail';
 import { Office } from '../../../data/office';
 
 @Component({
@@ -26,6 +27,8 @@ export class AccessFile {
   protected readonly draftName = signal('');
   protected readonly limit = signal(false);
   protected readonly problem = signal('');
+  protected readonly mailNote = signal('');
+  protected readonly draftMail = signal('');
   protected readonly saving = signal(false);
   private loaded = '';
   private readonly router = inject(Router);
@@ -53,13 +56,16 @@ export class AccessFile {
       this.loaded = key;
       this.limit.set(false);
       this.problem.set('');
+      this.mailNote.set('');
       if (key === 'new') {
         this.picked.set(['employee']);
         this.draftName.set('');
+        this.draftMail.set('');
         return;
       }
       this.picked.set([...(person?.roles ?? [])]);
       this.draftName.set(person ? this.language.text(person.name) : '');
+      this.draftMail.set((person?.email ?? '').split('@')[0] ?? '');
     });
   }
 
@@ -74,6 +80,11 @@ export class AccessFile {
 
   protected onName(event: Event): void {
     this.draftName.set((event.target as HTMLInputElement).value);
+  }
+
+  protected onMail(event: Event): void {
+    const value = (event.target as HTMLInputElement).value;
+    this.mailNote.set(loginUserRejected(value) ? this.t('mailUserInvalid') : '');
   }
 
   protected toggle(role: Role, event: Event): void {
@@ -104,12 +115,16 @@ export class AccessFile {
     const data = new FormData(form);
     const entry = {
       name: this.draftName().trim(),
-      email: String(data.get('email') ?? '').trim(),
+      email: loginMail(String(data.get('email') ?? '')),
       phone: String(data.get('phone') ?? '').trim(),
       password: String(data.get('password') ?? ''),
       roles: this.picked(),
     };
     this.problem.set('');
+    if (loginUserRejected(String(data.get('email') ?? ''))) {
+      this.mailNote.set(this.t('mailUserInvalid'));
+      return;
+    }
     if (!entry.name || !entry.email || entry.roles.length === 0) {
       return;
     }
