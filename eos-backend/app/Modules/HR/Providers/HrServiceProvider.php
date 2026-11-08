@@ -30,6 +30,7 @@ class HrServiceProvider extends ServiceProvider
         $this->commands([
             ProcessScheduledContractTerminations::class,
             ProcessExpiredContracts::class,
+            \App\Modules\HR\Console\Commands\ProcessLeaveBalances::class,
             ProcessPendingDocumentCleanups::class,
             RecalculateAttendance::class,
             ConfigureAttendanceDefaults::class,

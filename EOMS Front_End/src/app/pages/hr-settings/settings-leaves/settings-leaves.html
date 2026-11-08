@@ -17,6 +17,7 @@
 
   <section>
     <h2>{{ t('leaveSetupPolicies') }}</h2>
+    <p>{{ t('leaveCyclePolicyNote') }}</p>
     <label>{{ t('listLeaveTypes') }}
       <select [value]="selectedType()" [disabled]="busy()" (change)="selectedType.set(+$any($event.target).value)">
         @for (type of data.types; track type.id) { <option [value]="type.id">{{ type.name }}</option> }
@@ -87,6 +88,7 @@
 
   <section>
     <h2>{{ t('leaveSetupBalances') }}</h2>
+    <p>{{ t('leaveOpeningPolicyNote') }}</p>
     <label>{{ t('employeeCol') }}
       <select [disabled]="busy()" (change)="selectEmployee($any($event.target).value)">
         <option value="">{{ t('leaveSetupChooseEmployee') }}</option>
@@ -112,7 +114,7 @@
       <ul>
         @for (entry of entries(); track entry.id) {
           <li>{{ entry.cycle_start }} · {{ typeNames().get(entry.leave_type_id) }} ·
-            {{ t(entry.kind === 'opening' ? 'leaveSetupOpening' : 'leaveSetupAdjustment') }} ·
+            {{ movement(entry.kind) }} ·
             {{ entry.day_units / 1000000 }} · {{ entry.reason }}
           </li>
         }

@@ -1,4 +1,9 @@
 const ar = {
+  accountLinkedProfileHint: 'هذا الحساب مرتبط بموظف. عدّلي بريد الدخول وكلمة المرور والأدوار هنا. الاسم والهاتف يُعدّلان من ملف الموظف وفق صلاحياتك؛ لا يلزم تبديل الحساب إذا كانت لديك صلاحية التعديل.',
+  accountOpenEmployee: 'فتح ملف الموظف',
+  accountCreateEmployeeHint: 'لإنشاء حساب لموظف، افتحي ملفه في الموظفين واستخدمي إنشاء حساب الدخول ليبقى مرتبطاً بخدمته وحضوره وإجازاته. النموذج هنا لإنشاء حساب مستقل.',
+  leaveCyclePolicyNote: 'تثبت سياسة المنح عند بدء سنة الرصيد؛ تعديل السياسة يؤثر في منح السنة التالية. لتصحيح السنة الحالية استخدمي تسوية.',
+  leaveOpeningPolicyNote: 'الرصيد الافتتاحي يحل محل المنح التلقائي للسنة الحالية بالكامل. سجّليه قبل تفعيل المنح إن كنت تستوردين رصيداً سابقاً.',
   leaveSetupTab: 'الإجازات والأرصدة',
   leaveSetupName: 'الاسم',
   leaveSetupAdd: 'إضافة',
@@ -685,6 +690,11 @@ const ar = {
 type HrKey = keyof typeof ar;
 
 const en: Record<HrKey, string> = {
+  accountLinkedProfileHint: 'This account is linked to an employee. Edit login email, password and roles here. Name and phone are managed in the employee file according to your permissions; switching accounts is unnecessary if you have edit access.',
+  accountOpenEmployee: 'Open employee file',
+  accountCreateEmployeeHint: 'For an employee login, open the employee file and create the login there to keep employment, attendance and leave linked. This form creates a standalone account.',
+  leaveCyclePolicyNote: 'Grant policy is fixed when the balance cycle starts. Policy changes affect next cycle grants; use an adjustment to correct this cycle.',
+  leaveOpeningPolicyNote: 'An opening balance replaces automatic grants for the entire current cycle. Record imported balances before activating grants.',
   leaveSetupTab: 'Leave and balances',
   leaveSetupName: 'Name',
   leaveSetupAdd: 'Add',

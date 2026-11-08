@@ -23,6 +23,7 @@ class UserResource extends JsonResource
         $self = $this->includeOwnEmployee;
         $employee = $self ? Employee::query()->where('user_id', $this->id)
             ->with(['department:id,name', 'jobTitle:id,name'])->first() : null;
+        $employeeId = $self ? $employee?->id : Employee::where('user_id', $this->id)->value('id');
 
         return [
             'id' => $this->id,
@@ -31,7 +32,7 @@ class UserResource extends JsonResource
             'phone' => $this->phone,
             'status' => $this->status,
             'roles' => $this->getRoleNames(),
-            'employee_id' => $this->when($self, fn () => $employee?->id),
+            'employee_id' => $employeeId === null ? null : (int) $employeeId,
             'employee' => $this->when($self, fn () => $employee ? new EmployeeResource($employee) : null),
             'last_login_at' => $this->last_login_at?->toIso8601String(),
             'created_at' => $this->created_at?->toIso8601String(),

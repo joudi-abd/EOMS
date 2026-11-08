@@ -1,6 +1,6 @@
 import { Component, computed, effect, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { isTop, Role, roleIds, roleLabel, rolePermissions, permissionsOf } from '../../../core/access/accounts';
 import { permissionGroups, roleSummary } from '../../../core/access/permission-copy';
 import { Session } from '../../../core/access/session';
@@ -10,6 +10,7 @@ import { Office } from '../../../data/office';
 
 @Component({
   selector: 'app-access-file',
+  imports: [RouterLink],
   templateUrl: './access-file.html',
   styleUrl: './access-file.scss',
 })

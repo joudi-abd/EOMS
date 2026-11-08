@@ -20,6 +20,12 @@ return new class extends Migration
         Schema::table('hr_attendance_bindings', function (Blueprint $table) {
             $table->date('revoked_from')->nullable();
         });
+        $this->backfillKnownServiceDates();
+    }
+
+    /** Data-only part of the migration; test without rolling back later dependent schemas. */
+    public function backfillKnownServiceDates(): void
+    {
         // Preserve only the dates actually known for legacy employees; never invent past service cycles.
         DB::table('hr_employees')->orderBy('id')->chunkById(200, function ($employees) {
             $now = now();

@@ -1,0 +1,113 @@
+<main class="work" id="content">
+  <button type="button" (click)="chrome.toggle()">☰ {{ l('القائمة', 'Menu') }}</button>
+  <h1>{{ l('الإجازات', 'Leave') }}</h1>
+  <p>{{ l('يُحجز الرصيد عند التقديم. يعتمد HR طلبات الموظفين، ويعتمد مدير الشركة طلبات HR.', 'Balance is reserved on submission. HR reviews employee requests; the company manager reviews HR requests.') }}</p>
+  @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
+  @if (success()) { <p class="success" role="status">{{ success() }}</p> }
+  @if (busy()) { <p role="status">{{ l('جارٍ التحميل…', 'Loading…') }}</p> }
+  @if (options(); as settings) {
+    @if (settings.can_configure) {
+      <a routerLink="/modules/hrSettings" [queryParams]="{tab: 'leaves'}">{{ l('إعدادات الأنواع والأرصدة والعطلات', 'Leave types, balances and holidays') }}</a>
+      <details>
+        <summary>{{ l('إعداد فترتي نصف اليوم', 'Configure half-day periods') }}</summary>
+        <form (ngSubmit)="saveHalves()">
+          <fieldset [disabled]="busy()">
+            <label>{{ l('بداية الفترة الأولى', 'First period start') }}<input type="time" name="first_start" required [(ngModel)]="halves.first_start"></label>
+            <label>{{ l('نهاية الفترة الأولى', 'First period end') }}<input type="time" name="first_end" required [(ngModel)]="halves.first_end"></label>
+            <label>{{ l('بداية الفترة الثانية', 'Second period start') }}<input type="time" name="second_start" required [(ngModel)]="halves.second_start"></label>
+            <label>{{ l('نهاية الفترة الثانية', 'Second period end') }}<input type="time" name="second_end" required [(ngModel)]="halves.second_end"></label>
+            <button type="submit">{{ l('حفظ الفترات', 'Save periods') }}</button>
+          </fieldset>
+        </form>
+      </details>
+    }
+    @if (settings.can_submit) {
+      <section class="balances">
+        @for (type of settings.types; track type.id) {
+          <article><strong>{{ type.name }}</strong><p>{{ l('المتاح الآن:', 'Available now:') }} {{ type.available_units === null ? l('دون رصيد محدد', 'No balance limit') : days(type.available_units) }}</p>
+            <small>{{ l('نسبة الأجر:', 'Pay percentage:') }} {{ type.pay_percent }}% · {{ type.cycle_end }}</small></article>
+        }
+      </section>
+      <section class="panel">
+        <h2>{{ editing ? l('تعديل الطلب', 'Amend request') + ' #' + editing.id : l('طلب إجازة جديد', 'New leave request') }}</h2>
+        @if (editing) { <p>{{ l('تُستخدم سياسة الطلب الأصلية ويُعاد حساب الحجز.', 'The original leave policy is retained and the reservation is recalculated.') }}</p> }
+        <form (ngSubmit)="preview()" #leaveForm="ngForm">
+          <fieldset [disabled]="busy()">
+            <label>{{ l('نوع الإجازة', 'Leave type') }}
+              <select name="type" required [(ngModel)]="form.leave_type_id" (ngModelChange)="invalidate()" [disabled]="!!editing">
+                @if (editing) { <option [ngValue]="editing.leave_type_id">{{ l('نوع الطلب الأصلي', 'Original request type') }}</option> }
+                @for (type of settings.types; track type.id) { <option [ngValue]="type.id">{{ type.name }}</option> }
+              </select>
+            </label>
+            <label>{{ l('الوحدة', 'Unit') }}<select name="unit" [(ngModel)]="form.unit" (ngModelChange)="invalidate()">
+              <option value="day">{{ l('أيام كاملة', 'Full days') }}</option><option value="half">{{ l('فترة نصف يوم', 'Half-day period') }}</option><option value="hours">{{ l('ساعات', 'Hours') }}</option>
+            </select></label>
+            <label>{{ l('من تاريخ', 'From date') }}<input type="date" required name="start_date" [(ngModel)]="form.start_date" (ngModelChange)="invalidate()"></label>
+            <label>{{ l('إلى تاريخ', 'To date') }}<input type="date" required name="end_date" [(ngModel)]="form.end_date" (ngModelChange)="invalidate()"></label>
+            @if (form.unit === 'half') {
+              <label>{{ l('الفترة', 'Period') }}<select name="half" [ngModel]="form.half || 'first'" (ngModelChange)="form.half = $event; invalidate()">
+                <option value="first">{{ settings.half_days.first_start }}–{{ settings.half_days.first_end }}</option>
+                <option value="second">{{ settings.half_days.second_start }}–{{ settings.half_days.second_end }}</option>
+              </select></label>
+            }
+            @if (form.unit === 'hours') {
+              <label>{{ l('من الساعة', 'Start time') }}<input type="time" required name="start_time" [(ngModel)]="form.start_time" (ngModelChange)="invalidate()"></label>
+              <label>{{ l('إلى الساعة', 'End time') }}<input type="time" required name="end_time" [(ngModel)]="form.end_time" (ngModelChange)="invalidate()"></label>
+            }
+            <label class="wide">{{ l('السبب', 'Reason') }}<textarea required maxlength="500" name="reason" [(ngModel)]="form.reason" (ngModelChange)="invalidate()"></textarea></label>
+            <button type="submit" [disabled]="leaveForm.invalid || !form.leave_type_id">{{ l('معاينة الحساب', 'Preview calculation') }}</button>
+            <button type="button" (click)="reset()">{{ l('بدء طلب جديد', 'Start new request') }}</button>
+          </fieldset>
+        </form>
+        @if (quote(); as preview) {
+          <p>{{ l('المدة بالأيام:', 'Duration in days:') }} {{ days(preview.total_units) }} · {{ l('المغطى من النوع:', 'Covered by this type:') }} {{ days(preview.covered_units) }} · {{ l('غير مغطى / بدون راتب:', 'Uncovered / unpaid:') }} {{ days(preview.unpaid_units) }}</p>
+          <p>{{ l('نسبة أجر الجزء المغطى:', 'Pay percentage for covered portion:') }} {{ preview.pay_percent }}%</p>
+          <div class="table-wrap"><table><thead><tr><th>{{ l('التاريخ', 'Date') }}</th><th>{{ l('الفترة', 'Period') }}</th><th>{{ l('مغطى من النوع', 'Covered by type') }}</th><th>{{ l('بدون راتب', 'Unpaid shortfall') }}</th></tr></thead><tbody>
+            @for (day of preview.days; track day.date) { <tr><td>{{ day.date }}</td><td>{{ day.start_time }}–{{ day.end_time }}</td><td>{{ days(day.covered_units) }}</td><td>{{ days(day.unpaid_units) }}</td></tr> }
+          </tbody></table></div>
+          @if (preview.unpaid_units > 0) {
+            <label class="check"><input type="checkbox" [(ngModel)]="consent" [disabled]="busy()">{{ l('أوافق على احتساب الجزء غير المغطى بدون راتب، ويحتاج أيضاً موافقة HR.', 'I accept the uncovered portion as unpaid leave, subject to HR approval.') }}</label>
+          }
+          <button type="button" [disabled]="busy() || (preview.unpaid_units > 0 && !consent)" (click)="submit()">{{ l('تأكيد الطلب وحجز الرصيد', 'Confirm request and reserve balance') }}</button>
+        }
+      </section>
+    }
+    <nav class="tabs">
+      <button type="button" [disabled]="busy() || scope === 'mine'" (click)="changeScope('mine')">{{ l('طلباتي', 'My requests') }}</button>
+      @if (settings.can_review) { <button type="button" [disabled]="busy() || scope === 'review'" (click)="changeScope('review')">{{ l('مراجعة الطلبات', 'Review requests') }}</button> }
+    </nav>
+    @for (row of rows(); track row.id) {
+      <article class="panel">
+        <h2>#{{ row.id }} · {{ row.employee_name }} · {{ label(row.status) }}</h2>
+        <p>{{ row.input.start_date }} — {{ row.input.end_date }} · {{ row.input.reason }}</p>
+        <p>{{ l('نسبة أجر الجزء المغطى:', 'Pay percentage for covered portion:') }} {{ row.policy.pay_percent }}%</p>
+        <ul>@for (day of row.days; track day.id) { @if (day.active) { <li>{{ day.date }} {{ day.start_time }}–{{ day.end_time }} · {{ l('مغطى:', 'Covered:') }} {{ days(day.covered_units) }} · {{ l('بدون راتب:', 'Unpaid shortfall:') }} {{ days(day.unpaid_units) }}</li> } }</ul>
+        @if (row.review_note) { <p>{{ row.review_note }}</p> }
+        @if (row.change_request; as change) { <p>{{ label(change.kind) }}: {{ change.from_date }} — {{ change.reason }}</p> }
+        <div class="actions">
+          @if (row.status === 'pending' && row.is_owner) {
+            <button [disabled]="busy()" (click)="edit(row)">{{ l('تعديل', 'Edit') }}</button><button [disabled]="busy()" (click)="choose(row, 'withdraw')">{{ label('withdraw') }}</button>
+          }
+          @if (row.status === 'pending' && row.can_review) {
+            <button [disabled]="busy()" (click)="choose(row, 'approve')">{{ label('approve') }}</button><button [disabled]="busy()" (click)="choose(row, 'reject')">{{ label('reject') }}</button>
+          }
+          @if (row.status === 'approved' && row.is_owner && !row.change_request) {
+            <button [disabled]="busy()" (click)="choose(row, 'cancel')">{{ label('cancel') }}</button><button [disabled]="busy()" (click)="choose(row, 'shorten')">{{ label('shorten') }}</button>
+          }
+          @if (row.status === 'approved' && row.change_request && row.can_review) {
+            <button [disabled]="busy()" (click)="choose(row, 'approve-change')">{{ label('approve-change') }}</button><button [disabled]="busy()" (click)="choose(row, 'reject-change')">{{ label('reject-change') }}</button>
+          }
+        </div>
+        @if (decision?.row?.id === row.id && decision; as chosen) {
+          <form (ngSubmit)="applyDecision()" #actionForm="ngForm"><fieldset [disabled]="busy()">
+            <legend>{{ label(chosen.action) }}</legend>
+            <label>{{ l('سبب الإجراء', 'Action reason') }}<textarea name="decisionReason" required maxlength="500" [(ngModel)]="decisionReason"></textarea></label>
+            @if (chosen.action === 'shorten') { <label>{{ l('إلغاء الأيام ابتداءً من', 'Cancel days starting from') }}<input name="changeDate" type="date" required [(ngModel)]="changeDate"></label> }
+            <button type="submit" [disabled]="actionForm.invalid">{{ l('تأكيد الإجراء', 'Confirm action') }}</button><button type="button" (click)="decision = null">{{ l('رجوع', 'Back') }}</button>
+          </fieldset></form>
+        }
+      </article>
+    } @empty { <p>{{ l('لا توجد طلبات.', 'No requests.') }}</p> }
+    <nav class="tabs"><button [disabled]="busy() || page <= 1" (click)="turnPage(-1)">{{ l('السابق', 'Previous') }}</button><span>{{ page }} / {{ lastPage }}</span><button [disabled]="busy() || page >= lastPage" (click)="turnPage(1)">{{ l('التالي', 'Next') }}</button></nav>
+  }
+</main>

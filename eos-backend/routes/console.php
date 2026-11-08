@@ -29,3 +29,6 @@ Schedule::command('documents:process-cleanups')
 Schedule::command('attendance:recalculate')
     ->everyFifteenMinutes()
     ->withoutOverlapping();
+
+// Uses each office policy date and is safe to retry.
+Schedule::command('leaves:process')->everyFiveMinutes()->withoutOverlapping();

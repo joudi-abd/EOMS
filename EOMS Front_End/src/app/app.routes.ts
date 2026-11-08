@@ -1,3 +1,4 @@
+import { LeavesPage } from './pages/leaves/leaves';
 import { Routes } from '@angular/router';
 import { signedIn, signedOut } from './core/api/guards';
 import { Attendance } from './pages/attendance/attendance';
@@ -21,6 +22,7 @@ export const routes: Routes = [
       { path: 'modules/employees', component: Employees },
       { path: 'modules/hrSettings', component: HrSettings },
       { path: 'modules/attendance', component: Attendance },
+      { path: 'modules/leave', component: LeavesPage },
       { path: 'modules/:id', component: Later },
     ],
   },

@@ -17,6 +17,10 @@ class ProtectEmployeeAccountProfile
             array_keys($event->changes)
         );
 
+        // Full-form clients may resend unchanged values while updating login settings.
+        $attempted = array_filter($attempted, fn ($field) =>
+            (string) $event->changes[$field] !== (string) $event->user->getAttribute($field));
+
         if (empty($attempted)) {
             return;
         }
@@ -33,7 +37,7 @@ class ProtectEmployeeAccountProfile
 
         foreach ($attempted as $field) {
             $errors[$field] = [
-                'يجب تعديل هذا الحقل من ملف الموظف في HR.',
+                'الاسم والهاتف يؤخذان من ملف الموظف. لتغييرهما افتح ملف الموظف ضمن إدارة الموظفين.',
             ];
         }
 

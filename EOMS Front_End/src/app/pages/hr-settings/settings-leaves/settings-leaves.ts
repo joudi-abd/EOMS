@@ -32,7 +32,7 @@ interface BalanceEntry {
   id: number;
   leave_type_id: number;
   cycle_start: string;
-  kind: 'opening' | 'adjustment';
+  kind: 'opening' | 'adjustment' | 'grant' | 'reserve' | 'release' | 'holiday_refund';
   day_units: number;
   reason: string;
 }
@@ -69,6 +69,15 @@ export class SettingsLeaves extends Ui {
   constructor() {
     super();
     void this.run(() => this.loadSettings());
+  }
+
+  protected movement(kind: BalanceEntry['kind']): string {
+    const labels: Record<BalanceEntry['kind'], [string, string]> = {
+      opening: ['رصيد افتتاحي', 'Opening balance'], adjustment: ['تسوية', 'Adjustment'],
+      grant: ['منح تلقائي', 'Automatic grant'], reserve: ['حجز رصيد', 'Reservation'],
+      release: ['إعادة رصيد', 'Balance release'], holiday_refund: ['استرجاع بسبب عطلة', 'Holiday refund'],
+    };
+    return labels[kind]?.[this.language.lang() === 'ar' ? 0 : 1] ?? kind;
   }
 
   protected submitType(event: SubmitEvent): void {

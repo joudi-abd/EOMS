@@ -39,6 +39,7 @@ export const selfAreas: readonly ModuleId[] = ['attendance', 'leave', 'requests'
 export interface Account {
   id: string;
   userId: number;
+  employeeId?: string | null;
   name: Text;
   roles: Role[];
   enabled: boolean;

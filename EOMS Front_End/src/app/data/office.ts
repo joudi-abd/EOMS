@@ -151,8 +151,10 @@ export interface AccountEntry {
 }
 
 function accountFrom(user: ApiUser, employeeId: string | undefined): Account {
+  const linked = user.employee_id === undefined ? employeeId : user.employee_id === null ? undefined : String(user.employee_id);
   return {
-    id: employeeId ?? `u${user.id}`,
+    id: linked ?? `u${user.id}`,
+    employeeId: linked ?? null,
     userId: user.id,
     name: plain(user.name),
     roles: user.roles.map(roleFrom).filter((role): role is Role => role !== null),
@@ -526,11 +528,14 @@ export class Office {
       return { ok: false, error: this.language.t('keepCompany') };
     }
     const body: Record<string, unknown> = {
-      name: entry.name.trim(),
       email: entry.email.trim(),
-      phone: entry.phone.trim() || null,
       roles: entry.roles.map((role) => roleName[role]),
     };
+    // Linked profile fields belong to the employee record, even when a full form is submitted.
+    if (!current.employeeId) {
+      body['name'] = entry.name.trim();
+      body['phone'] = entry.phone.trim() || null;
+    }
     if (entry.password) body['password'] = entry.password;
     try {
       await this.api.put(`/users/${current.userId}`, body);

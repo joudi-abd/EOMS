@@ -12,6 +12,6 @@ class LeavePolicy extends Model
 
     protected function casts(): array
     {
-        return ['effective_from' => 'date:Y-m-d', 'annual_days' => 'decimal:6'];
+        return ['pay_percent' => 'integer', 'retroactive_days' => 'integer', 'effective_from' => 'date:Y-m-d', 'annual_days' => 'decimal:6'];
     }
 }

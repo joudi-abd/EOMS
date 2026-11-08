@@ -10,10 +10,23 @@
       {{ t('directorOnly') }}
     </p>
   } @else {
+    @if (!creating() && person()?.employeeId; as employeeId) {
+      <p class="note">
+        {{ t('accountLinkedProfileHint') }}
+        @if (session.can('employees')) {
+          <a routerLink="/modules/employees" [queryParams]="{ file: employeeId }">{{ t('accountOpenEmployee') }}</a>
+        }
+      </p>
+    }
+    @if (creating()) {
+      <p class="note">{{ t('accountCreateEmployeeHint') }}
+        @if (session.can('employees')) { <a routerLink="/modules/employees">{{ t('employees') }}</a> }
+      </p>
+    }
     <form class="form" (submit)="save($event)">
       <label class="wide">
         <span>{{ t('personName') }}</span>
-        <input name="fullName" type="text" autocomplete="name" maxlength="120" required [value]="draftName()" (input)="onName($event)" />
+        <input name="fullName" [readOnly]="!creating() && !!person()?.employeeId" type="text" autocomplete="name" maxlength="120" required [value]="draftName()" (input)="onName($event)" />
       </label>
       <label>
         <span>{{ t('email') }}</span>
@@ -21,7 +34,7 @@
       </label>
       <label>
         <span>{{ t('phone') }}</span>
-        <input name="phone" type="tel" autocomplete="off" dir="ltr" maxlength="30" [value]="person()?.phone ?? ''" />
+        <input name="phone" [readOnly]="!creating() && !!person()?.employeeId" type="tel" autocomplete="off" dir="ltr" maxlength="30" [value]="person()?.phone ?? ''" />
       </label>
       <label class="wide">
         <span>{{ t('password') }}</span>

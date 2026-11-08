@@ -82,7 +82,9 @@ class LeaveSettingsService
     public function addHoliday(array $data): OfficeHoliday
     {
         return DB::transaction(function () use ($data) {
+            DB::table('hr_leave_half_days')->lockForUpdate()->find(1);
             $holiday = OfficeHoliday::create($data);
+            app(LeaveWorkflowService::class)->holidayAdded($holiday->date->toDateString());
             $this->audit->log('leave.holiday_created', $holiday, null, $holiday->getAttributes());
 
             return $holiday;
@@ -92,7 +94,13 @@ class LeaveSettingsService
     public function removeHoliday(OfficeHoliday $holiday): void
     {
         DB::transaction(function () use ($holiday) {
+            DB::table('hr_leave_half_days')->lockForUpdate()->find(1);
             $holiday = OfficeHoliday::query()->lockForUpdate()->findOrFail($holiday->getKey());
+            foreach (\App\Modules\HR\Models\LeaveRequest::whereIn('status', ['pending', 'approved'])->cursor() as $request) {
+                if ($request->input['start_date'] <= $holiday->date->toDateString() && $request->input['end_date'] >= $holiday->date->toDateString()) {
+                    throw ValidationException::withMessages(['date' => 'توجد إجازة تتقاطع مع العطلة؛ راجع الإجازة قبل حذف العطلة.']);
+                }
+            }
             $this->audit->log('leave.holiday_removed', $holiday, $holiday->getAttributes());
             $holiday->delete();
         }, 3);
@@ -126,7 +134,7 @@ class LeaveSettingsService
                 throw ValidationException::withMessages(['days' => 'الرصيد الافتتاحي غير سالب ويُسجّل مرة واحدة قبل التسويات.']);
             }
             if ($data['kind'] === 'adjustment' && ($units === 0 || ! $entries->exists() || $entries->sum('day_units') + $units < 0)) {
-                throw ValidationException::withMessages(['days' => 'التسوية تحتاج رصيداً افتتاحياً ولا يجوز أن تجعل الرصيد سالباً.']);
+                throw ValidationException::withMessages(['days' => 'التسوية تحتاج رصيداً افتتاحياً أو منحة مسجلة ولا يجوز أن تجعل الرصيد المتاح سالباً.']);
             }
 
             $entry = LeaveBalanceEntry::create([

@@ -241,9 +241,13 @@ class EmployeeRehireTest extends TestCase
     public function test_migration_backfills_known_legacy_dates_without_inventing_a_return(): void
     {
         $migration = require app_path('Modules/HR/Database/Migrations/2026_11_07_025304_add_employee_service_periods_and_binding_revocation.php');
-        $migration->down();
+        // RefreshDatabase has already created the schema, including later tables with foreign keys.
+        // The fixture was inserted after migration, so it is a genuine unbackfilled legacy row.
+        $this->assertDatabaseCount('hr_employee_service_periods', 0);
+        $transactionLevel = DB::connection()->transactionLevel();
         $this->employee->update(['status' => 'terminated', 'termination_date' => '2026-11-02', 'termination_reason' => 'Legacy end']);
-        $migration->up();
+        $migration->backfillKnownServiceDates();
+        $this->assertSame($transactionLevel, DB::connection()->transactionLevel());
         $periods = EmployeeServicePeriod::where('employee_id', $this->employee->id)->get();
         $this->assertCount(1, $periods);
         $this->assertSame('2026-01-01', $periods[0]->start_date->format('Y-m-d'));

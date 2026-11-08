@@ -16,3 +16,18 @@ Route::prefix('api/v1/leave-settings')
         Route::get('balance-entries', 'balanceEntries');
         Route::post('balance-entries', 'storeBalanceEntry');
     });
+
+Route::prefix('api/v1/leaves')->middleware(['api', 'auth:sanctum'])
+    ->controller(\App\Modules\HR\Http\Controllers\LeaveRequestController::class)
+    ->group(function () {
+        Route::get('options', 'options');
+        Route::put('half-days', 'halfDays')->middleware('perm:employees.manage');
+        Route::get('/', 'index');
+        Route::post('preview', 'preview')->name('leaves.preview');
+        Route::post('/', 'store');
+        Route::get('{leaveRequest}', 'show')->whereNumber('leaveRequest');
+        Route::post('{leaveRequest}/preview', 'preview')->name('leaves.preview-edit');
+        Route::put('{leaveRequest}', 'store');
+        Route::post('{leaveRequest}/{action}', 'action')
+            ->whereIn('action', ['approve', 'reject', 'withdraw', 'cancel', 'shorten', 'approve-change', 'reject-change']);
+    });
