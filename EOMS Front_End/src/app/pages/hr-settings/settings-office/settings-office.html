@@ -1,0 +1,33 @@
+<section>
+  <h2>{{ t('companySettings') }}</h2>
+  @if (error()) { <p class="warn" role="alert">{{ error() }}</p> }
+  @if (busy() && rows().length === 0) { <p class="note">{{ t('loading') }}</p> }
+  @if (rows().length === 0 && !busy()) { <p class="empty">{{ t('settingsEmpty') }}</p> }
+  <ul class="list">
+    @for (row of rows(); track row[0]) {
+      <li>
+        <span><bdi>{{ row[0] }}</bdi></span>
+        @if (session.has('settings.manage')) {
+          <form (submit)="save($event, row[0])">
+            <label>
+              <span class="vh">{{ row[0] === 'company.name' ? t('companyName') : row[0] }}</span>
+              <input name="value" type="text" maxlength="1000" required [value]="row[1]" />
+            </label>
+            <button class="text" type="submit" [disabled]="busy()">{{ t('save') }}</button>
+          </form>
+        } @else {
+          <span>{{ row[1] }}</span>
+        }
+      </li>
+    }
+  </ul>
+  @if (session.has('settings.manage') && missingName()) {
+    <form (submit)="save($event)">
+      <label>
+        <span>{{ t('companyName') }}</span>
+        <input name="value" type="text" maxlength="1000" required [value]="name" />
+      </label>
+      <button class="primary" type="submit" [disabled]="busy()">{{ t('save') }}</button>
+    </form>
+  }
+</section>

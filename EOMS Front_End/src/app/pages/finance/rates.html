@@ -1,0 +1,44 @@
+<main class="work" id="content">
+  <button class="menu" type="button" (click)="chrome.toggle()">
+    <i class="fa-solid" [class.fa-bars]="!chrome.menuOpen()" [class.fa-xmark]="chrome.menuOpen()" aria-hidden="true"></i>
+    {{ chrome.menuOpen() ? t('closeMenu') : t('menu') }}
+  </button>
+  @if (!session.can('finance')) {
+    <h1>{{ t('finance') }}</h1>
+    <p class="empty">{{ t('noAccess') }}</p>
+    <a class="primary" routerLink="/">{{ t('back') }}</a>
+  } @else {
+    <app-notice />
+    <header class="heading"><h1>{{ t('exchangeTitle') }}</h1></header>
+    @if (error()) { <p class="warn" role="alert">{{ error() }}</p> }
+    <form (ngSubmit)="lookup()">
+      <fieldset [disabled]="busy()">
+        <label>{{ t('rangeFrom') }}
+          <select name="from" [(ngModel)]="from">
+            @for (item of records.currencies(); track item.code) { <option [value]="item.code">{{ item.code }}</option> }
+          </select>
+        </label>
+        <label>{{ t('rangeTo') }}
+          <select name="to" [(ngModel)]="to">
+            @for (item of records.currencies(); track item.code) { <option [value]="item.code">{{ item.code }}</option> }
+          </select>
+        </label>
+        <button class="primary" type="submit">{{ t('exchangeLatest') }}</button>
+      </fieldset>
+    </form>
+    @if (latest(); as row) {
+      <p>{{ t('exchangeLatest') }}: <bdi>{{ row.rate }}</bdi> · {{ rateDay(row.rate_date) }}</p>
+    } @else if (latest() === null) {
+      <p class="empty">{{ t('exchangeNone') }}</p>
+    }
+    @if (session.has('finance.manage')) {
+      <form (ngSubmit)="save()">
+        <fieldset [disabled]="busy()">
+          <label>{{ t('exchangeRate') }}<input name="rate" type="number" min="0" step="any" required [(ngModel)]="rate"></label>
+          <label>{{ t('exchangeDate') }}<input name="rateDate" type="date" required [(ngModel)]="rateDate"></label>
+          <button class="primary" type="submit">{{ t('saveRate') }}</button>
+        </fieldset>
+      </form>
+    }
+  }
+</main>

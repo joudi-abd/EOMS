@@ -2,6 +2,8 @@
 
 namespace App\Modules\HR\Providers;
 
+use App\Modules\HR\Services\IdentityEmployeeDirectory;
+use App\Modules\Identity\Contracts\EmployeeDirectory;
 use App\Modules\HR\Console\Commands\ConfigureAdmsDevice;
 use App\Modules\HR\Console\Commands\ConfigureAttendanceDefaults;
 use App\Modules\HR\Console\Commands\ProcessExpiredContracts;
@@ -15,6 +17,11 @@ use Illuminate\Support\ServiceProvider;
 
 class HrServiceProvider extends ServiceProvider
 {
+    public function register(): void
+    {
+        $this->app->bind(EmployeeDirectory::class, IdentityEmployeeDirectory::class);
+    }
+
     public function boot(): void
     {
         $this->loadMigrationsFrom(__DIR__.'/../Database/Migrations');

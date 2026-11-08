@@ -1,6 +1,7 @@
 import { Component, computed, inject, input, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { Session } from '../../../core/access/session';
+import { loginMail, loginUserRejected } from '../../../core/login-mail';
 import { Ui } from '../../../core/ui';
 import { Employee } from '../../../data/employees';
 import { Office } from '../../../data/office';
@@ -15,6 +16,7 @@ export class EmployeeForm extends Ui {
   protected readonly office = inject(Office);
   protected readonly session = inject(Session);
   protected readonly problem = signal('');
+  protected readonly mailNote = signal('');
   protected readonly saving = signal(false);
   private readonly router = inject(Router);
 
@@ -28,6 +30,11 @@ export class EmployeeForm extends Ui {
   /** Only an account that manages users may open the login together with the file. */
   protected readonly offerLogin = computed(() => !this.person() && this.session.canAct('account.add'));
   protected readonly offerEnroll = computed(() => !this.person() && this.session.canAct('attendance.link'));
+
+  protected onMail(event: Event): void {
+    const value = (event.target as HTMLInputElement).value;
+    this.mailNote.set(loginUserRejected(value) ? this.t('mailUserInvalid') : '');
+  }
 
   protected cancel(): void {
     const editing = this.person();
@@ -54,7 +61,13 @@ export class EmployeeForm extends Ui {
       managerId: read('manager'),
       wallet: data.has('wallet') ? read('wallet') : (editing?.wallet ?? ''),
     };
-    if (!editing && read('accountEmail') && String(data.get('accountPassword') ?? '').length < 10) {
+    const typedAccount = read('accountEmail');
+    if (!editing && loginUserRejected(typedAccount)) {
+      this.mailNote.set(this.t('mailUserInvalid'));
+      return;
+    }
+    const accountEmail = loginMail(typedAccount);
+    if (!editing && accountEmail && String(data.get('accountPassword') ?? '').length < 10) {
       this.problem.set(this.t('passwordHint'));
       return;
     }
@@ -63,8 +76,8 @@ export class EmployeeForm extends Ui {
     const outcome = editing
       ? await this.office.updateEmployee(editing.id, { ...shared, effectiveDate: read('effectiveDate'), reason: read('reason') }, actor)
       : await this.office.hire({ ...shared, nationalId: read('nationalId'), hired: read('hired') }, actor);
-    if (outcome.ok && !editing && outcome.id && read('accountEmail')) {
-      await this.office.createLogin(outcome.id, read('accountEmail'), String(data.get('accountPassword') ?? ''), actor);
+    if (outcome.ok && !editing && outcome.id && accountEmail) {
+      await this.office.createLogin(outcome.id, accountEmail, String(data.get('accountPassword') ?? ''), actor);
     }
     this.saving.set(false);
     if (!outcome.ok) {

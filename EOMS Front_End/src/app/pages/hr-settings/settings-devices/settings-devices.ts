@@ -69,6 +69,14 @@ export class SettingsDevices extends Ui {
     return person ? this.text(person.name) : `#${binding.employee_id}`;
   }
 
+  /** The device number starts as the employee's staff number and stays editable. */
+  protected fillPin(event: Event): void {
+    const select = event.target as HTMLSelectElement;
+    const pin = select.form?.elements.namedItem('pin');
+    const person = this.office.person(select.value);
+    if (pin instanceof HTMLInputElement) pin.value = person?.staffNo ?? '';
+  }
+
   protected open(device: ApiDevice): void {
     if (this.openId() === device.id) {
       this.openId.set(null);

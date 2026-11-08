@@ -240,6 +240,8 @@ class AdmsGatewayTest extends TestCase
         $id = $this->begin();
         $url = '/iclock/getrequest?SN=IFACE_TEST';
         $user = DB::table('hr_adms_commands')->first();
+        $this->assertStringContainsString('Name=Ali Omar Hassan', $user->payload);
+        $this->assertStringNotContainsString('EOMS_', $user->payload);
         $this->get($url)->assertOk()->assertContent("C:{$user->id}:{$user->payload}\n");
         $this->get($url)->assertContent('OK'); // no automatic retry of a potentially executed command
         $this->raw("ID={$user->id}&Return=0&CMD=ENROLL_FP", 'devicecmd')->assertOk();

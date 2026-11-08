@@ -21,6 +21,29 @@ class LeaveWorkflowService
 {
     public function __construct(private LeaveBalanceService $balances, private EmploymentPeriodService $employment, private AuditLogger $audit, private AttendanceLeaveSync $attendance) {}
 
+    /**
+     * The employee a submission is for: the actor themself, or, for leaves.manage holders, another employee.
+     * The request always belongs to that employee's own account.
+     */
+    public function subjectFor(User $actor, ?int $employeeId): Employee
+    {
+        $own = Employee::where('user_id', $actor->id)->first();
+        if ($employeeId === null || $employeeId === $own?->id) {
+            return $this->employeeFor($actor);
+        }
+        abort_unless($actor->can('leaves.manage'), 403, 'تقديم إجازة نيابة عن موظف يتطلب صلاحية إدارة الإجازات.');
+        $employee = Employee::findOrFail($employeeId);
+        abort_if($employee->user_id === null, 422, 'الموظف غير مرتبط بحساب.');
+
+        return $employee;
+    }
+
+    /** Owner actions (edit, withdraw, cancel, shorten): the employee, or HR acting for them. */
+    public function mayActFor(User $actor, LeaveRequest $request): bool
+    {
+        return $actor->id === $request->submitted_by || $actor->can('leaves.manage');
+    }
+
     public function employeeFor(User $actor): Employee
     {
         $employee = Employee::where('user_id', $actor->id)->first();
@@ -37,9 +60,10 @@ class LeaveWorkflowService
         return $period;
     }
 
-    public function options(User $actor): array
+    public function options(User $actor, ?int $employeeId = null): array
     {
-        $employee = Employee::where('user_id', $actor->id)->first();
+        // HR preparing a request for someone else sees that employee's balances.
+        $employee = $employeeId === null ? Employee::where('user_id', $actor->id)->first() : $this->subjectFor($actor, $employeeId);
         $balances = [];
         $eligible = false;
         if ($employee) {
@@ -54,6 +78,7 @@ class LeaveWorkflowService
                     return;
                 }
                 $this->balances->sync($employee, $period);
+                $awaiting = array_column($this->balances->pendingOpenings($employee, $period), 'leave_type_id');
                 foreach (LeaveType::where('active', true)->get() as $type) {
                     $policy = $this->balances->policy($type->id, $today);
                     if (! $policy) {
@@ -62,19 +87,22 @@ class LeaveWorkflowService
                     [$start, $end] = $this->balances->cycle($policy->toArray(), $employee, $today);
                     $balances[] = ['id' => $type->id, 'name' => $type->name, 'pay_percent' => $policy->pay_percent,
                         'cycle_start' => $start, 'cycle_end' => $end,
-                        'available_units' => $policy->annual_days === null ? null : $this->balances->available($period->id, $type->id, $start)];
+                        // available_units stays for existing clients; the breakdown adds granted/used/reserved.
+                        'available_units' => $policy->annual_days === null ? null : $this->balances->available($period->id, $type->id, $start),
+                        'balance' => $policy->annual_days === null ? null : $this->balances->breakdown($period->id, $type->id, $start),
+                        'awaiting_opening' => in_array($type->id, $awaiting, true)];
                 }
             }, 3);
         }
         return ['types' => $balances, 'can_submit' => $eligible,
             'can_review' => $actor->can('leaves.approve') && $actor->hasAnyRole(['hr_manager', 'company_manager']),
-            'can_configure' => $actor->can('employees.manage'), 'today' => $this->employment->today(),
+            'can_configure' => $actor->can('leaves.manage'), 'today' => $this->employment->today(),
             'half_days' => DB::table('hr_leave_half_days')->find(1)];
     }
 
     public function preview(User $actor, array $input, ?LeaveRequest $request = null): array
     {
-        $employee = $this->employeeFor($actor);
+        $employee = $request ? Employee::findOrFail($request->employee_id) : $this->subjectFor($actor, $input['employee_id'] ?? null);
         return DB::transaction(function () use ($actor, $employee, $input, $request) {
             DB::table('hr_leave_half_days')->lockForUpdate()->find(1);
             $employee = Employee::lockForUpdate()->findOrFail($employee->id);
@@ -83,7 +111,7 @@ class LeaveWorkflowService
             $this->balances->sync($employee, $period);
             if ($request) {
                 $request->refresh();
-                abort_unless($request->submitted_by === $actor->id && $request->status === 'pending', 409, 'الطلب غير قابل للتعديل.');
+                abort_unless($this->mayActFor($actor, $request) && $request->status === 'pending', 409, 'الطلب غير قابل للتعديل.');
                 abort_unless($request->employee_id === $employee->id && $request->service_period_id === $period->id, 409, 'تغيّرت فترة الخدمة؛ اسحب الطلب القديم وأنشئ طلباً جديداً.');
                 $policy = $request->policy;
             } else {
@@ -186,7 +214,7 @@ class LeaveWorkflowService
 
     public function submit(User $actor, array $input, ?LeaveRequest $editing = null): LeaveRequest
     {
-        $employee = $this->employeeFor($actor);
+        $employee = $editing ? Employee::findOrFail($editing->employee_id) : $this->subjectFor($actor, $input['employee_id'] ?? null);
         return DB::transaction(function () use ($actor, $employee, $input, $editing) {
             DB::table('hr_leave_half_days')->lockForUpdate()->find(1);
             $employee = Employee::lockForUpdate()->findOrFail($employee->id);
@@ -194,16 +222,17 @@ class LeaveWorkflowService
             if (! $editing) {
                 $existing = LeaveRequest::where('submission_key', $input['submission_key'])->first();
                 if ($existing) {
-                    abort_unless($existing->submitted_by === $actor->id, 409, 'مفتاح الطلب مستخدم.');
+                    abort_unless(in_array($actor->id, [$existing->submitted_by, $existing->entered_by], true), 409, 'مفتاح الطلب مستخدم.');
                     $submitted = array_intersect_key($input, array_flip(['start_date', 'end_date', 'unit', 'half', 'start_time', 'end_time', 'reason']));
                     abort_unless($existing->input == $submitted && $existing->leave_type_id === (int) $input['leave_type_id'], 409, 'هذا المفتاح يخص طلباً مختلفاً؛ حدّث القائمة قبل إرسال طلب جديد.');
                     return $existing->load('days');
                 }
             } else {
                 $editing->refresh();
-                abort_unless($editing->submitted_by === $actor->id && $editing->status === 'pending', 409, 'الطلب غير قابل للتعديل.');
+                abort_unless($this->mayActFor($actor, $editing) && $editing->status === 'pending', 409, 'الطلب غير قابل للتعديل.');
                 $this->version($editing, $input);
             }
+            $owner = User::findOrFail($employee->user_id);
             $period = $this->period($employee);
             $this->balances->sync($employee, $period);
             if ($editing) {
@@ -229,8 +258,9 @@ class LeaveWorkflowService
             } else {
                 $request = LeaveRequest::create([...$values, 'employee_id' => $employee->id, 'service_period_id' => $period->id,
                     'leave_type_id' => $policy['leave_type_id'], 'leave_policy_id' => $policy['id'],
-                    'policy' => $policy, 'submitted_by' => $actor->id, 'submission_key' => $input['submission_key'],
-                    'approver_role' => $actor->hasRole('hr_manager') ? 'company_manager' : 'hr_manager']);
+                    'policy' => $policy, 'submitted_by' => $owner->id, 'submission_key' => $input['submission_key'],
+                    'entered_by' => $owner->id === $actor->id ? null : $actor->id,
+                    'approver_role' => $owner->hasRole('hr_manager') ? 'company_manager' : 'hr_manager']);
             }
             foreach ($days as $data) {
                 $day = $request->days()->create($data);
@@ -239,8 +269,9 @@ class LeaveWorkflowService
                 }
             }
             $this->audit->log($editing ? 'leave.request_amended' : 'leave.request_submitted', $request, null, $request->getAttributes(), $actor->id);
-            if (! $editing && $this->selfApproves($actor)) {
+            if (! $editing && $this->selfApproves($owner)) {
                 // The company manager has no approver above them: the leave is recorded as approved immediately.
+                $this->consume($request, $actor->id);
                 $request->update(['status' => 'approved', 'approver_role' => 'company_manager', 'reviewed_by' => $actor->id,
                     'review_note' => 'اعتماد مباشر: إجازة مدير الشركة', 'version' => $request->version + 1]);
                 $this->audit->log('leave.auto_approved', $request, null, $request->getAttributes(), $actor->id);
@@ -258,10 +289,10 @@ class LeaveWorkflowService
         abort_unless($request->version === (int) $data['version'], 409, 'تغيّر الطلب؛ حدّث الصفحة قبل المتابعة.');
     }
 
-    /** The company manager approves their own leave by recording it; nobody reviews it. */
-    public function selfApproves(User $actor): bool
+    /** The company manager's own leave needs no review, whoever records it. */
+    public function selfApproves(User $owner): bool
     {
-        return $actor->hasRole('company_manager');
+        return $owner->hasRole('company_manager');
     }
 
     public function mayReview(User $actor, LeaveRequest $request): bool
@@ -280,7 +311,7 @@ class LeaveWorkflowService
             $this->expire($employee);
             $request->refresh();
             $this->version($request, $data);
-            $own = $actor->id === $request->submitted_by;
+            $own = $this->mayActFor($actor, $request);
             $old = $request->getAttributes();
             if ($action === 'withdraw') {
                 abort_unless($own, 403);
@@ -296,7 +327,7 @@ class LeaveWorkflowService
                     if ($period->end_date) {
                         abort_if($request->days()->where('active', true)->where('date', '>', $period->end_date->toDateString())->exists(), 409, 'تتجاوز الإجازة نهاية الخدمة.');
                     }
-                    // Reservation already reduced availability. Mark it consumed without a second debit.
+                    $this->consume($request, $actor->id);
                     $request->status = 'approved';
                 } else {
                     $this->release($request, $actor->id, 'رفض الطلب');
@@ -310,7 +341,7 @@ class LeaveWorkflowService
                 $from = $action === 'cancel' ? $request->days()->where('active', true)->min('date') : $data['from_date'];
                 $this->ensureUnused($request, $from, $action);
                 $request->change_request = ['kind' => $action, 'from_date' => $from, 'reason' => $data['reason']];
-                if ($this->selfApproves($actor)) {
+                if ($this->selfApproves(User::findOrFail($request->submitted_by))) {
                     // Same rule as submission: the company manager's own cancel/shorten applies immediately.
                     $this->release($request, $actor->id, 'إلغاء مباشر من مدير الشركة', $from);
                     if (! $request->days()->where('active', true)->exists()) {
@@ -375,11 +406,28 @@ class LeaveWorkflowService
             'reason' => $reason, 'recorded_by_user_id' => $actor]);
     }
 
+    /**
+     * Approval turns each day's reservation into a debit: the reservation is released and the same units are
+     * debited, so availability is unchanged while the ledger shows what was actually consumed.
+     */
+    private function consume(LeaveRequest $request, int $actor): void
+    {
+        if ($request->policy['annual_days'] === null) {
+            return;
+        }
+        foreach ($request->days()->where('active', true)->where('covered_units', '>', 0)->get() as $day) {
+            $this->entry($request, $day, $day->covered_units, 'release', 'تحويل الحجز إلى خصم عند الاعتماد', $actor);
+            $this->entry($request, $day, -$day->covered_units, 'debit', 'خصم إجازة معتمدة', $actor);
+        }
+    }
+
+    /** Pending days give their reservation back ("release"); approved days give back a debit ("refund"). */
     private function release(LeaveRequest $request, int $actor, string $reason, ?string $from = null): void
     {
+        $kind = $request->status === 'approved' ? 'refund' : 'release';
         foreach ($request->days()->where('active', true)->when($from, fn ($q) => $q->where('date', '>=', $from))->get() as $day) {
             if ($request->policy['annual_days'] !== null && $day->covered_units > 0) {
-                $this->entry($request, $day, $day->covered_units, 'release', $reason, $actor);
+                $this->entry($request, $day, $day->covered_units, $kind, $reason, $actor);
             }
             $day->update(['active' => false]);
         }

@@ -4,7 +4,9 @@ import { RouterLink } from '@angular/router';
 import { Ui } from '../../core/ui';
 import { serverMessage } from '../../core/api/api';
 import { Chrome } from '../../shell/chrome';
-import { Leaves, LeaveInput, LeaveOptions, LeaveQuote, LeaveRecord, HalfDays } from '../../data/leaves';
+import { Session } from '../../core/access/session';
+import { Office } from '../../data/office';
+import { Leaves, LeaveCalendar, LeaveInput, LeaveOptions, LeaveQuote, LeaveRecord, HalfDays } from '../../data/leaves';
 
 @Component({
   selector: 'app-leaves',
@@ -15,6 +17,8 @@ import { Leaves, LeaveInput, LeaveOptions, LeaveQuote, LeaveRecord, HalfDays } f
 export class LeavesPage extends Ui {
   protected readonly chrome = inject(Chrome);
   private readonly api = inject(Leaves);
+  protected readonly session = inject(Session);
+  protected readonly office = inject(Office);
   protected readonly options = signal<LeaveOptions | null>(null);
   protected readonly rows = signal<LeaveRecord[]>([]);
   protected readonly quote = signal<LeaveQuote | null>(null);
@@ -28,6 +32,11 @@ export class LeavesPage extends Ui {
   protected consent = false;
   protected form: LeaveInput = {leave_type_id: 0, start_date: '', end_date: '', unit: 'day', reason: ''};
   protected halves: HalfDays = {first_start: '09:00', first_end: '12:30', second_start: '12:30', second_end: '16:00'};
+  protected readonly calendar = signal<LeaveCalendar | null>(null);
+  protected calendarFrom = '';
+  protected calendarTo = '';
+  protected calendarDepartment = '';
+  protected includePending = false;
   protected decision: {row: LeaveRecord; action: string} | null = null;
   protected decisionReason = '';
   protected changeDate = '';
@@ -51,6 +60,12 @@ export class LeavesPage extends Ui {
     this.halves = {...data.half_days};
     if (!this.form.leave_type_id) this.form.leave_type_id = data.types[0]?.id ?? 0;
     if (!this.form.start_date) this.form.start_date = this.form.end_date = data.today;
+    if (!this.calendarFrom) {
+      this.calendarFrom = data.today;
+      const end = new Date(`${data.today}T00:00:00`);
+      end.setDate(end.getDate() + 13);
+      this.calendarTo = end.toISOString().slice(0, 10);
+    }
     await this.loadRows();
   }
   private async loadRows(): Promise<void> {
@@ -107,6 +122,16 @@ export class LeavesPage extends Ui {
       this.decision = null;
       this.success.set(this.l('تم حفظ الإجراء.', 'Action saved.'));
       await this.load();
+    });
+  }
+  protected async exportRequests(): Promise<void> {
+    await this.run(async () => { await this.api.exportCsv(this.scope); });
+  }
+  protected loadCalendar(): void {
+    void this.run(async () => {
+      const department = Number(this.calendarDepartment);
+      const result = await this.api.calendar(this.calendarFrom, this.calendarTo, department || undefined, this.includePending);
+      this.calendar.set(result.data);
     });
   }
   protected saveHalves(): void {

@@ -25,7 +25,11 @@ class HrNotifier
 
     public function leaveSubmitted(LeaveRequest $request, bool $amended): void
     {
-        $this->send($this->leaveReviewers($request), $amended ? 'leave.amended' : 'leave.submitted',
+        if ($request->entered_by !== null && ! $amended) {
+            $this->send($this->users([$request->submitted_by]), 'leave.entered_for_you',
+                'سجّلت الموارد البشرية طلب إجازة باسمك.', $this->leaveContext($request));
+        }
+        $this->send($this->leaveReviewers($request)->reject(fn (User $user) => $user->id === $request->entered_by), $amended ? 'leave.amended' : 'leave.submitted',
             ($amended ? 'تعديل على طلب إجازة: ' : 'طلب إجازة جديد: ').$this->employeeName($request), $this->leaveContext($request));
     }
 
@@ -67,6 +71,12 @@ class HrNotifier
     {
         $this->send(User::permission('attendance.approve')->where('status', 'active')->get(), 'attendance.'.$flag,
             'تعارض حضور: بصمة في يوم إجازة معتمدة ('.$day->work_date->format('Y-m-d').')', $this->dayContext($day));
+    }
+
+    public function openingBalanceNeeded(Employee $employee): void
+    {
+        $this->send(User::permission('leaves.manage')->where('status', 'active')->get(), 'leave.opening_balance_needed',
+            'عاد الموظف '.$employee->full_name.' للخدمة؛ سجّل رصيده الافتتاحي للإجازات.', ['employee_id' => $employee->id]);
     }
 
     /** Same routing as LeaveWorkflowService::mayReview: HR reviews staff, the company manager reviews HR. */

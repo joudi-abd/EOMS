@@ -42,6 +42,21 @@
   margin: 0;
 }
 
+.form .login-mail input {
+  grid-column: 1;
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+}
+
+.form .login-mail input:hover,
+.form .login-mail input:focus-visible {
+  border-color: transparent;
+  outline: none;
+}
+
 .form textarea {
   font: inherit;
   color: inherit;

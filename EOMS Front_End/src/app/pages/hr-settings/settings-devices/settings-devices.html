@@ -148,7 +148,7 @@
                 <form class="form" (submit)="bind($event, device)">
                   <label>
                     <span>{{ t('bindingEmployee') }}</span>
-                    <select name="employee" required>
+                    <select name="employee" required (change)="fillPin($event)">
                       <option value="">{{ t('pickEmployee') }}</option>
                       @for (person of people(); track person.id) {
                         <option [value]="person.id">{{ text(person.name) }} · {{ person.staffNo }}</option>

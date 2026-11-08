@@ -159,9 +159,11 @@ class AdmsGateway
                 'expires_at' => CarbonImmutable::now('UTC')->addMinutes(config('attendance.adms.command_timeout_minutes')),
                 'created_at' => $now, 'updated_at' => $now,
             ]);
-            // Safe ASCII name and no user-controlled command fragments; no biometric templates.
+            // The device shows the employee name. Control characters cannot split the command.
             $pin = $binding->device_user_id;
-            $this->command($device->id, $id, 'DATA', "DATA UPDATE USERINFO PIN={$pin}\tName=EOMS_{$pin}\tPri=0\tPasswd=\tCard=\tGrp=1\tTZ=0000000000000000\tVerify=-1\tViceCard=");
+            $employee = Employee::query()->findOrFail($binding->employee_id);
+            $name = $this->deviceUserName($employee->full_name, $pin);
+            $this->command($device->id, $id, 'DATA', "DATA UPDATE USERINFO PIN={$pin}\tName={$name}\tPri=0\tPasswd=\tCard=\tGrp=1\tTZ=0000000000000000\tVerify=-1\tViceCard=");
             $this->audit->log('attendance.remote_enrollment_requested', $binding, null,
                 ['enrollment_id' => $id, 'finger_id' => $finger], $actor);
 
@@ -284,6 +286,17 @@ class AdmsGateway
 
             return $this->enrollmentSnapshot($id);
         }, 3);
+    }
+
+    /** The name the device displays. Tabs and control characters would split the command. */
+    private function deviceUserName(string $name, string $pin): string
+    {
+        $clean = trim(preg_replace('/\s+/u', ' ', preg_replace('/[\x00-\x1F\x7F]+/u', ' ', $name) ?? '') ?? '');
+        if ($clean === '') {
+            return 'EOMS_'.$pin;
+        }
+
+        return mb_substr($clean, 0, 24);
     }
 
     private function enrollmentSnapshot(int $id): array

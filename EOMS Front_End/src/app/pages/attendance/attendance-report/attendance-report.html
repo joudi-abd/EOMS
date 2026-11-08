@@ -56,6 +56,15 @@
 <div class="bar">
   <p class="period">{{ date(from()) }} – {{ date(to()) }}</p>
   <div class="actions">
+    @if (canExport()) {
+      <button class="text" type="button" [disabled]="exporting()" (click)="exportOfficial()">
+        <i class="fa-solid fa-file-csv" aria-hidden="true"></i>
+        {{ t('officialCsv') }}
+      </button>
+    }
+    @if (canApprove()) {
+      <button class="text" type="button" [disabled]="exporting()" (click)="approvePeriod()">{{ t('bulkApprove') }}</button>
+    }
     <button class="text" type="button" [disabled]="exporting()" (click)="exportExcel()">
       <i class="fa-solid fa-file-excel excel" aria-hidden="true"></i>
       {{ exporting() ? t('exporting') : t('exportExcel') }}
@@ -66,6 +75,13 @@
     </button>
   </div>
 </div>
+
+@if (bulk(); as result) {
+  <p class="note">
+    {{ t('bulkApprovedCount') }} {{ num(result.approved) }} · {{ t('bulkAlready') }} {{ num(result.already_approved) }} ·
+    {{ t('bulkOutside') }} {{ num(result.outside_service) }} · {{ t('bulkSkipped') }} {{ num(result.skipped) }}
+  </p>
+}
 
 <div class="summary">
   <p><span>{{ t('attendanceRate') }}</span><strong>{{ percent(totals().rate) }}</strong></p>

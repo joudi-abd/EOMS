@@ -111,6 +111,28 @@ class LeaveSettingsService
         }, 3);
     }
 
+    /** Rehired employees still waiting for HR to record an opening balance, with the blocked leave types. */
+    public function pendingOpenings(): array
+    {
+        $balances = app(LeaveBalanceService::class);
+        $today = $this->employment->today();
+        $rows = [];
+        $employees = Employee::query()->where('status', '!=', 'terminated')
+            ->whereHas('servicePeriods', fn ($q) => $q->whereDate('start_date', '<=', $today)->where(fn ($p) => $p->whereNull('end_date')->orWhereDate('end_date', '>=', $today)))
+            ->has('servicePeriods', '>', 1)->orderBy('id')->get();
+        foreach ($employees as $employee) {
+            $period = $employee->servicePeriods()->whereDate('start_date', '<=', $today)
+                ->where(fn ($q) => $q->whereNull('end_date')->orWhereDate('end_date', '>=', $today))->first();
+            $types = $balances->pendingOpenings($employee, $period);
+            if ($types !== []) {
+                $rows[] = ['employee_id' => $employee->id, 'employee_no' => $employee->employee_no, 'employee_name' => $employee->full_name,
+                    'service_period_id' => $period->id, 'service_start' => $period->start_date->toDateString(), 'leave_types' => $types];
+            }
+        }
+
+        return $rows;
+    }
+
     public function balanceEntries(int $employeeId): LengthAwarePaginator
     {
         return LeaveBalanceEntry::query()
