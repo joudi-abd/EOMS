@@ -2,7 +2,9 @@
 
 كل المسارات تحت `/api/v1` وتتطلب `auth:sanctum`. الوحدة الرقمية للأيام: `1,000,000` = يوم كامل.
 
-## الإعدادات (`employees.manage`)
+## الإعدادات (`leaves.manage`)
+
+صلاحية خاصة بالإجازات، يملكها `hr_manager`. لم تعد `employees.manage` كافية لإعدادات الإجازات.
 
 | المسار | الوصف |
 |---|---|
@@ -12,19 +14,24 @@
 | PATCH `/leave-settings/types/{id}/activation` | تفعيل/إيقاف نوع |
 | POST/DELETE `/leave-settings/holidays` | إضافة عطلة (تعيد رصيد الإجازات المتأثرة وتحدّث الحضور) / حذفها (ممنوع إن تقاطعت مع إجازة معلّقة أو معتمدة) |
 | GET/POST `/leave-settings/balance-entries` | سجل الرصيد والأرصدة الافتتاحية والتسويات |
+| GET `/leave-settings/pending-openings` | الموظفون العائدون للخدمة الذين ينتظرون رصيداً افتتاحياً، مع الأنواع المتوقفة. يصل أيضاً إشعار `leave.opening_balance_needed` عند إعادة التعيين |
 | PUT `/leaves/half-days` | فترتا نصف اليوم |
 
 ## الطلب ودورة حياته
 
 | المسار | الوصف |
 |---|---|
-| GET `/leaves/options` | الأنواع المتاحة للموظف ورصيده |
+| GET `/leaves/options` | الأنواع المتاحة للموظف ورصيده. لكل نوع: `available_units`، و`balance` (`granted_units`, `used_units`, `reserved_units`, `available_units`)، و`awaiting_opening`. للـHR: `?employee_id=` لعرض رصيد موظف آخر |
 | POST `/leaves/preview` | معاينة الأيام والخصم والجزء غير المدفوع وإرجاع `quote_token` |
 | POST `/leaves` | تقديم الطلب (`quote_token`, `submission_key`, و`unpaid_consent` عند الحاجة) |
 | PUT `/leaves/{id}` | تعديل طلب معلّق (بعد `POST /leaves/{id}/preview`) |
 | POST `/leaves/{id}/{action}` | `approve`, `reject`, `withdraw`, `cancel`, `shorten` (مع `from_date`), `approve-change`, `reject-change`؛ كلها تتطلب `version` و`reason` |
 
 **مدير الشركة:** طلبه يُسجَّل **معتمداً مباشرة** عند التقديم (`status=approved`, `reviewed_by` = نفسه)، ولا يُرسل لأحد للمراجعة. وكذلك إلغاؤه أو تقصيره ينفّذ فوراً دون طلب تغيير معلّق.
+
+**تقديم الـHR نيابة عن موظف (`leaves.manage`):** أرسل `employee_id` في المعاينة والتقديم. الطلب يُسجَّل باسم الموظف (`submitted_by` = حسابه) ويظهر في "طلباتي" عنده ويصله إشعار `leave.entered_for_you`، ويُحفظ من أدخله في `entered_by`. يستطيع الـHR تعديله وسحبه وطلب إلغائه أو تقصيره نيابة عن الموظف (`can_act_for_owner` في الرد). أضف `approve_now: true` لاعتماده مباشرة إن كنت مخولاً بمراجعته؛ وإلا يُرفض بـ403 ويبقى الطلب معلّقاً. التوجيه لا يتغير: إجازة موظف HR تذهب لمدير الشركة، وإجازة مدير الشركة معتمدة مباشرة أياً كان من أدخلها.
+
+**سجل الرصيد:** `grant` منح، `opening` افتتاحي، `adjustment` تسوية، `reserve` حجز عند التقديم، `release` تحرير حجز، `debit` خصم عند الاعتماد (يُسجَّل مع تحرير الحجز فلا يتغير المتاح)، `refund` استرداد عند إلغاء أو تقصير إجازة معتمدة أو إنهاء الخدمة، `holiday_refund` استرداد بسبب عطلة. انتهاء الرصيد في نهاية السنة ضمني: كل رصيد مربوط بسنته (`cycle_start`)، ولا يُستخدم رصيد سنة منتهية.
 
 **التوجيه:** طلبات الموظفين يعتمدها `hr_manager`، وطلبات موظفي الـHR وتعديلاتها يعتمدها `company_manager`. لا أحد يراجع طلبه بنفسه.
 
@@ -74,7 +81,8 @@ GET `/leaves/export` بنفس `scope` والفلاتر، ملف CSV بترميز
 |---|---|
 | `leave.submitted`, `leave.amended`, `leave.change_requested` | مراجعي الطلب |
 | `leave.approve`, `leave.reject`, `leave.approve_change`, `leave.reject_change` | صاحب الطلب |
-| `leave.expired`, `leave.holiday_refunded` | صاحب الطلب |
+| `leave.expired`, `leave.holiday_refunded`, `leave.entered_for_you` | صاحب الطلب |
+| `leave.opening_balance_needed` | من يملك `leaves.manage` |
 | `attendance.correction_requested` | من يملك `attendance.approve` (عدا مقدّم الطلب) |
 | `attendance.correction_approved`, `attendance.correction_rejected` | مقدّم التصحيح |
 | `attendance.punch_on_leave_day` | من يملك `attendance.approve`، مرة واحدة عند ظهور التعارض |

@@ -26,7 +26,9 @@ class LeaveRequestController extends Controller
 
     public function options(Request $request)
     {
-        return response()->json(['data' => $this->service->options($request->user())]);
+        $data = $request->validate(['employee_id' => ['sometimes', 'integer', 'exists:hr_employees,id']]);
+
+        return response()->json(['data' => $this->service->options($request->user(), $data['employee_id'] ?? null)]);
     }
 
     public function index(Request $request)
@@ -88,7 +90,8 @@ class LeaveRequestController extends Controller
     {
         $row->load('days');
         $data = [...$row->toArray(), 'employee_name' => Employee::find($row->employee_id)?->full_name,
-            'can_review' => $this->service->mayReview($actor, $row), 'is_owner' => $row->submitted_by === $actor->id];
+            'can_review' => $this->service->mayReview($actor, $row), 'is_owner' => $row->submitted_by === $actor->id,
+            'can_act_for_owner' => $this->service->mayActFor($actor, $row)];
         // The reason stays with the employee, their reviewers and organisation-wide HR; department managers see dates only.
         if (! $this->mayReadReason($actor, $row)) {
             $data['input'] = array_diff_key($data['input'] ?? [], ['reason' => true]);
@@ -107,7 +110,7 @@ class LeaveRequestController extends Controller
     public function show(Request $request, LeaveRequest $leaveRequest)
     {
         $actor = $request->user();
-        abort_unless($leaveRequest->submitted_by === $actor->id || $this->service->mayReview($actor, $leaveRequest)
+        abort_unless($leaveRequest->submitted_by === $actor->id || $leaveRequest->entered_by === $actor->id || $this->service->mayReview($actor, $leaveRequest)
             || ($this->scope->hasAnyScope($actor, 'leaves') && $this->scope->canSee($actor, Employee::findOrFail($leaveRequest->employee_id), 'leaves')), 403);
 
         return response()->json(['data' => $this->present($leaveRequest, $actor)]);
@@ -182,9 +185,15 @@ class LeaveRequestController extends Controller
 
     public function store(SubmitLeaveRequest $request, ?LeaveRequest $leaveRequest = null)
     {
-        $row = $this->service->submit($request->user(), $request->validated(), $leaveRequest);
+        $actor = $request->user();
+        $row = $this->service->submit($actor, $request->validated(), $leaveRequest);
+        // HR entering a leave that was already agreed can approve it in the same step, if allowed to review it.
+        if (! $leaveRequest && $request->boolean('approve_now') && $row->status === 'pending') {
+            abort_unless($this->service->mayReview($actor, $row), 403, 'لا تملك صلاحية اعتماد هذا الطلب.');
+            $row = $this->service->action($actor, $row, 'approve', ['version' => $row->version, 'reason' => 'اعتماد عند الإدخال من الموارد البشرية']);
+        }
 
-        return response()->json(['data' => $this->present($row, $request->user())], $leaveRequest ? 200 : 201);
+        return response()->json(['data' => $this->present($row, $actor)], $leaveRequest ? 200 : 201);
     }
 
     public function action(Request $request, LeaveRequest $leaveRequest, string $action)

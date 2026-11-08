@@ -30,7 +30,13 @@
       </label>
       <label>
         <span>{{ t('email') }}</span>
-        <input name="email" type="email" autocomplete="off" spellcheck="false" dir="ltr" maxlength="255" required [value]="person()?.email ?? ''" />
+        <span class="login-mail" dir="ltr">
+          <input name="email" type="text" autocomplete="off" spellcheck="false" dir="ltr" maxlength="64" required [value]="draftMail()" (input)="onMail($event)" />
+          <bdi class="domain">@ufuq.com</bdi>
+        </span>
+        @if (mailNote()) {
+          <small class="warn" role="alert">{{ mailNote() }}</small>
+        }
       </label>
       <label>
         <span>{{ t('phone') }}</span>

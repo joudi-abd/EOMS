@@ -1,5 +1,5 @@
 import { inject, Injectable } from '@angular/core';
-import { Api } from '../core/api/api';
+import { Api, revealed, saveFile } from '../core/api/api';
 
 export interface LeaveInput {
   leave_type_id: number;
@@ -74,4 +74,33 @@ export class Leaves {
       {version: row.version, reason, ...(from ? {from_date: from} : {})});
   }
   saveHalves(halves: HalfDays) { return this.api.put('/leaves/half-days', halves); }
+  calendar(from: string, to: string, departmentId?: number, includePending = false) {
+    const params: Record<string, string | number> = {from, to, include_pending: includePending ? 1 : 0};
+    if (departmentId) params['department_id'] = departmentId;
+    return this.api.get<{data: LeaveCalendar}>('/leaves/calendar', params);
+  }
+  async exportCsv(scope: 'mine' | 'review'): Promise<void> {
+    try {
+      saveFile(await this.api.blob('/leaves/export', {scope}), `leave-requests-${scope}.csv`);
+    } catch (error) {
+      throw await revealed(error);
+    }
+  }
+}
+
+export interface LeaveCalendarDay {
+  date: string;
+  employee_id: number;
+  employee_name: string | null;
+  department_id: number | null;
+  request_id: number;
+  status: string;
+  leave_type: {id: number | null; name: string | null};
+  start_time: string;
+  end_time: string;
+  full_day: boolean;
+}
+export interface LeaveCalendar {
+  days: LeaveCalendarDay[];
+  holidays: {id: number; date: string; name: string}[];
 }

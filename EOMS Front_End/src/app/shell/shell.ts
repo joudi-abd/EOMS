@@ -1,10 +1,11 @@
-import { Component, computed, effect, inject } from '@angular/core';
+import { Component, computed, effect, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { Session } from '../core/access/session';
 import { CopyKey, ModuleId } from '../core/copy';
 import { Language } from '../core/language';
 import { AccountSwitch } from './account-switch/account-switch';
+import { Server } from '../data/server';
 import { Chrome } from './chrome';
 import { moduleIcon } from './icons';
 
@@ -25,6 +26,8 @@ export class Shell {
   protected readonly language = inject(Language);
   protected readonly chrome = inject(Chrome);
   protected readonly session = inject(Session);
+  protected readonly notes = inject(Server);
+  protected readonly company = signal('');
   protected readonly icons = moduleIcon;
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
@@ -36,6 +39,8 @@ export class Shell {
   );
 
   constructor() {
+    void this.notes.notifications(1).catch(() => undefined);
+    void this.notes.publicCompany().then((name) => this.company.set(name)).catch(() => undefined);
     effect(() => {
       const lang = this.params()?.get('lang');
       if (lang === 'ar' || lang === 'en') {

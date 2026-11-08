@@ -13,7 +13,7 @@ class LeaveRequest extends Model
     protected $attributes = ['status' => 'pending', 'version' => 1];
     protected function casts(): array
     {
-        return ['employee_id' => 'integer', 'service_period_id' => 'integer', 'leave_type_id' => 'integer', 'submitted_by' => 'integer', 'reviewed_by' => 'integer', 'policy' => 'array', 'input' => 'array', 'change_request' => 'array', 'unpaid_consent' => 'boolean', 'version' => 'integer'];
+        return ['employee_id' => 'integer', 'service_period_id' => 'integer', 'leave_type_id' => 'integer', 'submitted_by' => 'integer', 'entered_by' => 'integer', 'reviewed_by' => 'integer', 'policy' => 'array', 'input' => 'array', 'change_request' => 'array', 'unpaid_consent' => 'boolean', 'version' => 'integer'];
     }
 
     public function days(): \Illuminate\Database\Eloquent\Relations\HasMany

@@ -22,6 +22,9 @@ class SubmitLeaveRequest extends FormRequest
             'start_time' => ['required_if:unit,hours', 'nullable', 'date_format:H:i'],
             'end_time' => ['required_if:unit,hours', 'nullable', 'date_format:H:i', 'after:start_time'],
             'reason' => ['required', 'string', 'max:500'],
+            // HR (leaves.manage) entering leave for another employee; ignored when editing an existing request.
+            'employee_id' => ['sometimes', 'nullable', 'integer', 'exists:hr_employees,id'],
+            'approve_now' => ['sometimes', 'boolean'],
             'unpaid_consent' => ['sometimes', 'boolean'],
             'quote_token' => [Rule::requiredIf(! $preview), 'string', 'size:64'],
             'submission_key' => [Rule::requiredIf(! $preview && ! $editing), 'uuid'],

@@ -67,4 +67,9 @@ class LeaveSettingsController
     {
         return ApiResponse::created($this->settings->recordBalance($request->validated(), (int) $request->user()->getKey()));
     }
+
+    public function pendingOpenings(): JsonResponse
+    {
+        return ApiResponse::ok($this->settings->pendingOpenings());
+    }
 }

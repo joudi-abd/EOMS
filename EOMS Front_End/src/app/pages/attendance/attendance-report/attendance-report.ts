@@ -4,7 +4,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Reporter, ReportDraft } from '../../../core/reports/reporter';
 import { Ui } from '../../../core/ui';
 import { DayMark, minutesOf } from '../../../data/attendance';
-import { AttendanceBook, clockOf, markOf } from '../../../data/attendance-book';
+import { AttendanceBook, BulkApproval, clockOf, markOf } from '../../../data/attendance-book';
 import { daysBetween, parseDay, isoDay } from '../../../data/hr';
 import { Session } from '../../../core/access/session';
 import { Employee, plain } from '../../../data/employees';
@@ -41,6 +41,7 @@ export class AttendanceReport extends Ui {
   private readonly session = inject(Session);
   protected readonly projects = projects;
   protected readonly exporting = signal(false);
+  protected readonly bulk = signal<BulkApproval | null>(null);
   private readonly reporter = inject(Reporter);
   private readonly host = inject(ElementRef<HTMLElement>);
   private readonly router = inject(Router);
@@ -224,6 +225,38 @@ export class AttendanceReport extends Ui {
   protected deptName(id: string): string {
     const match = this.office.departmentList().find((item) => item.id === id);
     return match ? this.text(match.name) : id;
+  }
+
+  protected canExport(): boolean {
+    return this.session.has('attendance.view');
+  }
+
+  protected canApprove(): boolean {
+    return this.session.has('attendance.approve');
+  }
+
+  protected async exportOfficial(): Promise<void> {
+    if (this.exporting()) return;
+    this.exporting.set(true);
+    try {
+      const span = this.span();
+      await this.book.exportCsv(span.from, span.to, { employeeId: this.person(), departmentId: this.department() });
+    } finally {
+      this.exporting.set(false);
+    }
+  }
+
+  protected async approvePeriod(): Promise<void> {
+    if (this.exporting() || !confirm(this.t('bulkApproveConfirm'))) return;
+    this.exporting.set(true);
+    try {
+      const span = this.span();
+      const result = await this.book.approveBulk(span.from, span.to, { employeeId: this.person(), departmentId: this.department() });
+      this.bulk.set(result);
+      if (result) await this.book.loadReports(this.people().map((item) => item.id), span.from, span.to);
+    } finally {
+      this.exporting.set(false);
+    }
   }
 
   protected filter(name: 'from' | 'to' | 'dept' | 'mgr' | 'proj' | 'emp', event: Event): void {

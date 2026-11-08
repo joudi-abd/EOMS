@@ -1,0 +1,82 @@
+<section class="facts">
+  <div class="filters">
+    @if (!employeeId()) {
+      <label>
+        <span>{{ t('chooseEmployee') }}</span>
+        <select name="employee" (change)="pick($event)">
+          <option value="">{{ t('chooseEmployee') }}</option>
+          @for (person of office.employees(); track person.id) {
+            @if (person.status !== 'ended') {
+              <option [value]="person.id">{{ text(person.name) }}</option>
+            }
+          }
+        </select>
+      </label>
+    }
+    <label>
+      <span>{{ t('payrollMonth') }}</span>
+      <input name="month" type="month" [value]="month()" (change)="setMonth($event)" />
+    </label>
+  </div>
+
+  @if (busy()) { <p class="note">{{ t('loading') }}</p> }
+  @if (error()) { <p class="warn" role="alert">{{ error() }}</p> }
+
+  @if (facts(); as row) {
+    <p class="note">{{ t('payrollFactsNote') }}</p>
+    <p>{{ row.ready ? t('payrollMonthReady') : t('payrollMonthBlocked') }} <strong>{{ num(row.blocked_days) }}</strong></p>
+    <div class="summary">
+      <p><span>{{ t('requiredMinutes') }}</span><strong>{{ num(row.summary.required_minutes) }}</strong></p>
+      <p><span>{{ t('workedMinutes') }}</span><strong>{{ num(row.summary.worked_minutes) }}</strong></p>
+      <p><span>{{ t('lateBy') }}</span><strong>{{ num(row.summary.late_minutes) }}</strong></p>
+      <p><span>{{ t('earlyLeave') }}</span><strong>{{ num(row.summary.early_minutes) }}</strong></p>
+      <p><span>{{ t('overtimeLabel') }}</span><strong>{{ num(row.summary.extra_minutes) }}</strong></p>
+      <p><span>{{ t('leaveMinutes') }}</span><strong>{{ num(row.summary.leave_minutes) }}</strong></p>
+      <p><span>{{ t('absent') }}</span><strong>{{ num(row.summary.absent_days) }}</strong></p>
+    </div>
+    @if (row.summary.leave.length) {
+      <div class="sheet">
+        <table>
+          <thead>
+            <tr>
+              <th>{{ t('listLeaveTypes') }}</th>
+              <th>{{ t('leaveSetupPay') }}</th>
+              <th>{{ t('coveredUnits') }}</th>
+              <th>{{ t('unpaidUnits') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (item of row.summary.leave; track $index) {
+              <tr>
+                <td>{{ item.name || '—' }}</td>
+                <td>{{ num(item.pay_percent) }}%</td>
+                <td>{{ units(item.covered_units, row.units_per_day) }}</td>
+                <td>{{ units(item.unpaid_units, row.units_per_day) }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+    <h2>{{ t('payrollMonthBlocked') }}</h2>
+    @if (blocked(row); as held) {
+      @if (held.length === 0) { <p class="empty">{{ t('noBlockedDays') }}</p> }
+      @else {
+        <div class="sheet">
+          <table>
+            <thead><tr><th>{{ t('date') }}</th><th>{{ t('state') }}</th><th>{{ t('dayNote') }}</th></tr></thead>
+            <tbody>
+              @for (day of held; track day.date) {
+                <tr>
+                  <td>{{ date(day.date) }}</td>
+                  <td><bdi>{{ day.status }}</bdi></td>
+                  <td>{{ reasons(day) }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    }
+  }
+</section>

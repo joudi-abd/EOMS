@@ -57,6 +57,9 @@
       @case ('leaving') {
         <app-employee-leaving [person]="person" />
       }
+      @case ('payroll') {
+        <app-payroll-facts [employeeId]="person.id" />
+      }
       @default {
         <app-employee-info [person]="person" />
       }

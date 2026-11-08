@@ -7,6 +7,8 @@ use App\Modules\HR\Models\EmployeeServicePeriod;
 use App\Modules\HR\Models\LeaveBalanceEntry;
 use App\Modules\HR\Models\LeaveCycle;
 use App\Modules\HR\Models\LeavePolicy;
+use App\Modules\HR\Models\LeaveRequest;
+use App\Modules\HR\Models\LeaveRequestDay;
 use App\Modules\HR\Models\LeaveType;
 use App\Modules\Identity\Services\AuditLogger;
 use Carbon\CarbonImmutable;
@@ -43,6 +45,60 @@ class LeaveBalanceService
             ->whereDate('cycle_start', $cycle)->sum('day_units');
     }
 
+    /** A return to service that starts inside this year: its balance waits for an HR opening entry. */
+    public function isRehireCycle(Employee $employee, EmployeeServicePeriod $period, string $cycleStart): bool
+    {
+        return $employee->servicePeriods()->where('id', '!=', $period->id)->exists()
+            && $period->start_date->toDateString() >= $cycleStart;
+    }
+
+    /**
+     * Leave types whose balance for the current year is blocked until HR records the opening balance.
+     *
+     * @return list<array{leave_type_id: int, name: string, cycle_start: string}>
+     */
+    public function pendingOpenings(Employee $employee, EmployeeServicePeriod $period): array
+    {
+        $today = $this->employment->today();
+        $pending = [];
+        foreach (LeaveType::where('active', true)->orderBy('id')->get() as $type) {
+            $policy = $this->policy($type->id, $today);
+            if (! $policy || $policy->annual_days === null) {
+                continue;
+            }
+            [$start] = $this->cycle($policy->toArray(), $employee, $today);
+            $hasCycle = LeaveCycle::where('service_period_id', $period->id)->where('leave_type_id', $type->id)
+                ->whereDate('cycle_start', $start)->exists();
+            $opening = LeaveBalanceEntry::where('service_period_id', $period->id)->where('leave_type_id', $type->id)
+                ->whereDate('cycle_start', $start)->where('kind', 'opening')->exists();
+            if (! $hasCycle && ! $opening && $this->isRehireCycle($employee, $period, $start)) {
+                $pending[] = ['leave_type_id' => $type->id, 'name' => $type->name, 'cycle_start' => $start];
+            }
+        }
+
+        return $pending;
+    }
+
+    /**
+     * The "My balance" figures for one year: granted (grants, opening and adjustments), used by approved leave,
+     * reserved by pending requests, and available (the ledger total, which equals granted − used − reserved).
+     *
+     * @return array{granted_units: int, used_units: int, reserved_units: int, available_units: int}
+     */
+    public function breakdown(int $period, int $type, string $cycle): array
+    {
+        $days = fn (string $status) => (int) LeaveRequestDay::query()->where('active', true)->where('cycle_start', $cycle)
+            ->whereIn('leave_request_id', LeaveRequest::query()->where('service_period_id', $period)
+                ->where('leave_type_id', $type)->where('status', $status)->select('id'))->sum('covered_units');
+
+        return [
+            'granted_units' => (int) LeaveBalanceEntry::where('service_period_id', $period)->where('leave_type_id', $type)
+                ->whereDate('cycle_start', $cycle)->whereIn('kind', ['grant', 'opening', 'adjustment'])->sum('day_units'),
+            'used_units' => $days('approved'), 'reserved_units' => $days('pending'),
+            'available_units' => $this->available($period, $type, $cycle),
+        ];
+    }
+
     /** Caller holds the employee row lock; manual writes and all workflows use that same lock. */
     public function sync(Employee $employee, EmployeeServicePeriod $period): void
     {
@@ -63,9 +119,7 @@ class LeaveBalanceService
                 $opening = LeaveBalanceEntry::where('service_period_id', $period->id)->where('leave_type_id', $type->id)
                     ->whereDate('cycle_start', $start)->where('kind', 'opening')->exists();
                 // HR must decide the opening on rehire, rather than automatically recreating a full entitlement.
-                $rehire = $employee->servicePeriods()->where('id', '!=', $period->id)->exists()
-                    && $period->start_date->toDateString() >= $start;
-                if ($rehire && ! $opening) {
+                if ($this->isRehireCycle($employee, $period, $start) && ! $opening) {
                     continue;
                 }
                 $cycle = LeaveCycle::create([
