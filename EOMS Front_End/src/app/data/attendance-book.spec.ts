@@ -6,19 +6,16 @@ import { Office } from './office';
 
 describe('Attendance period endpoints', () => {
   const post = vi.fn();
-  const blob = vi.fn();
   const done = vi.fn();
   const fail = vi.fn();
 
   beforeEach(() => {
     post.mockReset();
-    blob.mockReset().mockResolvedValue(new Blob(['date,employee_no']));
     done.mockReset();
     fail.mockReset();
-    vi.stubGlobal('URL', { createObjectURL: () => 'blob:attendance', revokeObjectURL: () => undefined });
     TestBed.configureTestingModule({
       providers: [
-        { provide: Api, useValue: { post, blob } },
+        { provide: Api, useValue: { post } },
         { provide: Office, useValue: { done, fail } },
         { provide: Session, useValue: { has: () => false } },
       ],
@@ -26,12 +23,6 @@ describe('Attendance period endpoints', () => {
   });
 
   afterEach(() => TestBed.resetTestingModule());
-
-  it('downloads the official day file with the same filters the report is showing', async () => {
-    const saved = await TestBed.inject(AttendanceBook).exportCsv('2026-11-01', '2026-11-08', { employeeId: '7', departmentId: '2' });
-    expect(saved).toBe(true);
-    expect(blob).toHaveBeenCalledWith('/attendance/days/export', { from: '2026-11-01', to: '2026-11-08', employee_id: 7, department_id: 2 });
-  });
 
   it('approves a period and clears cached reports so the screen reloads', async () => {
     post.mockResolvedValueOnce({ data: { approved: 3, already_approved: 1, outside_service: 2, skipped: 4 } });

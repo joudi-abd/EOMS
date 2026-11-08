@@ -1,0 +1,72 @@
+<div class="summary">
+  @for (type of settings().types; track type.id) {
+    <p>
+      <span>{{ type.name }}</span>
+      <strong>{{ type.available_units === null ? '—' : days(type.available_units) }}</strong>
+      <small>{{ type.available_units === null ? l('دون رصيد محدد', 'No balance limit') : l('المتاح الآن', 'Available now') }} · {{ type.pay_percent }}% · <bdi>{{ type.cycle_end }}</bdi></small>
+      @if (type.balance) {
+        <small>{{ l('الممنوح', 'Granted') }} {{ days(type.balance.granted_units) }} · {{ l('المستخدم', 'Used') }} {{ days(type.balance.used_units) }} · {{ l('المحجوز', 'Reserved') }} {{ days(type.balance.reserved_units) }}</small>
+      }
+      @if (type.awaiting_opening) { <small class="wait">{{ l('بانتظار رصيد افتتاحي.', 'Waiting for an opening balance.') }}</small> }
+    </p>
+  }
+</div>
+<section class="panel">
+  <div class="panel-head">
+    <div>
+      <h2>{{ editing() ? l('تعديل الطلب', 'Amend request') + ' #' + editing()!.id : l('طلب إجازة جديد', 'New leave request') }}</h2>
+      @if (editing()) { <p>{{ l('تُستخدم سياسة الطلب الأصلية ويُعاد حساب الحجز.', 'The original leave policy is retained and the reservation is recalculated.') }}</p> }
+    </div>
+  </div>
+  <form class="form" (ngSubmit)="preview.emit()" #leaveForm="ngForm">
+    <fieldset [disabled]="busy()">
+      @if (settings().can_configure && !editing()) {
+        <label>{{ l('نيابة عن', 'On behalf of') }}
+          <select name="employee" [ngModel]="forEmployee()" (ngModelChange)="employeeChange.emit($event)">
+            <option value="">{{ l('حسابي', 'My own account') }}</option>
+            @for (person of office.employees(); track person.id) {
+              @if (person.status !== 'ended') { <option [value]="person.id">{{ text(person.name) }} · {{ person.staffNo }}</option> }
+            }
+          </select>
+        </label>
+      }
+      <label>{{ l('نوع الإجازة', 'Leave type') }}
+        <select name="type" required [ngModel]="form().leave_type_id" (ngModelChange)="set('leave_type_id', $event)" [disabled]="!!editing()">
+          @if (editing(); as current) { <option [ngValue]="current.leave_type_id">{{ l('نوع الطلب الأصلي', 'Original request type') }}</option> }
+          @for (type of settings().types; track type.id) { <option [ngValue]="type.id">{{ type.name }}</option> }
+        </select>
+      </label>
+      <label>{{ l('الوحدة', 'Unit') }}<select name="unit" [ngModel]="form().unit" (ngModelChange)="set('unit', $event)">
+        <option value="day">{{ l('أيام كاملة', 'Full days') }}</option><option value="half">{{ l('فترة نصف يوم', 'Half-day period') }}</option><option value="hours">{{ l('ساعات', 'Hours') }}</option>
+      </select></label>
+      <label>{{ l('من تاريخ', 'From date') }}<input type="date" required name="start_date" [ngModel]="form().start_date" (ngModelChange)="set('start_date', $event)"></label>
+      <label>{{ l('إلى تاريخ', 'To date') }}<input type="date" required name="end_date" [ngModel]="form().end_date" (ngModelChange)="set('end_date', $event)"></label>
+      @if (form().unit === 'half') {
+        <label>{{ l('الفترة', 'Period') }}<select name="half" [ngModel]="form().half || 'first'" (ngModelChange)="set('half', $event)">
+          <option value="first">{{ clock(settings().half_days.first_start) }}–{{ clock(settings().half_days.first_end) }}</option>
+          <option value="second">{{ clock(settings().half_days.second_start) }}–{{ clock(settings().half_days.second_end) }}</option>
+        </select></label>
+      }
+      @if (form().unit === 'hours') {
+        <label>{{ l('من الساعة', 'Start time') }}<input type="time" required name="start_time" [ngModel]="form().start_time" (ngModelChange)="set('start_time', $event)"></label>
+        <label>{{ l('إلى الساعة', 'End time') }}<input type="time" required name="end_time" [ngModel]="form().end_time" (ngModelChange)="set('end_time', $event)"></label>
+      }
+      <label class="wide">{{ l('السبب', 'Reason') }}<textarea required maxlength="500" name="reason" [ngModel]="form().reason" (ngModelChange)="set('reason', $event)"></textarea></label>
+      <button class="primary" type="submit" [disabled]="leaveForm.invalid || !form().leave_type_id">{{ l('معاينة الحساب', 'Preview calculation') }}</button>
+      <button class="text" type="button" (click)="clear.emit()">{{ l('بدء طلب جديد', 'Start new request') }}</button>
+    </fieldset>
+  </form>
+  @if (quote(); as preview) {
+    <p class="note">{{ l('المدة بالأيام:', 'Duration in days:') }} {{ days(preview.total_units) }} · {{ l('المغطى من النوع:', 'Covered by this type:') }} {{ days(preview.covered_units) }} · {{ l('غير مغطى / بدون راتب:', 'Uncovered / unpaid:') }} {{ days(preview.unpaid_units) }} · {{ preview.pay_percent }}%</p>
+    <div class="flush"><table><thead><tr><th>{{ l('التاريخ', 'Date') }}</th><th>{{ l('الفترة', 'Period') }}</th><th>{{ l('مغطى من النوع', 'Covered by type') }}</th><th>{{ l('بدون راتب', 'Unpaid shortfall') }}</th></tr></thead><tbody>
+      @for (day of preview.days; track day.date) { <tr><td class="num">{{ day.date }}</td><td class="num"><bdi>{{ clock(day.start_time) }}–{{ clock(day.end_time) }}</bdi></td><td class="num">{{ days(day.covered_units) }}</td><td class="num">{{ days(day.unpaid_units) }}</td></tr> }
+    </tbody></table></div>
+    @if (preview.unpaid_units > 0) {
+      <label class="check"><input type="checkbox" [ngModel]="consent()" (ngModelChange)="consent.set($event)" [disabled]="busy()">{{ l('أوافق على احتساب الجزء غير المغطى بدون راتب، ويحتاج أيضاً موافقة HR.', 'I accept the uncovered portion as unpaid leave, subject to HR approval.') }}</label>
+    }
+    @if (settings().can_review && settings().can_configure && forEmployee() && !editing()) {
+      <label class="check"><input type="checkbox" name="approveNow" [ngModel]="approveNow()" (ngModelChange)="approveNow.set($event)" [disabled]="busy()">{{ l('اعتماد الطلب عند الحفظ', 'Approve the request when saving') }}</label>
+    }
+    <button class="primary" type="button" [disabled]="busy() || (preview.unpaid_units > 0 && !consent())" (click)="confirm.emit()">{{ l('تأكيد الطلب وحجز الرصيد', 'Confirm request and reserve balance') }}</button>
+  }
+</section>

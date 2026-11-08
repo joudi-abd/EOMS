@@ -1,0 +1,12 @@
+<section class="panel">
+  <div class="panel-head"><h2>{{ l('إعداد فترتي نصف اليوم', 'Configure half-day periods') }}</h2></div>
+  <form class="form" (ngSubmit)="save.emit()">
+    <fieldset [disabled]="busy()">
+      <label>{{ l('بداية الفترة الأولى', 'First period start') }}<input type="time" name="first_start" required [ngModel]="halves().first_start" (ngModelChange)="set('first_start', $event)"></label>
+      <label>{{ l('نهاية الفترة الأولى', 'First period end') }}<input type="time" name="first_end" required [ngModel]="halves().first_end" (ngModelChange)="set('first_end', $event)"></label>
+      <label>{{ l('بداية الفترة الثانية', 'Second period start') }}<input type="time" name="second_start" required [ngModel]="halves().second_start" (ngModelChange)="set('second_start', $event)"></label>
+      <label>{{ l('نهاية الفترة الثانية', 'Second period end') }}<input type="time" name="second_end" required [ngModel]="halves().second_end" (ngModelChange)="set('second_end', $event)"></label>
+      <button class="primary" type="submit">{{ l('حفظ الفترات', 'Save periods') }}</button>
+    </fieldset>
+  </form>
+</section>

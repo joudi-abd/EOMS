@@ -9,14 +9,11 @@ describe('Leave API integration', () => {
   const post = vi.fn();
   const put = vi.fn();
   const get = vi.fn();
-  const blob = vi.fn();
   beforeEach(() => {
     post.mockReset().mockResolvedValue({data: {}});
     put.mockReset().mockResolvedValue({data: {}});
     get.mockReset().mockResolvedValue({data: []});
-    blob.mockReset().mockResolvedValue(new Blob(['date']));
-    vi.stubGlobal('URL', { createObjectURL: () => 'blob:leave', revokeObjectURL: () => undefined });
-    TestBed.configureTestingModule({providers: [{provide: Api, useValue: {post, put, get, blob}}]});
+    TestBed.configureTestingModule({providers: [{provide: Api, useValue: {post, put, get}}]});
   });
   afterEach(() => TestBed.resetTestingModule());
   it('submits consent, server quote and stable retry key without employee impersonation', async () => {
@@ -40,13 +37,11 @@ describe('Leave API integration', () => {
     expect(post).toHaveBeenCalledWith('/leaves/7/shorten', {version: 4, reason: 'Returned early', from_date: '2026-11-10'});
   });
   it('distinguishes personal and review lists and preserves pagination', async () => {
-    await TestBed.inject(Leaves).list('review', 2);
+    await TestBed.inject(Leaves).list({scope: 'review', page: 2});
     expect(get).toHaveBeenCalledWith('/leaves', {scope: 'review', page: 2});
   });
-  it('asks the calendar for the period and downloads the current scope', async () => {
+  it('asks the calendar for the period', async () => {
     await TestBed.inject(Leaves).calendar('2026-11-01', '2026-11-14', 3, true);
     expect(get).toHaveBeenCalledWith('/leaves/calendar', {from: '2026-11-01', to: '2026-11-14', department_id: 3, include_pending: 1});
-    await TestBed.inject(Leaves).exportCsv('mine');
-    expect(blob).toHaveBeenCalledWith('/leaves/export', {scope: 'mine'});
   });
 });

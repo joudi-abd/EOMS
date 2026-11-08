@@ -56,12 +56,6 @@
 <div class="bar">
   <p class="period">{{ date(from()) }} – {{ date(to()) }}</p>
   <div class="actions">
-    @if (canExport()) {
-      <button class="text" type="button" [disabled]="exporting()" (click)="exportOfficial()">
-        <i class="fa-solid fa-file-csv" aria-hidden="true"></i>
-        {{ t('officialCsv') }}
-      </button>
-    }
     @if (canApprove()) {
       <button class="text" type="button" [disabled]="exporting()" (click)="approvePeriod()">{{ t('bulkApprove') }}</button>
     }

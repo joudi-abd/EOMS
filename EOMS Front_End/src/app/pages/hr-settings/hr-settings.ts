@@ -35,7 +35,7 @@ export class HrSettings extends Ui {
       { id: 'structure', label: 'tabStructure', icon: 'fa-sitemap' },
     ];
     if (this.session.has('attendance.manage')) list.push({ id: 'devices', label: 'tabDevices', icon: 'fa-fingerprint' });
-    if (this.session.has('employees.manage')) list.push({ id: 'leaves', label: 'leaveSetupTab', icon: 'fa-calendar-days' });
+    if (this.session.has('leaves.manage')) list.push({ id: 'leaves', label: 'leaveSetupTab', icon: 'fa-calendar-days' });
     if (this.session.has('settings.view')) list.push({ id: 'office', label: 'companySettings', icon: 'fa-building' });
     return list;
   });

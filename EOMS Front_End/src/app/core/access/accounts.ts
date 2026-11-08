@@ -106,6 +106,7 @@ export const permissionIds = [
   'attendance.adjust',
   'attendance.approve',
   'leaves.view',
+  'leaves.manage',
   'leaves.approve',
   'payroll.view',
   'payroll.manage',

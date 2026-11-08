@@ -4,7 +4,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Reporter, ReportDraft } from '../../../core/reports/reporter';
 import { Ui } from '../../../core/ui';
 import { DayMark } from '../../../data/attendance';
-import { AttendanceBook, clockOf, markOf, needsAttendanceReview, requiredMinutesOf } from '../../../data/attendance-book';
+import { AttendanceBook, BulkApproval, clockOf, markOf, needsAttendanceReview, requiredMinutesOf } from '../../../data/attendance-book';
 import { daysBetween, parseDay, isoDay } from '../../../data/hr';
 import { Session } from '../../../core/access/session';
 import { Employee, plain } from '../../../data/employees';
@@ -228,23 +228,8 @@ export class AttendanceReport extends Ui {
     return match ? this.text(match.name) : id;
   }
 
-  protected canExport(): boolean {
-    return this.session.has('attendance.view');
-  }
-
   protected canApprove(): boolean {
     return this.session.has('attendance.approve');
-  }
-
-  protected async exportOfficial(): Promise<void> {
-    if (this.exporting()) return;
-    this.exporting.set(true);
-    try {
-      const span = this.span();
-      await this.book.exportCsv(span.from, span.to, { employeeId: this.person(), departmentId: this.department() });
-    } finally {
-      this.exporting.set(false);
-    }
   }
 
   protected async approvePeriod(): Promise<void> {
