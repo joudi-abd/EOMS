@@ -6,11 +6,14 @@ use App\Modules\HR\Models\AttendanceCorrection;
 use App\Modules\HR\Models\AttendanceDay;
 use App\Modules\HR\Models\AttendancePolicy;
 use App\Modules\HR\Models\Employee;
+use App\Modules\HR\Services\HrNotifier;
 use App\Modules\Identity\Models\User;
 use App\Modules\Identity\Services\AuditLogger;
 use Carbon\CarbonImmutable;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 
 class AttendanceReviewService
 {
@@ -56,6 +59,7 @@ class AttendanceReviewService
                 'reason' => $data['reason'], 'requested_by' => $actor->id, 'base_version' => $day->version,
             ]);
             $this->audit->log('attendance.correction_requested', $correction, null, ['day_id' => $day->id]);
+            app(HrNotifier::class)->correctionRequested($correction, $day);
 
             return $correction->refresh();
         }, 3);
@@ -81,6 +85,7 @@ class AttendanceReviewService
                 'review_reason' => $data['reason'],
             ]);
             $this->audit->log('attendance.correction_reviewed', $correction, null, ['status' => $correction->status]);
+            app(HrNotifier::class)->correctionReviewed($correction, AttendanceDay::findOrFail($correction->day_id));
             $this->calculator->calculate(Employee::findOrFail($day->employee_id), $day->work_date->format('Y-m-d'));
 
             return $correction->refresh();
@@ -97,7 +102,6 @@ class AttendanceReviewService
             abort_if(AttendanceCorrection::query()->where('day_id', $day->id)->where('status', 'pending')->exists(), 409, 'يوجد تصحيح معلق.');
             $manual = in_array('manual_correction', $day->flags, true);
             abort_unless(in_array($day->status, ['present', 'absent', 'day_off', 'outside_service', 'holiday', 'on_leave'], true), 409, 'السجل غير مكتمل للاعتماد.');
-            abort_if(in_array('leave_requires_review', $day->flags, true), 409, 'يجب تسوية حالة الإجازة قبل الاعتماد.');
             // Holidays and full-day approved leave do not depend on device sync; a punch there is a reviewed conflict.
             abort_if(! $day->coverage_complete && ! $manual && ! in_array($day->status, ['day_off', 'outside_service', 'holiday', 'on_leave'], true), 409, 'المزامنة غير مؤكدة؛ يلزم تأكيد المصدر أو تصحيح معتمد.');
             $day->update(['approved_by' => $actor->id, 'approved_at' => CarbonImmutable::now('UTC'), 'version' => $day->version + 1]);
@@ -105,6 +109,52 @@ class AttendanceReviewService
 
             return $day->refresh();
         }, 3);
+    }
+
+    /** Flags that describe a situation a person must look at; bulk approval never signs these off. */
+    public const INDIVIDUAL_REVIEW_FLAGS = ['punch_on_leave_day', 'punch_during_leave', 'work_on_day_off', 'work_on_holiday',
+        'direction_conflict', 'punch_outside_service', 'correction_superseded_by_leave'];
+
+    /**
+     * Approves every clean day for the given employees and dates. Each day uses the same rules and its own
+     * transaction as single approval, so one blocked day never rolls back the others.
+     *
+     * @param  Collection<int, Employee>  $employees
+     */
+    public function approveMany(Collection $employees, CarbonImmutable $from, CarbonImmutable $to, User $actor): array
+    {
+        $result = ['approved' => 0, 'already_approved' => 0, 'outside_service' => 0, 'skipped' => []];
+        foreach ($employees as $employee) {
+            for ($date = $from; $date->lessThanOrEqualTo($to); $date = $date->addDay()) {
+                $day = $this->calculator->calculate($employee, $date->toDateString());
+                if ($day->status === 'outside_service') {
+                    $result['outside_service']++;
+
+                    continue;
+                }
+                if ($day->approved_at !== null) {
+                    $result['already_approved']++;
+
+                    continue;
+                }
+                $reason = array_values(array_intersect(self::INDIVIDUAL_REVIEW_FLAGS, $day->flags)) !== []
+                    ? 'يحتاج مراجعة فردية: '.implode(', ', array_intersect(self::INDIVIDUAL_REVIEW_FLAGS, $day->flags)) : null;
+                if ($reason === null) {
+                    try {
+                        $this->approve($day, $day->version, $actor);
+                        $result['approved']++;
+
+                        continue;
+                    } catch (HttpExceptionInterface $e) {
+                        $reason = $e->getMessage();
+                    }
+                }
+                $result['skipped'][] = ['day_id' => $day->id, 'employee_id' => $employee->id,
+                    'date' => $date->toDateString(), 'status' => $day->status, 'reason' => $reason];
+            }
+        }
+
+        return $result;
     }
 
     public function reopen(AttendanceDay $day, int $version, string $reason, User $actor): AttendanceDay

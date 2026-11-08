@@ -239,6 +239,15 @@ class LeaveWorkflowService
                 }
             }
             $this->audit->log($editing ? 'leave.request_amended' : 'leave.request_submitted', $request, null, $request->getAttributes(), $actor->id);
+            if (! $editing && $this->selfApproves($actor)) {
+                // The company manager has no approver above them: the leave is recorded as approved immediately.
+                $request->update(['status' => 'approved', 'approver_role' => 'company_manager', 'reviewed_by' => $actor->id,
+                    'review_note' => 'اعتماد مباشر: إجازة مدير الشركة', 'version' => $request->version + 1]);
+                $this->audit->log('leave.auto_approved', $request, null, $request->getAttributes(), $actor->id);
+                $this->attendance->employeeDates($employee->id, $request->days()->pluck('date'));
+            } else {
+                app(HrNotifier::class)->leaveSubmitted($request, (bool) $editing);
+            }
             // Database defaults (including nullable review fields) belong in the first API response too.
             return $request->refresh()->load('days');
         }, 3);
@@ -247,6 +256,12 @@ class LeaveWorkflowService
     private function version(LeaveRequest $request, array $data): void
     {
         abort_unless($request->version === (int) $data['version'], 409, 'تغيّر الطلب؛ حدّث الصفحة قبل المتابعة.');
+    }
+
+    /** The company manager approves their own leave by recording it; nobody reviews it. */
+    public function selfApproves(User $actor): bool
+    {
+        return $actor->hasRole('company_manager');
     }
 
     public function mayReview(User $actor, LeaveRequest $request): bool
@@ -295,6 +310,17 @@ class LeaveWorkflowService
                 $from = $action === 'cancel' ? $request->days()->where('active', true)->min('date') : $data['from_date'];
                 $this->ensureUnused($request, $from, $action);
                 $request->change_request = ['kind' => $action, 'from_date' => $from, 'reason' => $data['reason']];
+                if ($this->selfApproves($actor)) {
+                    // Same rule as submission: the company manager's own cancel/shorten applies immediately.
+                    $this->release($request, $actor->id, 'إلغاء مباشر من مدير الشركة', $from);
+                    if (! $request->days()->where('active', true)->exists()) {
+                        $request->status = 'cancelled';
+                    }
+                    $request->change_request = null;
+                    $request->reviewed_by = $actor->id;
+                    $request->review_note = $data['reason'];
+                    $applied = true;
+                }
             } elseif (in_array($action, ['approve-change', 'reject-change'], true)) {
                 abort_unless($this->mayReview($actor, $request), 403);
                 abort_unless($request->status === 'approved' && $request->change_request !== null, 409);
@@ -316,8 +342,13 @@ class LeaveWorkflowService
             $request->save();
             $this->audit->log('leave.'.$action, $request, $old, $request->getAttributes(), $actor->id);
             // Only approved leave changes attendance: approval adds it, an approved cancel/shorten removes it.
-            if ($action === 'approve' || $action === 'approve-change') {
+            if ($action === 'approve' || $action === 'approve-change' || ($applied ?? false)) {
                 $this->attendance->employeeDates($request->employee_id, $request->days()->pluck('date'));
+            }
+            if (in_array($action, ['cancel', 'shorten'], true) && ! ($applied ?? false)) {
+                app(HrNotifier::class)->leaveChangeRequested($request);
+            } else {
+                app(HrNotifier::class)->leaveDecided($request, $action);
             }
             return $request->load('days');
         }, 3);
@@ -362,6 +393,7 @@ class LeaveWorkflowService
             $this->release($request, 0, 'انتهاء سنة الرصيد');
             $request->update(['status' => 'expired', 'version' => $request->version + 1]);
             $this->audit->log('leave.request_expired', $request);
+            app(HrNotifier::class)->leaveClosed($request, 'leave.expired', 'انتهى طلب إجازتك المعلّق بانتهاء سنة الرصيد.');
         }
     }
 
@@ -415,6 +447,7 @@ class LeaveWorkflowService
                 }
                 $request->save();
                 $this->audit->log('leave.holiday_refunded', $request, null, ['date' => $date, 'day_units' => $day->covered_units]);
+                app(HrNotifier::class)->leaveClosed($request, 'leave.holiday_refunded', 'أُضيفت عطلة رسمية يوم '.$date.' ضمن إجازتك، وأُعيد رصيدها.', ['date' => $date]);
             }
         }
     }

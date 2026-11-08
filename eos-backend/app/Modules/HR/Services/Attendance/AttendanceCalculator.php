@@ -11,6 +11,7 @@ use App\Modules\HR\Models\AttendancePunch;
 use App\Modules\HR\Models\Employee;
 use App\Modules\HR\Models\LeaveRequestDay;
 use App\Modules\HR\Services\EmploymentPeriodService;
+use App\Modules\HR\Services\HrNotifier;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 
@@ -53,10 +54,9 @@ class AttendanceCalculator
             $fullLeave = $leave !== null && $leave['full'];
             $phaseSensitive = $raw->isEmpty() && $correction === null && $working && $inService
                 && ! $holiday && ! $fullLeave;
-            $legacyLeaveStatus = $employee->status === 'on_leave' && $leave === null
-                && $date === CarbonImmutable::now($policy->timezone)->toDateString();
             $source = [
-                $policy->id, $serviceStart, $serviceEnd, $legacyLeaveStatus,
+                // false: retired employee-level on_leave flag, kept so existing signatures stay valid.
+                $policy->id, $serviceStart, $serviceEnd, false,
                 $raw->map(fn ($p) => [$p->id, $p->occurred_at->timestamp, $p->direction])->all(),
                 $deviceIds->sort()->values()->all(), $covered,
                 $phaseSensitive ? $closed : null, $correction?->id,
@@ -206,13 +206,7 @@ class AttendanceCalculator
             if (! $covered && ! $outside && $working && ! $holiday && ! $fullLeave) {
                 $flags[] = 'sync_unconfirmed';
             }
-            if ($legacyLeaveStatus) {
-                $flags[] = 'leave_requires_review';
-                if ($status === 'absent') {
-                    $status = 'absent_unconfirmed';
-                    $worked = null;
-                }
-            }
+            $hadConflict = in_array('punch_on_leave_day', $day->flags ?? [], true);
             $day->fill([
                 'policy_id' => $policy->id, 'status' => $status, 'first_in' => $first,
                 'last_out' => $last, 'worked_minutes' => $worked,
@@ -224,6 +218,10 @@ class AttendanceCalculator
                 'source_signature' => $signature, 'version' => $day->version + 1,
                 'pending_changes' => false,
             ])->save();
+            // Notify once, when the conflict first appears, not on every scheduled recalculation.
+            if (! $hadConflict && in_array('punch_on_leave_day', $day->flags, true)) {
+                app(HrNotifier::class)->attendanceConflict($day, 'punch_on_leave_day');
+            }
 
             return $day->refresh();
         }, 3);

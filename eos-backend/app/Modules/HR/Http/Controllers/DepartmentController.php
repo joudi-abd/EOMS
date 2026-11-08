@@ -48,6 +48,7 @@ class DepartmentController extends Controller
             'name' => ['required', 'string', 'max:120'],
             'code' => ['required', 'string', 'max:20', 'unique:hr_departments,code'],
             'parent_id' => ['nullable', 'integer', 'exists:hr_departments,id'],
+            'manager_employee_id' => ['nullable', 'integer', 'exists:hr_employees,id'],
         ]);
 
         return ApiResponse::created($this->departments->create($data));
@@ -65,6 +66,7 @@ class DepartmentController extends Controller
             'name' => ['sometimes', 'string', 'max:120'],
             'code' => ['sometimes', 'string', 'max:20', 'unique:hr_departments,code,'.$department->id],
             'parent_id' => ['sometimes', 'nullable', 'integer', 'exists:hr_departments,id'],
+            'manager_employee_id' => ['sometimes', 'nullable', 'integer', 'exists:hr_employees,id'],
         ]);
 
         return ApiResponse::ok($this->departments->update($department, $data));

@@ -17,7 +17,7 @@
 - الحركات من النوع نفسه خلال 60 ثانية من آخر حركة معتبرة لا تكوّن فترة عمل مستقلة؛ تبقى جميع الحركات الأصلية محفوظة.
 - بصمة واحدة لا تنتج خروجاً افتراضياً أو ساعات مكتملة. الساعات المجهولة `null` وليست صفراً.
 - الوقت الإضافي المعروض بعد 16:00 معلومات غير معتمدة، ولا توجد خصومات أو استحقاقات مالية تلقائية.
-- تاريخ إنهاء الخدمة آخر يوم ضمن الخدمة. حالة `on_leave` الحالية ليست تقويماً تاريخياً للإجازات؛ تتطلب مراجعة اليوم الحالي وتمنع اعتماده حتى التسوية. لا توجد وحدة إجازات أو عطل رسمية مؤرخة في هذا الإصدار.
+- تاريخ إنهاء الخدمة آخر يوم ضمن الخدمة. الإجازات والعطل الرسمية مربوطة بالحضور يوماً بيوم (انظر "الربط مع الإجازات والعطل الرسمية"). أُلغيت حالة الموظف `on_leave` القديمة.
 - لا يوجد دعم وردية ليلية أو جداول فردية مختلفة بعد؛ الجدول موحد لكل الموظفين وله نسخ مؤرخة لا تتغير بأثر رجعي.
 
 ## التثبيت
@@ -151,10 +151,11 @@ Headers: `Accept: application/json`, `Content-Type: application/json`, و`Author
 
 | المسار | الصلاحية والسلوك |
 | --- | --- |
-| GET `/attendance/days?date=2026-10-29` | `attendance.view`، قائمة إدارية عامة |
-| GET `/employees/{id}/attendance?date=2026-10-29` | الموظف نفسه أو `attendance.view`؛ يرجع تفاصيل اليوم |
+| GET `/attendance/days?date=2026-10-29` | `attendance.view` للشركة كلها، أو `attendance.view_department` لأقسام المدير فقط |
+| GET `/employees/{id}/attendance?date=2026-10-29` | الموظف نفسه، أو `attendance.view`، أو مدير قسمه؛ يرجع تفاصيل اليوم |
 | GET `/attendance/days/{id}` | الموظف صاحب اليوم أو `attendance.view` |
 | GET `/employees/{id}/attendance-report?from=2026-10-01&to=2026-10-31` | نفس النطاق، 31 يوماً كحد أقصى |
+| GET `/attendance/days/export?from=...&to=...` | CSV يفتح في Excel، بنفس نطاق القائمة، 31 يوماً كحد أقصى. فلاتر: `employee_id`, `department_id` |
 
 فلاتر القائمة: `employee_id`, `department_id`, `status`, `review_status=draft|approved`, `per_page=1..100`. الترقيم ببيانات `meta` و`links` الموجودة في المشروع. `summary.total` و`summary.by_status` محسوبان على كل النتائج المطابقة للفلاتر، وليس الصفحة الحالية.
 
@@ -182,7 +183,7 @@ Headers: `Accept: application/json`, `Content-Type: application/json`, و`Author
 
 حالات الحضور: `pending`, `present`, `incomplete`, `absent_unconfirmed`, `absent`, `day_off`, `outside_service`.
 
-الأعلام: `inferred_first_last`, `duplicate_punch_ignored`, `multiple_punches_no_break_deduction`, `missing_or_ambiguous_punch`, `unclassified_punches`, `direction_conflict`, `sync_unconfirmed`, `manual_correction`, `work_on_day_off`, `punch_outside_service`, `leave_requires_review`.
+الأعلام: `inferred_first_last`, `duplicate_punch_ignored`, `multiple_punches_no_break_deduction`, `missing_or_ambiguous_punch`, `unclassified_punches`, `direction_conflict`, `sync_unconfirmed`, `manual_correction`, `work_on_day_off`, `punch_outside_service`.
 
 وجود `present` لا يعني اعتماداً ولا اكتمال المزامنة. حركات اليوم غير موجودة قبل موعد الإغلاق تعني `pending`، وبعده تعني `absent_unconfirmed` إذا لم تكتمل المزامنة. يتحول إلى `absent` بعد 18:00 وفق الإعداد الافتراضي فقط عند تأكيد المصدر. تعطيل جهاز لا يستبعده بصمت من متطلبات المزامنة التاريخية. إذا لم يوجد أي ربط جهاز للموظف، لا يثبت غيابه آلياً.
 
@@ -202,12 +203,13 @@ Headers: `Accept: application/json`, `Content-Type: application/json`, و`Author
 3. مراجع مختلف يملك `attendance.approve` يستخدم POST `/attendance/corrections/{id}/review` مع `decision=approve|reject`, و`reason` مطلوب. لا يمكن لأي شخص مراجعة طلبه بنفسه، حتى مسؤول النظام.
 4. إذا وصل مصدر جديد بعد طلب التصحيح، يمنع قبول الطلب القديم بـ409؛ يمكن رفضه ثم إنشاء طلب جديد. التصحيح المعتمد يغيّر الملخص دون حذف المصدر.
 5. POST `/attendance/days/{id}/approve` مع `version`. يلزم انتهاء ساعات الدوام، حالة مكتملة، عدم وجود طلب معلق، وتأكيد المزامنة أو تصحيح يدوي معتمد. لا يمكن اعتماد سجل ناقص.
+5b. **اعتماد جماعي:** POST `/attendance/days/approve-bulk` مع `from` و`to` (31 يوماً كحد أقصى)، واختيارياً `employee_ids[]` أو `department_id`. يعتمد كل يوم سليم بنفس قواعد الاعتماد الفردي، ويتخطى ما عداه ويعيده في `skipped` مع السبب: أيام فيها تعارض يحتاج نظراً بشرياً (`punch_on_leave_day`, `punch_during_leave`, `work_on_day_off`, `work_on_holiday`, `direction_conflict`, `punch_outside_service`, `correction_superseded_by_leave`)، أو مزامنة غير مؤكدة، أو تصحيح معلّق، أو يوم لم ينته. النتيجة: `approved`, `already_approved`, `outside_service`, `skipped`.
 6. الحركات الجديدة بعد الاعتماد تحفظ، لكن تبقى قيم اليوم ثابتة مع `pending_changes=true`.
 7. POST `/attendance/days/{id}/reopen` مع `version`, `reason`، ثم راجع اليوم بعد إعادة حسابه. التصحيح اليدوي المعتمد السابق يبقى له الأولوية على الحركات ما لم يُستبدل بتصحيح معتمد أحدث.
 
 اعتماد اليوم ليس إقفال رواتب شهرياً. لا يوجد حذف للتصحيحات أو إلغاء تاريخ مراجعتها. تغيير قرار معتمد يكون بإعادة فتح اليوم وطلب تصحيح جديد.
 
-الصلاحية `attendance.view` عامة على مستوى المؤسسة مثل صلاحيات HR الحالية. لا تمنحها لمدير قسم إذا كان مطلوباً حصره بقسمه؛ تقييد نطاق المدير حسب الأقسام لم يُضف. الموظف ذو دور employee يستطيع فقط عرض نفسه وطلب تصحيح لنفسه دون هذه الصلاحية العامة.
+الصلاحية `attendance.view` عامة على مستوى المؤسسة. مدير القسم يأخذ الدور `department_manager` (صلاحية `attendance.view_department`) ويُحدد في القسم عبر `manager_employee_id`؛ يرى موظفي قسمه وأقسامه الفرعية فقط، قراءة فقط. الموظف ذو دور employee يستطيع فقط عرض نفسه وطلب تصحيح لنفسه دون هذه الصلاحية العامة.
 
 ## الربط مع الإجازات والعطل الرسمية
 
@@ -264,7 +266,7 @@ GET `/employees/{id}/payroll-inputs?month=2026-11`، ويتطلب صلاحية `
 
 ## ما يلزم قبل الإنتاج
 
-تشغيل اختبارات الحضور والمجموعة الكاملة على MySQL/MariaDB، ثم تجربة وسيط الجهاز على سجلات حقيقية، وتجربة إعادة إرسال دفعة وانقطاع الاتصال، ومراجعة التوقيت. المتطلبات المتقدمة غير المنفذة: ADMS الأصلي، برنامج الوسيط نفسه، استيراد USB/CSV، جداول موظفين مختلفة، الدوام الليلي، تقويم الإجازات والعطل، قفل شهر الرواتب، واجهة تصدير الملفات وتقييد المدير حسب قسمه.
+تشغيل اختبارات الحضور والمجموعة الكاملة على MySQL/MariaDB، ثم تجربة وسيط الجهاز على سجلات حقيقية، وتجربة إعادة إرسال دفعة وانقطاع الاتصال، ومراجعة التوقيت. المتطلبات المتقدمة غير المنفذة: ADMS الأصلي، برنامج الوسيط نفسه، استيراد USB/CSV، جداول موظفين مختلفة، الدوام الليلي، قفل شهر الرواتب (مع وحدة الرواتب).
 
 
 ## بيئة التحقق من الحزمة

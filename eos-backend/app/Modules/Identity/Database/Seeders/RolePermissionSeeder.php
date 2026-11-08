@@ -11,8 +11,8 @@ class RolePermissionSeeder extends Seeder
 {
     private const MODULES = [
         'employees' => ['view', 'manage', 'view_sensitive', 'view_financial', 'documents.view', 'documents.manage'],
-        'attendance' => ['view', 'manage', 'adjust', 'approve'],
-        'leaves' => ['view', 'approve'],
+        'attendance' => ['view', 'view_department', 'manage', 'adjust', 'approve'],
+        'leaves' => ['view', 'view_department', 'approve'],
         'payroll' => ['view', 'manage', 'approve'],
         'finance' => ['view', 'manage'],
         'projects' => ['view', 'manage'],
@@ -65,6 +65,8 @@ class RolePermissionSeeder extends Seeder
             'purchasing_officer' => [
                 'purchases.view', 'purchases.manage', 'assets.view',
             ],
+            // Read-only, limited to the departments the user manages (hr_departments.manager_employee_id).
+            'department_manager' => ['attendance.view_department', 'leaves.view_department'],
             'employee' => [],
         ];
 

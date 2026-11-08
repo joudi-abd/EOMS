@@ -2,115 +2,21 @@
 
 namespace Tests\Feature\HR;
 
-use App\Modules\HR\Models\AttendanceBinding;
 use App\Modules\HR\Models\AttendanceDay;
-use App\Modules\HR\Models\AttendanceDevice;
 use App\Modules\HR\Models\AttendancePunch;
-use App\Modules\HR\Models\Employee;
-use App\Modules\HR\Models\LeavePolicy;
 use App\Modules\HR\Models\LeaveRequest;
 use App\Modules\HR\Models\LeaveRequestDay;
-use App\Modules\HR\Models\LeaveType;
-use App\Modules\HR\Services\Attendance\AttendanceCalculator;
-use App\Modules\HR\Services\Attendance\AttendanceImportService;
 use App\Modules\HR\Services\Attendance\AttendanceReviewService;
 use App\Modules\HR\Services\EmployeeTerminationService;
 use App\Modules\HR\Services\LeaveBalanceService;
-use App\Modules\Identity\Database\Seeders\RolePermissionSeeder;
-use App\Modules\Identity\Models\User;
-use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Str;
 use Laravel\Sanctum\Sanctum;
+use Tests\Feature\HR\Concerns\LeaveAttendanceFixture;
 use Tests\TestCase;
 
 class LeaveAttendanceIntegrationTest extends TestCase
 {
-    use RefreshDatabase;
-
-    private User $employeeUser;
-
-    private User $hr;
-
-    private Employee $employee;
-
-    private LeaveType $type;
-
-    private LeavePolicy $policy;
-
-    private ?AttendanceDevice $device = null;
-
-    private int $event = 0;
-
-    protected function setUp(): void
-    {
-        parent::setUp();
-        $this->seed(RolePermissionSeeder::class);
-        // Wednesday evening, after the 16:00 end and the two-hour finalisation window.
-        $this->travelTo(CarbonImmutable::parse('2026-11-04T18:30:00+03:00'));
-        $this->employeeUser = $this->actor('employee');
-        $this->hr = $this->actor('hr_manager');
-        $this->employee = Employee::create(['employee_no' => 'LA-1', 'user_id' => $this->employeeUser->id,
-            'first_name' => 'Ali', 'last_name' => 'Hassan', 'hire_date' => '2025-01-01',
-            'national_id' => 'LA-1', 'national_id_hash' => hash('sha256', 'LA-1')]);
-        $this->employee->servicePeriods()->create(['start_date' => '2025-01-01']);
-        $this->type = LeaveType::firstOrFail();
-        $this->type->update(['active' => true]);
-        $this->policy = LeavePolicy::create(['leave_type_id' => $this->type->id, 'effective_from' => '2026-01-01',
-            'annual_days' => 10, 'pay_percent' => 100, 'grant_method' => 'upfront', 'year_basis' => 'fixed',
-            'year_start' => '01-01', 'retroactive_days' => 10]);
-    }
-
-    private function actor(string $role): User
-    {
-        $user = User::factory()->create();
-        $user->assignRole($role);
-
-        return $user;
-    }
-
-    /** Device whose sync is confirmed through $through (local time), with optional punches. */
-    private function punches(string $date, array $times, ?string $through = null): void
-    {
-        if (! $this->device) {
-            $this->device = AttendanceDevice::create(['name' => 'Office', 'serial_number' => 'SN-LA',
-                'timezone' => 'Asia/Damascus', 'token_hash' => hash('sha256', 'token')]);
-            AttendanceBinding::create(['device_id' => $this->device->id, 'employee_id' => $this->employee->id,
-                'device_user_id' => '7', 'valid_from' => '2025-01-01']);
-        }
-        $events = array_map(fn ($time) => ['external_id' => 'e'.(++$this->event), 'device_user_id' => '7',
-            'occurred_at' => $date.'T'.$time.':00+03:00', 'direction' => 'unknown'], $times);
-        app(AttendanceImportService::class)->import($this->device, $events, $through ? $through.'+03:00' : null);
-    }
-
-    private function calculate(string $date): AttendanceDay
-    {
-        return app(AttendanceCalculator::class)->calculate($this->employee, $date);
-    }
-
-    private function leave(array $input, bool $consent = false): array
-    {
-        Sanctum::actingAs($this->employeeUser);
-        $input = ['leave_type_id' => $this->type->id, 'unit' => 'day', 'reason' => 'Personal', ...$input];
-        $input['end_date'] ??= $input['start_date'];
-        $quote = $this->postJson('/api/v1/leaves/preview', $input)->assertOk()->json('data');
-
-        return $this->postJson('/api/v1/leaves', [...$input, 'quote_token' => $quote['quote_token'],
-            'submission_key' => (string) Str::uuid(), 'unpaid_consent' => $consent])->assertCreated()->json('data');
-    }
-
-    private function leaveAction(array $row, string $action, User $actor, array $extra = []): array
-    {
-        Sanctum::actingAs($actor);
-
-        return $this->postJson('/api/v1/leaves/'.$row['id'].'/'.$action,
-            ['version' => $row['version'], 'reason' => 'Reviewed', ...$extra])->assertOk()->json('data');
-    }
-
-    private function approvedLeave(array $input, bool $consent = false): array
-    {
-        return $this->leaveAction($this->leave($input, $consent), 'approve', $this->hr);
-    }
+    use LeaveAttendanceFixture, RefreshDatabase;
 
     public function test_full_day_leave_is_not_absence_and_needs_no_device_sync_to_approve(): void
     {

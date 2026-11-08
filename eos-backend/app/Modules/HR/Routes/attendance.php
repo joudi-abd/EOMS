@@ -25,11 +25,13 @@ Route::prefix('api/v1')->middleware(['api', 'auth:sanctum'])->group(function () 
     Route::get('employees/{employee}/attendance', [AttendanceController::class, 'employee']);
     Route::get('employees/{employee}/attendance-report', [AttendanceController::class, 'report']);
     Route::get('employees/{employee}/payroll-inputs', [AttendanceController::class, 'payrollInputs']);
-    Route::get('attendance/days/{day}', [AttendanceController::class, 'show']);
+    Route::get('attendance/days/{day}', [AttendanceController::class, 'show'])->whereNumber('day');
     Route::post('attendance/days/{day}/corrections', [AttendanceController::class, 'requestCorrection']);
 
+    // Scoped in the controller: organisation-wide (attendance.view) or managed departments (attendance.view_department).
+    Route::get('attendance/days', [AttendanceController::class, 'index']);
+    Route::get('attendance/days/export', [AttendanceController::class, 'export']);
     Route::middleware('perm:attendance.view')->group(function () {
-        Route::get('attendance/days', [AttendanceController::class, 'index']);
         Route::get('attendance/policies', [AttendanceSettingsController::class, 'policies']);
     });
     Route::middleware('perm:attendance.manage')->group(function () {
@@ -53,6 +55,7 @@ Route::prefix('api/v1')->middleware(['api', 'auth:sanctum'])->group(function () 
     });
     Route::middleware('perm:attendance.approve')->group(function () {
         Route::post('attendance/corrections/{correction}/review', [AttendanceController::class, 'reviewCorrection']);
+        Route::post('attendance/days/approve-bulk', [AttendanceController::class, 'approveMany']);
         Route::post('attendance/days/{day}/approve', [AttendanceController::class, 'approve']);
         Route::post('attendance/days/{day}/reopen', [AttendanceController::class, 'reopen']);
     });

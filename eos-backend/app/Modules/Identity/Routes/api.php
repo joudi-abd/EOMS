@@ -1,6 +1,7 @@
 <?php
 
 use App\Modules\Identity\Http\Controllers\AuthController;
+use App\Modules\Identity\Http\Controllers\NotificationController;
 use App\Modules\Identity\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 
@@ -17,4 +18,7 @@ Route::prefix('api/v1')->middleware(['api', 'auth:sanctum'])->group(function () 
     Route::apiResource('users', UserController::class)->except(['destroy']);
     Route::patch('users/{user}/status', [UserController::class, 'updateStatus']);
     Route::put('users/{user}/roles', [UserController::class, 'assignRoles']);
+    Route::get('notifications', [NotificationController::class, 'index']);
+    Route::post('notifications/read-all', [NotificationController::class, 'readAll']);
+    Route::post('notifications/{id}/read', [NotificationController::class, 'read'])->whereUuid('id');
 });

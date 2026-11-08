@@ -12,12 +12,15 @@ use App\Modules\HR\Services\Attendance\AttendanceAccess;
 use App\Modules\HR\Services\Attendance\AttendanceCalculator;
 use App\Modules\HR\Services\Attendance\AttendanceReviewService;
 use App\Modules\HR\Services\Attendance\PayrollInputService;
+use App\Modules\HR\Services\HrScope;
 use App\Support\ApiResponse;
+use App\Support\CsvResponse;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Validation\Rule;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AttendanceController extends Controller
 {
@@ -34,7 +37,10 @@ class AttendanceController extends Controller
             'review_status' => ['nullable', Rule::in(['draft', 'approved'])],
             'per_page' => ['sometimes', 'integer', 'between:1,100'],
         ]);
-        $employees = Employee::query()->when($data['employee_id'] ?? null, fn ($q, $id) => $q->whereKey($id))
+        abort_unless(app(HrScope::class)->hasAnyScope($request->user(), 'attendance'), 403);
+        $visible = app(HrScope::class)->employeeIds($request->user(), 'attendance');
+        $employees = Employee::query()->when($visible !== null, fn ($q) => $q->whereKey($visible->all()))
+            ->when($data['employee_id'] ?? null, fn ($q, $id) => $q->whereKey($id))
             ->when($data['department_id'] ?? null, fn ($q, $id) => $q->where('department_id', $id));
         // Apply result filters AFTER all eligible employees have been calculated.
         (clone $employees)->orderBy('id')->chunkById(100, function ($items) use ($data) {
@@ -60,6 +66,44 @@ class AttendanceController extends Controller
         $body['summary'] = ['total' => $counts->sum(), 'by_status' => $counts];
 
         return response()->json($body);
+    }
+
+    /** One row per employee and day for the period, within the actor's attendance scope. */
+    public function export(Request $request): StreamedResponse
+    {
+        abort_unless(app(HrScope::class)->hasAnyScope($request->user(), 'attendance'), 403);
+        $data = $request->validate([
+            'from' => ['required', 'date_format:Y-m-d', 'after_or_equal:1970-01-01'],
+            'to' => ['required', 'date_format:Y-m-d', 'after_or_equal:from'],
+            'employee_id' => ['nullable', 'integer'], 'department_id' => ['nullable', 'integer'],
+        ]);
+        $from = CarbonImmutable::parse($data['from'], 'UTC');
+        $to = CarbonImmutable::parse($data['to'], 'UTC');
+        abort_if($from->diffInDays($to) > 30, 422, 'الحد الأقصى 31 يوماً.');
+        $visible = app(HrScope::class)->employeeIds($request->user(), 'attendance');
+        $employees = Employee::query()->when($visible !== null, fn ($q) => $q->whereKey($visible->all()))
+            ->when($data['employee_id'] ?? null, fn ($q, $id) => $q->whereKey($id))
+            ->when($data['department_id'] ?? null, fn ($q, $id) => $q->where('department_id', $id))
+            ->orderBy('id')->get();
+        $rows = (function () use ($employees, $from, $to) {
+            foreach ($employees as $employee) {
+                for ($date = $from; $date->lessThanOrEqualTo($to); $date = $date->addDay()) {
+                    $day = $this->calculator->calculate($employee, $date->toDateString());
+                    $tz = AttendancePolicy::find($day->policy_id)?->timezone ?? 'UTC';
+                    yield [$date->toDateString(), $employee->employee_no, $employee->full_name, $employee->department_id,
+                        $day->status, $day->approved_at !== null, $day->pending_changes,
+                        $day->first_in?->setTimezone($tz)->format('H:i'), $day->last_out?->setTimezone($tz)->format('H:i'),
+                        $day->required_minutes, $day->worked_minutes, $day->late_minutes, $day->early_minutes,
+                        $day->extra_minutes, $day->leave_minutes, implode('|', $day->flags)];
+                }
+            }
+        })();
+
+        return CsvResponse::download('attendance-'.$data['from'].'-'.$data['to'].'.csv', [
+            'date', 'employee_no', 'employee_name', 'department_id', 'status', 'approved', 'pending_changes',
+            'first_in', 'last_out', 'required_minutes', 'worked_minutes', 'late_minutes', 'early_minutes',
+            'extra_minutes', 'leave_minutes', 'flags',
+        ], $rows);
     }
 
     public function employee(Request $request, Employee $employee): JsonResponse
@@ -170,6 +214,28 @@ class AttendanceController extends Controller
         $data = $request->validate(['version' => ['required', 'integer', 'min:1']]);
 
         return ApiResponse::ok(new AttendanceDayResource($reviews->approve($day, $data['version'], $request->user())));
+    }
+
+    public function approveMany(Request $request, AttendanceReviewService $reviews): JsonResponse
+    {
+        $data = $request->validate([
+            'from' => ['required', 'date_format:Y-m-d', 'after_or_equal:1970-01-01'],
+            'to' => ['required', 'date_format:Y-m-d', 'after_or_equal:from'],
+            'employee_ids' => ['sometimes', 'array', 'max:500'],
+            'employee_ids.*' => ['integer', 'distinct', 'exists:hr_employees,id'],
+            'department_id' => ['nullable', 'integer', 'exists:hr_departments,id'],
+        ]);
+        $from = CarbonImmutable::parse($data['from'], 'UTC');
+        $to = CarbonImmutable::parse($data['to'], 'UTC');
+        abort_if($from->diffInDays($to) > 30, 422, 'الحد الأقصى 31 يوماً.');
+        // Employees whose service may overlap the range; the calculator decides each day exactly.
+        $employees = Employee::query()
+            ->when($data['employee_ids'] ?? null, fn ($q, $ids) => $q->whereKey($ids))
+            ->when($data['department_id'] ?? null, fn ($q, $id) => $q->where('department_id', $id))
+            ->where(fn ($q) => $q->whereNull('termination_date')->orWhereDate('termination_date', '>=', $data['from']))
+            ->orderBy('id')->get();
+
+        return ApiResponse::ok($reviews->approveMany($employees, $from, $to, $request->user()));
     }
 
     public function reopen(Request $request, AttendanceDay $day, AttendanceReviewService $reviews): JsonResponse

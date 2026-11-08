@@ -10,7 +10,7 @@ class Department extends Model
 {
     protected $table = 'hr_departments';
 
-    protected $fillable = ['parent_id', 'name', 'code'];
+    protected $fillable = ['parent_id', 'name', 'code', 'manager_employee_id'];
 
     public function parent(): BelongsTo
     {
