@@ -2,6 +2,7 @@
 
 namespace App\Modules\Payroll\Services;
 
+use App\Modules\Finance\Services\CashService;
 use App\Modules\HR\Models\Employee;
 use App\Modules\HR\Models\EmployeeServicePeriod;
 use App\Modules\HR\Notifications\HrNotification;
@@ -29,7 +30,7 @@ class PayRunService
     /** How far back locked months are re-checked for adjustments. */
     private const ADJUSTMENT_LOOKBACK_MONTHS = 12;
 
-    public function __construct(private PayrollCalculator $calculator, private AuditLogger $audit, private ExchangeRateService $rates) {}
+    public function __construct(private PayrollCalculator $calculator, private AuditLogger $audit, private ExchangeRateService $rates, private CashService $cash) {}
 
     public function create(string $month, User $actor): PayRun
     {
@@ -257,6 +258,10 @@ class PayRunService
                 'wallet' => $wallet, 'reference' => $data['reference'] ?? null, 'paid_at' => $data['paid_at'],
                 'paid_by' => $actor->id, 'note' => $data['note'] ?? null,
             ]);
+            // The salary leaves the chosen finance box: one posted cash operation and journal entry.
+            $tx = $this->cash->payroll((int) $data['box_id'], $paidCurrency, $paid, $data['paid_at'],
+                'راتب '.$line->run->month.': '.Employee::find($line->employee_id)?->full_name, $payment->id, $actor);
+            $payment->update(['finance_transaction_id' => $tx->id]);
             $this->audit->log('payroll.payment_recorded', $payment, null, $payment->getAttributes(), $actor->id);
 
             return $payment;

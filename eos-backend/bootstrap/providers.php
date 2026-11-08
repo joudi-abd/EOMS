@@ -1,5 +1,6 @@
 <?php
 
+use App\Modules\Finance\Providers\FinanceServiceProvider;
 use App\Modules\HR\Providers\HrServiceProvider;
 use App\Modules\Identity\Providers\IdentityServiceProvider;
 use App\Modules\Payroll\Providers\PayrollServiceProvider;
@@ -11,5 +12,6 @@ return [
     SettingsServiceProvider::class,
     IdentityServiceProvider::class,
     HrServiceProvider::class,
+    FinanceServiceProvider::class,
     PayrollServiceProvider::class,
 ];

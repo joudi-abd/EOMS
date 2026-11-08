@@ -14,7 +14,7 @@ class RolePermissionSeeder extends Seeder
         'attendance' => ['view', 'view_department', 'manage', 'adjust', 'approve'],
         'leaves' => ['view', 'view_department', 'manage', 'approve'],
         'payroll' => ['view', 'manage', 'approve'],
-        'finance' => ['view', 'manage'],
+        'finance' => ['view', 'manage', 'approve'],
         'projects' => ['view', 'manage'],
         'purchases' => ['view', 'manage', 'approve'],
         'assets' => ['view', 'manage'],

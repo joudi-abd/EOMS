@@ -2,10 +2,14 @@
 
 namespace Tests\Feature\Payroll;
 
+use App\Modules\Finance\Models\Account;
+use App\Modules\Finance\Models\Box;
+use App\Modules\Finance\Services\CashService;
 use App\Modules\HR\Models\AttendanceDay;
 use App\Modules\HR\Models\EmploymentContract;
 use App\Modules\HR\Services\Attendance\AttendanceReviewService;
 use App\Modules\Identity\Models\User;
+use App\Modules\Payroll\Models\PayPayment;
 use App\Modules\Payroll\Models\PayRunItem;
 use App\Modules\Payroll\Models\PayRunLine;
 use App\Modules\Settings\Database\Seeders\CurrencySeeder;
@@ -64,6 +68,17 @@ class PayrollTest extends TestCase
         $result = app(AttendanceReviewService::class)->approveMany(collect([$this->employee]),
             CarbonImmutable::parse('2026-10-01'), CarbonImmutable::parse('2026-10-31'), $this->hr);
         $this->assertSame([], $result['skipped']);
+    }
+
+    /** A finance box holding enough money, funded from a capital account. */
+    private function box(string $currency, float $funds): Box
+    {
+        $box = app(CashService::class)->createBox(['name' => 'Main '.$currency, 'kind' => 'cash', 'currency_code' => $currency], $this->finance);
+        $capital = Account::firstOrCreate(['code' => '3100'], ['name' => 'Capital', 'type' => 'equity']);
+        app(CashService::class)->receipt(['box_id' => $box->id, 'amount' => $funds, 'date' => '2026-11-01',
+            'description' => 'Opening cash', 'account_id' => $capital->id], $this->finance);
+
+        return $box;
     }
 
     private function createRun(string $month = '2026-10'): array
@@ -153,17 +168,24 @@ class PayrollTest extends TestCase
         $this->assertSame('approved', $items['absence']->refresh()->status);
 
         Sanctum::actingAs($this->finance);
-        $this->postJson('/api/v1/payroll/lines/'.$line->id.'/payment', ['currency' => 'USD', 'method' => 'cash', 'paid_at' => '2026-11-03'])
+        $usd = $this->box('USD', 1000);
+        $this->postJson('/api/v1/payroll/lines/'.$line->id.'/payment', ['currency' => 'USD', 'method' => 'cash', 'paid_at' => '2026-11-03', 'box_id' => $usd->id])
             ->assertUnprocessable()->assertJsonValidationErrors('currency');
         app(ExchangeRateService::class)->setRate('USD', 'SYP', 13000, '2026-11-03');
-        $this->postJson('/api/v1/payroll/lines/'.$line->id.'/payment', ['currency' => 'USD', 'method' => 'sham_cash', 'paid_at' => '2026-11-03'])
+        $this->postJson('/api/v1/payroll/lines/'.$line->id.'/payment', ['currency' => 'USD', 'method' => 'sham_cash', 'paid_at' => '2026-11-03', 'box_id' => $usd->id])
             ->assertUnprocessable()->assertJsonValidationErrors('reference');
-        $payment = $this->postJson('/api/v1/payroll/lines/'.$line->id.'/payment', ['currency' => 'USD', 'method' => 'cash', 'paid_at' => '2026-11-03'])
+        $syp = $this->box('SYP', 10_000_000);
+        $this->postJson('/api/v1/payroll/lines/'.$line->id.'/payment', ['currency' => 'USD', 'method' => 'cash', 'paid_at' => '2026-11-03', 'box_id' => $syp->id])
+            ->assertUnprocessable()->assertJsonValidationErrors('box_id');
+        $payment = $this->postJson('/api/v1/payroll/lines/'.$line->id.'/payment', ['currency' => 'USD', 'method' => 'cash', 'paid_at' => '2026-11-03', 'box_id' => $usd->id])
             ->assertCreated()->json('data');
+        // The salary left the USD box through a posted journal entry against the salaries account.
+        $this->assertSame(807.0, app(CashService::class)->balance($usd));
+        $this->assertNotNull($payment['finance_transaction_id']);
         $this->assertSame('192.86', $payment['converted_amount']);
         $this->assertSame('193.00', $payment['paid_amount'], 'USD rounded to the dollar');
         $this->assertSame('0.14', $payment['rounding_difference']);
-        $this->postJson('/api/v1/payroll/lines/'.$line->id.'/payment', ['currency' => 'SYP', 'method' => 'cash', 'paid_at' => '2026-11-03'])
+        $this->postJson('/api/v1/payroll/lines/'.$line->id.'/payment', ['currency' => 'SYP', 'method' => 'cash', 'paid_at' => '2026-11-03', 'box_id' => $syp->id])
             ->assertStatus(409);
 
         $this->getJson('/api/v1/payroll/runs/'.$run['id'])->assertOk()->assertJsonPath('data.paid', 1);
@@ -182,8 +204,16 @@ class PayrollTest extends TestCase
         $this->assertSame('2442857.15', $line->net); // 2,657,142.86 − 100,000 − 14,285.71 − 100,000
 
         Sanctum::actingAs($this->finance);
-        $payment = $this->postJson('/api/v1/payroll/lines/'.$line->id.'/payment', ['currency' => 'SYP', 'method' => 'cash', 'paid_at' => '2026-11-03'])
+        $box = $this->box('SYP', 2_000_000);
+        // Not enough money in the box: nothing is recorded.
+        $this->postJson('/api/v1/payroll/lines/'.$line->id.'/payment', ['currency' => 'SYP', 'method' => 'cash', 'paid_at' => '2026-11-03', 'box_id' => $box->id])
+            ->assertUnprocessable()->assertJsonValidationErrors('amount');
+        $this->assertSame(0, PayPayment::count());
+        app(CashService::class)->receipt(['box_id' => $box->id, 'amount' => 1_000_000, 'date' => '2026-11-02',
+            'description' => 'Top up', 'account_id' => Account::where('code', '3100')->value('id')], $this->finance);
+        $payment = $this->postJson('/api/v1/payroll/lines/'.$line->id.'/payment', ['currency' => 'SYP', 'method' => 'cash', 'paid_at' => '2026-11-03', 'box_id' => $box->id])
             ->assertCreated()->json('data');
+        $this->assertSame(557_000.0, app(CashService::class)->balance($box));
         $this->assertSame('2443000.00', $payment['paid_amount']);
         $this->assertSame('142.85', $payment['rounding_difference']);
     }

@@ -111,6 +111,7 @@ class PayRunController extends Controller
     {
         $data = $request->validate([
             'currency' => ['required', Rule::in(['SYP', 'USD'])], 'method' => ['required', Rule::in(['cash', 'sham_cash'])],
+            'box_id' => ['required', 'integer', 'exists:fin_boxes,id'],
             'paid_at' => ['required', 'date_format:Y-m-d', 'before_or_equal:today'],
             'reference' => ['required_if:method,sham_cash', 'nullable', 'string', 'max:100'],
             'note' => ['nullable', 'string', 'max:500'],

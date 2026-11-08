@@ -9,7 +9,7 @@ use RecursiveIteratorIterator;
 /** Mirrors deptrac.yaml so a boundary break fails the normal test run even where deptrac is not installed. */
 class ModuleBoundariesTest extends TestCase
 {
-    private const ALLOWED = ['Identity' => [], 'Settings' => [], 'HR' => ['Identity'], 'Payroll' => ['HR', 'Identity', 'Settings']];
+    private const ALLOWED = ['Identity' => [], 'Settings' => [], 'HR' => ['Identity'], 'Finance' => ['Identity', 'Settings'], 'Payroll' => ['Finance', 'HR', 'Identity', 'Settings']];
 
     public function test_modules_only_depend_on_what_deptrac_allows(): void
     {
