@@ -3,6 +3,7 @@
 namespace App\Modules\Payroll\Http\Controllers;
 
 use App\Modules\HR\Models\Employee;
+use App\Modules\Payroll\Models\PayPayment;
 use App\Modules\Payroll\Models\PayRun;
 use App\Modules\Payroll\Models\PayRunItem;
 use App\Modules\Payroll\Models\PayRunLine;
@@ -118,6 +119,13 @@ class PayRunController extends Controller
         ]);
 
         return ApiResponse::created($this->runs->recordPayment($line, $data, $request->user()));
+    }
+
+    public function voidPayment(PayPayment $payment, Request $request): JsonResponse
+    {
+        $data = $request->validate(['date' => ['required', 'date_format:Y-m-d'], 'reason' => ['required', 'string', 'min:3', 'max:500']]);
+
+        return ApiResponse::ok($this->runs->voidPayment($payment, $data['date'], $data['reason'], $request->user()));
     }
 
     /** Finance-only payslip sheet: one row per employee with totals and payment. */

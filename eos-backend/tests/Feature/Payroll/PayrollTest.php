@@ -8,6 +8,7 @@ use App\Modules\Finance\Services\CashService;
 use App\Modules\HR\Models\AttendanceDay;
 use App\Modules\HR\Models\EmploymentContract;
 use App\Modules\HR\Services\Attendance\AttendanceReviewService;
+use App\Modules\HR\Services\EmployeeTerminationService;
 use App\Modules\Identity\Models\User;
 use App\Modules\Payroll\Models\PayPayment;
 use App\Modules\Payroll\Models\PayRunItem;
@@ -326,5 +327,78 @@ class PayrollTest extends TestCase
         $this->postJson($url, [...$base, 'contract_number' => 'C-M', 'start_date' => '2027-01-01'])->assertSuccessful();
         $this->assertSame(['C-D' => 'daily', 'C-M' => 'monthly'], EmploymentContract::query()->orderBy('contract_number')
             ->pluck('pay_type', 'contract_number')->all());
+    }
+
+    private function approvedOctober(): PayRunLine
+    {
+        $this->october();
+        $run = $this->createRun();
+        $this->postJson('/api/v1/payroll/runs/'.$run['id'].'/submit')->assertOk();
+        Sanctum::actingAs($this->director);
+        $this->postJson('/api/v1/payroll/runs/'.$run['id'].'/approve')->assertOk();
+        Sanctum::actingAs($this->finance);
+
+        return PayRunLine::query()->firstOrFail();
+    }
+
+    public function test_a_wrong_payment_is_voided_back_into_its_box_and_paid_again(): void
+    {
+        $line = $this->approvedOctober();
+        $box = $this->box('SYP', 5_000_000);
+        $first = $this->postJson('/api/v1/payroll/lines/'.$line->id.'/payment', ['currency' => 'SYP', 'method' => 'cash', 'paid_at' => '2026-11-03', 'box_id' => $box->id])
+            ->assertCreated()->json('data');
+        // Finance cannot undo a salary payment from its side.
+        $this->postJson('/api/v1/finance/transactions/'.$first['finance_transaction_id'].'/reverse', ['date' => '2026-11-04', 'reason' => 'x x'])->assertStatus(409);
+
+        $this->postJson('/api/v1/payroll/payments/'.$first['id'].'/void', ['date' => '2026-11-04', 'reason' => 'Wrong box'])->assertOk();
+        $this->postJson('/api/v1/payroll/payments/'.$first['id'].'/void', ['date' => '2026-11-04', 'reason' => 'Again'])->assertStatus(409);
+        $this->assertSame(5_000_000.0, app(CashService::class)->balance($box));
+        $this->getJson('/api/v1/payroll/runs/'.$line->pay_run_id)->assertOk()->assertJsonPath('data.paid', 0);
+        $this->postJson('/api/v1/payroll/lines/'.$line->id.'/payment', ['currency' => 'SYP', 'method' => 'cash', 'paid_at' => '2026-11-04', 'box_id' => $box->id])
+            ->assertCreated();
+        $this->getJson('/api/v1/payroll/runs/'.$line->pay_run_id)->assertOk()->assertJsonPath('data.paid', 1);
+    }
+
+    public function test_whoever_prepares_a_run_cannot_approve_it(): void
+    {
+        $admin = $this->actor('system_admin');
+        $this->october();
+        Sanctum::actingAs($admin);
+        $run = $this->postJson('/api/v1/payroll/runs', ['month' => '2026-10'])->assertCreated()->json('data');
+        $this->postJson('/api/v1/payroll/runs/'.$run['id'].'/submit')->assertOk();
+        $this->postJson('/api/v1/payroll/runs/'.$run['id'].'/approve')->assertForbidden();
+        Sanctum::actingAs($this->director);
+        $this->postJson('/api/v1/payroll/runs/'.$run['id'].'/approve')->assertOk();
+    }
+
+    public function test_an_employee_who_left_still_receives_adjustments_for_a_locked_month(): void
+    {
+        $this->approvedOctober();
+        $this->contract->update(['status' => 'terminated', 'terminated_at' => '2026-10-31']);
+        app(EmployeeTerminationService::class)->terminate($this->employee, ['termination_date' => '2026-10-31', 'reason' => 'Resigned'], $this->hr);
+
+        $this->travelTo(CarbonImmutable::parse('2026-12-02T10:00:00+03:00'));
+        Sanctum::actingAs($this->finance);
+        $november = $this->postJson('/api/v1/payroll/runs', ['month' => '2026-11'])->assertCreated()->json('data');
+        $this->assertSame(0, $november['employees'], 'Nothing changed: no line for someone who left');
+
+        // HR later finds the 6 Oct "absence" was a device problem: the day is corrected to a full day of work.
+        $checker = $this->actor('hr_manager');
+        $reviews = app(AttendanceReviewService::class);
+        $day = AttendanceDay::where('work_date', '2026-10-06')->firstOrFail();
+        $day = $reviews->reopen($day, $day->version, 'Device was offline', $this->hr);
+        $correction = $reviews->request($day, ['version' => $day->version, 'type' => 'times', 'first_in' => '2026-10-06T09:00:00+03:00',
+            'last_out' => '2026-10-06T16:00:00+03:00', 'reason' => 'Confirmed by site log'], $this->hr);
+        $reviews->review($correction, ['decision' => 'approve', 'reason' => 'Checked'], $checker);
+        $day->refresh();
+        $reviews->approve($day, $day->version, $checker);
+
+        Sanctum::actingAs($this->finance);
+        $recalculated = $this->postJson('/api/v1/payroll/runs/'.$november['id'].'/recalculate')->assertOk()->json('data');
+        $this->assertSame(1, $recalculated['employees']);
+        $line = $recalculated['lines'][0];
+        $this->assertSame(['SYP', 'monthly'], [$line['currency_code'], $line['pay_type']]);
+        $adjustment = PayRunItem::query()->where('origin', 'adjustment')->sole();
+        $this->assertSame(['absence', 'earning', '100000.00'], [$adjustment->details['source_kind'], $adjustment->category, $adjustment->proposed_amount]);
     }
 }

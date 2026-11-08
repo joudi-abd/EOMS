@@ -50,6 +50,7 @@ class LedgerService
             if (count($rows) < 2 || abs($debit - $credit) >= 0.005) {
                 throw ValidationException::withMessages(['lines' => ['القيد غير متوازن: مجموع المدين يجب أن يساوي مجموع الدائن.']]);
             }
+            $this->guard($rows, $currency, $sourceType);
             $entry = JournalEntry::create(['number' => $this->number('JE', $date), 'date' => $date, 'currency_code' => strtoupper($currency),
                 'description' => $description, 'source_type' => $sourceType, 'source_id' => $sourceId,
                 'reverses_id' => $reverses, 'created_by' => $actor->id]);
@@ -74,6 +75,35 @@ class LedgerService
             return $this->post($entry->currency_code, $date, 'عكس القيد '.$entry->number.': '.$reason, $lines, $actor,
                 $entry->source_type, $entry->source_id, $entry->id);
         });
+    }
+
+    /**
+     * Ledger-wide invariants, enforced for every posting path (operations, invoices, reversals, manual entries):
+     * receivable/payable lines name their party; inventory moves only with stock; a box never goes negative.
+     */
+    private function guard(array $rows, string $currency, ?string $sourceType): void
+    {
+        $system = Account::query()->whereIn('id', array_column($rows, 'account_id'))->whereNotNull('system_key')->pluck('system_key', 'id');
+        foreach ($rows as $i => $row) {
+            $key = $system->get($row['account_id']);
+            if (in_array($key, ['receivables', 'payables'], true) && empty($row['party_id'])) {
+                throw ValidationException::withMessages(["lines.$i.party_id" => ['سطر ذمم العملاء أو الموردين يحتاج الطرف.']]);
+            }
+            if ($key === 'inventory' && in_array($sourceType, ['manual', null], true)) {
+                throw ValidationException::withMessages(["lines.$i.account_id" => ['حساب المخزون يتحرك مع المواد فقط؛ استخدم تسوية الجرد.']]);
+            }
+        }
+        $boxes = Box::query()->whereIn('account_id', array_column($rows, 'account_id'))->lockForUpdate()->get()->keyBy('account_id');
+        foreach ($boxes as $accountId => $box) {
+            abort_unless($box->currency_code === strtoupper($currency), 422, 'عملة القيد يجب أن تكون عملة الصندوق '.$box->name.'.');
+            $change = collect($rows)->where('account_id', $accountId)->sum(fn ($r) => $r['debit'] - $r['credit']);
+            if ($change < 0) {
+                $balance = (float) JournalLine::query()->where('account_id', $accountId)->sum(DB::raw('debit - credit'));
+                if ($balance + $change < -0.005) {
+                    throw ValidationException::withMessages(['amount' => ['رصيد الصندوق '.$box->name.' غير كافٍ (المتاح '.number_format($balance, 2).').']]);
+                }
+            }
+        }
     }
 
     public function ensureOpen(string $date): void
@@ -148,6 +178,7 @@ class LedgerService
             abort_if($pending > 0, 409, "توجد $pending عملية أو فاتورة غير محسومة في هذا الشهر.");
             $period->fill(['status' => 'close_requested', 'requested_by' => $actor->id, 'decided_by' => null, 'note' => null])->save();
             $this->audit->log('finance.period_close_requested', $period, null, ['month' => $month], $actor->id);
+            app(FinanceNotifier::class)->toApprovers('finance.period_close_requested', "طلب إقفال الشهر المالي $month بانتظار موافقتك.", ['month' => $month], $actor->id);
 
             return $period;
         });
@@ -161,6 +192,8 @@ class LedgerService
             $period->update(['status' => $approve ? 'closed' : 'open', 'decided_by' => $actor->id,
                 'closed_at' => $approve ? now() : null, 'note' => $note]);
             $this->audit->log($approve ? 'finance.period_closed' : 'finance.period_close_rejected', $period, null, ['month' => $month], $actor->id);
+            app(FinanceNotifier::class)->toUser($period->requested_by, $approve ? 'finance.period_closed' : 'finance.period_close_rejected',
+                ($approve ? 'تمت الموافقة على إقفال ' : 'رُفض طلب إقفال ').$month.($note ? ': '.$note : '.'), ['month' => $month]);
 
             return $period;
         });

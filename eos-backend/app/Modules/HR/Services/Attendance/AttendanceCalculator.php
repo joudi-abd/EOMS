@@ -54,9 +54,12 @@ class AttendanceCalculator
             $fullLeave = $leave !== null && $leave['full'];
             $phaseSensitive = $raw->isEmpty() && $correction === null && $working && $inService
                 && ! $holiday && ! $fullLeave;
+            // A service end date only matters to days after it. Inside the service period it is left out, so ending
+            // someone's service does not mark their whole approved history as changed.
+            $signatureEnd = $serviceEnd !== null && $date > $serviceEnd ? $serviceEnd : null;
             $source = [
                 // false: retired employee-level on_leave flag, kept so existing signatures stay valid.
-                $policy->id, $serviceStart, $serviceEnd, false,
+                $policy->id, $serviceStart, $signatureEnd, false,
                 $raw->map(fn ($p) => [$p->id, $p->occurred_at->timestamp, $p->direction])->all(),
                 $deviceIds->sort()->values()->all(), $covered,
                 $phaseSensitive ? $closed : null, $correction?->id,
@@ -73,7 +76,13 @@ class AttendanceCalculator
             }
             $signature = hash('sha256', json_encode($source, JSON_THROW_ON_ERROR));
             if ($day->approved_at !== null) {
-                $day->update(['pending_changes' => $signature !== $day->source_signature]);
+                // Days approved before this rule were signed with the actual end date; if nothing else changed,
+                // upgrade them silently instead of reporting a change.
+                $legacy = $source;
+                $legacy[2] = $serviceEnd;
+                $unchanged = $day->source_signature === $signature
+                    || ($legacy !== $source && $day->source_signature === hash('sha256', json_encode($legacy, JSON_THROW_ON_ERROR)));
+                $day->update(['pending_changes' => ! $unchanged, 'source_signature' => $unchanged ? $signature : $day->source_signature]);
 
                 return $day->refresh();
             }

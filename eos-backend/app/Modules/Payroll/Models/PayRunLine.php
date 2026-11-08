@@ -33,6 +33,7 @@ class PayRunLine extends Model
 
     public function payment(): HasOne
     {
-        return $this->hasOne(PayPayment::class);
+        // The active payment; voided payments stay in pay_payments for audit.
+        return $this->hasOne(PayPayment::class)->whereNull('voided_at');
     }
 }

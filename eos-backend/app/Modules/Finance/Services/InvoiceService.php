@@ -39,6 +39,7 @@ class InvoiceService
                 $type === 'sale' ? 'فاتورة البيع لعميل فعّال.' : 'فاتورة الشراء لمورد فعّال.');
             $currency = strtoupper($data['currency_code']);
             $lines = $this->lines($type, $currency, $data['lines']);
+            abort_unless($lines->sum('amount') > 0, 422, 'إجمالي الفاتورة يجب أن يكون أكبر من صفر.');
             $values = ['party_id' => $party->id, 'date' => $data['date'], 'due_date' => $data['due_date'] ?? $data['date'],
                 'currency_code' => $currency, 'notes' => $data['notes'] ?? null,
                 'total' => round($lines->sum('amount'), 2)];
@@ -72,6 +73,8 @@ class InvoiceService
             }
             if ($this->cash->needsApproval($invoice->currency_code, (float) $invoice->total)) {
                 $invoice->update(['status' => 'pending', 'version' => $invoice->version + 1]);
+                app(FinanceNotifier::class)->toApprovers('finance.invoice_pending', ($invoice->type === 'sale' ? 'فاتورة بيع' : 'فاتورة شراء')
+                    .' بانتظار الاعتماد: '.number_format((float) $invoice->total, 2).' '.$invoice->currency_code, ['invoice_id' => $invoice->id], $actor->id);
 
                 return $invoice->refresh();
             }
@@ -95,6 +98,8 @@ class InvoiceService
                 $invoice->update(['status' => 'draft', 'version' => $invoice->version + 1]);
             }
             $this->audit->log($approve ? 'finance.invoice_approved' : 'finance.invoice_rejected', $invoice, null, ['note' => $note], $actor->id);
+            app(FinanceNotifier::class)->toUser($invoice->created_by, $approve ? 'finance.invoice_approved' : 'finance.invoice_rejected',
+                ($approve ? 'اعتُمدت الفاتورة ' : 'أُعيدت الفاتورة للتعديل ').($invoice->number ?? '#'.$invoice->id).($note ? ': '.$note : '.'), ['invoice_id' => $invoice->id]);
 
             return $invoice->refresh();
         });

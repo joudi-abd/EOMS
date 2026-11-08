@@ -14,6 +14,6 @@ class PayPayment extends Model
     {
         return ['pay_run_line_id' => 'integer', 'net_amount' => 'decimal:2', 'exchange_rate' => 'decimal:6',
             'rate_date' => 'date:Y-m-d', 'converted_amount' => 'decimal:2', 'paid_amount' => 'decimal:2',
-            'rounding_difference' => 'decimal:2', 'paid_at' => 'date:Y-m-d', 'paid_by' => 'integer', 'finance_transaction_id' => 'integer'];
+            'rounding_difference' => 'decimal:2', 'paid_at' => 'date:Y-m-d', 'paid_by' => 'integer', 'finance_transaction_id' => 'integer', 'voided_at' => 'datetime', 'voided_by' => 'integer'];
     }
 }

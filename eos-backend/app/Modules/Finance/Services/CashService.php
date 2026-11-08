@@ -85,6 +85,9 @@ class CashService
             $tx = $this->make('payment', $data, $box, $actor, $pending ? 'pending' : 'posted');
             if (! $pending) {
                 $this->postTransaction($tx, $actor);
+            } else {
+                app(FinanceNotifier::class)->toApprovers('finance.payment_pending', 'صرف بانتظار الاعتماد: '.number_format((float) $tx->amount, 2).' '.$box->currency_code.' — '.$tx->description,
+                    ['transaction_id' => $tx->id], $actor->id);
             }
 
             return $tx->refresh();
@@ -145,18 +148,20 @@ class CashService
                 $this->postTransaction($tx, $actor);
             }
             $this->audit->log($approve ? 'finance.payment_approved' : 'finance.payment_rejected', $tx, null, null, $actor->id);
+            app(FinanceNotifier::class)->toUser($tx->created_by, $approve ? 'finance.payment_approved' : 'finance.payment_rejected',
+                ($approve ? 'اعتُمد الصرف: ' : 'رُفض الصرف: ').$tx->description.($note ? ' — '.$note : ''), ['transaction_id' => $tx->id]);
 
             return $tx->refresh();
         });
     }
 
     /** Reverses every entry of a posted operation and restores the paid amount of a linked invoice. */
-    public function reverse(Transaction $tx, string $date, string $reason, User $actor): Transaction
+    public function reverse(Transaction $tx, string $date, string $reason, User $actor, bool $fromPayroll = false): Transaction
     {
-        return DB::transaction(function () use ($tx, $date, $reason, $actor) {
+        return DB::transaction(function () use ($tx, $date, $reason, $actor, $fromPayroll) {
             $tx = Transaction::query()->lockForUpdate()->findOrFail($tx->id);
             abort_unless($tx->status === 'posted', 409, 'تُعكس العمليات المرحّلة فقط.');
-            abort_if($tx->kind === 'payroll', 409, 'دفعات الرواتب تُدار من وحدة الرواتب.');
+            abort_if($tx->kind === 'payroll' && ! $fromPayroll, 409, 'دفعات الرواتب تُلغى من وحدة الرواتب.');
             foreach (JournalEntry::query()->where('source_type', 'transaction')->where('source_id', $tx->id)->whereNull('reverses_id')->get() as $entry) {
                 $this->ledger->reverse($entry, $date, $reason, $actor);
             }

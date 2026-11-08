@@ -156,6 +156,8 @@ class FinanceController extends Controller
     {
         $data = $request->validate(['name' => ['sometimes', 'string', 'max:100'], 'active' => ['sometimes', 'boolean']]);
         abort_if(($data['active'] ?? true) === false && $this->cash->balance($box) != 0, 422, 'لا يُوقف صندوق رصيده غير صفر.');
+        abort_if(($data['active'] ?? true) === false && Transaction::query()->where('status', 'pending')
+            ->where(fn ($q) => $q->where('box_id', $box->id)->orWhere('counter_box_id', $box->id))->exists(), 422, 'للصندوق عمليات بانتظار الاعتماد.');
         $box->update($data);
 
         return ApiResponse::ok($box->refresh());

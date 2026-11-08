@@ -20,6 +20,7 @@ Route::prefix('api/v1/payroll')->middleware(['api', 'auth:sanctum'])->controller
         Route::post('items/{item}/adjustment-decision', 'decideAdjustment')->whereNumber('item');
         Route::post('runs/{run}/submit', 'submit')->whereNumber('run');
         Route::post('lines/{line}/payment', 'pay')->whereNumber('line');
+        Route::post('payments/{payment}/void', 'voidPayment')->whereNumber('payment');
     });
     // Review and approve: company manager (payroll.approve).
     Route::middleware('perm:payroll.approve')->group(function () {

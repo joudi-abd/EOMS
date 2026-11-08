@@ -7,6 +7,7 @@ use App\Modules\Finance\Models\Box;
 use App\Modules\Finance\Models\Invoice;
 use App\Modules\Finance\Models\Item;
 use App\Modules\Finance\Models\JournalEntry;
+use App\Modules\Finance\Models\Transaction;
 use App\Modules\Finance\Services\CashService;
 use App\Modules\Identity\Database\Seeders\RolePermissionSeeder;
 use App\Modules\Identity\Models\User;
@@ -294,5 +295,57 @@ class FinanceTest extends TestCase
         $this->api('boxes', ['name' => 'x', 'kind' => 'cash', 'currency_code' => 'SYP'], 403);
         Sanctum::actingAs($this->finance);
         $this->putJson('/api/v1/finance/approval-limits', ['currency_code' => 'SYP', 'amount' => 1])->assertForbidden();
+    }
+
+    public function test_ledger_guards_hold_on_every_posting_path(): void
+    {
+        $a = $this->box('SYP', 100);
+        $b = $this->box('SYP');
+        $receipt = Transaction::query()->where('box_id', $a->id)->firstOrFail();
+        $this->api('transactions/transfer', ['box_id' => $a->id, 'counter_box_id' => $b->id, 'amount' => 100, 'date' => '2026-11-02', 'description' => 'Move']);
+        // Reversing the receipt would leave box A negative.
+        $this->api('transactions/'.$receipt->id.'/reverse', ['date' => '2026-11-03', 'reason' => 'Mistake'], 422);
+        $this->assertSame(0.0, $this->balance($a));
+        // Manual entries: no overdrawn box, receivables need a party, inventory moves only with stock.
+        $manual = fn (int $account, array $extra = []) => ['date' => '2026-11-04', 'currency_code' => 'SYP', 'description' => 'Manual',
+            'lines' => [['account_id' => $this->rent->id, 'debit' => 500], ['account_id' => $account, 'credit' => 500, ...$extra]]];
+        $this->api('entries', $manual($b->account_id), 422);
+        $this->api('entries', $manual(Account::where('system_key', 'receivables')->value('id')), 422);
+        $this->api('entries', $manual(Account::where('system_key', 'inventory')->value('id')), 422);
+        $customer = $this->api('parties', ['kind' => 'customer', 'name' => 'C']);
+        $this->api('entries', $manual(Account::where('system_key', 'receivables')->value('id'), ['party_id' => $customer['id']]));
+        // A manual correction of cash within the balance is allowed.
+        $this->api('entries', ['date' => '2026-11-04', 'currency_code' => 'SYP', 'description' => 'Shortage',
+            'lines' => [['account_id' => $this->rent->id, 'debit' => 40], ['account_id' => $b->account_id, 'credit' => 40]]]);
+        $this->assertSame(60.0, $this->balance($b));
+        // Zero invoices are refused when saved.
+        $this->api('invoices', ['type' => 'sale', 'party_id' => $customer['id'], 'date' => '2026-11-05', 'currency_code' => 'SYP',
+            'lines' => [['description' => 'Free', 'quantity' => 1, 'unit_price' => 0, 'account_id' => $this->sales->id]]], 422);
+    }
+
+    public function test_approvals_notify_approvers_and_decisions_notify_the_recorder(): void
+    {
+        $box = $this->box('SYP', 1_000_000);
+        $tx = $this->api('transactions/payment', ['box_id' => $box->id, 'amount' => 10, 'date' => '2026-11-05', 'description' => 'Rent', 'account_id' => $this->rent->id]);
+        $this->assertSame('finance.payment_pending', $this->director->notifications()->first()?->data['kind']);
+        $this->patchJson('/api/v1/finance/boxes/'.$box->id, ['active' => false])->assertStatus(422);
+        Sanctum::actingAs($this->director);
+        $this->api('transactions/'.$tx['id'].'/decision', ['decision' => 'reject', 'note' => 'Not now'], 200);
+        $this->assertSame('finance.payment_rejected', $this->finance->notifications()->first()?->data['kind']);
+
+        Sanctum::actingAs($this->finance);
+        $customer = $this->api('parties', ['kind' => 'customer', 'name' => 'C']);
+        $invoice = $this->api('invoices', ['type' => 'sale', 'party_id' => $customer['id'], 'date' => '2026-11-05', 'currency_code' => 'SYP',
+            'lines' => [['description' => 'Fee', 'quantity' => 1, 'unit_price' => 100, 'account_id' => $this->sales->id]]]);
+        $this->api('invoices/'.$invoice['id'].'/submit', [], 200);
+        $this->travelTo(CarbonImmutable::parse('2026-12-02T10:00:00+03:00'));
+        Sanctum::actingAs($this->director);
+        $this->api('invoices/'.$invoice['id'].'/decision', ['decision' => 'approve'], 200);
+        Sanctum::actingAs($this->finance);
+        $this->api('periods/close-request', ['month' => '2026-11'], 200);
+        $kinds = $this->director->notifications()->get()->pluck('data.kind')->all();
+        $this->assertContains('finance.invoice_pending', $kinds);
+        $this->assertContains('finance.period_close_requested', $kinds);
+        $this->assertContains('finance.invoice_approved', $this->finance->notifications()->get()->pluck('data.kind')->all());
     }
 }

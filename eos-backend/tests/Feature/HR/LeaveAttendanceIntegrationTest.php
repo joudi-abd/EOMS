@@ -273,4 +273,22 @@ class LeaveAttendanceIntegrationTest extends TestCase
             ->assertJsonPath('data.summary.worked_minutes', 300)
             ->assertJsonPath('data.summary.unknown_worked_days', 0);
     }
+
+    public function test_ending_service_does_not_flag_approved_history_as_changed(): void
+    {
+        $this->punches('2026-11-02', ['09:00', '16:00']);
+        $this->punches('2026-11-03', ['09:00', '16:00'], '2026-11-03T16:00:00');
+        $reviews = app(AttendanceReviewService::class);
+        foreach (['2026-11-02', '2026-11-03'] as $date) {
+            $day = $this->calculate($date);
+            $reviews->approve($day, $day->version, $this->hr);
+        }
+
+        app(EmployeeTerminationService::class)->terminate($this->employee, ['termination_date' => '2026-11-02', 'reason' => 'Resigned'], $this->hr);
+        $this->employee->refresh();
+
+        // Inside the service period nothing changed; the day after the end really did change.
+        $this->assertFalse($this->calculate('2026-11-02')->pending_changes);
+        $this->assertTrue($this->calculate('2026-11-03')->pending_changes);
+    }
 }

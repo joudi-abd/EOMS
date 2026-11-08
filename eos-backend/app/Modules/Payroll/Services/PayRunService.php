@@ -2,6 +2,7 @@
 
 namespace App\Modules\Payroll\Services;
 
+use App\Modules\Finance\Models\Transaction;
 use App\Modules\Finance\Services\CashService;
 use App\Modules\HR\Models\Employee;
 use App\Modules\HR\Models\EmployeeServicePeriod;
@@ -57,13 +58,18 @@ class PayRunService
         return DB::transaction(function () use ($run, $actor) {
             $run = $this->lock($run, 'draft');
             $employees = $this->employeesFor($run->month);
+            // People who left can still have retroactive changes on a locked month: they get a line only for those.
+            $former = $this->formerEmployees($run->month, $employees->pluck('id'));
+            $employees = $employees->concat($former);
             PayRunLine::query()->where('pay_run_id', $run->id)->whereNotIn('employee_id', $employees->pluck('id'))
                 ->whereDoesntHave('items', fn ($q) => $q->where('origin', 'manual'))->delete();
             foreach ($employees as $employee) {
                 $result = $this->calculator->forEmployee($employee, $run->month);
                 $line = PayRunLine::query()->firstOrNew(['pay_run_id' => $run->id, 'employee_id' => $employee->id]);
+                $previous = $result['currency_code'] === null ? $this->lastLockedLine($employee->id, $run->month) : null;
                 $line->fill([
-                    'contract_id' => $result['contract_id'], 'pay_type' => $result['pay_type'], 'currency_code' => $result['currency_code'],
+                    'contract_id' => $result['contract_id'] ?? $previous?->contract_id, 'pay_type' => $result['pay_type'] ?? $previous?->pay_type,
+                    'currency_code' => $result['currency_code'] ?? $previous?->currency_code,
                     'rate' => $result['rate'], 'working_days' => $result['working_days'],
                     'attendance_ready' => $result['attendance_ready'], 'blocked_days' => $result['blocked_days'],
                     'issues' => $result['issues'], 'source_hash' => $this->fingerprint($result),
@@ -76,6 +82,11 @@ class PayRunService
                     $this->storeItem($line, $item, $item['origin'] === 'proposed' ? 'proposed' : 'applied');
                 }
                 $this->addAdjustments($line, $employee, $run->month, $decided);
+                if ($former->contains('id', $employee->id) && ! $line->items()->exists()) {
+                    $line->delete();
+
+                    continue;
+                }
                 $this->totals($line);
             }
             $run->update(['calculated_at' => now(), 'version' => $run->version + 1]);
@@ -194,6 +205,7 @@ class PayRunService
     {
         return DB::transaction(function () use ($run, $actor) {
             $run = $this->lock($run, 'submitted');
+            abort_if($run->prepared_by === $actor->id, 403, 'لا يعتمد أحد كشفاً أنشأه بنفسه.');
             $problems = [];
             foreach (PayRunLine::query()->where('pay_run_id', $run->id)->orderBy('id')->get() as $line) {
                 $employee = Employee::query()->findOrFail($line->employee_id);
@@ -265,6 +277,23 @@ class PayRunService
             $this->audit->log('payroll.payment_recorded', $payment, null, $payment->getAttributes(), $actor->id);
 
             return $payment;
+        });
+    }
+
+    /** Voids a wrong payment: the salary returns to its finance box by reversal and the line can be paid again. */
+    public function voidPayment(PayPayment $payment, string $date, string $reason, User $actor): PayPayment
+    {
+        return DB::transaction(function () use ($payment, $date, $reason, $actor) {
+            $payment = PayPayment::query()->lockForUpdate()->findOrFail($payment->id);
+            abort_if($payment->voided_at !== null, 409, 'الدفعة ملغاة مسبقاً.');
+            if ($payment->finance_transaction_id) {
+                $this->cash->reverse(Transaction::query()->findOrFail($payment->finance_transaction_id),
+                    $date, 'إلغاء دفعة راتب: '.$reason, $actor, fromPayroll: true);
+            }
+            $payment->update(['voided_at' => now(), 'voided_by' => $actor->id, 'void_reason' => $reason]);
+            $this->audit->log('payroll.payment_voided', $payment, null, ['reason' => $reason], $actor->id);
+
+            return $payment->refresh();
         });
     }
 
@@ -371,6 +400,25 @@ class PayRunService
         return Employee::query()->whereIn('id', EmployeeServicePeriod::query()->whereDate('start_date', '<=', $to)
             ->where(fn ($q) => $q->whereNull('end_date')->orWhereDate('end_date', '>=', $from))->select('employee_id'))
             ->orderBy('id')->get();
+    }
+
+    /** Employees not in service this month who were paid in a locked month inside the adjustment window. */
+    private function formerEmployees(string $month, Collection $inService): Collection
+    {
+        $from = CarbonImmutable::createFromFormat('!Y-m', $month)->subMonths(self::ADJUSTMENT_LOOKBACK_MONTHS)->format('Y-m');
+
+        return Employee::query()->whereNotIn('id', $inService)
+            ->whereIn('id', PayRunLine::query()->whereHas('run', fn ($q) => $q->where('status', 'approved')
+                ->where('month', '<', $month)->where('month', '>=', $from))->select('employee_id'))
+            ->orderBy('id')->get();
+    }
+
+    private function lastLockedLine(int $employeeId, string $month): ?PayRunLine
+    {
+        return PayRunLine::query()->where('employee_id', $employeeId)->whereNotNull('currency_code')
+            ->whereHas('run', fn ($q) => $q->where('status', 'approved')->where('month', '<', $month))
+            ->join('pay_runs', 'pay_runs.id', '=', 'pay_run_lines.pay_run_id')->orderByDesc('pay_runs.month')
+            ->select('pay_run_lines.*')->first();
     }
 
     private function items(PayRun $run)
