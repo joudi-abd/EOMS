@@ -34,6 +34,7 @@ export interface RollLine {
   pending: boolean;
   approved: boolean;
   duplicate: boolean;
+  needsReview: boolean;
   at: string | null;
 }
 
@@ -238,11 +239,14 @@ export function lineOf(day: ApiAttendanceDay, known?: { name: Text; department: 
     pending: day.pending_changes,
     approved: day.review_status === 'approved',
     duplicate: day.flags.includes('duplicate_punch_ignored'),
+    needsReview: needsAttendanceReview(day),
     at: day.last_out ?? day.first_in,
   };
 }
 
 export function markOf(day: ApiAttendanceDay): DayMark {
+  if (day.status === 'on_leave') return 'leave';
+  if (day.status === 'holiday') return 'holiday';
   if (day.status === 'present') {
     if ((day.late_minutes ?? 0) > 0) return 'late';
     if ((day.early_minutes ?? 0) > 0) return 'early';
@@ -252,6 +256,20 @@ export function markOf(day: ApiAttendanceDay): DayMark {
   if (day.status === 'absent') return 'absent';
   if (day.status === 'pending' || day.status === 'absent_unconfirmed') return 'review';
   return 'off';
+}
+
+export function needsAttendanceReview(day: ApiAttendanceDay): boolean {
+  return day.pending_changes || (day.review_status !== 'approved' && day.flags.some(flag => [
+    'punch_on_leave_day', 'punch_during_leave', 'work_on_holiday', 'work_on_day_off',
+    'direction_conflict', 'punch_outside_service', 'correction_superseded_by_leave',
+  ].includes(flag)));
+}
+
+export function requiredMinutesOf(day: ApiAttendanceDay): number {
+  if (day.required_minutes !== undefined) return day.required_minutes ?? 0;
+  if (['day_off', 'outside_service', 'holiday', 'on_leave'].includes(day.status)) return 0;
+  const minutes = (value: string) => Number(value.slice(0, 2)) * 60 + Number(value.slice(3, 5));
+  return Math.max(0, minutes(day.policy.end_time) - minutes(day.policy.start_time) - (day.leave_minutes ?? 0));
 }
 
 export function clockOf(iso: string | null, zone: string): string | null {

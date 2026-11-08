@@ -126,7 +126,7 @@ export interface ApiItem<T> {
   data: T;
 }
 
-export type ApiDayStatus = 'pending' | 'present' | 'incomplete' | 'absent' | 'absent_unconfirmed' | 'day_off' | 'outside_service';
+export type ApiDayStatus = 'pending' | 'present' | 'incomplete' | 'absent' | 'absent_unconfirmed' | 'day_off' | 'outside_service' | 'on_leave' | 'holiday';
 
 export interface ApiAttendanceEmployee {
   id: number;
@@ -156,6 +156,23 @@ export interface ApiAttendanceDay {
   first_in: string | null;
   last_out: string | null;
   worked_minutes: number | null;
+  required_minutes?: number | null;
+  leave_minutes?: number | null;
+  leave?: {
+    request_id: number;
+    request_day_id: number;
+    leave_type: { id: number | null; name: string | null };
+    start_time: string;
+    end_time: string;
+    full_day: boolean;
+    pay_percent: number;
+    day_units: number;
+    covered_units: number;
+    unpaid_units: number;
+    still_active: boolean;
+  } | null;
+  pending_leave_request_id?: number | null;
+  holiday?: { id: number; name: string } | null;
   late_actual_minutes: number | null;
   late_minutes: number | null;
   late_hours: number | null;

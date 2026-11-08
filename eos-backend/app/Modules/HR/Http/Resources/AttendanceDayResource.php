@@ -56,7 +56,9 @@ class AttendanceDayResource extends JsonResource
             'version' => $this->version, 'approved_at' => $this->approved_at?->toIso8601String(),
             'review_status' => $this->approved_at ? 'approved' : 'draft',
             'permissions' => [
-                'can_request_correction' => $this->approved_at === null && ($request->user()?->can('attendance.adjust')
+                'can_request_correction' => $this->approved_at === null
+                    && ! in_array($this->status, ['outside_service', 'day_off', 'holiday', 'on_leave'], true)
+                    && ($request->user()?->can('attendance.adjust')
                     || (int) $employee->user_id === (int) $request->user()?->id),
                 'can_approve' => $request->user()?->can('attendance.approve') && $this->approved_at === null,
                 'can_reopen' => $request->user()?->can('attendance.approve') && $this->approved_at !== null,

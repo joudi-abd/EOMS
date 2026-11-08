@@ -67,6 +67,10 @@ class AttendanceCalculator
                 $source[] = ['holiday' => $holiday?->id,
                     'leave' => $leave === null ? null : [$leave['day']->id, $leave['from']->timestamp, $leave['to']->timestamp]];
             }
+            if ($leave !== null && ! $fullLeave) {
+                // Recalculate old partial-leave drafts; approved snapshots require an explicit review.
+                $source[] = 'partial-leave-exempt-absence-v2';
+            }
             $signature = hash('sha256', json_encode($source, JSON_THROW_ON_ERROR));
             if ($day->approved_at !== null) {
                 $day->update(['pending_changes' => $signature !== $day->source_signature]);
@@ -137,9 +141,10 @@ class AttendanceCalculator
                 }
             }
             $validPair = $first && $last && $last->greaterThan($first);
-            $lateActual = $first ? max(0, (int) ceil(($first->timestamp - $requiredStart->timestamp) / 60)) : null;
+            $lateSeconds = $first ? $this->unexcusedSeconds($requiredStart->timestamp, $first->timestamp, $leave) : null;
+            $lateActual = $lateSeconds === null ? null : (int) ceil($lateSeconds / 60);
             $late = $first ? app(LatenessCharge::class)->minutes(
-                $first->timestamp - $requiredStart->timestamp,
+                $lateSeconds,
                 $policy->grace_minutes,
                 $policy->grace_mode,
                 $policy->late_block_minutes,
@@ -149,7 +154,7 @@ class AttendanceCalculator
                 $overlap = $leave === null ? 0 : max(0, min($last->timestamp, $leave['to']->timestamp) - max($first->timestamp, $leave['from']->timestamp));
                 $worked = (int) floor(($last->timestamp - $first->timestamp - $overlap) / 60);
             }
-            $early = $last ? max(0, (int) ceil(($requiredEnd->timestamp - $last->timestamp) / 60)) : null;
+            $early = $last ? (int) ceil($this->unexcusedSeconds($last->timestamp, $requiredEnd->timestamp, $leave) / 60) : null;
             // Overtime is measured from the scheduled end, never from a leave-shortened end.
             $extra = $last ? max(0, (int) floor(($last->timestamp - $end->timestamp) / 60)) : null;
             $required = $working && ! $outside && ! $holiday
@@ -225,6 +230,15 @@ class AttendanceCalculator
 
             return $day->refresh();
         }, 3);
+    }
+
+    /** Subtract only the approved leave overlapping the missing attendance interval, before rounding. */
+    private function unexcusedSeconds(int $from, int $to, ?array $leave): int
+    {
+        $duration = max(0, $to - $from);
+        $excused = $leave === null ? 0 : max(0, min($to, $leave['to']->timestamp) - max($from, $leave['from']->timestamp));
+
+        return max(0, $duration - $excused);
     }
 
     /**

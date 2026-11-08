@@ -44,6 +44,18 @@ export class AttendanceDay extends Ui {
   protected readonly name = computed(() => this.row()?.name ?? plain(''));
   protected readonly punches = computed(() => this.bundle()?.punches ?? []);
   protected readonly corrections = computed(() => this.bundle()?.corrections ?? []);
+  protected readonly notices = computed(() => {
+    const keys: Record<string, CopyKey> = {
+      punch_on_leave_day: 'attendancePunchOnLeave',
+      punch_during_leave: 'attendancePunchDuringLeave',
+      work_on_holiday: 'attendanceWorkOnHoliday',
+      work_on_day_off: 'attendanceWorkOnDayOff',
+      correction_superseded_by_leave: 'attendanceCorrectionSuperseded',
+      direction_conflict: 'attendanceDirectionConflict',
+      punch_outside_service: 'attendancePunchOutsideService',
+    };
+    return [...new Set(this.bundle()?.day.flags ?? [])].filter(flag => keys[flag]).map(flag => keys[flag]);
+  });
 
   constructor() {
     super();
