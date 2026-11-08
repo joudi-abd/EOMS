@@ -52,7 +52,7 @@ Confirmed modules, in study order:
 - Notifications and approvals
 - Dashboard and reporting
 
-Built screens: the director's dashboard (synthetic figures), the application shell, users and permissions, employees (file, contracts, documents, job history, fingerprint enrollment, offboarding), attendance with reports, and HR settings. Leave, requests, and payroll are specified below but have no screen yet and open a "later" page, as do all other modules.
+Built screens: finance (cash boxes and transactions, invoices and customers and suppliers, items and stock, journal entries and the chart of accounts, period closing, and the six finance reports, all on `/finance`), the director's dashboard (synthetic figures), the application shell, users and permissions, employees (file, contracts, documents, job history, fingerprint enrollment, offboarding), attendance with reports, and HR settings. Leave, requests, and payroll are specified below but have no screen yet and open a "later" page, as do all other modules.
 
 The backend is read-only from this repository's work. When frontend and backend disagree, the frontend is aligned to the backend and the gap is reported. Shift hours are versioned attendance policies (`/attendance/policies`): human resources saves a new version that rules from a chosen future date. The shift screen also edits grace mode, lateness block, overtime multiplier, pairing mode, duplicate window, and finalize delay. HR settings has a Devices tab (devices, connection mode, token renewal, device-number bindings) for `attendance.manage`, and fingerprint enrollment runs over the ADMS routes with a human test-and-confirm step.
 

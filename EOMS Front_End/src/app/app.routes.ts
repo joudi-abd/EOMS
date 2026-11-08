@@ -6,6 +6,7 @@ import { Attendance } from './pages/attendance/attendance';
 import { Dashboard } from './pages/dashboard/dashboard';
 import { Access } from './pages/access/access';
 import { Employees } from './pages/employees/employees';
+import { FinancePage } from './pages/finance/finance';
 import { Rates } from './pages/finance/rates';
 import { HrSettings } from './pages/hr-settings/hr-settings';
 import { Login } from './pages/login/login';
@@ -28,7 +29,8 @@ export const routes: Routes = [
       { path: 'modules/leave', component: LeavesPage },
       { path: 'modules/payroll', component: PayrollPage },
       { path: 'modules/alerts', component: Alerts },
-      { path: 'modules/finance', component: Rates },
+      { path: 'modules/finance', component: FinancePage },
+      { path: 'modules/finance/rates', component: Rates },
       { path: 'modules/:id', component: Later },
     ],
   },

@@ -1,3 +1,4 @@
+import { financeCopy } from './copy-finance';
 import { hrCopy } from './copy-hr';
 
 export type Lang = 'ar' | 'en';
@@ -588,8 +589,8 @@ const base = {
 } as const;
 
 export const copy = {
-  ar: { ...base.ar, ...hrCopy.ar },
-  en: { ...base.en, ...hrCopy.en },
+  ar: { ...base.ar, ...hrCopy.ar, ...financeCopy.ar },
+  en: { ...base.en, ...hrCopy.en, ...financeCopy.en },
 };
 
 export type CopyKey = keyof typeof copy.ar;

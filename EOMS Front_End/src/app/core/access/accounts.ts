@@ -113,6 +113,7 @@ export const permissionIds = [
   'payroll.approve',
   'finance.view',
   'finance.manage',
+  'finance.approve',
   'projects.view',
   'projects.manage',
   'purchases.view',

@@ -1,0 +1,285 @@
+<div class="fin-toolbar">
+  @if (canManage) {
+    <button class="primary" type="button" (click)="startNew('sale')"><i class="fa-solid fa-plus" aria-hidden="true"></i> {{ t('finNewSale') }}</button>
+    <button class="text" type="button" (click)="startNew('purchase')"><i class="fa-solid fa-plus" aria-hidden="true"></i> {{ t('finNewPurchase') }}</button>
+  }
+  <button class="text" type="button" (click)="openParties()"><i class="fa-solid fa-address-book" aria-hidden="true"></i> {{ t('finParties') }}</button>
+</div>
+
+@switch (panel()) {
+  @case ('editor') {
+    <form class="fin-sheet" (ngSubmit)="save(false)">
+      <header>
+        <h2>{{ typeLabel(type()) }} · {{ editingId ? t('finEditDraft') : t('finNewDraft') }}</h2>
+        <button class="quiet-x" type="button" (click)="close()" [attr.aria-label]="t('dismiss')"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+      </header>
+      <fieldset [disabled]="busy()">
+        <div class="fin-form">
+          <label class="wide">{{ type() === 'sale' ? t('finCustomer') : t('finSupplier') }}
+            <select name="party" required [(ngModel)]="party">
+              <option [ngValue]="0">—</option>
+              @for (p of partiesOfType(); track p.id) { <option [ngValue]="p.id">{{ p.name }}</option> }
+            </select>
+          </label>
+          <label>{{ t('finDate') }}<input name="invDate" type="date" required [(ngModel)]="invDate" /></label>
+          <label>{{ t('finDueDate') }}<input name="dueDate" type="date" [min]="invDate" [(ngModel)]="dueDate" /></label>
+          <label>{{ t('finCurrency') }}
+            <select name="currency" [(ngModel)]="currency" [disabled]="!!editingId">
+              @for (c of records.currencies(); track c.code) { <option [value]="c.code">{{ c.code }}</option> }
+            </select>
+          </label>
+        </div>
+
+        <div class="fin-lines">
+          <table>
+            <thead>
+              <tr>
+                <th>{{ t('finItem') }}</th>
+                <th>{{ t('finAccount') }}</th>
+                <th>{{ t('finDescription') }}</th>
+                <th class="end">{{ t('finQuantity') }}</th>
+                <th class="end">{{ t('finUnitPrice') }}</th>
+                <th class="end">{{ t('finAmount') }}</th>
+                <th><span class="vh">{{ t('finActions') }}</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (line of lines(); track $index; let i = $index) {
+                <tr>
+                  <td>
+                    <select [name]="'item' + i" [(ngModel)]="line.item_id" (ngModelChange)="itemPicked(line)" [attr.aria-label]="t('finItem')">
+                      <option [ngValue]="0">{{ t('finNone') }}</option>
+                      @for (it of itemsForLine(); track it.id) { <option [ngValue]="it.id">{{ it.name }} ({{ it.unit }})</option> }
+                    </select>
+                  </td>
+                  <td>
+                    @if (line.item_id && type() === 'purchase') {
+                      <span class="soft">{{ t('finStockAccount') }}</span>
+                    } @else {
+                      <select [name]="'account' + i" [(ngModel)]="line.account_id" [attr.aria-label]="t('finAccount')">
+                        <option [ngValue]="0">{{ line.item_id ? t('finAccountAuto') : '—' }}</option>
+                        @for (acc of accountsForLine(); track acc.id) { <option [ngValue]="acc.id">{{ acc.code }} · {{ acc.name }}</option> }
+                      </select>
+                    }
+                  </td>
+                  <td><input [name]="'desc' + i" maxlength="300" [(ngModel)]="line.description" [attr.aria-label]="t('finDescription')" /></td>
+                  <td><input [name]="'qty' + i" type="number" min="0.001" step="any" [(ngModel)]="line.quantity" [attr.aria-label]="t('finQuantity')" /></td>
+                  <td><input [name]="'price' + i" type="number" min="0" step="any" [(ngModel)]="line.unit_price" [attr.aria-label]="t('finUnitPrice')" /></td>
+                  <td class="num end">{{ money(lineAmount(line)) }}</td>
+                  <td><button class="text small remove" type="button" (click)="removeLine(i)" [attr.aria-label]="t('finRemoveLine')"><i class="fa-solid fa-trash" aria-hidden="true"></i></button></td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        <div><button class="text small" type="button" (click)="addLine()"><i class="fa-solid fa-plus" aria-hidden="true"></i> {{ t('finAddLine') }}</button></div>
+
+        <div class="fin-totals">
+          <div class="grand"><span>{{ t('finTotal') }}</span><bdi class="num">{{ money(total()) }} {{ currency }}</bdi></div>
+        </div>
+        <label class="fin-field">{{ t('finNotes') }}<textarea name="notes" rows="2" maxlength="1000" [(ngModel)]="notes"></textarea></label>
+        @if (aboveLimit()) {
+          <p class="fin-warn"><i class="fa-solid fa-circle-info" aria-hidden="true"></i> {{ t('finAboveLimit') }}</p>
+        }
+        <div class="fin-actions">
+          <button class="text" type="button" (click)="close()">{{ t('cancel') }}</button>
+          <button class="text" type="submit">{{ t('finSaveDraft') }}</button>
+          <button class="primary" type="button" (click)="save(true)">{{ t('finSaveSubmit') }}</button>
+        </div>
+      </fieldset>
+    </form>
+  }
+  @case ('view') {
+    @if (current(); as inv) {
+      <section class="fin-sheet">
+        <header>
+          <h2>{{ typeLabel(inv.type) }} · <bdi>{{ inv.number || t('finStatusDraft') }}</bdi></h2>
+          <span [class]="'fin-chip ' + tone(inv.status)">{{ invoiceStatusLabel(inv.status) }}</span>
+          @if (paymentLabel(inv)) { <span [class]="'fin-chip ' + paymentTone(inv)">{{ paymentLabel(inv) }}</span> }
+          <button class="quiet-x" type="button" (click)="close()" [attr.aria-label]="t('dismiss')"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+        </header>
+        <dl class="fin-kv">
+          <dt>{{ inv.type === 'sale' ? t('finCustomer') : t('finSupplier') }}</dt><dd>{{ inv.party_name }}</dd>
+          <dt>{{ t('finDate') }}</dt><dd>{{ date(inv.date) }}</dd>
+          <dt>{{ t('finDueDate') }}</dt><dd [class.late]="inv.overdue">{{ date(inv.due_date) }}</dd>
+          @if (inv.notes) { <dt>{{ t('finNotes') }}</dt><dd>{{ inv.notes }}</dd> }
+          @if (inv.decision_note) { <dt>{{ t('finDecisionNote') }}</dt><dd>{{ inv.decision_note }}</dd> }
+        </dl>
+        <div class="fin-lines">
+          <table>
+            <thead><tr><th>{{ t('finDescription') }}</th><th class="end">{{ t('finQuantity') }}</th><th class="end">{{ t('finUnitPrice') }}</th><th class="end">{{ t('finAmount') }}</th></tr></thead>
+            <tbody>
+              @for (line of inv.lines ?? []; track $index) {
+                <tr>
+                  <td>{{ lineLabel(line) }}<small class="soft block-line">{{ line.item_id ? t('finItem') : finance.accountName(line.account_id) }}</small></td>
+                  <td class="num end">{{ qty(line.quantity) }}</td>
+                  <td class="num end">{{ money(line.unit_price) }}</td>
+                  <td class="num end">{{ money(line.amount) }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        <div class="fin-totals">
+          <div><span>{{ t('finPaidAmount') }}</span><bdi class="num">{{ money(inv.paid) }}</bdi></div>
+          <div><span>{{ t('finRemaining') }}</span><bdi class="num">{{ money(inv.remaining) }}</bdi></div>
+          <div class="grand"><span>{{ t('finTotal') }}</span><bdi class="num">{{ money(inv.total) }} {{ inv.currency_code }}</bdi></div>
+        </div>
+        @if (inv.payments?.length) {
+          <h3 class="strong">{{ t('finPayments') }}</h3>
+          <ul class="fin-list">
+            @for (pay of inv.payments ?? []; track pay.id) {
+              <li><span>{{ short(pay.date) }} · {{ kindLabel(pay.kind) }} · {{ finance.boxName(pay.box_id) }}</span><span [class]="tone(pay.status)">{{ statusLabel(pay.status) }}</span><span class="num end">{{ money(pay.amount) }}</span></li>
+            }
+          </ul>
+        }
+        @if (inv.status === 'pending' && canApprove) {
+          <label class="fin-field">{{ t('finDecisionNote') }}<textarea name="invDecision" rows="2" maxlength="1000" [(ngModel)]="decisionNote"></textarea></label>
+        }
+        <div class="fin-actions split">
+          <div>
+            @if (canCancel(inv)) {
+              <button class="quiet" type="button" [disabled]="busy()" (click)="startCancel()">{{ t('finCancelInvoice') }}</button>
+            }
+            @if (inv.status === 'posted' && canManage && !canCancel(inv)) {
+              <span class="fin-hint">{{ t('finCancelHint') }}</span>
+            }
+          </div>
+          <div class="fin-actions">
+            @if (inv.status === 'draft' && canManage) {
+              <button class="text" type="button" [disabled]="busy()" (click)="startEdit(inv)">{{ t('finEdit') }}</button>
+              <button class="primary" type="button" [disabled]="busy()" (click)="submit(inv)">{{ t('finSubmit') }}</button>
+            }
+            @if (inv.status === 'pending' && canApprove) {
+              <button class="quiet" type="button" [disabled]="busy()" (click)="decide(inv, 'reject')">{{ t('reject') }}</button>
+              <button class="primary" type="button" [disabled]="busy()" (click)="decide(inv, 'approve')">{{ t('approve') }}</button>
+            }
+          </div>
+        </div>
+      </section>
+    }
+  }
+  @case ('cancel') {
+    @if (current(); as inv) {
+      <form class="fin-sheet narrow" (ngSubmit)="cancel()">
+        <header><h2>{{ t('finCancelInvoice') }} · <bdi>{{ inv.number }}</bdi></h2><button class="quiet-x" type="button" (click)="panel.set('view')" [attr.aria-label]="t('dismiss')"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button></header>
+        <p class="fin-hint">{{ t('finCancelInvoiceHint') }}</p>
+        <fieldset class="fin-form" [disabled]="busy()">
+          <label>{{ t('finDate') }}<input name="cancelDate" type="date" required [(ngModel)]="cancelDate" /></label>
+          <label class="wide">{{ t('finReason') }}<input name="cancelReason" minlength="3" maxlength="500" required [(ngModel)]="cancelReason" /></label>
+          <div class="fin-actions wide">
+            <button class="text" type="button" (click)="panel.set('view')">{{ t('cancel') }}</button>
+            <button class="primary" type="submit">{{ t('finCancelInvoice') }}</button>
+          </div>
+        </fieldset>
+      </form>
+    }
+  }
+  @case ('party') {
+    <section class="fin-sheet">
+      <header><h2>{{ t('finParties') }}</h2><button class="quiet-x" type="button" (click)="close()" [attr.aria-label]="t('dismiss')"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button></header>
+      <div class="seg" role="radiogroup" [attr.aria-label]="t('finParties')">
+        <button type="button" role="radio" [attr.aria-checked]="partyView() === 'customer'" [class.on]="partyView() === 'customer'" (click)="partyView.set('customer')">{{ t('finCustomers') }}</button>
+        <button type="button" role="radio" [attr.aria-checked]="partyView() === 'supplier'" [class.on]="partyView() === 'supplier'" (click)="partyView.set('supplier')">{{ t('finSuppliers') }}</button>
+      </div>
+      <ul class="fin-list">
+        @for (p of partiesListed(); track p.id) {
+          <li [class.soft]="!p.active">
+            <span><span class="strong">{{ p.name }}</span>@if (p.phone) { <small class="soft"> · <bdi>{{ p.phone }}</bdi></small> }</span>
+            @if (canManage) {
+              <span class="end">
+                <button class="text small" type="button" (click)="editParty(p)">{{ t('finEdit') }}</button>
+                <button class="text small" type="button" [disabled]="busy()" (click)="toggleParty(p)">{{ p.active ? t('finDeactivate') : t('finActivate') }}</button>
+              </span>
+            }
+          </li>
+        } @empty {
+          <li class="soft">{{ t('finNoParties') }}</li>
+        }
+      </ul>
+      @if (canManage) {
+        <form (ngSubmit)="saveParty()">
+          <fieldset class="fin-form" [disabled]="busy()">
+            <label>{{ t('finName') }}<input name="partyName" maxlength="150" required [(ngModel)]="partyName" /></label>
+            <label>{{ t('finPhone') }}<input name="partyPhone" maxlength="30" dir="ltr" [(ngModel)]="partyPhone" /></label>
+            <label class="wide">{{ t('finNotes') }}<input name="partyNotes" maxlength="1000" [(ngModel)]="partyNotes" /></label>
+            <div class="fin-actions wide">
+              <button class="primary" type="submit">{{ partyEditing ? t('save') : (partyView() === 'customer' ? t('finAddCustomer') : t('finAddSupplier')) }}</button>
+            </div>
+          </fieldset>
+        </form>
+      }
+    </section>
+  }
+}
+
+<form class="filters" (ngSubmit)="load(1)">
+  <label><span>{{ t('finType') }}</span>
+    <select name="fType" [(ngModel)]="filterType">
+      <option value="">{{ t('finAll') }}</option>
+      <option value="sale">{{ t('finSale') }}</option>
+      <option value="purchase">{{ t('finPurchase') }}</option>
+    </select>
+  </label>
+  <label><span>{{ t('finStatus') }}</span>
+    <select name="fStatus" [(ngModel)]="filterStatus">
+      <option value="">{{ t('finAll') }}</option>
+      @for (s of statuses; track s) { <option [value]="s">{{ invoiceStatusLabel(s) }}</option> }
+    </select>
+  </label>
+  <label><span>{{ t('finParty') }}</span>
+    <select name="fParty" [(ngModel)]="filterParty">
+      <option [ngValue]="0">{{ t('finAll') }}</option>
+      @for (p of finance.parties(); track p.id) { <option [ngValue]="p.id">{{ p.name }}</option> }
+    </select>
+  </label>
+  <label class="fin-check"><span>{{ t('finOverdueOnly') }}</span><input name="fOverdue" type="checkbox" [(ngModel)]="filterOverdue" /></label>
+  <div class="fin-filter-actions">
+    <button class="primary" type="submit">{{ t('finApply') }}</button>
+    <button class="text" type="button" (click)="resetFilters()">{{ t('finReset') }}</button>
+  </div>
+</form>
+
+<div class="sheet">
+  <table>
+    <thead>
+      <tr>
+        <th>{{ t('finNumber') }}</th>
+        <th>{{ t('finParty') }}</th>
+        <th>{{ t('finDate') }}</th>
+        <th>{{ t('finDueDate') }}</th>
+        <th class="end">{{ t('finTotal') }}</th>
+        <th class="end">{{ t('finRemaining') }}</th>
+        <th>{{ t('finStatus') }}</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (row of rows(); track row.id) {
+        <tr [class.picked]="current()?.id === row.id && panel() === 'view'">
+          <td>
+            <button class="link-button" type="button" (click)="show(row)"><bdi>{{ row.number || t('finStatusDraft') }}</bdi></button>
+            <small class="soft block-line">{{ typeLabel(row.type) }}</small>
+          </td>
+          <td>{{ row.party_name }}</td>
+          <td class="num">{{ short(row.date) }}</td>
+          <td class="num" [class.late]="row.overdue">{{ short(row.due_date) }}</td>
+          <td class="num end"><bdi>{{ money(row.total) }} {{ row.currency_code }}</bdi></td>
+          <td class="num end">{{ row.status === 'posted' ? money(row.remaining) : '—' }}</td>
+          <td>
+            <span [class]="tone(row.status)">{{ invoiceStatusLabel(row.status) }}</span>
+            @if (paymentLabel(row)) { <small [class]="'block-line ' + paymentTone(row)">{{ paymentLabel(row) }}</small> }
+          </td>
+        </tr>
+      } @empty {
+        <tr><td colspan="7" class="empty">{{ loading() ? t('loading') : t('finNoInvoices') }}</td></tr>
+      }
+    </tbody>
+  </table>
+</div>
+@if (lastPage() > 1) {
+  <nav class="fin-pager" [attr.aria-label]="t('finPages')">
+    <button class="text small" type="button" [disabled]="page() <= 1" (click)="load(page() - 1)">{{ t('pagePrev') }}</button>
+    <span class="num">{{ num(page()) }} / {{ num(lastPage()) }}</span>
+    <button class="text small" type="button" [disabled]="page() >= lastPage()" (click)="load(page() + 1)">{{ t('pageNext') }}</button>
+  </nav>
+}

@@ -9,7 +9,10 @@
     <a class="primary" routerLink="/">{{ t('back') }}</a>
   } @else {
     <app-notice />
-    <header class="heading"><h1>{{ t('exchangeTitle') }}</h1></header>
+    <header class="heading">
+      <h1>{{ t('exchangeTitle') }}</h1>
+      <div class="actions"><a class="text" routerLink="/modules/finance">{{ t('finBackToFinance') }}</a></div>
+    </header>
     @if (error()) { <p class="warn" role="alert">{{ error() }}</p> }
     <form (ngSubmit)="lookup()">
       <fieldset [disabled]="busy()">

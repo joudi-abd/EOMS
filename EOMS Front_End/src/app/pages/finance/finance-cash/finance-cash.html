@@ -1,0 +1,281 @@
+<section class="summary" [attr.aria-label]="t('finBoxes')">
+  @for (box of finance.boxes(); track box.id) {
+    <p [class.off]="!box.active">
+      <span><i [class]="box.kind === 'sham_cash' ? 'fa-solid fa-wallet' : 'fa-solid fa-money-bill'" aria-hidden="true"></i> {{ box.name }}</span>
+      <strong><bdi>{{ money(box.balance) }}</bdi></strong>
+      <small>
+        <bdi>{{ box.currency_code }}</bdi> · {{ box.kind === 'sham_cash' ? t('finBoxShamCash') : t('finBoxCash') }}
+        @if (!box.active) { · {{ t('finInactive') }} }
+      </small>
+    </p>
+  } @empty {
+    <p><span>{{ t('finBoxes') }}</span><strong>—</strong><small>{{ t('finNoBoxes') }}</small></p>
+  }
+</section>
+
+<div class="fin-toolbar">
+  @if (canManage) {
+    <button class="primary" type="button" (click)="open('transaction')"><i class="fa-solid fa-plus" aria-hidden="true"></i> {{ t('finNewTransaction') }}</button>
+    <button class="text" type="button" (click)="open('box')"><i class="fa-solid fa-cash-register" aria-hidden="true"></i> {{ t('finNewBox') }}</button>
+  }
+  @if (canApprove) {
+    <button class="text" type="button" (click)="open('limit')"><i class="fa-solid fa-scale-balanced" aria-hidden="true"></i> {{ t('finLimits') }}</button>
+  }
+  @if (pendingCount()) {
+    <span class="wait">{{ t('finPendingCount') }} <bdi>{{ num(pendingCount()) }}</bdi></span>
+  }
+</div>
+
+@switch (panel()) {
+  @case ('transaction') {
+    <form class="fin-sheet" (ngSubmit)="saveTransaction()">
+      <header><h2>{{ t('finNewTransaction') }}</h2><button class="quiet-x" type="button" (click)="open('none')" [attr.aria-label]="t('dismiss')"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button></header>
+      <fieldset [disabled]="busy()">
+        <div class="seg" role="radiogroup" [attr.aria-label]="t('finKind')">
+          @for (item of kinds; track item) {
+            <button type="button" role="radio" [attr.aria-checked]="kind() === item" [class.on]="kind() === item" (click)="kind.set(item)">{{ kindLabel(item) }}</button>
+          }
+        </div>
+        <div class="fin-form">
+          <label>{{ twoBoxes() ? t('finFromBox') : t('finBox') }}
+            <select name="box" required [(ngModel)]="txBox">
+              <option [ngValue]="0">—</option>
+              @for (box of activeBoxes(); track box.id) { <option [ngValue]="box.id">{{ box.name }} · {{ box.currency_code }}</option> }
+            </select>
+          </label>
+          @if (twoBoxes()) {
+            <label>{{ t('finToBox') }}
+              <select name="counterBox" required [(ngModel)]="txCounterBox">
+                <option [ngValue]="0">—</option>
+                @for (box of activeBoxes(); track box.id) {
+                  @if (box.id !== txBox) { <option [ngValue]="box.id">{{ box.name }} · {{ box.currency_code }}</option> }
+                }
+              </select>
+            </label>
+          }
+          <label>{{ t('finAmount') }} <bdi class="soft">{{ boxCurrencyOf(txBox) }}</bdi>
+            <input name="amount" type="number" min="0.01" step="any" required [(ngModel)]="txAmount" />
+          </label>
+          @if (kind() === 'exchange') {
+            <label>{{ t('finCounterAmount') }} <bdi class="soft">{{ boxCurrencyOf(txCounterBox) }}</bdi>
+              <input name="counterAmount" type="number" min="0.01" step="any" required [(ngModel)]="txCounterAmount" />
+            </label>
+            <p class="fin-hint">{{ t('finImpliedRate') }} <bdi>{{ impliedRate() }}</bdi></p>
+          }
+          <label>{{ t('finDate') }}<input name="date" type="date" required [(ngModel)]="txDate" /></label>
+          @if (!twoBoxes()) {
+            <label>{{ t('finParty') }}
+              <select name="party" [(ngModel)]="txParty" (ngModelChange)="partyChanged()">
+                <option [ngValue]="0">{{ t('finNone') }}</option>
+                @for (party of finance.parties(); track party.id) {
+                  <option [ngValue]="party.id">{{ party.name }} · {{ party.kind === 'customer' ? t('finCustomer') : t('finSupplier') }}</option>
+                }
+              </select>
+            </label>
+            @if (openInvoices().length) {
+              <label>{{ t('finLinkInvoice') }}
+                <select name="invoice" [(ngModel)]="txInvoice">
+                  <option [ngValue]="0">{{ t('finNone') }}</option>
+                  @for (inv of openInvoices(); track inv.id) {
+                    <option [ngValue]="inv.id">{{ inv.number }} · {{ t('finRemaining') }} {{ money(inv.remaining) }}</option>
+                  }
+                </select>
+              </label>
+            }
+            <label>{{ t('finCounterAccount') }}
+              <select name="account" [(ngModel)]="txAccount">
+                <option [ngValue]="0">{{ t('finAccountAuto') }}</option>
+                @for (acc of finance.postable(); track acc.id) { <option [ngValue]="acc.id">{{ acc.code }} · {{ acc.name }}</option> }
+              </select>
+            </label>
+          }
+          <label class="wide">{{ t('finDescription') }}<input name="description" maxlength="500" required [(ngModel)]="txDescription" /></label>
+        </div>
+        @if (needsApproval()) {
+          <p class="fin-warn"><i class="fa-solid fa-circle-info" aria-hidden="true"></i> {{ t('finAboveLimit') }}</p>
+        }
+        <div class="fin-actions">
+          <button class="text" type="button" (click)="open('none')">{{ t('cancel') }}</button>
+          <button class="primary" type="submit">{{ needsApproval() ? t('finSaveForApproval') : t('finSavePost') }}</button>
+        </div>
+      </fieldset>
+    </form>
+  }
+  @case ('box') {
+    <form class="fin-sheet narrow" (ngSubmit)="saveBox()">
+      <header><h2>{{ t('finNewBox') }}</h2><button class="quiet-x" type="button" (click)="open('none')" [attr.aria-label]="t('dismiss')"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button></header>
+      <fieldset [disabled]="busy()">
+        <div class="fin-form">
+          <label class="wide">{{ t('finName') }}<input name="boxName" maxlength="100" required [(ngModel)]="boxName" /></label>
+          <label>{{ t('finKind') }}
+            <select name="boxKind" [(ngModel)]="boxKind">
+              <option value="cash">{{ t('finBoxCash') }}</option>
+              <option value="sham_cash">{{ t('finBoxShamCash') }}</option>
+            </select>
+          </label>
+          <label>{{ t('finCurrency') }}
+            <select name="boxCurrency" [(ngModel)]="boxCurrency">
+              @for (c of records.currencies(); track c.code) { <option [value]="c.code">{{ c.code }} · {{ c.name }}</option> }
+            </select>
+          </label>
+        </div>
+        <p class="fin-hint">{{ t('finBoxHint') }}</p>
+        <div class="fin-actions">
+          <button class="text" type="button" (click)="open('none')">{{ t('cancel') }}</button>
+          <button class="primary" type="submit">{{ t('save') }}</button>
+        </div>
+      </fieldset>
+    </form>
+  }
+  @case ('limit') {
+    <section class="fin-sheet narrow">
+      <header><h2>{{ t('finLimits') }}</h2><button class="quiet-x" type="button" (click)="open('none')" [attr.aria-label]="t('dismiss')"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button></header>
+      <p class="fin-hint">{{ t('finLimitsHint') }}</p>
+      <ul class="fin-list">
+        @for (limit of finance.limits(); track limit.id) {
+          <li><bdi class="strong">{{ limit.currency_code }}</bdi><span class="num end">{{ money(limit.amount) }}</span></li>
+        } @empty {
+          <li class="soft">{{ t('finNoLimits') }}</li>
+        }
+      </ul>
+      <form (ngSubmit)="saveLimit()">
+        <fieldset class="fin-form" [disabled]="busy()">
+          <label>{{ t('finCurrency') }}
+            <select name="limitCurrency" [(ngModel)]="limitCurrency">
+              @for (c of records.currencies(); track c.code) { <option [value]="c.code">{{ c.code }}</option> }
+            </select>
+          </label>
+          <label>{{ t('finAmount') }}<input name="limitAmount" type="number" min="0" step="any" required [(ngModel)]="limitAmount" /></label>
+          <div class="fin-actions wide"><button class="primary" type="submit">{{ t('save') }}</button></div>
+        </fieldset>
+      </form>
+    </section>
+  }
+  @case ('decide') {
+    @if (deciding; as row) {
+      <section class="fin-sheet narrow">
+        <header><h2>{{ kindLabel(row.kind) }} · <bdi>{{ rowAmount(row) }}</bdi></h2><button class="quiet-x" type="button" (click)="open('none')" [attr.aria-label]="t('dismiss')"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button></header>
+        <dl class="fin-kv">
+          <dt>{{ t('finDate') }}</dt><dd>{{ date(row.date) }}</dd>
+          <dt>{{ t('finBox') }}</dt><dd>{{ boxes(row) }}</dd>
+          <dt>{{ t('finParty') }}</dt><dd>{{ finance.partyName(row.party_id) }}</dd>
+          <dt>{{ t('finDescription') }}</dt><dd>{{ row.description }}</dd>
+        </dl>
+        <label class="fin-field">{{ t('finDecisionNote') }}<textarea name="decisionNote" rows="2" maxlength="1000" [(ngModel)]="decisionNote"></textarea></label>
+        <div class="fin-actions">
+          <button class="quiet" type="button" [disabled]="busy()" (click)="decide('reject')">{{ t('reject') }}</button>
+          <button class="primary" type="button" [disabled]="busy()" (click)="decide('approve')">{{ t('approve') }}</button>
+        </div>
+      </section>
+    }
+  }
+  @case ('reverse') {
+    @if (reversing; as row) {
+      <form class="fin-sheet narrow" (ngSubmit)="saveReverse()">
+        <header><h2>{{ t('finReverse') }} · <bdi>{{ rowAmount(row) }}</bdi></h2><button class="quiet-x" type="button" (click)="open('none')" [attr.aria-label]="t('dismiss')"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button></header>
+        <p class="fin-hint">{{ t('finReverseHint') }}</p>
+        <fieldset class="fin-form" [disabled]="busy()">
+          <label>{{ t('finDate') }}<input name="reverseDate" type="date" required [(ngModel)]="reverseDate" /></label>
+          <label class="wide">{{ t('finReason') }}<input name="reverseReason" minlength="3" maxlength="500" required [(ngModel)]="reverseReason" /></label>
+          <div class="fin-actions wide">
+            <button class="text" type="button" (click)="open('none')">{{ t('cancel') }}</button>
+            <button class="primary" type="submit">{{ t('finReverse') }}</button>
+          </div>
+        </fieldset>
+      </form>
+    }
+  }
+}
+
+<form class="filters" (ngSubmit)="load(1)">
+  <label><span>{{ t('finBox') }}</span>
+    <select name="fBox" [(ngModel)]="filterBox">
+      <option [ngValue]="0">{{ t('finAll') }}</option>
+      @for (box of finance.boxes(); track box.id) { <option [ngValue]="box.id">{{ box.name }}</option> }
+    </select>
+  </label>
+  <label><span>{{ t('finKind') }}</span>
+    <select name="fKind" [(ngModel)]="filterKind">
+      <option value="">{{ t('finAll') }}</option>
+      @for (item of filterKinds; track item) { <option [value]="item">{{ kindLabel(item) }}</option> }
+    </select>
+  </label>
+  <label><span>{{ t('finStatus') }}</span>
+    <select name="fStatus" [(ngModel)]="filterStatus">
+      <option value="">{{ t('finAll') }}</option>
+      @for (item of statuses; track item) { <option [value]="item">{{ statusLabel(item) }}</option> }
+    </select>
+  </label>
+  <label><span>{{ t('rangeFrom') }}</span><input name="fFrom" type="date" [(ngModel)]="filterFrom" /></label>
+  <label><span>{{ t('rangeTo') }}</span><input name="fTo" type="date" [(ngModel)]="filterTo" /></label>
+  <div class="fin-filter-actions">
+    <button class="primary" type="submit">{{ t('finApply') }}</button>
+    <button class="text" type="button" (click)="resetFilters()">{{ t('finReset') }}</button>
+  </div>
+</form>
+
+<div class="sheet">
+  <table>
+    <thead>
+      <tr>
+        <th>{{ t('finDate') }}</th>
+        <th>{{ t('finKind') }}</th>
+        <th>{{ t('finDescription') }}</th>
+        <th>{{ t('finBox') }}</th>
+        <th class="end">{{ t('finAmount') }}</th>
+        <th>{{ t('finStatus') }}</th>
+        <th><span class="vh">{{ t('finActions') }}</span></th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (row of rows(); track row.id) {
+        <tr [class.attention]="row.status === 'pending'">
+          <td class="num">{{ short(row.date) }}</td>
+          <td><span class="fin-kind"><i [class]="kindIcon(row.kind)" aria-hidden="true"></i> {{ kindLabel(row.kind) }}</span></td>
+          <td>
+            {{ row.description }}
+            @if (row.party_id) { <small class="soft block-line">{{ finance.partyName(row.party_id) }}</small> }
+            @if (row.decision_note) { <small class="soft block-line">{{ t('finDecisionNote') }}: {{ row.decision_note }}</small> }
+          </td>
+          <td>{{ boxes(row) }}</td>
+          <td class="num end"><bdi>{{ rowAmount(row) }}</bdi>
+            @if (row.kind === 'exchange' && row.counter_amount) { <small class="soft block-line"><bdi>{{ money(row.counter_amount) }} {{ boxCurrencyOf(row.counter_box_id ?? 0) }}</bdi></small> }
+          </td>
+          <td [class]="tone(row.status)">{{ statusLabel(row.status) }}</td>
+          <td class="fin-row-actions">
+            @if (row.status === 'pending' && canApprove) {
+              <button class="text small" type="button" (click)="startDecide(row)">{{ t('finDecide') }}</button>
+            }
+            @if (row.status === 'posted' && canManage && row.kind !== 'payroll') {
+              <button class="text small" type="button" (click)="startReverse(row)">{{ t('finReverse') }}</button>
+            }
+          </td>
+        </tr>
+      } @empty {
+        <tr><td colspan="7" class="empty">{{ loading() ? t('loading') : t('finNoTransactions') }}</td></tr>
+      }
+    </tbody>
+  </table>
+</div>
+@if (lastPage() > 1) {
+  <nav class="fin-pager" [attr.aria-label]="t('finPages')">
+    <button class="text small" type="button" [disabled]="page() <= 1" (click)="load(page() - 1)">{{ t('pagePrev') }}</button>
+    <span class="num">{{ num(page()) }} / {{ num(lastPage()) }}</span>
+    <button class="text small" type="button" [disabled]="page() >= lastPage()" (click)="load(page() + 1)">{{ t('pageNext') }}</button>
+  </nav>
+}
+
+@if (canManage && finance.boxes().length) {
+  <section class="panel">
+    <div class="panel-head"><div><h2>{{ t('finBoxes') }}</h2><p>{{ t('finBoxStopHint') }}</p></div></div>
+    <ul class="fin-list">
+      @for (box of finance.boxes(); track box.id) {
+        <li>
+          <span>{{ box.name }} <small class="soft">· <bdi>{{ box.currency_code }}</bdi> · {{ finance.accountName(box.account_id) }}</small></span>
+          <span class="num end"><bdi>{{ money(box.balance) }}</bdi></span>
+          <button class="text small" type="button" [disabled]="busy()" (click)="toggleBox(box.id, !box.active)">{{ box.active ? t('finDeactivate') : t('finActivate') }}</button>
+        </li>
+      }
+    </ul>
+  </section>
+}

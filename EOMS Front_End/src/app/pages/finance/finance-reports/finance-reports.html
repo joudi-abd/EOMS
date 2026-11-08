@@ -1,0 +1,160 @@
+<div class="seg" role="radiogroup" [attr.aria-label]="t('finTabReports')">
+  @for (item of reports; track item.id) {
+    <button type="button" role="radio" [attr.aria-checked]="kind() === item.id" [class.on]="kind() === item.id" (click)="pick(item.id)">{{ t(item.label) }}</button>
+  }
+</div>
+
+<form class="filters" (ngSubmit)="run()">
+  @if (kind() !== 'box') {
+    <label><span>{{ t('finCurrency') }}</span>
+      <select name="rCur" [(ngModel)]="currency">
+        @for (c of records.currencies(); track c.code) { <option [value]="c.code">{{ c.code }}</option> }
+      </select>
+    </label>
+  }
+  @if (kind() === 'ledger') {
+    <label><span>{{ t('finAccount') }}</span>
+      <select name="rAcc" [(ngModel)]="accountId">
+        <option [ngValue]="0">—</option>
+        @for (acc of finance.postable(); track acc.id) { <option [ngValue]="acc.id">{{ acc.code }} · {{ acc.name }}</option> }
+      </select>
+    </label>
+  }
+  @if (kind() === 'party') {
+    <label><span>{{ t('finParty') }}</span>
+      <select name="rParty" [(ngModel)]="partyId">
+        <option [ngValue]="0">—</option>
+        @for (p of finance.parties(); track p.id) { <option [ngValue]="p.id">{{ p.name }}</option> }
+      </select>
+    </label>
+  }
+  @if (kind() === 'box') {
+    <label><span>{{ t('finBox') }}</span>
+      <select name="rBox" [(ngModel)]="boxId">
+        <option [ngValue]="0">—</option>
+        @for (box of finance.boxes(); track box.id) { <option [ngValue]="box.id">{{ box.name }} · {{ box.currency_code }}</option> }
+      </select>
+    </label>
+  }
+  @if (kind() !== 'balance-sheet') {
+    <label><span>{{ t('rangeFrom') }}</span><input name="rFrom" type="date" required [(ngModel)]="from" /></label>
+  }
+  <label><span>{{ kind() === 'balance-sheet' ? t('finAsOf') : t('rangeTo') }}</span><input name="rTo" type="date" required [(ngModel)]="to" /></label>
+  <div class="fin-filter-actions">
+    <button class="primary" type="submit" [disabled]="!ready() || loading()">{{ t('finRunReport') }}</button>
+    @if (result()) { <button class="text" type="button" (click)="print()"><i class="fa-solid fa-print" aria-hidden="true"></i> PDF</button> }
+  </div>
+</form>
+
+@if (loading()) { <p class="fin-hint">{{ t('loading') }}</p> }
+
+@if (result(); as r) {
+  <section class="panel" data-print>
+    <div class="panel-head">
+      <div>
+        <h2>{{ label(shown() ?? kind()) }} · <bdi>{{ reportCurrency(r) }}</bdi></h2>
+        <p>
+          @if (r.as_of) { {{ t('finAsOf') }} {{ date(r.as_of) }} } @else { {{ date(r.from ?? '') }} — {{ date(r.to ?? '') }} }
+          · {{ t('finPostedOnly') }}
+        </p>
+      </div>
+    </div>
+
+    @switch (shown()) {
+      @case ('trial-balance') {
+        <div class="flush">
+          <table>
+            <thead><tr><th>{{ t('finCode') }}</th><th>{{ t('finAccount') }}</th><th>{{ t('finAccountType') }}</th><th class="end">{{ t('finDebit') }}</th><th class="end">{{ t('finCredit') }}</th><th class="end">{{ t('finBalance') }}</th></tr></thead>
+            <tbody>
+              @for (row of r.accounts ?? []; track row.id) {
+                <tr><td class="num"><bdi>{{ row.code }}</bdi></td><td>{{ row.name }}</td><td class="soft">{{ typeLabel(row) }}</td><td class="num end">{{ money(row.debit) }}</td><td class="num end">{{ money(row.credit) }}</td><td class="num end">{{ money(row.balance) }}</td></tr>
+              } @empty {
+                <tr><td colspan="6" class="empty">{{ t('finNoData') }}</td></tr>
+              }
+              <tr class="fin-report-total"><td></td><td>{{ t('finTotal') }}</td><td></td><td class="num end">{{ money(r.debit) }}</td><td class="num end">{{ money(r.credit) }}</td>
+                <td class="end"><span [class]="balancedTrial(r) ? 'fin-balanced' : 'fin-unbalanced'">{{ balancedTrial(r) ? t('finBalanced') : t('finUnbalancedWord') }}</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      }
+      @case ('income-statement') {
+        <div class="flush">
+          <table>
+            <thead><tr><th>{{ t('finCode') }}</th><th>{{ t('finAccount') }}</th><th class="end">{{ t('finAmount') }}</th></tr></thead>
+            <tbody>
+              <tr class="sub"><td colspan="3" class="strong">{{ t('finTypeRevenue') }}</td></tr>
+              @for (row of r.revenue ?? []; track row.id) { <tr><td class="num"><bdi>{{ row.code }}</bdi></td><td>{{ row.name }}</td><td class="num end">{{ money(row.amount) }}</td></tr> }
+              <tr class="fin-report-total"><td></td><td>{{ t('finTotalRevenue') }}</td><td class="num end">{{ money(r.total_revenue) }}</td></tr>
+              <tr class="sub"><td colspan="3" class="strong">{{ t('finTypeExpense') }}</td></tr>
+              @for (row of r.expenses ?? []; track row.id) { <tr><td class="num"><bdi>{{ row.code }}</bdi></td><td>{{ row.name }}</td><td class="num end">{{ money(row.amount) }}</td></tr> }
+              <tr class="fin-report-total"><td></td><td>{{ t('finTotalExpenses') }}</td><td class="num end">{{ money(r.total_expenses) }}</td></tr>
+              <tr class="fin-report-total"><td></td><td>{{ t('finNetProfit') }}</td><td class="num end" [class.ok]="positive(r.net_profit)" [class.late]="negative(r.net_profit)">{{ money(r.net_profit) }}</td></tr>
+            </tbody>
+          </table>
+        </div>
+      }
+      @case ('balance-sheet') {
+        <div class="flush">
+          <table>
+            <thead><tr><th>{{ t('finCode') }}</th><th>{{ t('finAccount') }}</th><th class="end">{{ t('finAmount') }}</th></tr></thead>
+            <tbody>
+              <tr class="sub"><td colspan="3" class="strong">{{ t('finTypeAsset') }}</td></tr>
+              @for (row of r.assets ?? []; track row.id) { <tr><td class="num"><bdi>{{ row.code }}</bdi></td><td>{{ row.name }}</td><td class="num end">{{ money(row.amount) }}</td></tr> }
+              <tr class="fin-report-total"><td></td><td>{{ t('finTotalAssets') }}</td><td class="num end">{{ money(r.total_assets) }}</td></tr>
+              <tr class="sub"><td colspan="3" class="strong">{{ t('finTypeLiability') }}</td></tr>
+              @for (row of r.liabilities ?? []; track row.id) { <tr><td class="num"><bdi>{{ row.code }}</bdi></td><td>{{ row.name }}</td><td class="num end">{{ money(row.amount) }}</td></tr> }
+              <tr class="sub"><td colspan="3" class="strong">{{ t('finTypeEquity') }}</td></tr>
+              @for (row of r.equity ?? []; track row.id) { <tr><td class="num"><bdi>{{ row.code }}</bdi></td><td>{{ row.name }}</td><td class="num end">{{ money(row.amount) }}</td></tr> }
+              <tr><td></td><td>{{ t('finProfitToDate') }}</td><td class="num end">{{ money(r.profit_to_date) }}</td></tr>
+              <tr class="fin-report-total"><td></td><td>{{ t('finTotalLiabEquity') }}</td><td class="num end">{{ money(r.total_liabilities_and_equity) }}</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="fin-hint" style="margin-top: 12px"><span [class]="balancedSheet(r) ? 'fin-balanced' : 'fin-unbalanced'">{{ balancedSheet(r) ? t('finBalanced') : t('finUnbalancedWord') }}</span></p>
+      }
+    }
+
+    @if (statement()) {
+      <div class="flush">
+        <table>
+          <thead><tr><th>{{ t('finDate') }}</th><th>{{ t('finNumber') }}</th><th>{{ t('finDescription') }}</th><th class="end">{{ t('finDebit') }}</th><th class="end">{{ t('finCredit') }}</th><th class="end">{{ t('finBalance') }}</th></tr></thead>
+          <tbody>
+            <tr class="sub"><td colspan="5">{{ t('finOpeningBalance') }}</td><td class="num end strong">{{ money(r.opening_balance) }}</td></tr>
+            @for (line of r.lines ?? []; track $index) {
+              <tr>
+                <td class="num">{{ short(line.date) }}</td>
+                <td class="num"><bdi>{{ line.number }}</bdi></td>
+                <td>{{ line.description }}@if (line.memo) { <small class="soft block-line">{{ line.memo }}</small> }</td>
+                <td class="num end">{{ positive(line.debit) ? money(line.debit) : '' }}</td>
+                <td class="num end">{{ positive(line.credit) ? money(line.credit) : '' }}</td>
+                <td class="num end">{{ money(line.balance) }}</td>
+              </tr>
+            } @empty {
+              <tr><td colspan="6" class="empty">{{ t('finNoData') }}</td></tr>
+            }
+            <tr class="fin-report-total"><td colspan="5">{{ t('finClosingBalance') }}</td><td class="num end">{{ money(r.closing_balance) }}</td></tr>
+          </tbody>
+        </table>
+      </div>
+      @if (shown() === 'party' && (r.open_invoices?.length ?? 0) > 0) {
+        <h3 class="strong" style="margin: 18px 0 8px">{{ t('finOpenInvoices') }} · {{ t('finOverdue') }} <bdi class="late">{{ money(r.overdue_total) }}</bdi></h3>
+        <div class="fin-lines">
+          <table>
+            <thead><tr><th>{{ t('finNumber') }}</th><th>{{ t('finDueDate') }}</th><th class="end">{{ t('finTotal') }}</th><th class="end">{{ t('finRemaining') }}</th><th>{{ t('finStatus') }}</th></tr></thead>
+            <tbody>
+              @for (inv of r.open_invoices ?? []; track inv.id) {
+                <tr>
+                  <td class="num"><bdi>{{ inv.number }}</bdi></td>
+                  <td class="num">{{ short(inv.due_date) }}</td>
+                  <td class="num end">{{ money(inv.total) }}</td>
+                  <td class="num end">{{ money(inv.remaining) }}</td>
+                  <td [class]="inv.overdue ? 'late' : 'wait'">{{ inv.overdue ? t('finOverdue') + ' · ' + num(inv.days_overdue) + ' ' + t('finDays') : t('finUnpaid') }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    }
+  </section>
+}

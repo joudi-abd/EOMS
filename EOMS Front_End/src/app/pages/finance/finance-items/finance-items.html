@@ -1,0 +1,138 @@
+<section class="summary" [attr.aria-label]="t('finTabItems')">
+  <p><span>{{ t('finItemsCount') }}</span><strong>{{ num(finance.items().length) }}</strong><small>{{ t('finItemsActive') }} {{ num(finance.items().length - emptyCount()) }}</small></p>
+  <p><span>{{ t('finOutOfStock') }}</span><strong [class.late]="emptyCount() > 0">{{ num(emptyCount()) }}</strong><small>{{ t('finOutOfStockHint') }}</small></p>
+  @for (row of valueByCurrency(); track row.currency) {
+    <p><span>{{ t('finStockValue') }} <bdi>{{ row.currency }}</bdi></span><strong><bdi>{{ money(row.value) }}</bdi></strong><small>{{ t('finAverageCostHint') }}</small></p>
+  }
+</section>
+
+<div class="fin-toolbar">
+  @if (canManage) {
+    <button class="primary" type="button" (click)="startNew()"><i class="fa-solid fa-plus" aria-hidden="true"></i> {{ t('finNewItem') }}</button>
+  }
+  <label class="fin-search">
+    <span class="vh">{{ t('finSearch') }}</span>
+    <input name="itemSearch" type="search" [placeholder]="t('finSearch')" [ngModel]="query()" (ngModelChange)="query.set($event)" />
+  </label>
+</div>
+
+@switch (panel()) {
+  @case ('item') {
+    <form class="fin-sheet narrow" (ngSubmit)="saveItem()">
+      <header><h2>{{ editing ? t('finEditItem') : t('finNewItem') }}</h2><button class="quiet-x" type="button" (click)="open('none')" [attr.aria-label]="t('dismiss')"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button></header>
+      <fieldset [disabled]="busy()">
+        <div class="fin-form">
+          <label class="wide">{{ t('finName') }}<input name="itemName" maxlength="150" required [(ngModel)]="itemName" /></label>
+          <label>{{ t('finUnit') }}<input name="itemUnit" maxlength="20" required [(ngModel)]="itemUnit" /></label>
+          <label>{{ t('finValuationCurrency') }}
+            <select name="itemCurrency" [(ngModel)]="itemCurrency" [disabled]="!!editing">
+              @for (c of records.currencies(); track c.code) { <option [value]="c.code">{{ c.code }}</option> }
+            </select>
+          </label>
+          <label class="wide">{{ t('finRevenueAccount') }}
+            <select name="itemRevenue" [(ngModel)]="itemRevenue">
+              <option [ngValue]="0">{{ t('finNone') }}</option>
+              @for (acc of finance.postable('revenue'); track acc.id) { <option [ngValue]="acc.id">{{ acc.code }} · {{ acc.name }}</option> }
+            </select>
+          </label>
+        </div>
+        <p class="fin-hint">{{ t('finItemHint') }}</p>
+        <div class="fin-actions">
+          <button class="text" type="button" (click)="open('none')">{{ t('cancel') }}</button>
+          <button class="primary" type="submit">{{ t('save') }}</button>
+        </div>
+      </fieldset>
+    </form>
+  }
+  @case ('adjust') {
+    @if (picked(); as item) {
+      <form class="fin-sheet narrow" (ngSubmit)="saveAdjust()">
+        <header><h2>{{ t('finAdjustStock') }} · {{ item.name }}</h2><button class="quiet-x" type="button" (click)="open('none')" [attr.aria-label]="t('dismiss')"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button></header>
+        <p class="fin-hint">{{ t('finOnBook') }} <bdi class="strong">{{ qty(item.quantity) }} {{ item.unit }}</bdi> · {{ t('finAverageCost') }} <bdi>{{ money(item.average_cost) }} {{ item.currency_code }}</bdi></p>
+        <fieldset class="fin-form" [disabled]="busy()">
+          <label>{{ t('finDate') }}<input name="adjDate" type="date" required [(ngModel)]="adjDate" /></label>
+          <label>{{ t('finQuantityChange') }}<input name="adjQuantity" type="number" step="any" required [(ngModel)]="adjQuantity" /></label>
+          @if (adding()) {
+            <label>{{ t('finUnitCost') }}<input name="adjCost" type="number" min="0" step="any" [(ngModel)]="adjCost" [placeholder]="money(item.average_cost)" /></label>
+          }
+          <label class="wide">{{ t('finCounterAccount') }}
+            <select name="adjAccount" required [(ngModel)]="adjAccount">
+              <option [ngValue]="0">—</option>
+              @for (acc of finance.postable(); track acc.id) { <option [ngValue]="acc.id">{{ acc.code }} · {{ acc.name }}</option> }
+            </select>
+          </label>
+          <label class="wide">{{ t('finReason') }}<input name="adjReason" minlength="3" maxlength="500" required [(ngModel)]="adjReason" /></label>
+          <p class="fin-hint wide">{{ t('finAdjustHint') }}</p>
+          <div class="fin-actions wide">
+            <button class="text" type="button" (click)="open('none')">{{ t('cancel') }}</button>
+            <button class="primary" type="submit">{{ t('save') }}</button>
+          </div>
+        </fieldset>
+      </form>
+    }
+  }
+  @case ('moves') {
+    @if (picked(); as item) {
+      <section class="fin-sheet">
+        <header><h2>{{ t('finStockMoves') }} · {{ item.name }}</h2><button class="quiet-x" type="button" (click)="open('none')" [attr.aria-label]="t('dismiss')"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button></header>
+        <div class="fin-lines">
+          <table>
+            <thead><tr><th>{{ t('finDate') }}</th><th>{{ t('finSource') }}</th><th class="end">{{ t('finQuantity') }}</th><th class="end">{{ t('finUnitCost') }}</th><th class="end">{{ t('finQuantityAfter') }}</th><th class="end">{{ t('finAverageCost') }}</th></tr></thead>
+            <tbody>
+              @for (move of moves(); track move.id) {
+                <tr>
+                  <td class="num">{{ short(move.date) }}</td>
+                  <td>{{ sourceLabel(move.source_type) }}@if (move.reason) { <small class="soft block-line">{{ move.reason }}</small> }</td>
+                  <td class="num end" [class.ok]="positive(move.quantity)" [class.late]="negative(move.quantity)"><bdi>{{ qty(move.quantity) }}</bdi></td>
+                  <td class="num end">{{ money(move.unit_cost) }}</td>
+                  <td class="num end">{{ qty(move.quantity_after) }}</td>
+                  <td class="num end">{{ money(move.average_cost_after) }}</td>
+                </tr>
+              } @empty {
+                <tr><td colspan="6" class="empty">{{ t('finNoMoves') }}</td></tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </section>
+    }
+  }
+}
+
+<div class="sheet">
+  <table>
+    <thead>
+      <tr>
+        <th>{{ t('finItem') }}</th>
+        <th>{{ t('finUnit') }}</th>
+        <th class="end">{{ t('finQuantity') }}</th>
+        <th class="end">{{ t('finAverageCost') }}</th>
+        <th class="end">{{ t('finStockValue') }}</th>
+        <th>{{ t('finRevenueAccount') }}</th>
+        <th><span class="vh">{{ t('finActions') }}</span></th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (item of listed(); track item.id) {
+        <tr [class.soft]="!item.active">
+          <td><span class="strong">{{ item.name }}</span>@if (!item.active) { <small class="soft block-line">{{ t('finInactive') }}</small> }</td>
+          <td>{{ item.unit }}</td>
+          <td class="num end" [class.late]="!positive(item.quantity)">{{ qty(item.quantity) }}</td>
+          <td class="num end"><bdi>{{ money(item.average_cost) }} {{ item.currency_code }}</bdi></td>
+          <td class="num end">{{ money(item.stock_value) }}</td>
+          <td>{{ finance.accountName(item.revenue_account_id) }}</td>
+          <td class="fin-row-actions">
+            <button class="text small" type="button" (click)="showMoves(item)">{{ t('finStockMoves') }}</button>
+            @if (canManage) {
+              <button class="text small" type="button" (click)="startAdjust(item)">{{ t('finAdjust') }}</button>
+              <button class="text small" type="button" (click)="startEdit(item)">{{ t('finEdit') }}</button>
+              <button class="text small" type="button" [disabled]="busy()" (click)="toggle(item)">{{ item.active ? t('finDeactivate') : t('finActivate') }}</button>
+            }
+          </td>
+        </tr>
+      } @empty {
+        <tr><td colspan="7" class="empty">{{ t('finNoItems') }}</td></tr>
+      }
+    </tbody>
+  </table>
+</div>

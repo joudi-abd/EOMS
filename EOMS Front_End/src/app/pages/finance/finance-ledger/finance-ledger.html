@@ -1,0 +1,255 @@
+<div class="fin-toolbar">
+  @if (canManage) {
+    <button class="primary" type="button" (click)="startEntry()"><i class="fa-solid fa-plus" aria-hidden="true"></i> {{ t('finNewEntry') }}</button>
+    <button class="text" type="button" (click)="startAccount(null)"><i class="fa-solid fa-sitemap" aria-hidden="true"></i> {{ t('finNewAccount') }}</button>
+  }
+</div>
+
+@switch (panel()) {
+  @case ('account') {
+    <form class="fin-sheet narrow" (ngSubmit)="saveAccount()">
+      <header><h2>{{ editing ? t('finEditAccount') : t('finNewAccount') }}</h2><button class="quiet-x" type="button" (click)="open('none')" [attr.aria-label]="t('dismiss')"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button></header>
+      <fieldset [disabled]="busy()">
+        <div class="fin-form">
+          <label>{{ t('finCode') }}<input name="accCode" maxlength="20" required dir="ltr" [(ngModel)]="accCode" /></label>
+          <label>{{ t('finAccountType') }}
+            <select name="accType" [(ngModel)]="accType" [disabled]="!!editing">
+              @for (type of types; track type) { <option [value]="type">{{ typeLabel(type) }}</option> }
+            </select>
+          </label>
+          <label class="wide">{{ t('finName') }}<input name="accName" maxlength="150" required [(ngModel)]="accName" /></label>
+          <label class="wide">{{ t('finParentAccount') }}
+            <select name="accParent" [(ngModel)]="accParent">
+              <option [ngValue]="0">{{ t('finNone') }}</option>
+              @for (acc of groups(); track acc.id) {
+                @if (acc.id !== editing?.id) { <option [ngValue]="acc.id">{{ acc.code }} · {{ acc.name }}</option> }
+              }
+            </select>
+          </label>
+        </div>
+        @if (editing?.system_key) { <p class="fin-hint">{{ t('finSystemAccountHint') }}</p> }
+        <div class="fin-actions">
+          <button class="text" type="button" (click)="open('none')">{{ t('cancel') }}</button>
+          <button class="primary" type="submit">{{ t('save') }}</button>
+        </div>
+      </fieldset>
+    </form>
+  }
+  @case ('entry') {
+    <form class="fin-sheet" (ngSubmit)="saveEntry()">
+      <header><h2>{{ t('finNewEntry') }}</h2><button class="quiet-x" type="button" (click)="open('none')" [attr.aria-label]="t('dismiss')"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button></header>
+      <fieldset [disabled]="busy()">
+        <div class="fin-form">
+          <label>{{ t('finDate') }}<input name="entryDate" type="date" required [(ngModel)]="entryDate" /></label>
+          <label>{{ t('finCurrency') }}
+            <select name="entryCurrency" [(ngModel)]="entryCurrency">
+              @for (c of records.currencies(); track c.code) { <option [value]="c.code">{{ c.code }}</option> }
+            </select>
+          </label>
+          <label class="wide">{{ t('finDescription') }}<input name="entryDescription" maxlength="500" required [(ngModel)]="entryDescription" /></label>
+        </div>
+        <div class="fin-lines">
+          <table>
+            <thead>
+              <tr>
+                <th>{{ t('finAccount') }}</th>
+                <th class="end">{{ t('finDebit') }}</th>
+                <th class="end">{{ t('finCredit') }}</th>
+                <th>{{ t('finParty') }}</th>
+                <th>{{ t('finMemo') }}</th>
+                <th><span class="vh">{{ t('finActions') }}</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (line of lines(); track $index; let i = $index) {
+                <tr>
+                  <td>
+                    <select [name]="'eAcc' + i" [(ngModel)]="line.account_id" [attr.aria-label]="t('finAccount')">
+                      <option [ngValue]="0">—</option>
+                      @for (acc of finance.postable(); track acc.id) { <option [ngValue]="acc.id">{{ acc.code }} · {{ acc.name }}</option> }
+                    </select>
+                  </td>
+                  <td><input [name]="'eDr' + i" type="number" min="0" step="any" [(ngModel)]="line.debit" (ngModelChange)="touch()" [attr.aria-label]="t('finDebit')" /></td>
+                  <td><input [name]="'eCr' + i" type="number" min="0" step="any" [(ngModel)]="line.credit" (ngModelChange)="touch()" [attr.aria-label]="t('finCredit')" /></td>
+                  <td>
+                    <select [name]="'eParty' + i" [(ngModel)]="line.party_id" [attr.aria-label]="t('finParty')">
+                      <option [ngValue]="0">{{ t('finNone') }}</option>
+                      @for (p of finance.parties(); track p.id) { <option [ngValue]="p.id">{{ p.name }}</option> }
+                    </select>
+                  </td>
+                  <td><input [name]="'eMemo' + i" maxlength="500" [(ngModel)]="line.memo" [attr.aria-label]="t('finMemo')" /></td>
+                  <td><button class="text small remove" type="button" (click)="removeLine(i)" [attr.aria-label]="t('finRemoveLine')"><i class="fa-solid fa-trash" aria-hidden="true"></i></button></td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        <div><button class="text small" type="button" (click)="addLine()"><i class="fa-solid fa-plus" aria-hidden="true"></i> {{ t('finAddLine') }}</button></div>
+        <div class="fin-totals">
+          <div><span>{{ t('finDebit') }}</span><bdi class="num">{{ money(debitTotal()) }}</bdi></div>
+          <div><span>{{ t('finCredit') }}</span><bdi class="num">{{ money(creditTotal()) }}</bdi></div>
+          <div class="grand"><span>{{ t('finDifference') }}</span><span [class]="balanced() ? 'fin-balanced' : 'fin-unbalanced'">{{ balanced() ? t('finBalanced') : money(debitTotal() - creditTotal()) }}</span></div>
+        </div>
+        <div class="fin-actions">
+          <button class="text" type="button" (click)="open('none')">{{ t('cancel') }}</button>
+          <button class="primary" type="submit" [disabled]="!balanced()">{{ t('finPostEntry') }}</button>
+        </div>
+      </fieldset>
+    </form>
+  }
+  @case ('reverse') {
+    @if (reversing; as entry) {
+      <form class="fin-sheet narrow" (ngSubmit)="saveReverse()">
+        <header><h2>{{ t('finReverse') }} · <bdi>{{ entry.number }}</bdi></h2><button class="quiet-x" type="button" (click)="open('none')" [attr.aria-label]="t('dismiss')"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button></header>
+        <p class="fin-hint">{{ t('finReverseEntryHint') }}</p>
+        <fieldset class="fin-form" [disabled]="busy()">
+          <label>{{ t('finDate') }}<input name="revDate" type="date" required [(ngModel)]="reverseDate" /></label>
+          <label class="wide">{{ t('finReason') }}<input name="revReason" minlength="3" maxlength="500" required [(ngModel)]="reverseReason" /></label>
+          <div class="fin-actions wide">
+            <button class="text" type="button" (click)="open('none')">{{ t('cancel') }}</button>
+            <button class="primary" type="submit">{{ t('finReverse') }}</button>
+          </div>
+        </fieldset>
+      </form>
+    }
+  }
+  @case ('period') {
+    @if (deciding; as period) {
+      <section class="fin-sheet narrow">
+        <header><h2>{{ t('finPeriod') }} <bdi>{{ period.month }}</bdi></h2><button class="quiet-x" type="button" (click)="open('none')" [attr.aria-label]="t('dismiss')"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button></header>
+        <p class="fin-hint">{{ period.status === 'closed' ? t('finReopenHint') : t('finCloseHint') }}</p>
+        <label class="fin-field">{{ period.status === 'closed' ? t('finReason') : t('finDecisionNote') }}<textarea name="periodNote" rows="2" maxlength="1000" [(ngModel)]="periodNote"></textarea></label>
+        <div class="fin-actions">
+          @if (period.status === 'close_requested') {
+            <button class="quiet" type="button" [disabled]="busy()" (click)="decide('reject')">{{ t('reject') }}</button>
+            <button class="primary" type="button" [disabled]="busy()" (click)="decide('approve')">{{ t('finApproveClose') }}</button>
+          }
+          @if (period.status === 'closed') {
+            <button class="primary" type="button" [disabled]="busy()" (click)="reopen(period)">{{ t('finReopen') }}</button>
+          }
+        </div>
+      </section>
+    }
+  }
+}
+
+<div class="fin-grid">
+  <div class="fin-stack">
+    <form class="filters" (ngSubmit)="load(1)">
+      <label><span>{{ t('finCurrency') }}</span>
+        <select name="fCur" [(ngModel)]="filterCurrency">
+          <option value="">{{ t('finAll') }}</option>
+          @for (c of records.currencies(); track c.code) { <option [value]="c.code">{{ c.code }}</option> }
+        </select>
+      </label>
+      <label><span>{{ t('finSource') }}</span>
+        <select name="fSrc" [(ngModel)]="filterSource">
+          <option value="">{{ t('finAll') }}</option>
+          <option value="manual">{{ t('finSourceManual') }}</option>
+          <option value="transaction">{{ t('finSourceTransaction') }}</option>
+          <option value="invoice">{{ t('finSourceInvoice') }}</option>
+          <option value="stock_move">{{ t('finSourceAdjust') }}</option>
+        </select>
+      </label>
+      <label><span>{{ t('rangeFrom') }}</span><input name="fFrom" type="date" [(ngModel)]="filterFrom" /></label>
+      <label><span>{{ t('rangeTo') }}</span><input name="fTo" type="date" [(ngModel)]="filterTo" /></label>
+      <div class="fin-filter-actions"><button class="primary" type="submit">{{ t('finApply') }}</button></div>
+    </form>
+
+    <div class="sheet">
+      <table>
+        <thead>
+          <tr>
+            <th>{{ t('finNumber') }}</th>
+            <th>{{ t('finDate') }}</th>
+            <th>{{ t('finDescription') }}</th>
+            <th>{{ t('finSource') }}</th>
+            <th class="end">{{ t('finAmount') }}</th>
+            <th><span class="vh">{{ t('finActions') }}</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (entry of entries(); track entry.id) {
+            <tr [class.picked]="openEntry() === entry.id">
+              <td><button class="link-button" type="button" [attr.aria-expanded]="openEntry() === entry.id" (click)="toggleEntry(entry.id)"><bdi>{{ entry.number }}</bdi></button></td>
+              <td class="num">{{ short(entry.date) }}</td>
+              <td>{{ entry.description }}@if (entry.reverses_id) { <small class="soft block-line">{{ t('finIsReversal') }}</small> }</td>
+              <td>{{ sourceLabel(entry.source_type) }}</td>
+              <td class="num end"><bdi>{{ money(entryTotal(entry)) }} {{ entry.currency_code }}</bdi></td>
+              <td class="fin-row-actions">
+                @if (canManage && reversible(entry)) { <button class="text small" type="button" (click)="startReverse(entry)">{{ t('finReverse') }}</button> }
+              </td>
+            </tr>
+            @if (openEntry() === entry.id) {
+              @for (line of entry.lines; track line.id) {
+                <tr class="sub">
+                  <td></td>
+                  <td colspan="2">{{ finance.accountName(line.account_id) }}@if (line.party_id) { <small class="soft"> · {{ finance.partyName(line.party_id) }}</small> }@if (line.memo) { <small class="soft block-line">{{ line.memo }}</small> }</td>
+                  <td class="num end">{{ positive(line.debit) ? money(line.debit) : '' }}</td>
+                  <td class="num end">{{ positive(line.credit) ? money(line.credit) : '' }}</td>
+                  <td class="soft">{{ positive(line.debit) ? t('finDebit') : t('finCredit') }}</td>
+                </tr>
+              }
+            }
+          } @empty {
+            <tr><td colspan="6" class="empty">{{ loading() ? t('loading') : t('finNoEntries') }}</td></tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    @if (lastPage() > 1) {
+      <nav class="fin-pager" [attr.aria-label]="t('finPages')">
+        <button class="text small" type="button" [disabled]="page() <= 1" (click)="load(page() - 1)">{{ t('pagePrev') }}</button>
+        <span class="num">{{ num(page()) }} / {{ num(lastPage()) }}</span>
+        <button class="text small" type="button" [disabled]="page() >= lastPage()" (click)="load(page() + 1)">{{ t('pageNext') }}</button>
+      </nav>
+    }
+  </div>
+
+  <aside class="fin-stack">
+    <section class="panel">
+      <div class="panel-head"><div><h2>{{ t('finPeriods') }}</h2><p>{{ t('finPeriodsHint') }}</p></div></div>
+      <ul class="fin-list">
+        @for (period of periods(); track period.id) {
+          <li>
+            <span><bdi class="strong">{{ period.month }}</bdi>@if (period.note) { <small class="soft block-line">{{ period.note }}</small> }</span>
+            <span [class]="'end ' + tone(period.status)">{{ periodLabel(period.status) }}</span>
+            @if (canApprove && (period.status === 'close_requested' || period.status === 'closed')) {
+              <button class="text small" type="button" (click)="startDecide(period)">{{ period.status === 'closed' ? t('finReopen') : t('finDecide') }}</button>
+            }
+          </li>
+        } @empty {
+          <li class="soft">{{ t('finNoPeriods') }}</li>
+        }
+      </ul>
+      @if (canManage) {
+        <form class="fin-inline" (ngSubmit)="requestClose()">
+          <label><span class="vh">{{ t('finPeriod') }}</span><input name="closeMonth" type="month" required [(ngModel)]="closeMonth" /></label>
+          <button class="text" type="submit" [disabled]="busy()">{{ t('finRequestClose') }}</button>
+        </form>
+      }
+    </section>
+
+    <section class="panel">
+      <div class="panel-head"><div><h2>{{ t('finChart') }}</h2><p>{{ t('finChartHint') }}</p></div></div>
+      <ul class="fin-tree">
+        @for (row of tree(); track row.item.id) {
+          <li [class.group]="row.item.is_group" [class.off]="!row.item.active" [style.padding-inline-start.px]="row.depth * 18">
+            <bdi class="num">{{ row.item.code }}</bdi>
+            <span>{{ row.item.name }}</span>
+            @if (row.item.system_key) { <span class="fin-tag">{{ t('finSystem') }}</span> }
+            <span class="end soft">{{ typeLabel(row.item.type) }}</span>
+            @if (canManage) {
+              <button class="text small" type="button" (click)="startAccount(row.item)" [attr.aria-label]="t('finEdit') + ' ' + row.item.name"><i class="fa-solid fa-pen" aria-hidden="true"></i></button>
+              @if (!row.item.system_key) {
+                <button class="text small" type="button" [disabled]="busy()" (click)="toggleAccount(row.item)">{{ row.item.active ? t('finDeactivate') : t('finActivate') }}</button>
+              }
+            }
+          </li>
+        } @empty {
+          <li class="soft">{{ t('finNoAccounts') }}</li>
+        }
+      </ul>
+    </section>
+  </aside>
+</div>

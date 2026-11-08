@@ -41,6 +41,7 @@ export const permissionLabels: Record<Permission, Text> = {
   'payroll.approve': say('اعتماد الرواتب', 'Approve payroll'),
   'finance.view': say('عرض المالية', 'View finance'),
   'finance.manage': say('إدارة المالية', 'Manage finance'),
+  'finance.approve': say('اعتماد العمليات المالية', 'Approve finance operations'),
   'projects.view': say('عرض المشاريع', 'View projects'),
   'projects.manage': say('إدارة المشاريع', 'Manage projects'),
   'purchases.view': say('عرض المشتريات', 'View purchases'),
