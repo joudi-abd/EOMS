@@ -39,8 +39,53 @@
   </dl>
   @if (record.approved) {
     <p class="note">{{ t('approved') }}</p>
-  } @else if (record.pending) {
-    <p class="note">{{ t('pending') }}</p>
+  }
+  @if (record.pending) {
+    <p class="note wait" role="status">{{ t('attendancePendingChanges') }}</p>
+  }
+
+  @if (bundle()?.day; as detail) {
+    <dl class="file" data-testid="leave-context">
+      <div>
+        <dt>{{ t('attendanceRequiredTime') }}</dt>
+        <dd>{{ hours(detail.required_minutes ?? null) }}</dd>
+      </div>
+      <div>
+        <dt>{{ t('attendanceLeaveTime') }}</dt>
+        <dd>{{ hours(detail.leave_minutes ?? null) }}</dd>
+      </div>
+      @if (detail.holiday; as holiday) {
+        <div><dt>{{ t('holidayMark') }}</dt><dd>{{ holiday.name }}</dd></div>
+      }
+      @if (detail.leave; as leave) {
+        <div>
+          <dt>{{ t('attendanceLinkedLeave') }}</dt>
+          <dd>{{ leave.leave_type.name ?? t('onLeave') }} · #{{ leave.request_id }}</dd>
+        </div>
+        <div>
+          <dt>{{ leave.full_day ? t('attendanceFullLeave') : t('attendancePartialLeave') }}</dt>
+          <dd class="num">{{ leave.start_time.slice(0, 5) }}–{{ leave.end_time.slice(0, 5) }}</dd>
+        </div>
+        @if (!leave.still_active) {
+          <div class="wide"><dd class="wait">{{ t('attendanceInactiveLeaveSnapshot') }}</dd></div>
+        }
+      }
+    </dl>
+    @if (detail.pending_leave_request_id) {
+      <p class="note">{{ t('attendancePendingLeave') }} #{{ detail.pending_leave_request_id }}</p>
+    }
+  }
+
+  @if (notices().length > 0) {
+    <section class="conflicts" role="status" data-testid="attendance-conflicts">
+      <h2>{{ t('attendanceReviewNotices') }}</h2>
+      <ul>
+        @for (notice of notices(); track notice) {
+          <li>{{ t(notice) }}</li>
+        }
+      </ul>
+      <p>{{ t('attendanceConflictReviewHint') }}</p>
+    </section>
   }
 
   @if (record.mark === 'review') {

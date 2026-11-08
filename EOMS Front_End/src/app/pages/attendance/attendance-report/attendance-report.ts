@@ -3,8 +3,8 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Reporter, ReportDraft } from '../../../core/reports/reporter';
 import { Ui } from '../../../core/ui';
-import { DayMark, minutesOf } from '../../../data/attendance';
-import { AttendanceBook, BulkApproval, clockOf, markOf } from '../../../data/attendance-book';
+import { DayMark } from '../../../data/attendance';
+import { AttendanceBook, clockOf, markOf, needsAttendanceReview, requiredMinutesOf } from '../../../data/attendance-book';
 import { daysBetween, parseDay, isoDay } from '../../../data/hr';
 import { Session } from '../../../core/access/session';
 import { Employee, plain } from '../../../data/employees';
@@ -25,6 +25,8 @@ interface Line {
   lateBy: number | null;
   overtime: number;
   minutes: number | null;
+  required: number;
+  needsReview: boolean;
 }
 
 @Component({
@@ -120,6 +122,8 @@ export class AttendanceReport extends Ui {
         lateBy: day.late_minutes && day.late_minutes > 0 ? day.late_minutes : null,
         overtime: day.extra_minutes_unapproved ?? 0,
         minutes: day.worked_minutes,
+        required: requiredMinutesOf(day),
+        needsReview: needsAttendanceReview(day),
       })),
     );
   });
@@ -133,10 +137,7 @@ export class AttendanceReport extends Ui {
     });
   }
 
-  protected readonly shiftMinutes = computed(() => minutesOf(this.office.policy().end) - minutesOf(this.office.policy().start));
-
   protected readonly summary = computed(() => {
-    const shift = this.shiftMinutes();
     const byPerson = new Map<string, { employee: Employee; workdays: number; arrived: number; late: number; review: number; absent: number; worked: number; required: number; overtime: number }>();
     for (const line of this.lines()) {
       const entry = byPerson.get(line.employee.id) ?? {
@@ -150,13 +151,13 @@ export class AttendanceReport extends Ui {
         required: 0,
         overtime: 0,
       };
-      if (line.mark !== 'off' && line.mark !== 'holiday') {
+      if (line.mark !== 'off' && line.mark !== 'holiday' && line.mark !== 'leave') {
         entry.workdays += 1;
-        entry.required += shift;
       }
+      entry.required += line.required;
       if (line.mark === 'present' || line.mark === 'late' || line.mark === 'early' || line.mark === 'incomplete') entry.arrived += 1;
       if (line.mark === 'late') entry.late += 1;
-      if (line.mark === 'review' || line.mark === 'incomplete') entry.review += 1;
+      if (line.mark === 'review' || line.mark === 'incomplete' || line.needsReview) entry.review += 1;
       if (line.mark === 'absent') entry.absent += 1;
       if (line.minutes !== null) entry.worked += line.minutes;
       entry.overtime += line.overtime;
@@ -166,7 +167,7 @@ export class AttendanceReport extends Ui {
   });
 
   protected readonly late = computed(() => this.lines().filter((line) => line.mark === 'late').sort((a, b) => (b.lateBy ?? 0) - (a.lateBy ?? 0)));
-  protected readonly review = computed(() => this.lines().filter((line) => line.mark === 'review' || line.mark === 'incomplete' || line.mark === 'absent'));
+  protected readonly review = computed(() => this.lines().filter((line) => line.needsReview || line.mark === 'review' || line.mark === 'incomplete' || line.mark === 'absent'));
   protected readonly overtime = computed(() => this.lines().filter((line) => line.overtime > 0));
 
   protected readonly totals = computed(() => {

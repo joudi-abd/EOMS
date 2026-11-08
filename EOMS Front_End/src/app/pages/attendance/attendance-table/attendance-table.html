@@ -39,6 +39,9 @@
             @if (row.pending) {
               <span>{{ t('pending') }}</span>
             }
+            @if (row.needsReview) {
+              <span class="wait">{{ t('attendanceReviewNotices') }}</span>
+            }
             @if (row.approved) {
               <span>{{ t('approved') }}</span>
             }

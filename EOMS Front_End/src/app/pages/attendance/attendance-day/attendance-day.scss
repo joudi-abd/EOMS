@@ -6,6 +6,17 @@ h2 {
   margin-top: 28px;
 }
 
+.conflicts {
+  margin-top: 20px;
+  padding: 16px;
+  border: 1px solid var(--late-line);
+  border-radius: 8px;
+  max-width: 880px;
+}
+
+.conflicts h2 { margin-top: 0; }
+.conflicts li { margin-block: 8px; }
+
 .file,
 .form {
   display: grid;
