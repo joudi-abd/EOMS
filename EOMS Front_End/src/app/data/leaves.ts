@@ -1,5 +1,5 @@
 import { inject, Injectable } from '@angular/core';
-import { Api, revealed, saveFile } from '../core/api/api';
+import { Api } from '../core/api/api';
 
 export interface LeaveInput {
   leave_type_id: number;
@@ -41,31 +41,64 @@ export interface LeaveRecord {
   policy: { pay_percent: number };
   is_owner: boolean;
   can_review: boolean;
+  can_act_for_owner?: boolean;
   review_note: string | null;
   change_request: { kind: string; from_date: string; reason: string } | null;
 }
 export interface HalfDays { first_start: string; first_end: string; second_start: string; second_end: string }
+export interface LeaveBalance {
+  granted_units: number;
+  used_units: number;
+  reserved_units: number;
+  available_units: number;
+}
+export interface LeaveTypeOption {
+  id: number;
+  name: string;
+  available_units: number | null;
+  pay_percent: number;
+  cycle_start: string;
+  cycle_end: string;
+  balance?: LeaveBalance | null;
+  awaiting_opening?: boolean;
+}
 export interface LeaveOptions {
-  types: { id: number; name: string; available_units: number | null; pay_percent: number; cycle_start: string; cycle_end: string }[];
+  types: LeaveTypeOption[];
   today: string;
   can_submit: boolean;
   can_review: boolean;
   can_configure: boolean;
   half_days: HalfDays;
 }
+export interface LeaveListQuery {
+  scope: 'mine' | 'review' | 'all';
+  page: number;
+  status?: string;
+  employee_id?: number;
+  leave_type_id?: number;
+  department_id?: number;
+  from?: string;
+  to?: string;
+  change_pending?: boolean;
+}
 @Injectable({ providedIn: 'root' })
 export class Leaves {
   private readonly api = inject(Api);
-  options() { return this.api.get<{data: LeaveOptions}>('/leaves/options'); }
-  list(scope: 'mine' | 'review', page: number) {
-    return this.api.get<{data: LeaveRecord[]; meta: {current_page: number; last_page: number}}>('/leaves', {scope, page});
+  options(employeeId?: number) {
+    return this.api.get<{data: LeaveOptions}>('/leaves/options', employeeId ? {employee_id: employeeId} : {});
   }
-  preview(input: LeaveInput, id?: number) {
-    return this.api.post<{data: LeaveQuote}>(id ? `/leaves/${id}/preview` : '/leaves/preview', input);
+  list(query: LeaveListQuery) {
+    return this.api.get<{data: LeaveRecord[]; meta: {current_page: number; last_page: number}}>('/leaves', this.params(query));
   }
-  submit(input: LeaveInput, quote: LeaveQuote, consent: boolean, key: string, editing?: LeaveRecord) {
+  preview(input: LeaveInput, id?: number, employeeId?: number) {
+    const body = employeeId ? {...input, employee_id: employeeId} : input;
+    return this.api.post<{data: LeaveQuote}>(id ? `/leaves/${id}/preview` : '/leaves/preview', body);
+  }
+  submit(input: LeaveInput, quote: LeaveQuote, consent: boolean, key: string, editing?: LeaveRecord, employeeId?: number, approveNow = false) {
     const body = {...input, quote_token: quote.quote_token, unpaid_consent: consent,
-      submission_key: key, ...(editing ? {version: editing.version} : {})};
+      submission_key: key, ...(editing ? {version: editing.version} : {}),
+      ...(employeeId && !editing ? {employee_id: employeeId} : {}),
+      ...(approveNow && !editing ? {approve_now: true} : {})};
     return editing ? this.api.put<{data: LeaveRecord}>(`/leaves/${editing.id}`, body)
       : this.api.post<{data: LeaveRecord}>('/leaves', body);
   }
@@ -73,18 +106,30 @@ export class Leaves {
     return this.api.post<{data: LeaveRecord}>(`/leaves/${row.id}/${action}`,
       {version: row.version, reason, ...(from ? {from_date: from} : {})});
   }
-  saveHalves(halves: HalfDays) { return this.api.put('/leaves/half-days', halves); }
+  saveHalves(halves: HalfDays) {
+    const clock = (value: string) => value.slice(0, 5);
+    return this.api.put('/leaves/half-days', {
+      first_start: clock(halves.first_start),
+      first_end: clock(halves.first_end),
+      second_start: clock(halves.second_start),
+      second_end: clock(halves.second_end),
+    });
+  }
   calendar(from: string, to: string, departmentId?: number, includePending = false) {
     const params: Record<string, string | number> = {from, to, include_pending: includePending ? 1 : 0};
     if (departmentId) params['department_id'] = departmentId;
     return this.api.get<{data: LeaveCalendar}>('/leaves/calendar', params);
   }
-  async exportCsv(scope: 'mine' | 'review'): Promise<void> {
-    try {
-      saveFile(await this.api.blob('/leaves/export', {scope}), `leave-requests-${scope}.csv`);
-    } catch (error) {
-      throw await revealed(error);
-    }
+  private params(query: LeaveListQuery): Record<string, string | number> {
+    const params: Record<string, string | number> = {scope: query.scope, page: query.page};
+    if (query.status) params['status'] = query.status;
+    if (query.employee_id) params['employee_id'] = query.employee_id;
+    if (query.leave_type_id) params['leave_type_id'] = query.leave_type_id;
+    if (query.department_id) params['department_id'] = query.department_id;
+    if (query.from) params['from'] = query.from;
+    if (query.to) params['to'] = query.to;
+    if (query.change_pending !== undefined) params['change_pending'] = query.change_pending ? 1 : 0;
+    return params;
   }
 }
 

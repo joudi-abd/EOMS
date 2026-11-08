@@ -1,6 +1,6 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { Session } from '../core/access/session';
-import { Api, revealed, saveFile } from '../core/api/api';
+import { Api, revealed } from '../core/api/api';
 import {
   ApiAttendanceBundle,
   ApiAttendanceCorrection,
@@ -201,20 +201,6 @@ export class AttendanceBook {
     return this.mutate(day, 'correctionReviewed', () =>
       this.api.post(`/attendance/corrections/${correction.id}/review`, { decision, reason }),
     );
-  }
-
-  /** Official period file. The server refuses more than 31 days and anyone outside the attendance scope. */
-  async exportCsv(from: string, to: string, filters: { employeeId?: string; departmentId?: string } = {}): Promise<boolean> {
-    const params: Record<string, string | number> = { from, to };
-    if (filters.employeeId) params['employee_id'] = Number(filters.employeeId);
-    if (filters.departmentId) params['department_id'] = Number(filters.departmentId);
-    try {
-      saveFile(await this.api.blob('/attendance/days/export', params), `attendance-${from}-${to}.csv`);
-      return true;
-    } catch (error) {
-      this.office.fail(await revealed(error));
-      return false;
-    }
   }
 
   /** Approves every ready day in the span. The server skips days that still need a person. */

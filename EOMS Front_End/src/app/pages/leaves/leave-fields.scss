@@ -1,0 +1,43 @@
+.form fieldset,
+.decision fieldset {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+  align-items: end;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.form label,
+.decision label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.form label.check,
+.decision label.check {
+  grid-column: 1 / -1;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  color: var(--ink);
+}
+
+.form .wide,
+.decision .wide { grid-column: 1 / -1; }
+
+.form .primary,
+.form .text,
+.decision .primary,
+.decision .text { justify-self: start; }
+
+@container work (max-width: 640px) {
+  .form fieldset,
+  .decision fieldset { grid-template-columns: 1fr; }
+}

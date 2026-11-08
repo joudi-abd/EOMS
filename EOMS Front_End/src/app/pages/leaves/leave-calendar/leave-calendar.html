@@ -1,0 +1,28 @@
+<section class="panel">
+  <div class="panel-head"><h2>{{ l('من في إجازة', 'Who is away') }}</h2></div>
+  <form class="form" (ngSubmit)="show.emit()">
+    <fieldset [disabled]="busy()">
+      <label>{{ l('من تاريخ', 'From date') }}<input type="date" name="calendarFrom" required [ngModel]="from()" (ngModelChange)="from.set($event)"></label>
+      <label>{{ l('إلى تاريخ', 'To date') }}<input type="date" name="calendarTo" required [ngModel]="to()" (ngModelChange)="to.set($event)" [min]="from()" [max]="latest()"></label>
+      <label>{{ l('القسم', 'Department') }}
+        <select name="calendarDepartment" [ngModel]="department()" (ngModelChange)="department.set($event)">
+          <option value="">{{ l('كل الأقسام', 'All departments') }}</option>
+          @for (item of office.departmentList(); track item.id) { <option [value]="item.id">{{ text(item.name) }}</option> }
+        </select>
+      </label>
+      <label class="check"><input type="checkbox" name="includePending" [ngModel]="includePending()" (ngModelChange)="includePending.set($event)">{{ l('إظهار الطلبات قيد المراجعة', 'Include requests still under review') }}</label>
+      <button class="text" type="submit">{{ l('عرض التقويم', 'Show the calendar') }}</button>
+    </fieldset>
+  </form>
+  @if (board(); as shown) {
+    @if (shown.holidays?.length) {
+      <p class="note">@for (holiday of shown.holidays; track holiday.id) { <span><bdi>{{ holiday.date }}</bdi> {{ holiday.name }} · </span> }</p>
+    }
+    @if (shown.days.length === 0) { <p class="empty">{{ l('لا إجازات في هذه الفترة.', 'No leave in this period.') }}</p> }
+    @else {
+      <div class="flush"><table><thead><tr><th>{{ l('التاريخ', 'Date') }}</th><th>{{ l('الموظف', 'Employee') }}</th><th>{{ l('النوع', 'Type') }}</th><th>{{ l('الحالة', 'Status') }}</th><th>{{ l('الفترة', 'Period') }}</th></tr></thead>
+        <tbody>@for (day of shown.days; track day.request_id + day.date) { <tr><td class="num"><bdi>{{ day.date }}</bdi></td><td>{{ day.employee_name }}</td><td>{{ day.leave_type.name }}</td><td [class]="tone(day.status)">{{ label(day.status) }}</td><td class="num">{{ day.full_day ? l('يوم كامل', 'Full day') : clock(day.start_time) + '–' + clock(day.end_time) }}</td></tr> }</tbody>
+      </table></div>
+    }
+  }
+</section>

@@ -34,6 +34,7 @@ export const permissionLabels: Record<Permission, Text> = {
   'attendance.adjust': say('تصحيح الحضور', 'Correct attendance'),
   'attendance.approve': say('اعتماد الحضور', 'Approve attendance'),
   'leaves.view': say('عرض الإجازات', 'View leave'),
+  'leaves.manage': say('إدارة أنواع الإجازات وأرصدتها', 'Manage leave types and balances'),
   'leaves.approve': say('البتّ في الإجازات', 'Decide leave'),
   'payroll.view': say('عرض الرواتب', 'View payroll'),
   'payroll.manage': say('إعداد الرواتب وصرفها', 'Prepare and pay payroll'),
