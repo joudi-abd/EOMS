@@ -2,8 +2,13 @@
 
 :host {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 16px;
   margin-top: 18px;
+}
+
+:host > * {
+  min-width: 0;
 }
 
 .soft {
@@ -58,12 +63,12 @@
 
 .fin-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1.6fr) minmax(320px, 1fr);
   gap: 16px;
   align-items: start;
 }
 
-@container work (max-width: 1000px) {
+@container work (max-width: 1240px) {
   .fin-grid {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -460,7 +465,13 @@ tr.picked td {
 
 .fin-stack {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 12px;
+  min-width: 0;
+}
+
+.fin-stack > *,
+.fin-grid > * {
   min-width: 0;
 }
 

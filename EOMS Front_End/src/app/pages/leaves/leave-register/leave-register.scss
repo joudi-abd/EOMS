@@ -65,13 +65,13 @@
 /* The list beside the chosen request, as in the design. */
 .reg-split {
   display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1.6fr) minmax(320px, 1fr);
   gap: 16px;
   align-items: start;
   margin-top: 16px;
 }
 
-@container work (max-width: 1050px) {
+@container work (max-width: 1240px) {
   .reg-split {
     grid-template-columns: minmax(0, 1fr);
   }
