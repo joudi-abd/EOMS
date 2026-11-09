@@ -77,7 +77,10 @@ export class Shell {
     };
     const counts: Partial<Record<ModuleId, number>> = {};
     const jobs: Promise<void>[] = [];
-    if (this.session.has('leaves.approve')) {
+    // The review queue belongs to HR and the company manager only; the server refuses it to anyone else (403),
+    // even a system administrator who holds leaves.approve.
+    const roles = this.session.account().roles;
+    if (this.session.has('leaves.approve') && (roles.includes('hr') || roles.includes('company'))) {
       jobs.push(total('/leaves', { scope: 'review', status: 'pending' }).then((value) => void (counts.leave = value)));
     }
     if (this.session.has('payroll.approve')) {
