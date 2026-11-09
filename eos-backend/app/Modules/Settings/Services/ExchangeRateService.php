@@ -29,9 +29,14 @@ class ExchangeRateService
         return $saved;
     }
 
+    /**
+     * The newest rate for a pair. The cache holds the row's plain attributes, not the model: the cache store refuses
+     * to unserialize objects (`cache.serializable_classes` is false), so a cached model came back as an incomplete
+     * class and the second request failed with a 500.
+     */
     public function latestRate(string $from, string $to): ?ExchangeRate
     {
-        return Cache::remember(
+        $attributes = Cache::remember(
             $this->cacheKey($from, $to),
             now()->addHour(),
             fn () => ExchangeRate::query()
@@ -39,7 +44,10 @@ class ExchangeRateService
                 ->where('to_currency_id', Currency::where('code', $to)->value('id'))
                 ->orderByDesc('rate_date')
                 ->first()
+                ?->getAttributes()
         );
+
+        return is_array($attributes) ? (new ExchangeRate)->newFromBuilder($attributes) : null;
     }
 
     /**

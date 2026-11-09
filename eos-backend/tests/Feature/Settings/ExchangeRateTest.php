@@ -147,4 +147,18 @@ class ExchangeRateTest extends TestCase
         $this->getJson('/api/v1/settings/exchange-rates?from=USD&to=USD')->assertUnprocessable();
         $this->getJson('/api/v1/settings/exchange-rates?from=USD&to=SYP&limit=1000')->assertUnprocessable();
     }
+
+    public function test_latest_rate_survives_a_cache_that_refuses_objects(): void
+    {
+        // Production caches (database, redis) unserialize without classes; reading the cached rate twice must work.
+        config(['cache.default' => 'file', 'cache.serializable_classes' => false]);
+        $this->login();
+        $this->postJson('/api/v1/settings/exchange-rates', ['from' => 'USD', 'to' => 'SYP', 'rate' => 13250, 'rate_date' => '2026-11-09'])->assertCreated();
+
+        foreach ([1, 2] as $_) {
+            $this->getJson('/api/v1/settings/exchange-rates/latest?from=USD&to=SYP')
+                ->assertOk()
+                ->assertJsonPath('data.rate', fn ($rate) => (float) $rate === 13250.0);
+        }
+    }
 }
