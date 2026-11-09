@@ -1,0 +1,60 @@
+<div class="grid-2">
+  @if (session.has('finance.view')) {
+    <section class="panel" data-print>
+      <header class="panel-head">
+        <div><h2>{{ t('dashMoneyTitle') }}</h2><p>{{ t('dashMoneyLede') }}</p></div>
+        <a class="text" routerLink="/modules/finance">{{ t('dashOpen') }}</a>
+      </header>
+      @if (boxes() === null) {
+        <p class="empty">{{ t('loading') }}</p>
+      } @else {
+        <ul class="rows">
+          @for (box of boxes() ?? []; track box.id) {
+            <li>
+              <span><i [class]="box.kind === 'sham_cash' ? 'fa-solid fa-wallet' : 'fa-solid fa-money-bill'" aria-hidden="true"></i> {{ box.name }}</span>
+              <bdi class="num">{{ money(box.balance) }} {{ box.currency_code }}</bdi>
+            </li>
+          } @empty {
+            <li class="soft">{{ t('finNoBoxes') }}</li>
+          }
+        </ul>
+        <div class="facts">
+          <a routerLink="/modules/finance" [queryParams]="{}" [class.wait]="pendingTransactions() > 0">
+            <strong>{{ num(pendingTransactions()) }}</strong><span>{{ t('dashPendingTransactions') }}</span>
+          </a>
+          <a routerLink="/modules/finance" [queryParams]="{ view: 'invoices' }" [class.wait]="pendingInvoices() > 0">
+            <strong>{{ num(pendingInvoices()) }}</strong><span>{{ t('dashPendingInvoices') }}</span>
+          </a>
+          <a routerLink="/modules/finance" [queryParams]="{ view: 'invoices' }" [class.late]="overdueInvoices() > 0">
+            <strong>{{ num(overdueInvoices()) }}</strong><span>{{ t('dashOverdueInvoices') }}</span>
+          </a>
+        </div>
+      }
+    </section>
+  }
+  @if (session.has('payroll.view')) {
+    <section class="panel" data-print>
+      <header class="panel-head">
+        <div><h2>{{ t('dashPayrollTitle') }}</h2><p>{{ t('dashPayrollLede') }}</p></div>
+        <a class="text" routerLink="/modules/payroll">{{ t('dashOpen') }}</a>
+      </header>
+      @if (run() === undefined) {
+        <p class="empty">{{ t('loading') }}</p>
+      } @else if (run(); as r) {
+        <p class="run-head"><bdi class="month">{{ r.month }}</bdi> <span [class]="runTone(r.status)">{{ runLabel(r.status) }}</span></p>
+        <ul class="rows">
+          <li><span>{{ t('prEmployees') }}</span><bdi class="num">{{ num(r.employees) }}</bdi></li>
+          <li><span>{{ t('prPaidLines') }}</span><bdi class="num">{{ num(r.paid) }} / {{ num(r.payable) }}</bdi></li>
+          @for (total of totalsList(r); track total.currency) {
+            <li><span>{{ t('prNet') }} <bdi>{{ total.currency }}</bdi></span><bdi class="num strong">{{ money(total.net) }}</bdi></li>
+          }
+        </ul>
+        @if (r.not_ready > 0 || r.blocking_issues > 0) {
+          <p class="warn-line"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> {{ t('prBlockedLines') }} {{ num(r.not_ready) }} · {{ t('prBlockingIssues') }} {{ num(r.blocking_issues) }}</p>
+        }
+      } @else {
+        <p class="empty">{{ t('prNoRuns') }}</p>
+      }
+    </section>
+  }
+</div>

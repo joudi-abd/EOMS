@@ -1,0 +1,111 @@
+:host {
+  display: block;
+  margin-top: 16px;
+}
+
+.panel-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.panel-head .text {
+  margin-inline-start: auto;
+}
+
+.rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.rows li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 14px;
+}
+
+.rows li:last-child {
+  border-bottom: 0;
+}
+
+.rows i {
+  color: var(--soft);
+  margin-inline-end: 6px;
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+.strong {
+  font-weight: 600;
+}
+
+.soft {
+  color: var(--soft);
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.facts a {
+  display: grid;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  text-decoration: none;
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.facts a:hover {
+  background: var(--hover);
+}
+
+.facts strong {
+  font-size: 22px;
+  font-variant-numeric: tabular-nums;
+}
+
+.facts a.wait strong {
+  color: var(--wait);
+}
+
+.facts a.late strong {
+  color: var(--late);
+}
+
+.facts span {
+  color: var(--muted);
+}
+
+.run-head {
+  margin: 0 0 8px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.month {
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.warn-line {
+  margin: 12px 0 0;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid #fde68a;
+  background: var(--wait-tint);
+  color: #92400e;
+  font-size: 14px;
+}

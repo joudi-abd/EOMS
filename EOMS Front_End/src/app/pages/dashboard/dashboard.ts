@@ -10,11 +10,12 @@ import { AttendanceBlock } from './attendance/attendance';
 import { MyMonth } from './my-month/my-month';
 import { AccountsMix } from './accounts-mix/accounts-mix';
 import { Metrics } from './metrics/metrics';
+import { MoneyGlance } from './money/money';
 import { People } from './people/people';
 
 @Component({
   selector: 'app-dashboard',
-  imports: [Notice, Metrics, People, AccountsMix, AttendanceBlock, MyMonth],
+  imports: [Notice, Metrics, People, AccountsMix, AttendanceBlock, MyMonth, MoneyGlance],
   templateUrl: './dashboard.html',
   styleUrl: './dashboard.scss',
 })
@@ -38,7 +39,9 @@ export class Dashboard extends Ui {
       this.session.can('employees') ||
       this.session.can('access') ||
       this.session.hasFile() ||
-      this.session.has('attendance.view'),
+      this.session.has('attendance.view') ||
+      this.session.has('finance.view') ||
+      this.session.has('payroll.view'),
   );
 
   protected exportPdf(): void {
