@@ -39,64 +39,139 @@
   </label>
   <button class="text" type="submit" [disabled]="busy()">{{ l('تطبيق', 'Apply') }}</button>
 </form>
-@if (rows().length === 0) {
-  <p class="empty">{{ l('لا توجد طلبات.', 'No requests.') }}</p>
-} @else {
-  <div class="sheet"><table>
-    <thead><tr>
-      <th>{{ l('الطلب', 'Request') }}</th>
-      <th>{{ l('الموظف', 'Employee') }}</th>
-      <th>{{ l('الحالة', 'Status') }}</th>
-      <th>{{ l('الفترة', 'Period') }}</th>
-      <th>{{ l('السبب', 'Reason') }}</th>
-      <th><span class="vh">{{ l('إجراءات', 'Actions') }}</span></th>
-    </tr></thead>
-    <tbody>
-      @for (row of rows(); track row.id) {
-        <tr>
-          <td class="num">#{{ row.id }}</td>
-          <td>{{ row.employee_name }}</td>
-          <td [class]="tone(row.status)">{{ label(row.status) }}</td>
-          <td>
-            <span class="num">{{ row.input.start_date }} — {{ row.input.end_date }}</span>
-            <ul class="days">@for (day of row.days; track day.id) { @if (day.active) { <li><bdi>{{ day.date }}</bdi> <bdi>{{ clock(day.start_time) }}–{{ clock(day.end_time) }}</bdi> · {{ days(day.covered_units) }} / {{ days(day.unpaid_units) }}</li> } }</ul>
-            @if (row.change_request; as change) { <small class="wait">{{ label(change.kind) }}: <bdi>{{ change.from_date }}</bdi> — {{ change.reason }}</small> }
-          </td>
-          <td>{{ row.input.reason }}@if (row.review_note) { <small class="days">{{ row.review_note }}</small> }</td>
-          <td class="decide">
-            @if (row.status === 'pending' && owns(row)) {
-              <button class="text" type="button" [disabled]="busy()" (click)="edit.emit(row)">{{ l('تعديل', 'Edit') }}</button>
-              <button class="text" type="button" [disabled]="busy()" (click)="choose.emit({row, action: 'withdraw'})">{{ label('withdraw') }}</button>
-            }
-            @if (row.status === 'pending' && row.can_review) {
-              <button class="text" type="button" [disabled]="busy()" (click)="choose.emit({row, action: 'approve'})">{{ label('approve') }}</button>
-              <button class="quiet" type="button" [disabled]="busy()" (click)="choose.emit({row, action: 'reject'})">{{ label('reject') }}</button>
-            }
-            @if (row.status === 'approved' && owns(row) && !row.change_request) {
-              <button class="text" type="button" [disabled]="busy()" (click)="choose.emit({row, action: 'cancel'})">{{ label('cancel') }}</button>
-              <button class="text" type="button" [disabled]="busy()" (click)="choose.emit({row, action: 'shorten'})">{{ label('shorten') }}</button>
-            }
-            @if (row.status === 'approved' && row.change_request && row.can_review) {
-              <button class="text" type="button" [disabled]="busy()" (click)="choose.emit({row, action: 'approve-change'})">{{ label('approve-change') }}</button>
-              <button class="quiet" type="button" [disabled]="busy()" (click)="choose.emit({row, action: 'reject-change'})">{{ label('reject-change') }}</button>
-            }
-          </td>
-        </tr>
-      }
-    </tbody>
-  </table></div>
-}
-@if (decision(); as chosen) {
-  <section class="panel decision">
-    <div class="panel-head"><h2>{{ label(chosen.action) }}</h2></div>
-    <form class="form" (ngSubmit)="confirm.emit({reason, from})" #actionForm="ngForm">
-      <fieldset [disabled]="busy()">
-        <label class="wide">{{ l('سبب الإجراء', 'Action reason') }}<textarea name="decisionReason" required maxlength="500" [(ngModel)]="reason"></textarea></label>
-        @if (chosen.action === 'shorten') { <label>{{ l('إلغاء الأيام ابتداءً من', 'Cancel days starting from') }}<input name="changeDate" type="date" required [(ngModel)]="from"></label> }
-        <button class="primary" type="submit" [disabled]="actionForm.invalid">{{ l('تأكيد الإجراء', 'Confirm action') }}</button>
-        <button class="text" type="button" (click)="dismiss.emit()">{{ l('رجوع', 'Back') }}</button>
-      </fieldset>
-    </form>
-  </section>
-}
+<div class="reg-split">
+  <div class="reg-main">
+    @if (rows().length === 0) {
+      <p class="empty">{{ l('لا توجد طلبات.', 'No requests.') }}</p>
+    } @else {
+      <div class="sheet"><table>
+        <thead><tr>
+          <th>{{ l('الموظف', 'Employee') }}</th>
+          <th>{{ l('النوع', 'Type') }}</th>
+          <th>{{ l('الفترة', 'Period') }}</th>
+          <th class="end">{{ l('المدة', 'Length') }}</th>
+          <th>{{ l('الحالة', 'Status') }}</th>
+        </tr></thead>
+        <tbody>
+          @for (row of rows(); track row.id) {
+            <tr [class.picked]="picked() === row.id">
+              <td>
+                <div class="who">
+                  <span class="av" aria-hidden="true">{{ initialsOf(row.employee_name) }}</span>
+                  <span>
+                    <button class="name" type="button" [attr.aria-expanded]="picked() === row.id" (click)="pick(row)">{{ row.employee_name }}</button>
+                    <small class="num">#{{ row.id }}</small>
+                  </span>
+                </div>
+              </td>
+              <td>{{ typeName(row.leave_type_id) }}</td>
+              <td class="num"><bdi>{{ short(row.input.start_date) }}</bdi>@if (row.input.end_date !== row.input.start_date) { — <bdi>{{ short(row.input.end_date) }}</bdi> }</td>
+              <td class="num end">{{ total(row) }} {{ l('يوم', 'd') }}</td>
+              <td>
+                <span [class]="tone(row.status)">{{ label(row.status) }}</span>
+                @if (row.change_request; as change) { <small class="wait block">{{ label(change.kind) }}</small> }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table></div>
+    }
+  </div>
+
+  <aside class="reg-side">
+    @if (current(); as row) {
+      <section class="detail">
+        <header class="detail-head">
+          <div>
+            <h2>{{ typeName(row.leave_type_id) }} · {{ row.employee_name }}</h2>
+            <p class="soft">{{ l('الطلب', 'Request') }} <bdi class="num">#{{ row.id }}</bdi> · {{ l('نسخة', 'version') }} {{ row.version }}</p>
+          </div>
+          <button class="x" type="button" (click)="picked.set(null)" [attr.aria-label]="l('إغلاق', 'Close')"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+        </header>
+
+        <ol class="stages" [attr.aria-label]="l('مراحل الطلب', 'Request stages')">
+          <li class="done"><i><span class="fa-solid fa-check" aria-hidden="true"></span></i>{{ l('تقديم', 'Submitted') }}</li>
+          <li class="bar" [class.done]="decided(row)" aria-hidden="true"></li>
+          <li [class.done]="decided(row)" [class.cur]="!decided(row)"><i>@if (decided(row)) { <span class="fa-solid fa-check" aria-hidden="true"></span> } @else { 2 }</i>{{ approver(row) }}</li>
+          <li class="bar" [class.done]="decided(row)" aria-hidden="true"></li>
+          <li [class.done]="decided(row)"><i>3</i><span [class]="decided(row) ? tone(row.status) : ''">{{ decided(row) ? label(row.status) : l('القرار', 'Decision') }}</span></li>
+        </ol>
+
+        <dl class="facts">
+          <dt>{{ l('الفترة', 'Period') }}</dt><dd><bdi>{{ date(row.input.start_date) }}</bdi>@if (row.input.end_date !== row.input.start_date) { ← <bdi>{{ date(row.input.end_date) }}</bdi> }</dd>
+          <dt>{{ l('المدة', 'Length') }}</dt><dd>{{ total(row) }} {{ l('يوم', 'days') }} · {{ l('أجر', 'pay') }} {{ row.policy.pay_percent }}%</dd>
+          @if (unpaid(row) > 0) { <dt>{{ l('بلا أجر', 'Unpaid') }}</dt><dd class="wait">{{ days(unpaid(row)) }} {{ l('يوم', 'days') }}</dd> }
+          @if (row.status === 'pending' && row.expires_on) { <dt>{{ l('ينتهي دون قرار', 'Lapses without a decision') }}</dt><dd><bdi>{{ date(row.expires_on) }}</bdi></dd> }
+          @if (row.input.reason) { <dt>{{ l('السبب', 'Reason') }}</dt><dd>{{ row.input.reason }}</dd> }
+        </dl>
+
+        <div class="day-sheet">
+          <table>
+            <thead><tr><th>{{ l('اليوم', 'Day') }}</th><th>{{ l('الوقت', 'Time') }}</th><th class="end">{{ l('مغطّى', 'Covered') }}</th><th class="end">{{ l('بلا أجر', 'Unpaid') }}</th></tr></thead>
+            <tbody>
+              @for (day of row.days; track day.id ?? day.date) {
+                @if (day.active !== false) {
+                  <tr>
+                    <td class="num"><bdi>{{ short(day.date) }}</bdi></td>
+                    <td class="num"><bdi>{{ clock(day.start_time) }}–{{ clock(day.end_time) }}</bdi></td>
+                    <td class="num end">{{ days(day.covered_units) }}</td>
+                    <td class="num end">{{ days(day.unpaid_units) }}</td>
+                  </tr>
+                }
+              }
+            </tbody>
+          </table>
+        </div>
+
+        @if (balanceOf(row) !== null) {
+          <p class="balance">{{ l('رصيدك المتاح من هذا النوع', 'Your available balance of this type') }} <strong>{{ days(balanceOf(row)!) }}</strong> {{ l('يوم', 'days') }}</p>
+        }
+        @if (row.review_note) { <p class="note-box"><span class="soft">{{ l('ملاحظة القرار', 'Decision note') }}:</span> {{ row.review_note }}</p> }
+        @if (row.change_request; as change) {
+          <p class="note-box wait-box">{{ label(change.kind) }} {{ l('ابتداءً من', 'from') }} <bdi>{{ date(change.from_date) }}</bdi>@if (change.reason) { — {{ change.reason }} }</p>
+        }
+
+        @if (decision(); as chosen) {
+          @if (chosen.row.id === row.id) {
+            <form class="decide-form" (ngSubmit)="confirm.emit({reason, from})" #actionForm="ngForm">
+              <h3>{{ label(chosen.action) }}</h3>
+              <fieldset [disabled]="busy()">
+                <label>{{ l('سبب الإجراء', 'Action reason') }}<textarea name="decisionReason" rows="2" required maxlength="500" [(ngModel)]="reason"></textarea></label>
+                @if (chosen.action === 'shorten') { <label>{{ l('إلغاء الأيام ابتداءً من', 'Cancel days starting from') }}<input name="changeDate" type="date" required [(ngModel)]="from"></label> }
+                <div class="acts">
+                  <button class="text" type="button" (click)="dismiss.emit()">{{ l('رجوع', 'Back') }}</button>
+                  <button class="primary" type="submit" [disabled]="actionForm.invalid">{{ l('تأكيد الإجراء', 'Confirm action') }}</button>
+                </div>
+              </fieldset>
+            </form>
+          }
+        }
+
+        <div class="acts">
+          @if (row.status === 'pending' && owns(row)) {
+            <button class="text" type="button" [disabled]="busy()" (click)="edit.emit(row)">{{ l('تعديل', 'Edit') }}</button>
+            <button class="text" type="button" [disabled]="busy()" (click)="choose.emit({row, action: 'withdraw'})">{{ label('withdraw') }}</button>
+          }
+          @if (row.status === 'approved' && owns(row) && !row.change_request) {
+            <button class="text" type="button" [disabled]="busy()" (click)="choose.emit({row, action: 'cancel'})">{{ label('cancel') }}</button>
+            <button class="text" type="button" [disabled]="busy()" (click)="choose.emit({row, action: 'shorten'})">{{ label('shorten') }}</button>
+          }
+          @if (row.status === 'pending' && row.can_review) {
+            <button class="quiet" type="button" [disabled]="busy()" (click)="choose.emit({row, action: 'reject'})">{{ label('reject') }}</button>
+            <button class="primary" type="button" [disabled]="busy()" (click)="choose.emit({row, action: 'approve'})">{{ label('approve') }}</button>
+          }
+          @if (row.status === 'approved' && row.change_request && row.can_review) {
+            <button class="quiet" type="button" [disabled]="busy()" (click)="choose.emit({row, action: 'reject-change'})">{{ label('reject-change') }}</button>
+            <button class="primary" type="button" [disabled]="busy()" (click)="choose.emit({row, action: 'approve-change'})">{{ label('approve-change') }}</button>
+          }
+        </div>
+      </section>
+    } @else {
+      <section class="detail placeholder">
+        <i class="fa-regular fa-calendar" aria-hidden="true"></i>
+        <p>{{ l('اختر طلبًا من القائمة لعرض أيامه ومرحلته والإجراءات المتاحة عليه.', 'Pick a request in the list to see its days, its stage and what you can do with it.') }}</p>
+      </section>
+    }
+  </aside>
+</div>
 <nav class="pager"><button class="text" type="button" [disabled]="busy() || page() <= 1" (click)="turn.emit(-1)">{{ l('السابق', 'Previous') }}</button><span>{{ page() }} / {{ lastPage() }}</span><button class="text" type="button" [disabled]="busy() || page() >= lastPage()" (click)="turn.emit(1)">{{ l('التالي', 'Next') }}</button></nav>

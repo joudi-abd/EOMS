@@ -44,6 +44,11 @@ export interface LeaveRecord {
   can_act_for_owner?: boolean;
   review_note: string | null;
   change_request: { kind: string; from_date: string; reason: string } | null;
+  /** Who decides: HR, or the company manager for an HR member's own request. */
+  approver_role?: string;
+  /** A pending request lapses after this day. */
+  expires_on?: string;
+  created_at?: string;
 }
 export interface HalfDays { first_start: string; first_end: string; second_start: string; second_end: string }
 export interface LeaveBalance {
