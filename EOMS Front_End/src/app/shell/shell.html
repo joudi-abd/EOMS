@@ -30,6 +30,8 @@
             <span>{{ t(id) }}</span>
             @if (id === 'alerts' && notes.unread() > 0) {
               <bdi class="count">{{ notes.unread() }}</bdi>
+            } @else if ((waiting()[id] ?? 0) > 0) {
+              <bdi class="badge" [attr.aria-label]="t('waitingCount') + ' ' + waiting()[id]">{{ waiting()[id] }}</bdi>
             }
           </a>
         }

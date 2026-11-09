@@ -1,10 +1,12 @@
-import { Component, computed, effect, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { Session } from '../core/access/session';
 import { CopyKey, ModuleId } from '../core/copy';
 import { Language } from '../core/language';
 import { AccountSwitch } from './account-switch/account-switch';
+import { Api } from '../core/api/api';
+import { ApiPage } from '../core/api/types';
 import { Server } from '../data/server';
 import { Chrome } from './chrome';
 import { moduleIcon } from './icons';
@@ -30,6 +32,9 @@ export class Shell {
   protected readonly company = signal('');
   protected readonly icons = moduleIcon;
   private readonly router = inject(Router);
+  private readonly api = inject(Api);
+  /** Items waiting for this account's decision, shown as a count beside the module in the rail. */
+  protected readonly waiting = signal<Partial<Record<ModuleId, number>>>({});
   private readonly route = inject(ActivatedRoute);
   private readonly params = toSignal(this.route.queryParamMap);
 
@@ -41,12 +46,52 @@ export class Shell {
   constructor() {
     void this.notes.notifications(1).catch(() => undefined);
     void this.notes.publicCompany().then((name) => this.company.set(name)).catch(() => undefined);
+    // The account loads after the shell; count waiting items once per signed-in account.
+    let countedFor = '';
+    effect(() => {
+      const id = this.session.account().id;
+      if (!id || id === countedFor) return;
+      countedFor = id;
+      untracked(() => void this.loadWaiting());
+    });
     effect(() => {
       const lang = this.params()?.get('lang');
       if (lang === 'ar' || lang === 'en') {
         this.language.set(lang);
       }
     });
+  }
+
+  /**
+   * Counts what waits on this account: leave requests in its review queue, pay runs submitted for approval, and
+   * finance transactions and invoices above the approval limit. Each count is one page-1 request read for its total;
+   * a count the account may not see is simply left out.
+   */
+  private async loadWaiting(): Promise<void> {
+    const total = async (path: string, params: Record<string, string | number>): Promise<number> => {
+      try {
+        return (await this.api.get<ApiPage<unknown>>(path, params)).meta?.total ?? 0;
+      } catch {
+        return 0;
+      }
+    };
+    const counts: Partial<Record<ModuleId, number>> = {};
+    const jobs: Promise<void>[] = [];
+    if (this.session.has('leaves.approve')) {
+      jobs.push(total('/leaves', { scope: 'review', status: 'pending' }).then((value) => void (counts.leave = value)));
+    }
+    if (this.session.has('payroll.approve')) {
+      jobs.push(total('/payroll/runs', { status: 'submitted' }).then((value) => void (counts.payroll = value)));
+    }
+    if (this.session.has('finance.approve')) {
+      jobs.push(
+        Promise.all([total('/finance/transactions', { status: 'pending' }), total('/finance/invoices', { status: 'pending' })]).then(
+          ([transactions, invoices]) => void (counts.finance = transactions + invoices),
+        ),
+      );
+    }
+    await Promise.all(jobs);
+    this.waiting.set(counts);
   }
 
   protected t(key: CopyKey): string {
