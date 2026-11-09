@@ -53,6 +53,28 @@ export class Shell {
     return this.language.t(key);
   }
 
+  /** Two initials for the account avatar; the Arabic article is not a name's first letter. */
+  protected initials(): string {
+    return this.language
+      .text(this.session.account().name)
+      .trim()
+      .split(/\s+/)
+      .slice(0, 2)
+      .map((word) => word.replace(/^ال/, '').charAt(0))
+      .join(' ');
+  }
+
+  /** The top search looks up employees by name, number or national id on the employees page. */
+  protected search(event: Event): void {
+    event.preventDefault();
+    const form = event.target as HTMLFormElement;
+    const input = form.elements.namedItem('q') as HTMLInputElement | null;
+    const q = input?.value.trim() ?? '';
+    void this.router.navigate(['/modules/employees'], { queryParams: q ? { q } : {} });
+    if (input) input.value = '';
+    this.chrome.close();
+  }
+
   protected toggleLanguage(): void {
     const next = this.language.lang() === 'ar' ? 'en' : 'ar';
     this.language.set(next);

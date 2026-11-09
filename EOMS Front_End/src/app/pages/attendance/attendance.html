@@ -15,7 +15,11 @@
       <app-attendance-day />
     } @else {
       <header class="heading">
-        <h1>{{ t('attendance') }}</h1>
+        <div>
+          <p class="crumb">{{ t('navPeople') }} <i class="fa-solid fa-chevron-left crumb-sep" aria-hidden="true"></i> {{ t('attendance') }}</p>
+          <h1>{{ t('attendance') }}</h1>
+          <p class="lede">{{ t('ledeAttendance') }}</p>
+        </div>
       </header>
       <div class="facts">
         <p>

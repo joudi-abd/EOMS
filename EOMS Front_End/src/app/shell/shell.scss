@@ -168,3 +168,146 @@
     display: flex;
   }
 }
+
+/* Top bar: search, language, notifications and the signed-in account, as in the design. */
+.top {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 32px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+
+.search {
+  flex: 1;
+  max-width: 420px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  color: var(--soft);
+  background: var(--surface);
+}
+
+.search:focus-within {
+  border-color: var(--action);
+  box-shadow: 0 0 0 3px var(--action-tint);
+}
+
+.search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 14px;
+  color: var(--ink);
+  padding: 0;
+  min-height: 0;
+  box-shadow: none;
+}
+
+.top-end {
+  margin-inline-start: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.bell {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  display: grid;
+  place-items: center;
+  color: #374151;
+  text-decoration: none;
+}
+
+.bell:hover {
+  background: var(--hover);
+}
+
+.bell .dot {
+  position: absolute;
+  top: 8px;
+  inset-inline-end: 9px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--action);
+  border: 2px solid var(--surface);
+}
+
+.me {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-inline-start: 4px;
+}
+
+.avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--action-tint);
+  color: var(--action-ink);
+  display: grid;
+  place-items: center;
+  font-weight: 600;
+  font-size: 13px;
+  flex: none;
+}
+
+.me-text {
+  display: grid;
+  line-height: 1.3;
+}
+
+.me-name {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.me-role {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.vh {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@media (max-width: 900px) {
+  .top {
+    position: static;
+    padding: 0 16px;
+  }
+
+  .me-text,
+  .lang span {
+    display: none;
+  }
+}
+
+@media print {
+  .top {
+    display: none;
+  }
+}

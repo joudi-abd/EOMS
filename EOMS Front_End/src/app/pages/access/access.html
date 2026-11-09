@@ -15,7 +15,11 @@
       <app-access-file />
     } @else {
       <header class="heading">
-        <h1>{{ t('access') }}</h1>
+        <div>
+          <p class="crumb">{{ t('navSystem') }} <i class="fa-solid fa-chevron-left crumb-sep" aria-hidden="true"></i> {{ t('access') }}</p>
+          <h1>{{ t('access') }}</h1>
+          <p class="lede">{{ t('ledeAccess') }}</p>
+        </div>
         @if (session.canAct('account.add')) {
           <button class="primary" type="button" (click)="openNew()">
             <i class="fa-solid fa-user-plus" aria-hidden="true"></i>
@@ -24,6 +28,12 @@
         }
       </header>
       <p class="note">{{ t('rolesHint') }}</p>
+
+      <div class="summary">
+        <p><span>{{ t('accStatTotal') }}</span><strong>{{ num(accountStats().total) }}</strong><small>{{ t('accStatLinked') }} {{ num(accountStats().linked) }}</small></p>
+        <p><span>{{ t('accStatActive') }}</span><strong class="ok">{{ num(accountStats().active) }}</strong></p>
+        <p><span>{{ t('accStatDisabled') }}</span><strong [class.late]="accountStats().disabled > 0">{{ num(accountStats().disabled) }}</strong></p>
+      </div>
 
       <div class="filters">
         <label>

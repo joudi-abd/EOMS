@@ -15,7 +15,11 @@
       <app-request-file />
     } @else {
       <header class="heading">
-        <h1>{{ t('requests') }}</h1>
+        <div>
+          <p class="crumb">{{ t('navPeople') }} <i class="fa-solid fa-chevron-left crumb-sep" aria-hidden="true"></i> {{ t('requests') }}</p>
+          <h1>{{ t('requests') }}</h1>
+          <p class="lede">{{ t('ledeRequests') }}</p>
+        </div>
         @if (session.hasFile()) {
           <div class="actions">
             @for (item of kinds; track item) {
