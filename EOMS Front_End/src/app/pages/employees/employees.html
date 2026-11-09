@@ -39,17 +39,15 @@
       </header>
 
       <div class="summary">
-        <p><span>{{ t('employeesLabel') }}</span><strong>{{ num(stats().total) }}</strong><small>{{ t('openFilesShort') }}</small></p>
-        <p><span>{{ t('active') }}</span><strong>{{ num(stats().active) }}</strong></p>
-        <p><span>{{ t('away') }}</span><strong [class.wait]="stats().away > 0">{{ num(stats().away) }}</strong></p>
-        <p><span>{{ t('ended') }}</span><strong>{{ num(stats().ended) }}</strong></p>
-        <p>
-          <span>{{ t('tabFinger') }}</span>
-          <strong [class.wait]="stats().fingers < stats().total">{{ num(stats().fingers) }} {{ t('ofWord') }} {{ num(stats().total) }}</strong>
-          <small>{{ t('fingerOk') }}</small>
-        </p>
+        <p><span>{{ t('active') }}</span><strong>{{ num(stats().active) }}</strong><small>{{ t('empStatOf') }} {{ num(stats().total) }}</small></p>
+        <p><span>{{ t('empStatJoined') }}</span><strong>{{ num(stats().joined) }}</strong><small>{{ t('empStatJoinedHint') }}</small></p>
+        <p><span>{{ t('empStatExpiring') }}</span><strong [class.wait]="(expiring()?.length ?? 0) > 0">{{ num(expiring()?.length ?? 0) }}</strong><small>{{ t('empStatExpiringHint') }}</small></p>
+        <p><span>{{ t('empStatNoFinger') }}</span><strong [class.late]="stats().noFinger > 0">{{ num(stats().noFinger) }}</strong><small>{{ t('empStatNoFingerHint') }}</small></p>
+        <p><span>{{ t('ended') }}</span><strong>{{ num(stats().ended) }}</strong><small>{{ t('empStatEndedHint') }}</small></p>
       </div>
 
+      <div class="split">
+        <div class="main-col">
       <div class="filters">
         <label>
           <span>{{ t('searchEmployees') }}</span>
@@ -99,19 +97,45 @@
         <app-employee-table [rows]="rows()" />
       }
 
-      <div class="grid-2 charts">
-        <section class="panel" data-print>
-          <header class="panel-head">
-            <div><h2>{{ t('statusMix') }}</h2></div>
-          </header>
-          <app-donut-chart [slices]="statusMix()" [label]="t('statusMix')" [center]="t('employeesLabel')" />
-        </section>
-        <section class="panel" data-print>
-          <header class="panel-head">
-            <div><h2>{{ t('departments') }}</h2><p>{{ t('openFilesShort') }}</p></div>
-          </header>
-          <app-rank-chart [rows]="byDepartment()" [label]="t('departments')" />
-        </section>
+        </div>
+        <aside class="side-col">
+          <section class="panel" data-print>
+            <header class="panel-head">
+              <div><h2>{{ t('departments') }}</h2><p>{{ t('empByDeptHint') }}</p></div>
+            </header>
+            <app-rank-chart [rows]="byDepartment()" [label]="t('departments')" />
+          </section>
+          <section class="panel" data-print>
+            <header class="panel-head">
+              <div><h2>{{ t('empExpiringTitle') }}</h2><p>{{ t('empStatExpiringHint') }}</p></div>
+            </header>
+            @if (expiring() === null) {
+              <p class="empty">{{ t('loading') }}</p>
+            } @else {
+              <ul class="soon">
+                @for (row of expiring() ?? []; track row.contract_id) {
+                  <li>
+                    <span class="who">
+                      <button class="link" type="button" (click)="openFile(row.employee_id)">{{ row.employee_name }}</button>
+                      <small>
+                        {{ row.reason === 'scheduled_termination' ? t('empEndsScheduled') : t('empEndsFixed') }} · <bdi>{{ short(row.ends_on) }}</bdi>
+                      </small>
+                    </span>
+                    <span class="left" [class.late]="row.days_left <= 7" [class.wait]="row.days_left > 7">{{ num(row.days_left) }} {{ t('empDays') }}</span>
+                  </li>
+                } @empty {
+                  <li class="none">{{ t('empNoExpiring') }}</li>
+                }
+              </ul>
+            }
+          </section>
+          <section class="panel" data-print>
+            <header class="panel-head">
+              <div><h2>{{ t('statusMix') }}</h2></div>
+            </header>
+            <app-donut-chart [slices]="statusMix()" [label]="t('statusMix')" [center]="t('employeesLabel')" />
+          </section>
+        </aside>
       </div>
     }
   }

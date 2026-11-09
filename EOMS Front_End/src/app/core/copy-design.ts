@@ -52,6 +52,20 @@ const ar = {
   setKeyGrace: 'دقائق السماح',
   setKeyDefaultCurrency: 'العملة الافتراضية',
   setKeyRounding: 'خانات تقريب الرواتب',
+  empStatOf: 'من',
+  empStatJoined: 'انضموا هذا العام',
+  empStatJoinedHint: 'منهم من أُعيد تعيينه',
+  empStatExpiring: 'عقود تنتهي قريبًا',
+  empStatExpiringHint: 'خلال 30 يومًا',
+  empStatNoFinger: 'بلا بصمة مؤكدة',
+  empStatNoFingerHint: 'لا يُحسب حضورهم',
+  empStatEndedHint: 'الملفات محفوظة',
+  empByDeptHint: 'حسب التصفية الحالية',
+  empExpiringTitle: 'عقود قريبة الانتهاء',
+  empEndsFixed: 'نهاية العقد',
+  empEndsScheduled: 'إنهاء مجدول',
+  empDays: 'يومًا',
+  empNoExpiring: 'لا عقود تنتهي خلال 30 يومًا.',
 };
 
 const en: Record<keyof typeof ar, string> = {
@@ -107,6 +121,20 @@ const en: Record<keyof typeof ar, string> = {
   setKeyGrace: 'Grace minutes',
   setKeyDefaultCurrency: 'Default currency',
   setKeyRounding: 'Payroll rounding decimals',
+  empStatOf: 'of',
+  empStatJoined: 'Joined this year',
+  empStatJoinedHint: 'Rehires included',
+  empStatExpiring: 'Contracts ending soon',
+  empStatExpiringHint: 'Within 30 days',
+  empStatNoFinger: 'No confirmed fingerprint',
+  empStatNoFingerHint: 'Their attendance is not counted',
+  empStatEndedHint: 'Files are kept',
+  empByDeptHint: 'For the current filters',
+  empExpiringTitle: 'Contracts ending soon',
+  empEndsFixed: 'Contract end',
+  empEndsScheduled: 'Scheduled termination',
+  empDays: 'days',
+  empNoExpiring: 'No contracts end within 30 days.',
 };
 
 export const designCopy = { ar, en };

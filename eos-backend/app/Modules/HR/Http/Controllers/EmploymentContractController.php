@@ -11,6 +11,7 @@ use App\Modules\HR\Models\EmploymentContract;
 use App\Modules\HR\Services\EmploymentContractService;
 use App\Support\ApiResponse;
 use Dedoc\Scramble\Attributes\Group;
+use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 
 #[Group('06 - HR / Contracts', weight: 6)]
@@ -25,6 +26,47 @@ class EmploymentContractController extends Controller
             $this->contracts->paginate($employee)
                 ->through(fn (EmploymentContract $contract) => new EmploymentContractResource($contract))
         );
+    }
+
+    /**
+     * Active contracts ending soon.
+     *
+     * Active contracts whose end date or scheduled termination falls within the next `days` days (default 30, at
+     * most 365), soonest first. Carries no pay data, so `employees.view` is enough.
+     */
+    public function expiring(Request $request)
+    {
+        $days = (int) ($request->validate(['days' => ['sometimes', 'integer', 'min:1', 'max:365']])['days'] ?? 30);
+        $today = now()->toDateString();
+        $until = now()->addDays($days)->toDateString();
+
+        $rows = EmploymentContract::query()
+            ->where('status', 'active')
+            ->where(fn ($q) => $q->whereBetween('end_date', [$today, $until])->orWhereBetween('scheduled_termination_at', [$today, $until]))
+            ->with('employee:id,employee_no,first_name,father_name,last_name')
+            ->get()
+            ->map(function (EmploymentContract $contract) {
+                $scheduled = $contract->scheduled_termination_at;
+                $end = $contract->end_date;
+                $usesSchedule = $scheduled !== null && ($end === null || $scheduled->lt($end));
+                $endsOn = $usesSchedule ? $scheduled : $end;
+
+                return [
+                    'contract_id' => $contract->id,
+                    'contract_number' => $contract->contract_number,
+                    'type' => $contract->type,
+                    'employee_id' => $contract->employee_id,
+                    'employee_no' => $contract->employee?->employee_no,
+                    'employee_name' => $contract->employee?->full_name,
+                    'ends_on' => $endsOn->toDateString(),
+                    'reason' => $usesSchedule ? 'scheduled_termination' : 'end_date',
+                    'days_left' => (int) now()->startOfDay()->diffInDays($endsOn->copy()->startOfDay()),
+                ];
+            })
+            ->sortBy('ends_on')
+            ->values();
+
+        return ApiResponse::ok($rows);
     }
 
     /** View an employment contract. */
