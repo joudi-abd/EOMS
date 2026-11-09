@@ -109,3 +109,62 @@ h2 {
 .hold .quiet {
   border: 1px solid var(--late-line);
 }
+
+/* The day's list beside held and unmatched punches, as in the design. */
+.split {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+  margin-top: 16px;
+}
+
+@container work (max-width: 1100px) {
+  .split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.main-col,
+.side-col {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+
+.side-panel h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 16px;
+}
+
+.side-panel h2 i {
+  color: var(--wait);
+}
+
+.side-col form.link {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+  padding: 12px 0;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  background: none;
+  margin: 0;
+}
+
+.side-col form.link:last-child {
+  border-bottom: 0;
+}
+
+.side-col form.link label {
+  display: grid;
+  gap: 4px;
+}
+
+.side-col form.link button {
+  justify-self: start;
+}

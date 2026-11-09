@@ -102,6 +102,8 @@
           }
         </div>
 
+        <div class="split">
+          <div class="main-col">
         @if (rows().length === 0) {
           <p class="empty">{{ t('emptyDay') }}</p>
           <button class="text" type="button" (click)="clearFilters()">{{ t('clearAttendance') }}</button>
@@ -109,8 +111,12 @@
           <app-attendance-table [rows]="rows()" />
         }
 
+          </div>
+          @if (session.has('attendance.manage')) {
+            <aside class="side-col">
         @if (session.has('attendance.manage')) {
-          <h2>{{ t('quarantineTitle') }}</h2>
+          <section class="panel side-panel">
+            <header class="panel-head"><div><h2><i class="fa-solid fa-shield-halved" aria-hidden="true"></i> {{ t('quarantineTitle') }}</h2><p>{{ t('attSideHeldHint') }}</p></div></header>
           @if (book.held().length === 0) {
             <p class="empty">{{ t('quarantineEmpty') }}</p>
           } @else {
@@ -135,10 +141,12 @@
               </form>
             }
           }
+          </section>
         }
 
         @if (session.has('attendance.manage') && book.unmatched().length > 0) {
-          <h2>{{ t('unmatchedTitle') }}</h2>
+          <section class="panel side-panel">
+            <header class="panel-head"><div><h2><i class="fa-solid fa-fingerprint" aria-hidden="true"></i> {{ t('unmatchedTitle') }}</h2><p>{{ t('attSideUnmatchedHint') }}</p></div></header>
           @for (punch of book.unmatched(); track punch.id) {
             <form class="link" (submit)="link($event, punch)">
               <span class="num">{{ punchWhen(punch.occurred_at, book.roll()[0]?.policy.timezone ?? 'Asia/Damascus') }} · {{ punch.device_user_id }}</span>
@@ -156,7 +164,11 @@
               <button class="primary" type="submit">{{ t('saveLink') }}</button>
             </form>
           }
+          </section>
         }
+            </aside>
+          }
+        </div>
       } @else {
         <app-attendance-report [view]="reportView()" [scope]="scope()" />
       }

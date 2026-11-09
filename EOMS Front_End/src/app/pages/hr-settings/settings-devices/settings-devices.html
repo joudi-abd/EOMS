@@ -36,6 +36,7 @@
           <li [class.open]="openId() === device.id">
             <div class="row">
               <div class="who">
+                <span class="dev-icon" [class.live]="online(device)" aria-hidden="true"><i class="fa-solid fa-fingerprint"></i></span>
                 <strong>{{ device.name }}</strong>
                 <span class="sub"><bdi>{{ device.model }} · {{ device.serial_number }}</bdi></span>
               </div>
@@ -43,7 +44,13 @@
               <span class="state" [class.ok]="device.is_active" [class.off]="!device.is_active">
                 {{ device.is_active ? t('deviceActive') : t('deviceInactive') }}
               </span>
-              <span class="seen">{{ seen(device) }}</span>
+              <span class="seen">
+                <span class="link-chip" [class.live]="online(device)">
+                  <i class="fa-solid" [class.fa-wifi]="online(device)" [class.fa-plug-circle-xmark]="!online(device)" aria-hidden="true"></i>
+                  {{ online(device) ? t('devOnline') : t('devOffline') }}
+                </span>
+                <small>{{ seen(device) }}</small>
+              </span>
               <div class="acts">
                 <button class="text" type="button" [attr.aria-expanded]="openId() === device.id" (click)="open(device)">
                   {{ openId() === device.id ? t('hideDevice') : t('openDevice') }}

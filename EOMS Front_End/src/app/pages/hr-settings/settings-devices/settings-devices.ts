@@ -55,6 +55,13 @@ export class SettingsDevices extends Ui {
     return `${this.short(dateOf(device.last_seen_at, device.timezone))} ${clockOf(device.last_seen_at, device.timezone)}`;
   }
 
+  /** A device counts as connected when it called in within the last ten minutes. */
+  protected online(device: ApiDevice): boolean {
+    if (!device.last_seen_at || !device.is_active) return false;
+    const seen = new Date(device.last_seen_at).getTime();
+    return Number.isFinite(seen) && Date.now() - seen < 10 * 60_000;
+  }
+
   protected through(device: ApiDevice): string {
     if (!device.complete_through) return '—';
     return `${this.short(dateOf(device.complete_through, device.timezone))} ${clockOf(device.complete_through, device.timezone)}`;

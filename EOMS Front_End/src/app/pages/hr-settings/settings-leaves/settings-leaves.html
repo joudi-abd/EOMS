@@ -37,22 +37,55 @@
         @if (settings()!.types.length === 0) {
           <p class="empty">{{ t('leaveSetupNoTypes') }}</p>
         } @else {
-          <ul class="list">
-            @for (type of settings()!.types; track type.id) {
-              <li>
-                <strong>{{ type.name }}</strong>
-                <span class="state" [class.ok]="type.active" [class.off]="!type.active">
-                  {{ t(type.active ? 'leaveSetupActive' : 'leaveSetupInactive') }}
-                </span>
-                @if (!type.active && !canActivate(type)) {
-                  <span class="extra">{{ t('leaveSetupNeedsPolicy') }}</span>
+          <div class="sheet types">
+            <table>
+              <thead>
+                <tr>
+                  <th>{{ t('lsType') }}</th>
+                  <th class="num">{{ t('leaveSetupPay') }}</th>
+                  <th class="num">{{ t('leaveSetupAnnual') }}</th>
+                  <th>{{ t('leaveSetupGrant') }}</th>
+                  <th>{{ t('lsCurrentPolicy') }}</th>
+                  <th>{{ t('lsState') }}</th>
+                  <th><span class="vh">{{ t('lsActions') }}</span></th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (type of settings()!.types; track type.id) {
+                  @let policy = currentPolicyOf(type);
+                  <tr>
+                    <td><strong>{{ type.name }}</strong></td>
+                    <td class="num">{{ policy ? policy.pay_percent + '%' : '—' }}</td>
+                    <td class="num">{{ policy ? allowance(policy.annual_days) : '—' }}</td>
+                    <td>{{ policy ? grantLabel(policy.grant_method) : '—' }}</td>
+                    <td>
+                      @if (policy) {
+                        <bdi class="num">{{ t('lsSince') }} {{ shown(policy.effective_from) }}</bdi>
+                      } @else {
+                        <span class="extra">{{ t('leaveSetupNeedsPolicy') }}</span>
+                      }
+                      @if (futurePolicyOf(type); as next) {
+                        <span class="chip">{{ t('lsScheduled') }} <bdi>{{ shown(next.effective_from) }}</bdi></span>
+                      }
+                    </td>
+                    <td>
+                      <button
+                        class="switch"
+                        type="button"
+                        role="switch"
+                        [attr.aria-checked]="type.active"
+                        [attr.aria-label]="t(type.active ? 'leaveSetupDeactivate' : 'leaveSetupActivate') + ' ' + type.name"
+                        [disabled]="busy() || (!type.active && !canActivate(type))"
+                        (click)="toggle(type)"
+                      ></button>
+                      <span class="state" [class.ok]="type.active" [class.off]="!type.active">{{ t(type.active ? 'leaveSetupActive' : 'leaveSetupInactive') }}</span>
+                    </td>
+                    <td><button class="text small" type="button" (click)="openPolicies(type)">{{ t('lsPublish') }}</button></td>
+                  </tr>
                 }
-                <button class="text small" type="button" [disabled]="busy() || (!type.active && !canActivate(type))" (click)="toggle(type)">
-                  {{ t(type.active ? 'leaveSetupDeactivate' : 'leaveSetupActivate') }}
-                </button>
-              </li>
-            }
-          </ul>
+              </tbody>
+            </table>
+          </div>
         }
       </section>
     }
@@ -197,9 +230,9 @@
         } @else {
           <ul class="list">
             @for (holiday of settings()!.holidays; track holiday.id) {
-              <li>
-                <strong>{{ holiday.name }}</strong>
-                <span class="extra"><bdi>{{ shown(holiday.date) }}</bdi></span>
+              <li class="holiday" [class.past]="isPast(holiday.date)">
+                <span class="day" aria-hidden="true"><b>{{ dayOf(holiday.date) }}</b><small>{{ monthOf(holiday.date) }}</small></span>
+                <span class="grow"><strong>{{ holiday.name }}</strong><small class="extra"><bdi>{{ shown(holiday.date) }}</bdi>@if (isPast(holiday.date)) { · {{ t('lsPast') }} }</small></span>
                 <button class="quiet small" type="button" [disabled]="busy()" (click)="removeHoliday(holiday.id)">
                   <i class="fa-solid fa-trash" aria-hidden="true"></i>
                   {{ t('leaveSetupRemove') }}
