@@ -1,3 +1,4 @@
+import { designCopy } from './copy-design';
 import { financeCopy } from './copy-finance';
 import { hrCopy } from './copy-hr';
 import { payrollCopy } from './copy-payroll';
@@ -590,8 +591,8 @@ const base = {
 } as const;
 
 export const copy = {
-  ar: { ...base.ar, ...hrCopy.ar, ...financeCopy.ar, ...payrollCopy.ar },
-  en: { ...base.en, ...hrCopy.en, ...financeCopy.en, ...payrollCopy.en },
+  ar: { ...base.ar, ...hrCopy.ar, ...financeCopy.ar, ...payrollCopy.ar, ...designCopy.ar },
+  en: { ...base.en, ...hrCopy.en, ...financeCopy.en, ...payrollCopy.en, ...designCopy.en },
 };
 
 export type CopyKey = keyof typeof copy.ar;

@@ -35,6 +35,17 @@ export class Access {
   protected readonly user = computed(() => this.params()?.get('user') ?? '');
   protected readonly query = computed(() => this.params()?.get('q') ?? '');
 
+  /** Account counts for the summary row: all accounts, active, disabled, and how many have an employee file. */
+  protected readonly accountStats = computed(() => {
+    const all = this.office.accounts();
+    return {
+      total: all.length,
+      active: all.filter((item) => item.enabled).length,
+      disabled: all.filter((item) => !item.enabled).length,
+      linked: all.filter((item) => !!item.employeeId).length,
+    };
+  });
+
   protected readonly rows = computed(() => {
     const query = this.query().trim().toLowerCase();
     return this.office.accounts().filter((account) => {
@@ -46,6 +57,10 @@ export class Access {
 
   protected t(key: CopyKey): string {
     return this.language.t(key);
+  }
+
+  protected num(value: number): string {
+    return this.language.formatNumber(value);
   }
 
   protected text(value: { ar: string; en: string }): string {

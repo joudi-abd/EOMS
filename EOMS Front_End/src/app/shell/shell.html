@@ -37,15 +37,37 @@
     </nav>
     <div class="foot">
       <app-account-switch />
-      <div class="foot-row">
+    </div>
+  </aside>
+  <div class="stage">
+    <header class="top">
+      @if (session.can('employees')) {
+        <form class="search" role="search" (submit)="search($event)">
+          <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+          <label class="vh" for="top-search">{{ t('topSearchLabel') }}</label>
+          <input id="top-search" name="q" type="search" autocomplete="off" [placeholder]="t('topSearch')" />
+        </form>
+      }
+      <div class="top-end">
         <button class="lang" type="button" (click)="toggleLanguage()" [attr.aria-label]="t('switchLabel')">
           <i class="fa-solid fa-language" aria-hidden="true"></i>
           {{ t('switchTo') }}
         </button>
+        @if (session.can('alerts')) {
+          <a class="bell" routerLink="/modules/alerts" [attr.aria-label]="t('alerts') + (notes.unread() > 0 ? ' · ' + notes.unread() : '')">
+            <i class="fa-solid fa-bell" aria-hidden="true"></i>
+            @if (notes.unread() > 0) { <span class="dot" aria-hidden="true"></span> }
+          </a>
+        }
+        <div class="me">
+          <span class="avatar" aria-hidden="true">{{ initials() }}</span>
+          <span class="me-text">
+            <span class="me-name">{{ language.text(session.account().name) }}</span>
+            <span class="me-role">{{ session.roleLine() }}</span>
+          </span>
+        </div>
       </div>
-    </div>
-  </aside>
-  <div class="stage">
+    </header>
     <router-outlet />
   </div>
 </div>

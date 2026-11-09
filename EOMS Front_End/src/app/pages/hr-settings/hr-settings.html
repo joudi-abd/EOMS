@@ -11,7 +11,11 @@
   } @else {
     <app-notice />
     <header class="heading">
-      <h1>{{ t('hrSettings') }}</h1>
+      <div>
+        <p class="crumb">{{ t('navPeople') }} <i class="fa-solid fa-chevron-left crumb-sep" aria-hidden="true"></i> {{ t('hrSettings') }}</p>
+        <h1>{{ t('hrSettings') }}</h1>
+        <p class="lede">{{ t('ledeHrSettings') }}</p>
+      </div>
     </header>
     <p class="note">{{ t('settingsHint') }}</p>
 

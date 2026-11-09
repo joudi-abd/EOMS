@@ -15,7 +15,11 @@
       <app-leave-file />
     } @else {
       <header class="heading">
-        <h1>{{ t('leave') }}</h1>
+        <div>
+          <p class="crumb">{{ t('navPeople') }} <i class="fa-solid fa-chevron-left crumb-sep" aria-hidden="true"></i> {{ t('leave') }}</p>
+          <h1>{{ t('leave') }}</h1>
+          <p class="lede">{{ t('ledeLeave') }}</p>
+        </div>
         <div class="actions">
           <button class="text" type="button" [disabled]="exporting()" (click)="exportExcel()">
             <i class="fa-solid fa-file-excel" aria-hidden="true"></i>
