@@ -113,13 +113,13 @@ h2 {
 /* The day's list beside held and unmatched punches, as in the design. */
 .split {
   display: grid;
-  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1.8fr) minmax(300px, 1fr);
   gap: 16px;
   align-items: start;
   margin-top: 16px;
 }
 
-@container work (max-width: 1100px) {
+@container work (max-width: 1240px) {
   .split {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -130,7 +130,15 @@ h2 {
   display: grid;
   gap: 16px;
   min-width: 0;
+  /* A grid's implicit column is sized to its widest child; without this a wide table pushes past its column. */
+  grid-template-columns: minmax(0, 1fr);
 }
+
+.main-col > *,
+.side-col > * {
+  min-width: 0;
+}
+
 
 .side-panel h2 {
   display: flex;
