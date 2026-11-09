@@ -61,3 +61,276 @@
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
+
+/* The list beside the chosen request, as in the design. */
+.reg-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+  margin-top: 16px;
+}
+
+@container work (max-width: 1050px) {
+  .reg-split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.reg-main,
+.reg-side {
+  min-width: 0;
+}
+
+.end {
+  text-align: end;
+}
+
+.block {
+  display: block;
+  font-size: 12px;
+}
+
+tr.picked td {
+  background: var(--action-tint);
+}
+
+.who {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.who small {
+  display: block;
+  color: var(--soft);
+  font-size: 12px;
+}
+
+.av {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--action-tint);
+  color: var(--action-ink);
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 600;
+  flex: none;
+}
+
+.name {
+  border: 0;
+  padding: 0;
+  background: none;
+  font: inherit;
+  font-weight: 600;
+  color: var(--action-ink);
+  cursor: pointer;
+  text-align: start;
+}
+
+.name:hover {
+  text-decoration: underline;
+}
+
+.detail {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 18px 20px 20px;
+  display: grid;
+  gap: 14px;
+}
+
+.detail.placeholder {
+  justify-items: center;
+  text-align: center;
+  color: var(--muted);
+  padding: 40px 20px;
+}
+
+.detail.placeholder i {
+  font-size: 28px;
+  color: var(--soft);
+}
+
+.detail.placeholder p {
+  margin: 0;
+  max-width: 280px;
+}
+
+.detail-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.detail-head h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.detail-head p {
+  margin: 2px 0 0;
+  font-size: 13px;
+}
+
+.soft {
+  color: var(--soft);
+}
+
+.x {
+  margin-inline-start: auto;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.stages {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.stages li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--soft);
+}
+
+.stages li i {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1.5px solid var(--line-strong);
+  display: grid;
+  place-items: center;
+  font-style: normal;
+  font-size: 13px;
+  font-weight: 600;
+  background: var(--surface);
+}
+
+.stages li.done {
+  color: var(--ink);
+}
+
+.stages li.done i {
+  background: var(--action);
+  border-color: var(--action);
+  color: #fff;
+}
+
+.stages li.cur {
+  color: var(--action-ink);
+  font-weight: 600;
+}
+
+.stages li.cur i {
+  border-color: var(--action);
+  color: var(--action-ink);
+  background: var(--action-tint);
+}
+
+.stages li.bar {
+  flex: 1;
+  min-width: 20px;
+  height: 1.5px;
+  background: var(--line-strong);
+  margin: 0 8px;
+}
+
+.stages li.bar.done {
+  background: var(--action);
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 6px 16px;
+  margin: 0;
+  font-size: 14px;
+}
+
+.facts dt {
+  color: var(--soft);
+}
+
+.facts dd {
+  margin: 0;
+}
+
+.day-sheet {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow-x: auto;
+}
+
+.day-sheet td,
+.day-sheet th {
+  padding: 8px 12px;
+  font-size: 13px;
+}
+
+.balance {
+  margin: 0;
+  font-size: 14px;
+}
+
+.note-box {
+  margin: 0;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--raised);
+  font-size: 14px;
+}
+
+.wait-box {
+  border-color: #fde68a;
+  background: var(--wait-tint);
+}
+
+.decide-form {
+  border-top: 1px solid var(--line);
+  padding-top: 14px;
+}
+
+.decide-form h3 {
+  margin: 0 0 10px;
+  font-size: 15px;
+}
+
+.decide-form fieldset {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.decide-form label {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.acts {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
