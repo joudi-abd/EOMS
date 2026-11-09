@@ -4,7 +4,11 @@
     {{ chrome.menuOpen() ? t('closeMenu') : t('menu') }}
   </button>
   <header class="heading">
-    <h1>{{ l('الإجازات', 'Leave') }}</h1>
+    <div>
+      <p class="crumb">{{ t('navPeople') }} <i class="fa-solid fa-chevron-left crumb-sep" aria-hidden="true"></i> {{ l('الإجازات', 'Leave') }}</p>
+      <h1>{{ l('الإجازات', 'Leave') }}</h1>
+      <p class="lede">{{ t('ledeLeave') }}</p>
+    </div>
     <div class="actions">
       @if (options()?.can_configure) {
         <a class="text" routerLink="/modules/hrSettings" [queryParams]="{tab: 'leaves'}">{{ l('إعدادات الأنواع والأرصدة والعطلات', 'Leave types, balances and holidays') }}</a>
@@ -24,6 +28,24 @@
   @if (success()) { <p class="notice" role="status"><span>{{ success() }}</span></p> }
   @if (busy() && !options()) { <p class="empty" role="status">{{ l('جارٍ التحميل…', 'Loading…') }}</p> }
   @if (options(); as settings) {
+    <div class="summary">
+      @if (settings.can_review) {
+        <p>
+          <span>{{ t('lvWaiting') }}</span>
+          <strong [class.wait]="(reviewPending() ?? 0) > 0">{{ reviewPending() === null ? '—' : num(reviewPending()!) }}</strong>
+          <small><button class="text small inline" type="button" (click)="openReview()">{{ t('lvOpenQueue') }}</button></small>
+        </p>
+      }
+      @if (settings.can_submit) {
+        @for (type of settings.types; track type.id) {
+          <p>
+            <span>{{ t('lvBalance') }} · {{ type.name }}</span>
+            <strong>{{ balanceDays(type.available_units) }}</strong>
+            <small>{{ t('lvDaysUntil') }} <bdi>{{ date(type.cycle_end) }}</bdi> · {{ type.pay_percent }}%</small>
+          </p>
+        }
+      }
+    </div>
     @if (settings.can_configure) {
       <app-leave-periods [halves]="halves" [busy]="busy()" (save)="saveHalves()" />
     }

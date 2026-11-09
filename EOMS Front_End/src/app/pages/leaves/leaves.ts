@@ -24,6 +24,8 @@ export class LeavesPage extends Ui {
   private readonly reporter = inject(Reporter);
   protected readonly session = inject(Session);
   protected readonly options = signal<LeaveOptions | null>(null);
+  /** Requests waiting in this reviewer's queue; null until counted (or for a non-reviewer). */
+  protected readonly reviewPending = signal<number | null>(null);
   protected readonly rows = signal<LeaveRecord[]>([]);
   protected readonly quote = signal<LeaveQuote | null>(null);
   protected readonly busy = signal(false);
@@ -70,7 +72,22 @@ export class LeavesPage extends Ui {
       this.calendarTo = leaveShift(data.today, 13);
     }
     await this.loadRows();
+    if (data?.can_review) void this.loadReviewCount();
   }
+  /** One page-1 request on the review queue, read for its total. */
+  private async loadReviewCount(): Promise<void> {
+    try {
+      const result = await this.api.list({scope: 'review', page: 1, status: 'pending'});
+      const meta = result.meta as {total?: number};
+      this.reviewPending.set(meta.total ?? result.data.length);
+    } catch {
+      this.reviewPending.set(null);
+    }
+  }
+  protected openReview(): void {
+    this.changeScope('review');
+  }
+  protected balanceDays(units: number | null): string { return units === null ? '—' : this.days(units); }
   private async loadOptions(employeeId?: number): Promise<void> {
     const {data} = await this.api.options(employeeId);
     this.options.set(data);

@@ -1,6 +1,8 @@
 import { Component, computed, ElementRef, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { Api } from '../../core/api/api';
+import { ApiItem } from '../../core/api/types';
 import { Session } from '../../core/access/session';
 import { Reporter, ReportDraft } from '../../core/reports/reporter';
 import { Ui } from '../../core/ui';
@@ -14,6 +16,19 @@ import { Chrome } from '../../shell/chrome';
 import { EmployeeFile } from './employee-file/employee-file';
 import { fingerKey } from './employee-info/employee-info';
 import { EmployeeTable } from './employee-table/employee-table';
+
+/** One row of `GET /contracts/expiring`: an active contract ending within the window. */
+export interface ExpiringContract {
+  contract_id: number;
+  contract_number: string;
+  type: string;
+  employee_id: number;
+  employee_no: string | null;
+  employee_name: string | null;
+  ends_on: string;
+  reason: 'end_date' | 'scheduled_termination';
+  days_left: number;
+}
 
 const statusFill: Record<EmployeeStatus, string> = { active: tone.ok, away: tone.wait, leaving: tone.sky, ended: tone.quiet };
 
@@ -31,6 +46,8 @@ export class Employees extends Ui {
   private readonly reporter = inject(Reporter);
   private readonly host = inject(ElementRef<HTMLElement>);
   private readonly router = inject(Router);
+  private readonly api = inject(Api);
+  protected readonly expiring = signal<ExpiringContract[] | null>(null);
   private readonly params = toSignal(inject(ActivatedRoute).queryParamMap);
 
   protected readonly file = computed(() => this.params()?.get('file') ?? '');
@@ -58,7 +75,10 @@ export class Employees extends Ui {
 
   protected readonly stats = computed(() => {
     const rows = this.rows();
+    const year = new Date().getFullYear().toString();
     return {
+      joined: rows.filter((item) => (item.currentServiceStart || item.hired).startsWith(year)).length,
+      noFinger: rows.filter((item) => item.status !== 'ended' && item.fingerprint !== 'enrolled').length,
       total: rows.length,
       active: rows.filter((item) => item.status === 'active').length,
       away: rows.filter((item) => item.status === 'away').length,
@@ -66,6 +86,24 @@ export class Employees extends Ui {
       fingers: rows.filter((item) => item.fingerprint === 'enrolled').length,
     };
   });
+
+  constructor() {
+    super();
+    void this.loadExpiring();
+  }
+
+  /** Contracts ending in the next 30 days, for the side list; empty when the server refuses. */
+  private async loadExpiring(): Promise<void> {
+    try {
+      this.expiring.set((await this.api.get<ApiItem<ExpiringContract[]>>('/contracts/expiring', { days: 30 })).data);
+    } catch {
+      this.expiring.set([]);
+    }
+  }
+
+  protected openFile(employeeId: number): void {
+    void this.router.navigate([], { queryParams: { file: String(employeeId) }, queryParamsHandling: 'merge' });
+  }
 
   protected readonly statusMix = computed<ChartSlice[]>(() =>
     (['active', 'away', 'ended'] as EmployeeStatus[])

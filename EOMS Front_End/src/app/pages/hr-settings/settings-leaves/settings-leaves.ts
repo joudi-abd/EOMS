@@ -152,6 +152,46 @@ export class SettingsLeaves extends Ui {
     return this.settings()?.policies.some((policy) => policy.leave_type_id === type.id && this.plainDay(policy.effective_from) <= today) ?? false;
   }
 
+  /** The policy in force today for a type: the latest one already effective. */
+  protected currentPolicyOf(type: LeaveType): LeavePolicy | null {
+    const today = this.settings()?.today ?? '';
+    return (
+      (this.settings()?.policies ?? [])
+        .filter((policy) => policy.leave_type_id === type.id && this.plainDay(policy.effective_from) <= today)
+        .sort((a, b) => this.plainDay(b.effective_from).localeCompare(this.plainDay(a.effective_from)))[0] ?? null
+    );
+  }
+
+  /** A published policy that starts after today, if any. */
+  protected futurePolicyOf(type: LeaveType): LeavePolicy | null {
+    const today = this.settings()?.today ?? '';
+    return (
+      (this.settings()?.policies ?? [])
+        .filter((policy) => policy.leave_type_id === type.id && this.plainDay(policy.effective_from) > today)
+        .sort((a, b) => this.plainDay(a.effective_from).localeCompare(this.plainDay(b.effective_from)))[0] ?? null
+    );
+  }
+
+  /** Opens the policies section on this type, ready to publish a new version. */
+  protected openPolicies(type: LeaveType): void {
+    this.pickType(type.id);
+    this.section.set('policies');
+  }
+
+  protected isPast(value: string): boolean {
+    return this.plainDay(value) < (this.settings()?.today ?? '');
+  }
+
+  protected dayOf(value: string): string {
+    return this.plainDay(value).slice(8, 10);
+  }
+
+  protected monthOf(value: string): string {
+    const day = this.plainDay(value);
+    const date = new Date(`${day}T00:00:00`);
+    return Number.isNaN(date.getTime()) ? '' : new Intl.DateTimeFormat(this.language.lang() === 'ar' ? 'ar-SY' : 'en-GB', { month: 'short' }).format(date);
+  }
+
   protected currentPolicyId(): number {
     const today = this.settings()?.today ?? '';
     return this.policies().find((policy) => this.plainDay(policy.effective_from) <= today)?.id ?? 0;

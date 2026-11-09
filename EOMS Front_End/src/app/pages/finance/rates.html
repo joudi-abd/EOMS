@@ -63,6 +63,26 @@
       </section>
     </div>
 
+    <section class="panel">
+      <div class="panel-head"><div><h2>{{ t('setHistory') }} · <bdi>{{ shownPair() }}</bdi></h2><p>{{ t('setHistoryHint') }}</p></div></div>
+      <div class="flush">
+        <table>
+          <thead><tr><th>{{ t('exchangeDate') }}</th><th class="end">{{ t('exchangeRate') }}</th><th class="end">{{ t('setChange') }}</th></tr></thead>
+          <tbody>
+            @for (row of history(); track row.rate_date) {
+              <tr>
+                <td class="num">{{ rateDay(row.rate_date) }}</td>
+                <td class="num end"><bdi>{{ rateText(row) }}</bdi></td>
+                <td class="num end" [class.up]="(row.change ?? 0) > 0" [class.down]="(row.change ?? 0) < 0"><bdi>{{ changeText(row.change) }}</bdi></td>
+              </tr>
+            } @empty {
+              <tr><td colspan="3" class="empty">{{ t('exchangeNone') }}</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </section>
+
     @if (session.has('finance.manage')) {
       <form class="sheet-form" (ngSubmit)="save()">
         <header><i class="fa-solid fa-right-left" aria-hidden="true"></i><h2>{{ t('setRecordRate') }}</h2></header>

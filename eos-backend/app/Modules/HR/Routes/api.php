@@ -36,6 +36,7 @@ Route::prefix('api/v1')->middleware(['api', 'auth:sanctum'])->group(function () 
         Route::get('employees/{employee}/job-history', [EmployeeJobHistoryController::class, 'index']);
         Route::get('employees/{employee}/contracts', [EmploymentContractController::class, 'index']);
         Route::get('employees/{employee}/contracts/{contract}', [EmploymentContractController::class, 'show']);
+        Route::get('contracts/expiring', [EmploymentContractController::class, 'expiring']);
     });
 
     Route::middleware('perm:employees.manage')->group(function () {

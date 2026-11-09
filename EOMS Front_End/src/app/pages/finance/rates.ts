@@ -47,6 +47,7 @@ export class Rates extends Ui {
   protected rateDate = new Date().toISOString().slice(0, 10);
   protected readonly latest = signal<ExchangeRateRow | null | undefined>(undefined);
   protected readonly shownPair = signal('USD → SYP');
+  protected readonly history = signal<(ExchangeRateRow & { change: number | null })[]>([]);
   protected readonly busy = signal(false);
   protected readonly error = signal('');
 
@@ -93,7 +94,7 @@ export class Rates extends Ui {
     this.busy.set(true);
     this.error.set('');
     try {
-      const result = await this.server.latestRate(this.from, this.to);
+      const [result] = await Promise.all([this.server.latestRate(this.from, this.to), this.loadHistory()]);
       this.latest.set(result.data);
     } catch (error) {
       this.error.set(this.failure(error));
@@ -111,9 +112,31 @@ export class Rates extends Ui {
     this.busy.set(false);
     if (saved) {
       this.latest.set(saved);
+      void this.loadHistory();
       this.shownPair.set(`${this.from} → ${this.to}`);
       this.rate = null;
     }
+  }
+
+  /** The last 30 recorded days for the pair, each with its change from the day before it. */
+  private async loadHistory(): Promise<void> {
+    try {
+      const rows = (await this.api.get<ApiItem<ExchangeRateRow[]>>('/settings/exchange-rates', { from: this.from, to: this.to, limit: 30 })).data;
+      this.history.set(
+        rows.map((row, index) => {
+          const older = rows[index + 1];
+          return { ...row, change: older ? Number(row.rate) - Number(older.rate) : null };
+        }),
+      );
+    } catch {
+      this.history.set([]);
+    }
+  }
+
+  protected changeText(change: number | null): string {
+    if (change === null || change === 0) return '—';
+    const text = new Intl.NumberFormat('en-US', { maximumFractionDigits: 6 }).format(Math.abs(change));
+    return `${change > 0 ? '+' : '−'}${text}`;
   }
 
   // System settings

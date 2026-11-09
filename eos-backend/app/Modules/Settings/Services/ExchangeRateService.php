@@ -43,6 +43,24 @@ class ExchangeRateService
     }
 
     /**
+     * The rates recorded for one pair, newest first. Read straight from the table (not cached) so a rate saved a
+     * moment ago shows at once.
+     *
+     * @return list<array{rate: string, rate_date: string}>
+     */
+    public function history(string $from, string $to, int $limit = 30): array
+    {
+        return ExchangeRate::query()
+            ->where('from_currency_id', Currency::where('code', $from)->value('id'))
+            ->where('to_currency_id', Currency::where('code', $to)->value('id'))
+            ->orderByDesc('rate_date')
+            ->limit($limit)
+            ->get()
+            ->map(fn (ExchangeRate $row) => ['rate' => (string) $row->rate, 'rate_date' => $row->rate_date->toDateString()])
+            ->all();
+    }
+
+    /**
      * The rate recorded for exactly this date, read directly or as the inverse of the opposite pair.
      * Returns null when no rate exists for that day: callers must not guess with an older rate.
      */

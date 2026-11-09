@@ -9,3 +9,93 @@
 .clear {
   align-self: end;
 }
+
+/* The list beside the department mix and contracts ending soon, as in the design. */
+.split {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+  margin-top: 16px;
+}
+
+@container work (max-width: 1000px) {
+  .split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.main-col,
+.side-col {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+
+.main-col .filters {
+  margin: 0;
+}
+
+.soon {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.soon li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.soon li:last-child {
+  border-bottom: 0;
+}
+
+.who {
+  flex: 1;
+  display: grid;
+}
+
+.who small {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.link {
+  border: 0;
+  padding: 0;
+  background: none;
+  font: inherit;
+  font-weight: 600;
+  color: var(--action-ink);
+  cursor: pointer;
+  text-align: start;
+}
+
+.link:hover {
+  text-decoration: underline;
+}
+
+.left {
+  font-size: 12px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.left.wait {
+  background: var(--wait-tint);
+}
+
+.left.late {
+  background: var(--late-tint);
+}
+
+.none {
+  color: var(--soft);
+  font-size: 14px;
+}
