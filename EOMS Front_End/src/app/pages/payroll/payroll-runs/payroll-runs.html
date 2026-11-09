@@ -1,0 +1,316 @@
+<div class="fin-toolbar">
+  <label class="fin-run-pick">
+    <span class="vh">{{ t('prRun') }}</span>
+    <select name="runPick" [ngModel]="run()?.id ?? 0" (ngModelChange)="open($event)">
+      @if (!runs().length) { <option [ngValue]="0">{{ loading() ? t('loading') : t('prNoRuns') }}</option> }
+      @for (item of runs(); track item.id) {
+        <option [ngValue]="item.id">{{ item.month }} · {{ runLabel(item.status) }}</option>
+      }
+    </select>
+  </label>
+  @if (mayManage) {
+    <button class="text" type="button" (click)="panel.set(panel() === 'new' ? 'none' : 'new')"><i class="fa-solid fa-plus" aria-hidden="true"></i> {{ t('prNewRun') }}</button>
+  }
+  @if (run(); as r) {
+    <span class="fin-toolbar-end">
+      @if (r.status === 'draft' && mayManage) {
+        <button class="text" type="button" [disabled]="busy()" (click)="recalculate()"><i class="fa-solid fa-rotate" aria-hidden="true"></i> {{ t('prRecalculate') }}</button>
+        <button class="primary" type="button" [disabled]="busy() || !r.calculated_at" (click)="submit()">{{ t('prSubmit') }}</button>
+      }
+      @if (r.status === 'submitted' && mayApprove) {
+        <button class="quiet" type="button" [disabled]="busy()" (click)="startReturn()">{{ t('prReturn') }}</button>
+        <button class="primary" type="button" [disabled]="busy() || r.not_ready > 0 || r.blocking_issues > 0" (click)="approve()">{{ t('prApprove') }}</button>
+      }
+      <button class="text" type="button" [disabled]="busy()" (click)="exportRun()"><i class="fa-solid fa-file-csv" aria-hidden="true"></i> CSV</button>
+    </span>
+  }
+</div>
+
+@if (panel() === 'new') {
+  <form class="fin-sheet narrow" (ngSubmit)="create()">
+    <header><h2>{{ t('prNewRun') }}</h2><button class="quiet-x" type="button" (click)="panel.set('none')" [attr.aria-label]="t('dismiss')"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button></header>
+    <p class="fin-hint">{{ t('prNewRunHint') }}</p>
+    <fieldset class="fin-form" [disabled]="busy()">
+      <label>{{ t('prMonth') }}<input name="newMonth" type="month" required [(ngModel)]="newMonth" /></label>
+      <div class="fin-actions wide">
+        <button class="text" type="button" (click)="panel.set('none')">{{ t('cancel') }}</button>
+        <button class="primary" type="submit">{{ t('prCreate') }}</button>
+      </div>
+    </fieldset>
+  </form>
+}
+
+@if (run(); as r) {
+  <section class="panel">
+    <ol class="pr-steps" [attr.aria-label]="t('prStages')">
+      <li [class.done]="stepDone('draft')" [class.cur]="r.status === 'draft'"><i>@if (stepDone('draft')) { <span class="fa-solid fa-check" aria-hidden="true"></span> } @else { 1 }</i>{{ t('prStepDraft') }}</li>
+      <li class="bar" [class.done]="stepDone('draft')" aria-hidden="true"></li>
+      <li [class.done]="stepDone('submitted')" [class.cur]="r.status === 'submitted'"><i>@if (stepDone('submitted')) { <span class="fa-solid fa-check" aria-hidden="true"></span> } @else { 2 }</i>{{ t('prStepSubmitted') }}</li>
+      <li class="bar" [class.done]="stepDone('submitted')" aria-hidden="true"></li>
+      <li [class.done]="r.status === 'approved'" [class.cur]="false"><i>@if (r.status === 'approved') { <span class="fa-solid fa-check" aria-hidden="true"></span> } @else { 3 }</i>{{ t('prStepApproved') }}</li>
+      <li class="bar" [class.done]="r.status === 'approved' && r.paid > 0" aria-hidden="true"></li>
+      <li [class.done]="r.payable > 0 && r.paid >= r.payable" [class.cur]="r.status === 'approved' && r.paid < r.payable"><i>4</i>{{ t('prStepPaid') }} <bdi class="soft">{{ num(r.paid) }}/{{ num(r.payable) }}</bdi></li>
+    </ol>
+    <p class="fin-hint" style="margin-top: 10px">
+      {{ t('prMonth') }} <bdi class="strong">{{ r.month }}</bdi>
+      · <span [class]="runTone(r.status)">{{ runLabel(r.status) }}</span>
+      @if (r.calculated_at) { · {{ t('prCalculatedAt') }} {{ date(r.calculated_at.slice(0, 10)) }} }
+      · {{ t('prVersion') }} {{ num(r.version) }}
+    </p>
+  </section>
+
+  @if (r.return_note && r.status === 'draft') {
+    <p class="fin-warn"><i class="fa-solid fa-rotate-left" aria-hidden="true"></i> {{ t('prReturnedNote') }} {{ r.return_note }}</p>
+  }
+  @if (r.not_ready > 0 || r.blocking_issues > 0) {
+    <p class="fin-warn">
+      <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
+      <span>{{ t('prBlockedLines') }} <bdi class="strong">{{ num(r.not_ready) }}</bdi> · {{ t('prBlockingIssues') }} <bdi class="strong">{{ num(r.blocking_issues) }}</bdi></span>
+      <a class="text small" routerLink="/modules/attendance" style="margin-inline-start: auto">{{ t('prOpenAttendance') }}</a>
+    </p>
+  }
+
+  <section class="summary" [attr.aria-label]="t('prSummary')">
+    <p><span>{{ t('prEmployees') }}</span><strong>{{ num(r.employees) }}</strong><small>{{ t('prPayable') }} {{ num(r.payable) }}</small></p>
+    @for (total of totalsList(r); track total.currency) {
+      <p><span>{{ t('prNet') }} <bdi>{{ total.currency }}</bdi></span><strong><bdi>{{ money(total.net) }}</bdi></strong>
+        <small>{{ t('prEarnings') }} <bdi>{{ money(total.earnings) }}</bdi> · {{ t('prDeductions') }} <bdi>{{ money(total.deductions) }}</bdi></small></p>
+    }
+    <p><span>{{ t('prPaidLines') }}</span><strong [class.ok]="r.payable > 0 && r.paid >= r.payable">{{ num(r.paid) }}</strong><small>{{ t('prOf') }} {{ num(r.payable) }}</small></p>
+  </section>
+
+  @if (panel() === 'return') {
+    <form class="fin-sheet narrow" (ngSubmit)="returnRun()">
+      <header><h2>{{ t('prReturn') }} · <bdi>{{ r.month }}</bdi></h2><button class="quiet-x" type="button" (click)="panel.set('none')" [attr.aria-label]="t('dismiss')"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button></header>
+      <label class="fin-field">{{ t('prReturnNote') }}<textarea name="returnNote" rows="3" minlength="3" maxlength="1000" required [(ngModel)]="returnNote"></textarea></label>
+      <div class="fin-actions">
+        <button class="text" type="button" (click)="panel.set('none')">{{ t('cancel') }}</button>
+        <button class="primary" type="submit" [disabled]="busy()">{{ t('prReturn') }}</button>
+      </div>
+    </form>
+  }
+
+  <div class="fin-grid">
+    <div class="fin-stack">
+      <div class="seg" role="radiogroup" [attr.aria-label]="t('prFilter')">
+        <button type="button" role="radio" [attr.aria-checked]="filter() === 'all'" [class.on]="filter() === 'all'" (click)="filter.set('all')">{{ t('finAll') }}</button>
+        <button type="button" role="radio" [attr.aria-checked]="filter() === 'blocked'" [class.on]="filter() === 'blocked'" (click)="filter.set('blocked')">{{ t('prFilterBlocked') }}</button>
+        <button type="button" role="radio" [attr.aria-checked]="filter() === 'unpaid'" [class.on]="filter() === 'unpaid'" (click)="filter.set('unpaid')">{{ t('prFilterUnpaid') }}</button>
+        <button type="button" role="radio" [attr.aria-checked]="filter() === 'paid'" [class.on]="filter() === 'paid'" (click)="filter.set('paid')">{{ t('prFilterPaid') }}</button>
+      </div>
+      <div class="sheet">
+        <table>
+          <thead>
+            <tr>
+              <th>{{ t('prEmployee') }}</th>
+              <th>{{ t('prContract') }}</th>
+              <th class="end">{{ t('prDays') }}</th>
+              <th class="end">{{ t('prEarnings') }}</th>
+              <th class="end">{{ t('prDeductions') }}</th>
+              <th class="end">{{ t('prNet') }}</th>
+              <th>{{ t('finStatus') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of lines(); track row.id) {
+              <tr [class.picked]="line()?.id === row.id" [class.attention]="blocked(row)">
+                <td>
+                  <button class="link-button" type="button" (click)="openLine(row)">{{ row.employee_name }}</button>
+                  <small class="soft block-line"><bdi>{{ row.employee_no }}</bdi></small>
+                </td>
+                <td class="sm">{{ payTypeLabel(row.pay_type) }} · <bdi>{{ row.currency_code ?? '—' }}</bdi></td>
+                <td class="num end">{{ num(row.working_days) }}</td>
+                <td class="num end">{{ money(row.earnings) }}</td>
+                <td class="num end" [class.late]="positive(row.deductions)">{{ positive(row.deductions) ? '−' + money(row.deductions) : money(0) }}</td>
+                <td class="num end strong">{{ money(row.net) }}</td>
+                <td>
+                  @if (!row.attendance_ready) {
+                    <span class="late">{{ t('prNotReady') }} · {{ num(row.blocked_days) }} {{ t('finDays') }}</span>
+                  } @else if (blocked(row)) {
+                    <span class="late">{{ t('prHasIssue') }}</span>
+                  } @else if (row.paid) {
+                    <span class="ok">{{ t('prLinePaid') }}</span>
+                  } @else if (r.status === 'approved' && positive(row.net)) {
+                    <span class="wait">{{ t('prAwaitingPayment') }}</span>
+                  } @else {
+                    <span class="ok">{{ t('prReady') }}</span>
+                  }
+                </td>
+              </tr>
+            } @empty {
+              <tr><td colspan="7" class="empty">{{ t('prNoLines') }}</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <aside class="fin-stack">
+      @if (panel() === 'line' && line(); as l) {
+        <section class="fin-sheet">
+          <header>
+            <h2>{{ l.employee_name }} <small class="soft"><bdi>{{ l.employee_no }}</bdi></small></h2>
+            <button class="quiet-x" type="button" (click)="closeLine()" [attr.aria-label]="t('dismiss')"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+          </header>
+          <p class="fin-hint">{{ payTypeLabel(l.pay_type) }} · {{ t('prRate') }} <bdi>{{ withCurrency(l.rate, l.currency_code) }}</bdi> · {{ num(l.working_days) }} {{ t('prWorkingDays') }}</p>
+
+          @for (issue of l.issues; track issue.code) {
+            <p [class]="issue.blocking ? 'fin-warn' : 'fin-ok'"><i class="fa-solid fa-circle-info" aria-hidden="true"></i> {{ issue.message }}</p>
+          }
+
+          <ul class="fin-list">
+            @for (item of l.items; track item.id) {
+              <li class="pr-item">
+                <span>
+                  <span class="strong">{{ itemKind(item.kind) }}</span>
+                  <small class="soft block-line">
+                    {{ itemStatus(item.status) }}
+                    @if (item.quantity && item.unit) { · <bdi>{{ qty(item.quantity) }} {{ item.unit }}</bdi> }
+                    @if (item.status === 'modified' || item.status === 'waived') { · {{ t('prProposedWas') }} <bdi>{{ money(item.proposed_amount) }}</bdi> }
+                  </small>
+                  @if (item.reason) { <small class="soft block-line">{{ item.reason }}</small> }
+                </span>
+                <span class="num end" [class.late]="item.category === 'deduction'" [class.ok]="item.category === 'earning'">
+                  <bdi>{{ item.category === 'deduction' ? '−' : '+' }}{{ money(item.status === 'proposed' ? item.proposed_amount : item.amount) }}</bdi>
+                </span>
+                @if (canRemove(item)) {
+                  <button class="text small remove" type="button" [disabled]="busy()" (click)="removeItem(item)" [attr.aria-label]="t('prRemoveItem')"><i class="fa-solid fa-trash" aria-hidden="true"></i></button>
+                }
+                @if (canReview(item)) {
+                  <button class="text small" type="button" (click)="startReview(item)">{{ t('prReview') }}</button>
+                }
+                @if (canDecideAdjustment(item)) {
+                  <span class="pr-adjust">
+                    <button class="text small" type="button" [disabled]="busy()" (click)="decideAdjustment(item, 'reject')">{{ t('reject') }}</button>
+                    <button class="text small" type="button" [disabled]="busy()" (click)="decideAdjustment(item, 'accept')">{{ t('prAccept') }}</button>
+                  </span>
+                }
+              </li>
+            } @empty {
+              <li class="soft">{{ t('prNoItems') }}</li>
+            }
+          </ul>
+
+          @if (hasPendingAdjustment(l)) {
+            <label class="fin-field">{{ t('prAdjustReason') }}<input name="adjustReason" maxlength="1000" [(ngModel)]="adjustReason" /></label>
+          }
+
+          @if (reviewing; as item) {
+            <form class="pr-box" (ngSubmit)="saveReview()">
+              <h3 class="strong">{{ t('prReview') }} · {{ itemKind(item.kind) }} <bdi class="soft">{{ money(item.proposed_amount) }}</bdi></h3>
+              <div class="seg" role="radiogroup" [attr.aria-label]="t('prReview')">
+                <button type="button" role="radio" [attr.aria-checked]="reviewDecision === 'approve'" [class.on]="reviewDecision === 'approve'" (click)="reviewDecision = 'approve'">{{ t('approve') }}</button>
+                <button type="button" role="radio" [attr.aria-checked]="reviewDecision === 'modify'" [class.on]="reviewDecision === 'modify'" (click)="reviewDecision = 'modify'">{{ t('prModify') }}</button>
+                <button type="button" role="radio" [attr.aria-checked]="reviewDecision === 'waive'" [class.on]="reviewDecision === 'waive'" (click)="reviewDecision = 'waive'">{{ t('prWaive') }}</button>
+              </div>
+              <fieldset class="fin-form" [disabled]="busy()">
+                @if (reviewDecision === 'modify') {
+                  <label>{{ t('finAmount') }}<input name="reviewAmount" type="number" min="0" step="0.01" [max]="proposedOf(item)" [(ngModel)]="reviewAmount" /></label>
+                }
+                @if (reviewDecision !== 'approve') {
+                  <label class="wide">{{ t('finReason') }}<input name="reviewReason" minlength="3" maxlength="1000" required [(ngModel)]="reviewReason" /></label>
+                }
+                <div class="fin-actions wide">
+                  <button class="text" type="button" (click)="reviewing = null">{{ t('cancel') }}</button>
+                  <button class="primary" type="submit">{{ t('save') }}</button>
+                </div>
+              </fieldset>
+            </form>
+          }
+
+          <div class="fin-totals">
+            <div><span>{{ t('prEarnings') }}</span><bdi class="num">{{ money(l.earnings) }}</bdi></div>
+            <div><span>{{ t('prDeductions') }}</span><bdi class="num">{{ money(l.deductions) }}</bdi></div>
+            <div class="grand"><span>{{ t('prNet') }}</span><bdi class="num">{{ withCurrency(l.net, l.currency_code) }}</bdi></div>
+          </div>
+
+          @if (r.status === 'draft' && mayManage) {
+            <form class="pr-box" (ngSubmit)="addItem()">
+              <h3 class="strong">{{ t('prManualItem') }}</h3>
+              <fieldset class="fin-form" [disabled]="busy()">
+                <label>{{ t('finType') }}
+                  <select name="itemCategory" [(ngModel)]="itemCategory">
+                    <option value="earning">{{ t('prKindBonus') }}</option>
+                    <option value="deduction">{{ t('prKindManualDeduction') }}</option>
+                  </select>
+                </label>
+                <label>{{ t('finAmount') }} <bdi class="soft">{{ l.currency_code }}</bdi><input name="itemAmount" type="number" min="0.01" step="0.01" required [(ngModel)]="itemAmount" /></label>
+                <label class="wide">{{ t('finReason') }}<input name="itemReason" minlength="3" maxlength="1000" required [(ngModel)]="itemReason" /></label>
+                <div class="fin-actions wide"><button class="primary" type="submit">{{ t('prAddItem') }}</button></div>
+              </fieldset>
+            </form>
+          }
+
+          @if (l.payment; as pay) {
+            <div class="pr-box">
+              <h3 class="strong">{{ t('prPayment') }}</h3>
+              <dl class="fin-kv">
+                <dt>{{ t('finDate') }}</dt><dd>{{ date(pay.paid_at) }}</dd>
+                <dt>{{ t('prMethod') }}</dt><dd>{{ pay.method === 'sham_cash' ? t('finBoxShamCash') : t('finBoxCash') }}@if (pay.wallet) { · <bdi>{{ pay.wallet }}</bdi> }</dd>
+                <dt>{{ t('prPaidAmount') }}</dt><dd><bdi class="strong">{{ withCurrency(pay.paid_amount, pay.paid_currency) }}</bdi></dd>
+                @if (pay.paid_currency !== pay.contract_currency) {
+                  <dt>{{ t('prExchangeRate') }}</dt><dd><bdi>{{ qty(pay.exchange_rate) }}</bdi> · {{ date(pay.rate_date) }}</dd>
+                }
+                @if (positive(pay.rounding_difference) || negative(pay.rounding_difference)) { <dt>{{ t('prRounding') }}</dt><dd><bdi>{{ money(pay.rounding_difference) }}</bdi></dd> }
+                @if (pay.reference) { <dt>{{ t('prReference') }}</dt><dd><bdi>{{ pay.reference }}</bdi></dd> }
+              </dl>
+              @if (mayManage) {
+                <form (ngSubmit)="voidPayment()">
+                  <fieldset class="fin-form" [disabled]="busy()">
+                    <label>{{ t('finDate') }}<input name="voidDate" type="date" required [(ngModel)]="voidDate" /></label>
+                    <label class="wide">{{ t('prVoidReason') }}<input name="voidReason" minlength="3" maxlength="500" required [(ngModel)]="voidReason" /></label>
+                    <div class="fin-actions wide"><button class="quiet" type="submit">{{ t('prVoid') }}</button></div>
+                  </fieldset>
+                </form>
+              }
+            </div>
+          } @else if (canPay(l)) {
+            <form class="pr-box" (ngSubmit)="pay()">
+              <h3 class="strong">{{ t('prRecordPayment') }}</h3>
+              <p class="fin-hint">{{ t('prPaymentHint') }}</p>
+              <div class="seg" role="radiogroup" [attr.aria-label]="t('prMethod')">
+                <button type="button" role="radio" [attr.aria-checked]="payMethod === 'cash'" [class.on]="payMethod === 'cash'" (click)="payMethod = 'cash'; payBox = 0">{{ t('finBoxCash') }}</button>
+                <button type="button" role="radio" [attr.aria-checked]="payMethod === 'sham_cash'" [class.on]="payMethod === 'sham_cash'" (click)="payMethod = 'sham_cash'; payBox = 0">{{ t('finBoxShamCash') }}</button>
+              </div>
+              @if (payMethod === 'sham_cash') {
+                <p class="fin-hint">{{ t('prWallet') }} <bdi class="strong">{{ l.sham_cash_wallet || t('prNoWallet') }}</bdi></p>
+              }
+              <fieldset class="fin-form" [disabled]="busy()">
+                <label>{{ t('prPaidCurrency') }}
+                  <select name="payCurrency" [(ngModel)]="payCurrency" (ngModelChange)="payBox = 0">
+                    <option value="SYP">SYP</option>
+                    <option value="USD">USD</option>
+                  </select>
+                </label>
+                <label>{{ t('finBox') }}
+                  <select name="payBox" required [(ngModel)]="payBox">
+                    <option [ngValue]="0">—</option>
+                    @for (box of boxesFor(); track box.id) { <option [ngValue]="box.id">{{ box.name }}</option> }
+                  </select>
+                </label>
+                <label>{{ t('finDate') }}<input name="payDate" type="date" required [(ngModel)]="payDate" /></label>
+                <label>{{ t('prReference') }}<input name="payReference" maxlength="100" dir="ltr" [required]="payMethod === 'sham_cash'" [(ngModel)]="payReference" /></label>
+                <label class="wide">{{ t('finNotes') }}<input name="payNote" maxlength="500" [(ngModel)]="payNote" /></label>
+                @if (!boxesFor().length) { <p class="fin-hint wide">{{ t('prNoBox') }}</p> }
+                @if (payCurrency !== l.currency_code) { <p class="fin-hint wide">{{ t('prConverted') }}</p> }
+                <div class="fin-actions wide"><button class="primary" type="submit">{{ t('prRecordPayment') }} · <bdi>{{ withCurrency(l.net, l.currency_code) }}</bdi></button></div>
+              </fieldset>
+            </form>
+          }
+        </section>
+      } @else {
+        <section class="panel">
+          <div class="panel-head"><div><h2>{{ t('prHowTitle') }}</h2><p>{{ t('prHowLede') }}</p></div></div>
+          <ol class="pr-how">
+            <li>{{ t('prHow1') }}</li>
+            <li>{{ t('prHow2') }}</li>
+            <li>{{ t('prHow3') }}</li>
+            <li>{{ t('prHow4') }}</li>
+          </ol>
+        </section>
+      }
+    </aside>
+  </div>
+} @else if (!loading()) {
+  <p class="empty">{{ mayManage ? t('prEmptyManage') : t('prNoRuns') }}</p>
+}
