@@ -60,4 +60,21 @@ class ExchangeRateController extends Controller
 
         return ApiResponse::ok($this->rates->latestRate($data['from'], $data['to']));
     }
+
+    /**
+     * Exchange rate history for one pair.
+     *
+     * Returns the rates recorded for a currency pair, newest first, as `{rate, rate_date}` rows.
+     * `limit` caps how many days come back (default 30, at most 365).
+     */
+    public function history(Request $request)
+    {
+        $data = $request->validate([
+            'from' => ['required', 'exists:sys_currencies,code', 'different:to'],
+            'to' => ['required', 'exists:sys_currencies,code'],
+            'limit' => ['sometimes', 'integer', 'min:1', 'max:365'],
+        ]);
+
+        return ApiResponse::ok($this->rates->history($data['from'], $data['to'], (int) ($data['limit'] ?? 30)));
+    }
 }

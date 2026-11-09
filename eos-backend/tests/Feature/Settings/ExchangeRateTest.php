@@ -123,4 +123,28 @@ class ExchangeRateTest extends TestCase
             'rate_date' => '2026-10-22',
         ])->assertForbidden();
     }
+
+    public function test_history_lists_a_pair_newest_first_and_respects_the_limit(): void
+    {
+        $this->login();
+        foreach (['2026-11-05' => 13150, '2026-11-07' => 13200, '2026-11-06' => 13180] as $date => $rate) {
+            $this->postJson('/api/v1/settings/exchange-rates', ['from' => 'USD', 'to' => 'SYP', 'rate' => $rate, 'rate_date' => $date])->assertCreated();
+        }
+        // The opposite pair is a different series and must not leak in.
+        $this->postJson('/api/v1/settings/exchange-rates', ['from' => 'SYP', 'to' => 'USD', 'rate' => 0.000075, 'rate_date' => '2026-11-07'])->assertCreated();
+
+        $rows = $this->getJson('/api/v1/settings/exchange-rates?from=USD&to=SYP')->assertOk()->json('data');
+        $this->assertSame(['2026-11-07', '2026-11-06', '2026-11-05'], array_column($rows, 'rate_date'));
+        $this->assertEquals(13200, (float) $rows[0]['rate']);
+
+        $this->assertCount(2, $this->getJson('/api/v1/settings/exchange-rates?from=USD&to=SYP&limit=2')->assertOk()->json('data'));
+    }
+
+    public function test_history_rejects_a_pair_of_the_same_currency_and_needs_sign_in(): void
+    {
+        $this->getJson('/api/v1/settings/exchange-rates?from=USD&to=SYP')->assertUnauthorized();
+        $this->login('employee');
+        $this->getJson('/api/v1/settings/exchange-rates?from=USD&to=USD')->assertUnprocessable();
+        $this->getJson('/api/v1/settings/exchange-rates?from=USD&to=SYP&limit=1000')->assertUnprocessable();
+    }
 }

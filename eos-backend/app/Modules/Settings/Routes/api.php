@@ -16,6 +16,10 @@ Route::prefix('api/v1/settings')
             ExchangeRateController::class, 'latest',
         ]);
 
+        Route::get('exchange-rates', [
+            ExchangeRateController::class, 'history',
+        ]);
+
         Route::post('exchange-rates', [
             ExchangeRateController::class, 'store',
         ])->middleware('perm:finance.manage');

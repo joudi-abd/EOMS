@@ -178,3 +178,15 @@ label {
   clip-path: inset(50%);
   white-space: nowrap;
 }
+
+.end {
+  text-align: end;
+}
+
+.up {
+  color: var(--late);
+}
+
+.down {
+  color: var(--ontime);
+}
