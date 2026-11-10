@@ -17,6 +17,7 @@ Route::prefix('api/v1/finance')->middleware(['api', 'auth:sanctum'])->controller
         Route::get('items/{item}/moves', 'stockMoves')->whereNumber('item');
         Route::get('invoices', 'invoicesIndex');
         Route::get('invoices/{invoice}', 'showInvoice')->whereNumber('invoice');
+        Route::get('invoices/{invoice}/attachments/{attachment}', 'downloadAttachment')->whereNumber(['invoice', 'attachment']);
         Route::get('reports/{report}', 'report')->whereIn('report', ['box', 'ledger', 'party', 'trial-balance', 'income-statement', 'balance-sheet']);
     });
     // Record: finance (finance.manage).
@@ -39,6 +40,8 @@ Route::prefix('api/v1/finance')->middleware(['api', 'auth:sanctum'])->controller
         Route::put('invoices/{invoice}', 'saveInvoice')->whereNumber('invoice');
         Route::post('invoices/{invoice}/submit', 'submitInvoice')->whereNumber('invoice');
         Route::post('invoices/{invoice}/cancel', 'cancelInvoice')->whereNumber('invoice');
+        Route::post('invoices/{invoice}/attachments', 'storeAttachment')->whereNumber('invoice');
+        Route::delete('invoices/{invoice}/attachments/{attachment}', 'destroyAttachment')->whereNumber(['invoice', 'attachment']);
     });
     // Approve: company manager (finance.approve).
     Route::middleware('perm:finance.approve')->group(function () {

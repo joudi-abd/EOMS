@@ -6,6 +6,7 @@ use App\Modules\Finance\Models\Account;
 use App\Modules\Finance\Models\ApprovalLimit;
 use App\Modules\Finance\Models\Box;
 use App\Modules\Finance\Models\Invoice;
+use App\Modules\Finance\Models\InvoiceAttachment;
 use App\Modules\Finance\Models\Item;
 use App\Modules\Finance\Models\JournalEntry;
 use App\Modules\Finance\Models\Party;
@@ -16,15 +17,19 @@ use App\Modules\Finance\Services\CashService;
 use App\Modules\Finance\Services\InvoiceService;
 use App\Modules\Finance\Services\LedgerService;
 use App\Modules\Finance\Services\ReportService;
+use App\Modules\Identity\Services\AuditLogger;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class FinanceController extends Controller
 {
-    public function __construct(private LedgerService $ledger, private CashService $cash, private InvoiceService $invoices, private ReportService $reports) {}
+    public function __construct(private LedgerService $ledger, private CashService $cash, private InvoiceService $invoices, private ReportService $reports,
+        private AuditLogger $audit) {}
 
     // ── Chart of accounts and journal ─────────────────────────────────────────
 
@@ -77,13 +82,16 @@ class FinanceController extends Controller
     {
         $data = $request->validate([
             'date' => ['required', 'date_format:Y-m-d'], 'currency_code' => ['required', 'string', 'exists:sys_currencies,code'],
-            'description' => ['required', 'string', 'max:500'], 'lines' => ['required', 'array', 'min:2', 'max:100'],
+            'description' => ['required', 'string', 'max:500'], 'lines' => ['required', 'array', 'min:1', 'max:100'],
             'lines.*.account_id' => ['required', 'integer'], 'lines.*.debit' => ['nullable', 'numeric', 'min:0'],
             'lines.*.credit' => ['nullable', 'numeric', 'min:0'], 'lines.*.party_id' => ['nullable', 'integer', 'exists:fin_parties,id'],
             'lines.*.memo' => ['nullable', 'string', 'max:500'],
         ]);
 
-        return ApiResponse::created($this->ledger->post($data['currency_code'], $data['date'], $data['description'], $data['lines'], $request->user(), 'manual'));
+        // Lines in the order entered (validated() may rebuild the array out of order when optional fields are missing).
+        $lines = collect($data['lines'])->sortKeys()->values()->all();
+
+        return ApiResponse::created($this->ledger->post($data['currency_code'], $data['date'], $data['description'], $lines, $request->user(), 'manual'));
     }
 
     /** Only manual entries are reversed here; generated entries are reversed through their operation or invoice. */
@@ -147,9 +155,13 @@ class FinanceController extends Controller
             'name' => ['required', 'string', 'max:100'], 'kind' => ['required', Rule::in(['cash', 'sham_cash'])],
             'currency_code' => ['required', 'string', 'exists:sys_currencies,code'],
             'parent_account_id' => ['nullable', 'integer', 'exists:fin_accounts,id'],
+            'opening_amount' => ['nullable', 'numeric', 'min:0', 'max:9999999999999'],
+            'opening_date' => ['nullable', 'date_format:Y-m-d', 'before_or_equal:today'],
+            'opening_account_id' => ['nullable', 'integer', 'exists:fin_accounts,id'],
         ]);
+        $box = $this->cash->createBox($data, $request->user());
 
-        return ApiResponse::created($this->cash->createBox($data, $request->user()));
+        return ApiResponse::created([...$box->toArray(), 'balance' => $this->cash->balance($box)]);
     }
 
     public function updateBox(Request $request, Box $box): JsonResponse
@@ -230,7 +242,9 @@ class FinanceController extends Controller
     public function storeParty(Request $request): JsonResponse
     {
         $data = $request->validate(['kind' => ['required', Rule::in(['customer', 'supplier'])], 'name' => ['required', 'string', 'max:150'],
-            'phone' => ['nullable', 'string', 'max:30'], 'notes' => ['nullable', 'string', 'max:1000']]);
+            'phone' => ['nullable', 'string', 'max:30'], 'notes' => ['nullable', 'string', 'max:1000'],
+            // Sham Cash accounts are 16 digits.
+            'sham_cash_wallet' => ['nullable', 'digits:16'], 'sham_cash_name' => ['nullable', 'string', 'max:150']]);
 
         return ApiResponse::created(Party::create($data));
     }
@@ -238,6 +252,7 @@ class FinanceController extends Controller
     public function updateParty(Request $request, Party $party): JsonResponse
     {
         $party->update($request->validate(['name' => ['sometimes', 'string', 'max:150'], 'phone' => ['sometimes', 'nullable', 'string', 'max:30'],
+            'sham_cash_wallet' => ['sometimes', 'nullable', 'digits:16'], 'sham_cash_name' => ['sometimes', 'nullable', 'string', 'max:150'],
             'notes' => ['sometimes', 'nullable', 'string', 'max:1000'], 'active' => ['sometimes', 'boolean']]));
 
         return ApiResponse::ok($party->refresh());
@@ -304,7 +319,45 @@ class FinanceController extends Controller
     public function showInvoice(Invoice $invoice): JsonResponse
     {
         return ApiResponse::ok([...$this->invoiceRow($invoice), 'lines' => $invoice->lines()->orderBy('id')->get(),
-            'payments' => Transaction::query()->where('invoice_id', $invoice->id)->orderBy('date')->get()]);
+            'payments' => Transaction::query()->where('invoice_id', $invoice->id)->orderBy('date')->get(),
+            'attachments' => InvoiceAttachment::query()->where('invoice_id', $invoice->id)->orderBy('id')->get()]);
+    }
+
+    /** Scan or photo of the paper invoice (images or PDF). Kept on the private disk; downloaded through the API only. */
+    public function storeAttachment(Request $request, Invoice $invoice): JsonResponse
+    {
+        $request->validate(['file' => ['required', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:10240']]);
+        abort_if($invoice->status === 'cancelled', 409, 'الفاتورة ملغاة.');
+        abort_if(InvoiceAttachment::query()->where('invoice_id', $invoice->id)->count() >= 10, 422, 'الحد الأقصى 10 مرفقات للفاتورة.');
+        $file = $request->file('file');
+        $path = $file->store('finance/invoices/'.$invoice->id, 'local');
+        $attachment = InvoiceAttachment::create(['invoice_id' => $invoice->id, 'path' => $path,
+            'original_name' => mb_substr($file->getClientOriginalName(), 0, 200), 'mime' => $file->getMimeType(),
+            'size' => $file->getSize(), 'uploaded_by' => $request->user()->id]);
+        $this->audit->log('finance.invoice_attachment_added', $invoice, null, ['attachment_id' => $attachment->id], $request->user()->id);
+
+        return ApiResponse::created($attachment);
+    }
+
+    public function downloadAttachment(Invoice $invoice, InvoiceAttachment $attachment): StreamedResponse
+    {
+        abort_unless($attachment->invoice_id === $invoice->id, 404);
+        abort_unless(Storage::disk('local')->exists($attachment->path), 404, 'الملف غير موجود.');
+
+        return Storage::disk('local')->response($attachment->path, $attachment->original_name, ['Content-Type' => $attachment->mime],
+            str_starts_with((string) $attachment->mime, 'image/') || $attachment->mime === 'application/pdf' ? 'inline' : 'attachment');
+    }
+
+    /** A posted invoice keeps its documents; attachments are removed only while it is still being prepared. */
+    public function destroyAttachment(Request $request, Invoice $invoice, InvoiceAttachment $attachment): JsonResponse
+    {
+        abort_unless($attachment->invoice_id === $invoice->id, 404);
+        abort_unless($invoice->status === 'draft', 409, 'تُحذف المرفقات من المسودة فقط.');
+        Storage::disk('local')->delete($attachment->path);
+        $attachment->delete();
+        $this->audit->log('finance.invoice_attachment_removed', $invoice, null, ['attachment_id' => $attachment->id], $request->user()->id);
+
+        return ApiResponse::ok(null);
     }
 
     public function saveInvoice(Request $request, ?Invoice $invoice = null): JsonResponse
@@ -317,6 +370,7 @@ class FinanceController extends Controller
             'lines' => ['required', 'array', 'min:1', 'max:200'], 'lines.*.item_id' => ['nullable', 'integer'],
             'lines.*.account_id' => ['nullable', 'integer'], 'lines.*.description' => ['required_without:lines.*.item_id', 'nullable', 'string', 'max:300'],
             'lines.*.quantity' => ['required', 'numeric', 'gt:0'], 'lines.*.unit_price' => ['required', 'numeric', 'min:0'],
+            'lines.*.unit' => ['nullable', 'string', 'max:20'],
         ]);
         $saved = $this->invoices->save($data, $request->user(), $invoice);
 

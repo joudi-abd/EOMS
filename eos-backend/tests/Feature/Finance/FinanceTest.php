@@ -7,6 +7,7 @@ use App\Modules\Finance\Models\Box;
 use App\Modules\Finance\Models\Invoice;
 use App\Modules\Finance\Models\Item;
 use App\Modules\Finance\Models\JournalEntry;
+use App\Modules\Finance\Models\JournalLine;
 use App\Modules\Finance\Models\Transaction;
 use App\Modules\Finance\Services\CashService;
 use App\Modules\Identity\Database\Seeders\RolePermissionSeeder;
@@ -14,6 +15,9 @@ use App\Modules\Identity\Models\User;
 use App\Modules\Settings\Database\Seeders\CurrencySeeder;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -83,7 +87,6 @@ class FinanceTest extends TestCase
 
         $lines = fn ($debitAccount, $d, $c) => ['date' => '2026-11-02', 'currency_code' => 'USD', 'description' => 'Test',
             'lines' => [['account_id' => $debitAccount, 'debit' => $d], ['account_id' => $this->capital->id, 'credit' => $c]]];
-        $this->api('entries', $lines($advances['id'], 100, 90), 422); // unbalanced
         $this->api('entries', $lines($assets['id'], 100, 100), 422); // group account takes no postings
         $entry = $this->api('entries', $lines($advances['id'], 100, 100));
         $this->assertSame('JE-2026-000001', $entry['number']);
@@ -347,5 +350,87 @@ class FinanceTest extends TestCase
         $this->assertContains('finance.invoice_pending', $kinds);
         $this->assertContains('finance.period_close_requested', $kinds);
         $this->assertContains('finance.invoice_approved', $this->finance->notifications()->get()->pluck('data.kind')->all());
+    }
+
+    public function test_a_new_box_can_start_with_an_opening_amount(): void
+    {
+        $box = $this->api('boxes', ['name' => 'Safe', 'kind' => 'cash', 'currency_code' => 'SYP', 'opening_amount' => 2_500_000, 'opening_date' => '2026-11-01']);
+        $this->assertEquals(2_500_000, $box['balance']);
+        $opening = Account::where('system_key', 'opening_balances')->firstOrFail();
+        $entry = JournalEntry::where('source_type', 'transaction')->with('lines')->latest('id')->firstOrFail();
+        $this->assertSame('2500000.00', $entry->lines->firstWhere('account_id', $opening->id)->credit);
+        // Funded from a chosen equity account (capital) instead.
+        $usd = $this->api('boxes', ['name' => 'USD safe', 'kind' => 'cash', 'currency_code' => 'USD', 'opening_amount' => 300, 'opening_account_id' => $this->capital->id]);
+        $this->assertEquals(300, $usd['balance']);
+        // The counter account must be equity; nothing is created when it fails.
+        $this->api('boxes', ['name' => 'Bad', 'kind' => 'cash', 'currency_code' => 'USD', 'opening_amount' => 10, 'opening_account_id' => $this->rent->id], 422);
+        $this->assertFalse(Box::where('name', 'Bad')->exists());
+        // Without an amount the box starts empty, as before.
+        $this->assertEquals(0, $this->api('boxes', ['name' => 'Empty', 'kind' => 'sham_cash', 'currency_code' => 'USD'])['balance']);
+    }
+
+    public function test_parties_carry_a_sham_cash_wallet(): void
+    {
+        $supplier = $this->api('parties', ['kind' => 'supplier', 'name' => 'Steel Co.', 'sham_cash_wallet' => '1234567890123456', 'sham_cash_name' => 'Steel Co. LLC']);
+        $this->assertSame(['1234567890123456', 'Steel Co. LLC'], [$supplier['sham_cash_wallet'], $supplier['sham_cash_name']]);
+        $this->api('parties', ['kind' => 'supplier', 'name' => 'Bad', 'sham_cash_wallet' => '12345'], 422);
+        $this->patchJson('/api/v1/finance/parties/'.$supplier['id'], ['sham_cash_wallet' => '12AB567890123456'])->assertStatus(422);
+        $this->patchJson('/api/v1/finance/parties/'.$supplier['id'], ['sham_cash_wallet' => '6543210987654321'])->assertOk()
+            ->assertJsonPath('data.sham_cash_wallet', '6543210987654321');
+    }
+
+    public function test_invoice_lines_have_units_and_invoices_take_attachments(): void
+    {
+        Storage::fake('local');
+        $this->box('USD', 5_000);
+        $supplier = $this->api('parties', ['kind' => 'supplier', 'name' => 'Cables Co.']);
+        $cement = Item::find($this->api('items', ['name' => 'Cement bag', 'unit' => 'bag', 'currency_code' => 'USD'])['id']);
+        $invoice = $this->api('invoices', ['type' => 'purchase', 'party_id' => $supplier['id'], 'date' => '2026-11-02', 'currency_code' => 'USD',
+            'lines' => [['description' => 'Cable', 'unit' => 'متر', 'quantity' => 12.5, 'unit_price' => 4, 'account_id' => $this->rent->id],
+                ['item_id' => $cement->id, 'quantity' => 3, 'unit_price' => 10]]]);
+        $this->assertSame(['متر', 'bag'], array_column($invoice['lines'], 'unit'));
+        $this->assertSame(['50.00', '30.00'], array_column($invoice['lines'], 'amount'), 'quantity × unit price');
+        $this->assertSame('80.00', $invoice['total']);
+        // A stock item is counted in its own unit only.
+        $this->api('invoices', ['type' => 'purchase', 'party_id' => $supplier['id'], 'date' => '2026-11-02', 'currency_code' => 'USD',
+            'lines' => [['item_id' => $cement->id, 'unit' => 'kg', 'quantity' => 3, 'unit_price' => 10]]], 422);
+
+        $photo = $this->post('/api/v1/finance/invoices/'.$invoice['id'].'/attachments', ['file' => UploadedFile::fake()->image('scan.jpg')])
+            ->assertCreated()->json('data');
+        $this->assertArrayNotHasKey('path', $photo);
+        $this->post('/api/v1/finance/invoices/'.$invoice['id'].'/attachments', ['file' => UploadedFile::fake()->create('virus.exe', 10)])->assertStatus(422);
+        $this->getJson('/api/v1/finance/invoices/'.$invoice['id'])->assertJsonPath('data.attachments.0.original_name', 'scan.jpg');
+        $this->get('/api/v1/finance/invoices/'.$invoice['id'].'/attachments/'.$photo['id'])->assertOk();
+        // Posted invoices keep their documents.
+        $this->api('invoices/'.$invoice['id'].'/submit', [], 200);
+        $this->deleteJson('/api/v1/finance/invoices/'.$invoice['id'].'/attachments/'.$photo['id'])->assertStatus(409);
+        // A user without finance access cannot read them.
+        Sanctum::actingAs(User::factory()->create());
+        $this->get('/api/v1/finance/invoices/'.$invoice['id'].'/attachments/'.$photo['id'])->assertForbidden();
+    }
+
+    public function test_manual_entries_post_with_differences(): void
+    {
+        $diff = Account::where('system_key', 'entry_differences')->firstOrFail();
+        $entry = fn (array $lines) => ['date' => '2026-11-02', 'currency_code' => 'USD', 'description' => 'Settlement', 'lines' => $lines];
+        // Debit 100, credit 90: 10 in the company's favour (credited to differences, a gain).
+        $gain = $this->api('entries', $entry([['account_id' => $this->rent->id, 'debit' => 100], ['account_id' => $this->capital->id, 'credit' => 90]]));
+        $this->assertSame('10.00', $gain['difference']);
+        $this->assertSame('10.00', collect($gain['lines'])->firstWhere('account_id', $diff->id)['credit']);
+        // Credit above debit: in the customer's favour (negative).
+        $loss = $this->api('entries', $entry([['account_id' => $this->rent->id, 'debit' => 40], ['account_id' => $this->capital->id, 'credit' => 55]]));
+        $this->assertSame('-15.00', $loss['difference']);
+        $this->assertSame('15.00', collect($loss['lines'])->firstWhere('account_id', $diff->id)['debit']);
+        // A single line is enough; a balanced entry has no difference.
+        $single = $this->api('entries', $entry([['account_id' => $this->rent->id, 'debit' => 25]]));
+        $this->assertSame(['25.00', 2], [$single['difference'], count($single['lines'])]);
+        $this->assertNull($this->api('entries', $entry([['account_id' => $this->rent->id, 'debit' => 5], ['account_id' => $this->capital->id, 'credit' => 5]]))['difference']);
+        // Reversal mirrors every line, the difference too.
+        $reversal = $this->api('entries/'.$gain['id'].'/reverse', ['date' => '2026-11-03', 'reason' => 'Wrong amount']);
+        $this->assertSame('-10.00', $reversal['difference']);
+        $this->assertSame(0.0, (float) JournalLine::where('account_id', $diff->id)->whereIn('journal_entry_id', [$gain['id'], $reversal['id']])->sum(DB::raw('credit - debit')));
+        // Generated entries still need exact balance; a manual entry still cannot touch a box below zero.
+        $usd = $this->box('USD');
+        $this->api('entries', $entry([['account_id' => $usd->account_id, 'credit' => 5]]), 422);
     }
 }

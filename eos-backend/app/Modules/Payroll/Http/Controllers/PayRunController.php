@@ -3,22 +3,73 @@
 namespace App\Modules\Payroll\Http\Controllers;
 
 use App\Modules\HR\Models\Employee;
+use App\Modules\Payroll\Models\PayExport;
 use App\Modules\Payroll\Models\PayPayment;
 use App\Modules\Payroll\Models\PayRun;
 use App\Modules\Payroll\Models\PayRunItem;
 use App\Modules\Payroll\Models\PayRunLine;
 use App\Modules\Payroll\Services\PayRunService;
+use App\Modules\Payroll\Services\ShamCashFile;
+use App\Modules\Payroll\Services\ShamCashService;
 use App\Support\ApiResponse;
 use App\Support\CsvResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Validation\Rule;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class PayRunController extends Controller
 {
-    public function __construct(private PayRunService $runs) {}
+    public function __construct(private PayRunService $runs, private ShamCashService $shamCash) {}
+
+    // ── Sham Cash bulk transfer ───────────────────────────────────────────────
+
+    /** Creates the transfer file (new random DocId) and downloads it; the DocId is also in the X-Doc-Id header. */
+    public function shamCash(PayRun $run, Request $request): BinaryFileResponse
+    {
+        $data = $request->validate([
+            'currency' => ['required', Rule::in(['SYP', 'USD'])],
+            'date' => ['nullable', 'date_format:Y-m-d', 'before_or_equal:today'],
+            'line_ids' => ['nullable', 'array', 'min:1', 'max:'.ShamCashFile::MAX_ROWS], 'line_ids.*' => ['integer', 'distinct'],
+            'skip_missing' => ['nullable', 'boolean'],
+        ]);
+        $export = $this->shamCash->export($run, $data['currency'], $data['date'] ?? now()->toDateString(),
+            isset($data['line_ids']) ? array_map('intval', $data['line_ids']) : null, (bool) ($data['skip_missing'] ?? false), $request->user());
+
+        return $this->download($export);
+    }
+
+    public function shamCashExports(PayRun $run): JsonResponse
+    {
+        return ApiResponse::ok(PayExport::query()->where('pay_run_id', $run->id)->orderByDesc('id')->get()
+            ->map(fn (PayExport $e) => [...$e->toArray(), 'status' => $e->confirmed_at ? 'confirmed' : ($e->cancelled_at ? 'cancelled' : 'open')]));
+    }
+
+    public function shamCashFile(PayExport $export): BinaryFileResponse
+    {
+        return $this->download($export);
+    }
+
+    public function confirmShamCash(PayExport $export, Request $request): JsonResponse
+    {
+        $data = $request->validate(['box_id' => ['required', 'integer', 'exists:fin_boxes,id']]);
+
+        return ApiResponse::ok($this->shamCash->confirm($export, (int) $data['box_id'], $request->user()));
+    }
+
+    public function cancelShamCash(PayExport $export, Request $request): JsonResponse
+    {
+        return ApiResponse::ok($this->shamCash->cancel($export, $request->user()));
+    }
+
+    private function download(PayExport $export): BinaryFileResponse
+    {
+        return response()->download($this->shamCash->file($export), 'shamcash_'.$export->doc_id.'.xlsx',
+            ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'X-Doc-Id' => $export->doc_id,
+                'Access-Control-Expose-Headers' => 'X-Doc-Id, Content-Disposition'])->deleteFileAfterSend();
+    }
 
     public function index(Request $request): JsonResponse
     {

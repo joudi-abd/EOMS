@@ -13,7 +13,7 @@ class RolePermissionSeeder extends Seeder
         'employees' => ['view', 'manage', 'view_sensitive', 'view_financial', 'documents.view', 'documents.manage'],
         'attendance' => ['view', 'view_department', 'manage', 'adjust', 'approve'],
         'leaves' => ['view', 'view_department', 'manage', 'approve'],
-        'payroll' => ['view', 'manage', 'approve'],
+        'payroll' => ['view', 'manage', 'approve', 'pay'],
         'finance' => ['view', 'manage', 'approve'],
         'projects' => ['view', 'manage'],
         'purchases' => ['view', 'manage', 'approve'],
@@ -50,9 +50,11 @@ class RolePermissionSeeder extends Seeder
                 'attendance.view', 'attendance.manage', 'attendance.adjust', 'attendance.approve',
                 'leaves.view', 'leaves.manage', 'leaves.approve',
                 'documents.view', 'documents.manage', 'reports.view',
+                // HR prepares the pay run; finance approves and pays it.
+                'payroll.view', 'payroll.manage',
             ],
             'finance_manager' => [
-                'payroll.view', 'payroll.manage',
+                'payroll.view', 'payroll.approve', 'payroll.pay',
                 'finance.view', 'finance.manage',
                 'purchases.view', 'purchases.approve', 'reports.view',
             ],
