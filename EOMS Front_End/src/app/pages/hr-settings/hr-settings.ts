@@ -7,14 +7,16 @@ import { Ui } from '../../core/ui';
 import { Office } from '../../data/office';
 import { Notice } from '../../shared/notice/notice';
 import { SettingsDevices } from './settings-devices/settings-devices';
+import { SettingsLeaves } from './settings-leaves/settings-leaves';
 import { SettingsList } from './settings-list/settings-list';
+import { SettingsOffice } from './settings-office/settings-office';
 import { SettingsShift } from './settings-shift/settings-shift';
 
-type Tab = 'shift' | 'structure' | 'devices';
+type Tab = 'shift' | 'structure' | 'devices' | 'leaves' | 'office';
 
 @Component({
   selector: 'app-hr-settings',
-  imports: [Notice, RouterLink, SettingsShift, SettingsList, SettingsDevices],
+  imports: [Notice, RouterLink, SettingsShift, SettingsList, SettingsDevices, SettingsLeaves, SettingsOffice],
   templateUrl: './hr-settings.html',
   styleUrl: './hr-settings.scss',
 })
@@ -24,12 +26,14 @@ export class HrSettings extends Ui {
   private readonly params = toSignal(inject(ActivatedRoute).queryParamMap);
 
   /** The device list and bindings need `attendance.manage`; the other tabs follow the screen's own access. */
-  protected readonly tabs = computed<{ id: Tab; label: CopyKey; icon?: string }[]>(() => {
-    const list: { id: Tab; label: CopyKey; icon?: string }[] = [
+  protected readonly tabs = computed<{ id: Tab; label: CopyKey }[]>(() => {
+    const list: { id: Tab; label: CopyKey }[] = [
       { id: 'shift', label: 'tabShift' },
       { id: 'structure', label: 'tabStructure' },
     ];
-    if (this.session.has('attendance.manage')) list.push({ id: 'devices', label: 'tabDevices', icon: 'fa-fingerprint' });
+    if (this.session.has('attendance.manage')) list.push({ id: 'devices', label: 'tabDevices' });
+    if (this.session.has('leaves.manage')) list.push({ id: 'leaves', label: 'leaveSetupTab' });
+    if (this.session.has('settings.view')) list.push({ id: 'office', label: 'companySettings' });
     return list;
   });
 
