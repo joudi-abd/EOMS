@@ -13,7 +13,7 @@ class JournalEntry extends Model
 
     protected function casts(): array
     {
-        return ['date' => 'date:Y-m-d', 'source_id' => 'integer', 'reverses_id' => 'integer', 'created_by' => 'integer'];
+        return ['date' => 'date:Y-m-d', 'source_id' => 'integer', 'reverses_id' => 'integer', 'created_by' => 'integer', 'difference' => 'decimal:2'];
     }
 
     public function lines(): HasMany

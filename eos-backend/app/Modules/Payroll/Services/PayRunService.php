@@ -22,8 +22,10 @@ use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\ValidationException;
 
 /**
- * Monthly pay run workflow: finance prepares a draft (payroll.manage), the company manager reviews proposed
- * deductions and approves (payroll.approve), which locks the month; finance then records one payment per line.
+ * Monthly pay run workflow: HR prepares the draft and enters bonuses/deductions without deciding them
+ * (payroll.manage) and sends it to finance; finance reviews every proposed or manual item and every
+ * locked-month adjustment, then approves (payroll.approve), which locks the month; payments are then
+ * recorded one per line, individually or through a Sham Cash file (payroll.pay).
  * Changes that later touch a locked month come back as adjustment items in the next draft.
  */
 class PayRunService
@@ -103,7 +105,8 @@ class PayRunService
             $line = PayRunLine::query()->where('pay_run_id', $run->id)->where('employee_id', $data['employee_id'])->firstOrFail();
             $item = $line->items()->create([
                 'kind' => $data['category'] === 'earning' ? 'bonus' : 'manual_deduction', 'category' => $data['category'],
-                'origin' => 'manual', 'proposed_amount' => $data['amount'], 'amount' => $data['amount'], 'status' => 'applied',
+                // HR proposes; finance approves, changes or waives it when reviewing the run.
+                'origin' => 'manual', 'proposed_amount' => $data['amount'], 'amount' => $data['amount'], 'status' => 'proposed',
                 'reason' => $data['reason'], 'created_by' => $actor->id,
             ]);
             $this->totals($line);
@@ -127,12 +130,12 @@ class PayRunService
         });
     }
 
-    /** Finance accepts or rejects an adjustment for a locked month before submitting the draft. */
+    /** Finance accepts or rejects an adjustment for a locked month while reviewing the submitted run. */
     public function decideAdjustment(PayRunItem $item, bool $accept, string $reason, User $actor): PayRunItem
     {
         return DB::transaction(function () use ($item, $accept, $reason, $actor) {
             $line = PayRunLine::query()->findOrFail($item->pay_run_line_id);
-            $run = $this->lock($line->run, 'draft');
+            $run = $this->lock($line->run, 'submitted');
             abort_unless($item->origin === 'adjustment', 409, 'البند ليس تسوية.');
             $item->update(['status' => $accept ? 'approved' : 'rejected', 'amount' => $accept ? $item->proposed_amount : 0,
                 'reason' => $reason, 'decided_by' => $actor->id, 'decided_at' => now()]);
@@ -149,11 +152,9 @@ class PayRunService
         return DB::transaction(function () use ($run, $actor) {
             $run = $this->lock($run, 'draft');
             abort_if($run->calculated_at === null, 409, 'احسب الكشف أولاً.');
-            abort_if($this->items($run)->where('origin', 'adjustment')->where('status', 'proposed')->exists(), 409,
-                'قرّر في تسويات الأشهر المقفلة قبل الإرسال.');
             $run->update(['status' => 'submitted', 'submitted_at' => now(), 'return_note' => null, 'version' => $run->version + 1]);
             $this->audit->log('payroll.run_submitted', $run, null, null, $actor->id);
-            $this->notify('payroll.approve', 'payroll.run_submitted', 'كشف رواتب '.$run->month.' بانتظار الاعتماد.', $run);
+            $this->notify('payroll.approve', 'payroll.run_submitted', 'كشف رواتب '.$run->month.' مرفوع من الموارد البشرية بانتظار اعتماد المالية.', $run);
 
             return $run->refresh();
         });
@@ -171,13 +172,13 @@ class PayRunService
         });
     }
 
-    /** The company manager accepts, changes (between 0 and the proposal) or waives a proposed deduction. */
+    /** Finance accepts, changes (between 0 and the proposal) or waives a system-proposed deduction or an item HR entered. */
     public function reviewProposed(PayRunItem $item, string $decision, ?float $amount, string $reason, User $actor): PayRunItem
     {
         return DB::transaction(function () use ($item, $decision, $amount, $reason, $actor) {
             $line = PayRunLine::query()->findOrFail($item->pay_run_line_id);
             $run = $this->lock($line->run, 'submitted');
-            abort_unless($item->origin === 'proposed', 409, 'البند ليس خصماً مقترحاً.');
+            abort_unless(in_array($item->origin, ['proposed', 'manual'], true), 409, 'البند ليس مقترحاً للمراجعة.');
             $proposed = (float) $item->proposed_amount;
             $value = match ($decision) {
                 'approve' => $proposed,
@@ -206,6 +207,8 @@ class PayRunService
         return DB::transaction(function () use ($run, $actor) {
             $run = $this->lock($run, 'submitted');
             abort_if($run->prepared_by === $actor->id, 403, 'لا يعتمد أحد كشفاً أنشأه بنفسه.');
+            abort_if($this->items($run)->where('origin', 'adjustment')->where('status', 'proposed')->exists(), 409,
+                'قرّر في تسويات الأشهر المقفلة قبل الاعتماد.');
             $problems = [];
             foreach (PayRunLine::query()->where('pay_run_id', $run->id)->orderBy('id')->get() as $line) {
                 $employee = Employee::query()->findOrFail($line->employee_id);
@@ -223,7 +226,7 @@ class PayRunService
             if ($problems !== []) {
                 throw ValidationException::withMessages(['run' => $problems]);
             }
-            $this->items($run)->where('origin', 'proposed')->where('status', 'proposed')->get()->each(function (PayRunItem $item) use ($actor) {
+            $this->items($run)->whereIn('origin', ['proposed', 'manual'])->where('status', 'proposed')->get()->each(function (PayRunItem $item) use ($actor) {
                 $item->update(['status' => 'approved', 'amount' => $item->proposed_amount, 'decided_by' => $actor->id, 'decided_at' => now()]);
             });
             foreach (PayRunLine::query()->where('pay_run_id', $run->id)->get() as $line) {
@@ -234,7 +237,8 @@ class PayRunService
             }
             $run->update(['status' => 'approved', 'approved_by' => $actor->id, 'approved_at' => now(), 'version' => $run->version + 1]);
             $this->audit->log('payroll.run_approved', $run, null, ['month' => $run->month], $actor->id);
-            $this->notify('payroll.manage', 'payroll.run_approved', 'اعتُمد كشف رواتب '.$run->month.' ويمكن البدء بالصرف.', $run);
+            $this->notify('payroll.manage', 'payroll.run_approved', 'اعتمدت المالية كشف رواتب '.$run->month.'.', $run);
+            $this->notify('payroll.pay', 'payroll.run_approved', 'اعتُمد كشف رواتب '.$run->month.' ويمكن البدء بالصرف.', $run);
 
             return $run->refresh();
         }, 3);
@@ -249,13 +253,11 @@ class PayRunService
             abort_if($line->payment()->exists(), 409, 'سُجّل الدفع لهذا الموظف مسبقاً.');
             abort_unless((float) $line->net > 0, 409, 'لا يوجد مبلغ مستحق.');
             $paidCurrency = strtoupper($data['currency']);
-            $rate = $this->rates->rateOn($line->currency_code, $paidCurrency, $data['paid_at']);
-            if ($rate === null) {
-                throw ValidationException::withMessages(['currency' => ['لا يوجد سعر صرف مسجّل بتاريخ الدفع؛ أدخله في الإعدادات أولاً.']]);
+            ['rate' => $rate, 'converted' => $converted, 'paid' => $paid] = $this->quote($line, $paidCurrency, $data['paid_at']);
+            // A bulk file fixes the amount when it is produced; a later rate change must not pay a different sum.
+            if (isset($data['expected_amount']) && abs($paid - (float) $data['expected_amount']) >= 0.005) {
+                throw ValidationException::withMessages(['currency' => ['تغيّر المبلغ المستحق أو سعر الصرف بعد إصدار الملف؛ ألغِ الملف وأصدر ملفاً جديداً.']]);
             }
-            $converted = round((float) $line->net * $rate, 2);
-            $step = $paidCurrency === 'SYP' ? 1000 : 1;
-            $paid = round($converted / $step) * $step;
             $wallet = null;
             if ($data['method'] === 'sham_cash') {
                 $wallet = Employee::query()->whereKey($line->employee_id)->value('sham_cash_wallet');
@@ -278,6 +280,23 @@ class PayRunService
 
             return $payment;
         });
+    }
+
+    /**
+     * What a line pays in a currency on a date: converted at that day's rate, SYP rounded to 1000 and USD to 1.
+     *
+     * @return array{rate: float, converted: float, paid: float}
+     */
+    public function quote(PayRunLine $line, string $currency, string $date): array
+    {
+        $rate = $this->rates->rateOn($line->currency_code, $currency, $date);
+        if ($rate === null) {
+            throw ValidationException::withMessages(['currency' => ['لا يوجد سعر صرف مسجّل بتاريخ الدفع؛ أدخله في الإعدادات أولاً.']]);
+        }
+        $converted = round((float) $line->net * $rate, 2);
+        $step = $currency === 'SYP' ? 1000 : 1;
+
+        return ['rate' => (float) $rate, 'converted' => $converted, 'paid' => (float) (round($converted / $step) * $step)];
     }
 
     /** Voids a wrong payment: the salary returns to its finance box by reversal and the line can be paid again. */

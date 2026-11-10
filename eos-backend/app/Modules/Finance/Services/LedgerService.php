@@ -47,13 +47,22 @@ class LedgerService
                 $rows[] = ['account_id' => (int) $line['account_id'], 'party_id' => $line['party_id'] ?? null,
                     'debit' => $d, 'credit' => $c, 'memo' => $line['memo'] ?? null];
             }
+            // A manual entry may be posted unbalanced: the gap goes to the "entry differences" account and is kept on the entry
+            // (+ = debit exceeded credit, a gain for the company; − = credit exceeded debit, in the customer's favour).
+            $difference = null;
+            if ($sourceType === 'manual' && $reverses === null && $rows !== [] && abs($debit - $credit) >= 0.005) {
+                $difference = round($debit - $credit, 2);
+                $rows[] = ['account_id' => $this->systemAccount('entry_differences')->id, 'party_id' => null,
+                    'debit' => $difference < 0 ? -$difference : 0.0, 'credit' => $difference > 0 ? $difference : 0.0, 'memo' => 'فرق القيد'];
+                $debit = $credit = max($debit, $credit);
+            }
             if (count($rows) < 2 || abs($debit - $credit) >= 0.005) {
                 throw ValidationException::withMessages(['lines' => ['القيد غير متوازن: مجموع المدين يجب أن يساوي مجموع الدائن.']]);
             }
             $this->guard($rows, $currency, $sourceType);
             $entry = JournalEntry::create(['number' => $this->number('JE', $date), 'date' => $date, 'currency_code' => strtoupper($currency),
                 'description' => $description, 'source_type' => $sourceType, 'source_id' => $sourceId,
-                'reverses_id' => $reverses, 'created_by' => $actor->id]);
+                'reverses_id' => $reverses, 'difference' => $difference, 'created_by' => $actor->id]);
             $entry->lines()->createMany($rows);
             $this->audit->log('finance.entry_posted', $entry, null, ['number' => $entry->number, 'total' => round($debit, 2)], $actor->id);
 
@@ -72,8 +81,13 @@ class LedgerService
                 'account_id' => $l->account_id, 'party_id' => $l->party_id, 'debit' => $l->credit, 'credit' => $l->debit, 'memo' => $l->memo,
             ])->all();
 
-            return $this->post($entry->currency_code, $date, 'عكس القيد '.$entry->number.': '.$reason, $lines, $actor,
+            $reversal = $this->post($entry->currency_code, $date, 'عكس القيد '.$entry->number.': '.$reason, $lines, $actor,
                 $entry->source_type, $entry->source_id, $entry->id);
+            if ($entry->difference !== null) {
+                $reversal->update(['difference' => -1 * (float) $entry->difference]);
+            }
+
+            return $reversal;
         });
     }
 

@@ -36,6 +36,15 @@ class CashService
                 'account_id' => $account->id]);
             $account->update(['code' => 'BOX-'.$box->id]);
             $this->audit->log('finance.box_created', $box, null, $box->getAttributes(), $actor->id);
+            // Money already in the box when it is created: a receipt from the opening balances account
+            // (or another equity account finance picks, e.g. capital).
+            if ((float) ($data['opening_amount'] ?? 0) > 0) {
+                $counter = (int) ($data['opening_account_id'] ?? $this->ledger->systemAccount('opening_balances')->id);
+                abort_unless($this->ledger->postable($counter, 'opening_account_id')->type === 'equity', 422, 'الرصيد الافتتاحي يقابله حساب حقوق ملكية.');
+                $tx = $this->make('receipt', ['date' => $data['opening_date'] ?? now()->toDateString(), 'amount' => $data['opening_amount'],
+                    'description' => 'رصيد افتتاحي: '.$box->name, 'account_id' => $counter], $box, $actor, 'posted');
+                $this->postTransaction($tx, $actor);
+            }
 
             return $box;
         });

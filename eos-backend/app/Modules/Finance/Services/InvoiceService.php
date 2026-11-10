@@ -52,7 +52,7 @@ class InvoiceService
             $invoice->lines()->createMany($lines->all());
             $this->audit->log('finance.invoice_saved', $invoice, null, ['total' => $invoice->total], $actor->id);
 
-            return $invoice->load('lines');
+            return $invoice->load(['lines' => fn ($q) => $q->orderBy('id')]);
         });
     }
 
@@ -225,7 +225,8 @@ class InvoiceService
 
     private function lines(string $type, string $currency, array $lines): Collection
     {
-        return collect($lines)->values()->map(function (array $line, int $i) use ($type, $currency) {
+        // Keep the user's order: validated() can rebuild the array with keys out of order when lines omit optional fields.
+        return collect($lines)->sortKeys()->values()->map(function (array $line, int $i) use ($type, $currency) {
             $quantity = round((float) $line['quantity'], 3);
             $price = round((float) $line['unit_price'], 2);
             $account = $line['account_id'] ?? null;
@@ -249,8 +250,14 @@ class InvoiceService
                     $type === 'sale' ? "البند $i: حساب إيراد مطلوب." : "البند $i: حساب مصروف أو أصل مطلوب.");
             }
 
+            // A stock item is always counted in its catalogue unit; a free-text line takes the unit the user writes (metre, kg...).
+            $unit = $item ? $item->unit : (filled($line['unit'] ?? null) ? trim($line['unit']) : null);
+            if ($item && filled($line['unit'] ?? null) && trim($line['unit']) !== $item->unit) {
+                abort(422, "البند $i: وحدة {$item->name} هي {$item->unit}.");
+            }
+
             return ['item_id' => $item?->id, 'account_id' => $account, 'description' => $line['description'] ?? $item?->name,
-                'quantity' => $quantity, 'unit_price' => $price, 'amount' => round($quantity * $price, 2)];
+                'unit' => $unit, 'quantity' => $quantity, 'unit_price' => $price, 'amount' => round($quantity * $price, 2)];
         });
     }
 }
