@@ -1,8 +1,4 @@
 <main class="work" id="content">
-  <button class="menu" type="button" (click)="chrome.toggle()">
-    <i class="fa-solid" [class.fa-bars]="!chrome.menuOpen()" [class.fa-xmark]="chrome.menuOpen()" aria-hidden="true"></i>
-    {{ chrome.menuOpen() ? t('closeMenu') : t('menu') }}
-  </button>
 
   @if (!session.can('access')) {
     <h1>{{ t('access') }}</h1>
@@ -16,7 +12,6 @@
     } @else {
       <header class="heading">
         <div>
-          <p class="crumb">{{ t('navSystem') }} <i class="fa-solid fa-chevron-left crumb-sep" aria-hidden="true"></i> {{ t('access') }}</p>
           <h1>{{ t('access') }}</h1>
           <p class="lede">{{ t('ledeAccess') }}</p>
         </div>

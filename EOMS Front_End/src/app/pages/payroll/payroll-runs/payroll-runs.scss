@@ -1,0 +1,117 @@
+/* The monthly pay runs. */
+
+.fin-toolbar-end {
+  margin-inline-start: auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.fin-run-pick select {
+  min-width: 220px;
+}
+
+.fin-ok {
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: var(--r-control);
+  border: 1px solid var(--notice-line);
+  background: var(--notice);
+  color: var(--action-ink);
+  font-size: 14px;
+}
+
+/* Run stages: done steps are filled indigo, the current one carries the indigo ring on a tint. */
+.pr-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0;
+}
+
+.pr-steps li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--soft);
+}
+
+.pr-steps li i {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1.5px solid var(--line-strong);
+  display: grid;
+  place-items: center;
+  font-style: normal;
+  font-size: 13px;
+  font-weight: 600;
+  background: var(--surface);
+}
+
+.pr-steps li.done {
+  color: var(--ink);
+}
+
+.pr-steps li.done i {
+  background: var(--action);
+  border-color: var(--action);
+  color: #fff;
+}
+
+.pr-steps li.cur {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.pr-steps li.cur i {
+  border-color: var(--mark);
+  color: var(--mark-ink);
+  background: var(--mark-tint);
+}
+
+.pr-steps li.bar {
+  flex: 1;
+  min-width: 24px;
+  height: 1.5px;
+  background: var(--line-strong);
+  margin: 0 10px;
+}
+
+.pr-steps li.bar.done {
+  background: var(--action);
+}
+
+.pr-item {
+  flex-wrap: wrap;
+}
+
+.pr-adjust {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.pr-box {
+  border-top: 1px solid var(--line);
+  padding-top: 14px;
+  display: grid;
+  gap: 12px;
+}
+
+.pr-box h3 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.pr-how {
+  margin: 0;
+  padding-inline-start: 20px;
+  display: grid;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--muted);
+}

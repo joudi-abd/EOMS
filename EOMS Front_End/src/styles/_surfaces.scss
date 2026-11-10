@@ -1,0 +1,160 @@
+/* Panels */
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 20px 22px 22px;
+  min-width: 0;
+}
+
+.panel-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.panel-head h2 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.panel-head p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.panel .flush {
+  position: relative;
+  margin: 0 -22px -22px;
+  overflow-x: auto;
+  border-top: 1px solid var(--line);
+  border-radius: 0 0 var(--radius) var(--radius);
+}
+
+.panel .flush th {
+  background: var(--raised);
+}
+
+.panel .flush th:first-child,
+.panel .flush td:first-child {
+  padding-inline-start: 22px;
+}
+
+.panel .flush th:last-child,
+.panel .flush td:last-child {
+  padding-inline-end: 22px;
+}
+
+.panel .flush tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+/* Figures: one joined strip, cells divided by hairlines, so a row of numbers reads as one statement. */
+
+.summary,
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(136px, 1fr));
+  gap: 0;
+  margin: 18px 0 4px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+/* A strip never leaves one cell alone: below the width where every cell fits one row,
+   the grid is rebalanced for the count and the last cell takes the remaining columns. */
+@mixin balanced($count, $columns, $last-span: 1) {
+  .summary:has(> :nth-child(#{$count}):last-child),
+  .stats:has(> .stat:nth-child(#{$count}):last-child) {
+    grid-template-columns: repeat($columns, minmax(0, 1fr));
+  }
+
+  @if $last-span > 1 {
+    .summary:has(> :nth-child(#{$count}):last-child) > :last-child,
+    .stats:has(> .stat:nth-child(#{$count}):last-child) > .stat:last-child {
+      grid-column: span $last-span;
+    }
+  }
+}
+
+@container work (min-width: 560px) {
+  @include balanced(8, 4);
+}
+
+@container work (min-width: 560px) and (max-width: 1023px) {
+  @include balanced(7, 4, 2);
+}
+
+@container work (min-width: 560px) and (max-width: 887px) {
+  @include balanced(6, 3);
+}
+
+@container work (min-width: 560px) and (max-width: 751px) {
+  @include balanced(5, 3, 2);
+}
+
+.summary p,
+.stats .stat {
+  margin: 0;
+  padding: 16px 18px;
+  /* Each cell rings itself; neighbours overlap the ring into one hairline and the strip's edge clips the rest,
+     so a short last row leaves clean white, never a grey gap. */
+  background: var(--surface);
+  box-shadow: 0 0 0 1px var(--line);
+  display: grid;
+  align-content: start;
+  gap: 4px;
+  min-width: 0;
+}
+
+.summary span,
+.stats .stat span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.summary strong,
+.stats .stat strong {
+  display: block;
+  font-size: 28px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.summary small,
+.stats .stat small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* Two columns on a phone: an odd last cell takes the full row instead of sitting alone. */
+@container work (max-width: 559px) {
+  .summary,
+  .stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .summary > :last-child:nth-child(odd),
+  .stats > .stat:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+
+  .summary p,
+  .stats .stat {
+    padding: 12px 14px;
+  }
+
+  .summary strong,
+  .stats .stat strong {
+    font-size: 22px;
+  }
+}

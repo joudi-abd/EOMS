@@ -11,7 +11,8 @@ type Panel = 'none' | 'transaction' | 'box' | 'reverse' | 'limit' | 'decide';
   selector: 'app-finance-cash',
   imports: [FormsModule],
   templateUrl: './finance-cash.html',
-  styleUrl: '../finance-shared.scss',
+  styleUrl: './finance-cash.scss',
+  host: { class: 'ledger' },
 })
 export class FinanceCash extends FinanceTab {
   protected readonly kinds: NewKind[] = ['receipt', 'payment', 'transfer', 'exchange'];

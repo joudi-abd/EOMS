@@ -7,7 +7,8 @@ import { HalfDays } from '../../../data/leaves';
   selector: 'app-leave-periods',
   imports: [FormsModule],
   templateUrl: './leave-periods.html',
-  styleUrl: '../leave-fields.scss',
+  styleUrl: './leave-periods.scss',
+  host: { class: 'leave-kit' },
 })
 export class LeavePeriods extends Ui {
   readonly halves = input.required<HalfDays>();

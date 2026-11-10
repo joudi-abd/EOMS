@@ -36,14 +36,14 @@ export class EmployeeFile extends Ui {
   protected readonly tabs = computed(() =>
     (
       [
-        { id: 'info', label: 'tabInfo', icon: 'fa-id-card' },
-        { id: 'contracts', label: 'tabContracts', icon: 'fa-file-signature' },
-        { id: 'documents', label: 'tabDocuments', icon: 'fa-folder-open' },
-        { id: 'finger', label: 'tabFinger', icon: 'fa-fingerprint' },
-        { id: 'history', label: 'tabHistory', icon: 'fa-clock-rotate-left' },
-        { id: 'leaving', label: 'serviceStatusTitle', icon: 'fa-user-minus' },
-        { id: 'payroll', label: 'payrollFactsTitle', icon: 'fa-clipboard-list' },
-      ] as { id: Tab; label: CopyKey; icon: string }[]
+        { id: 'info', label: 'tabInfo' },
+        { id: 'contracts', label: 'tabContracts' },
+        { id: 'documents', label: 'tabDocuments' },
+        { id: 'finger', label: 'tabFinger' },
+        { id: 'history', label: 'tabHistory' },
+        { id: 'leaving', label: 'serviceStatusTitle' },
+        { id: 'payroll', label: 'payrollFactsTitle' },
+      ] as { id: Tab; label: CopyKey }[]
     ).filter((item) => item.id !== 'documents' || this.session.canAct('document.view'))
       .filter((item) => item.id !== 'payroll' || this.session.has('payroll.view') || this.session.has('attendance.view')),
   );

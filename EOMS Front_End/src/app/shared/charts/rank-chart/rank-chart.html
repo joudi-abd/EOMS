@@ -1,3 +1,6 @@
+@if (shown().length === 0) {
+  <p class="none">{{ language.t('noData') }}</p>
+}
 <ol class="rank chart-svg" [attr.aria-label]="label()">
   @for (row of shown(); track row.label) {
     <li>

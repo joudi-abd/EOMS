@@ -1,0 +1,135 @@
+/* The record sheet */
+
+/* Scrollers are positioned so that visually hidden labels inside them are clipped with the rest,
+   instead of widening the page on a phone. */
+.sheet {
+  position: relative;
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+}
+
+th,
+td {
+  text-align: start;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: middle;
+  overflow-wrap: normal;
+}
+
+th {
+  font-weight: 500;
+  color: var(--muted);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.sheet th {
+  background: var(--raised);
+  border-bottom-color: var(--line-strong);
+}
+
+.sheet th:first-child,
+.sheet td:first-child {
+  padding-inline-start: 18px;
+}
+
+.sheet th:last-child,
+.sheet td:last-child {
+  padding-inline-end: 18px;
+}
+
+.sheet tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+tbody tr {
+  transition: background-color 120ms ease-out;
+}
+
+tbody tr:hover td {
+  background: var(--row);
+}
+
+.name {
+  color: var(--action-ink);
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.name:hover {
+  text-decoration: underline;
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Status: the word in its colour with a dot before it. */
+
+.late {
+  color: var(--late);
+  font-weight: 600;
+}
+
+.ok {
+  color: var(--ontime);
+  font-weight: 600;
+}
+
+.wait {
+  color: var(--wait);
+  font-weight: 600;
+}
+
+.mute {
+  color: var(--soft);
+}
+
+td.ok,
+td.wait,
+td.late,
+td.num {
+  white-space: nowrap;
+}
+
+td.ok,
+td.wait,
+td.late,
+.sheet td > span.ok,
+.sheet td > span.wait,
+.sheet td > span.late {
+  font-weight: 500;
+}
+
+td.ok::before,
+td.wait::before,
+td.late::before,
+dd.ok::before,
+dd.wait::before,
+dd.late::before,
+.sheet td > span.ok::before,
+.sheet td > span.wait::before,
+.sheet td > span.late::before,
+.sheet td > span.mute::before {
+  content: '';
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  margin-inline-end: 8px;
+  vertical-align: 0.1em;
+}

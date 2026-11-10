@@ -20,7 +20,8 @@ export interface LeaveFilters {
   selector: 'app-leave-register',
   imports: [FormsModule],
   templateUrl: './leave-register.html',
-  styleUrls: ['../leave-fields.scss', './leave-register.scss'],
+  styleUrl: './leave-register.scss',
+  host: { class: 'leave-kit' },
 })
 export class LeaveRegister extends Ui {
   protected readonly office = inject(Office);

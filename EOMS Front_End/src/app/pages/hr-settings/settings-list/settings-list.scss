@@ -3,8 +3,16 @@
   min-width: 0;
 }
 
+.named {
+  margin-top: 16px;
+  padding: 22px 24px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
 h2 {
-  margin-top: 20px;
+  margin-top: 0;
 }
 
 .list {

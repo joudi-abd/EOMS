@@ -9,7 +9,8 @@ import { leaveClock } from '../leave-format';
   selector: 'app-leave-form',
   imports: [FormsModule],
   templateUrl: './leave-form.html',
-  styleUrl: '../leave-fields.scss',
+  styleUrl: './leave-form.scss',
+  host: { class: 'leave-kit' },
 })
 export class LeaveForm extends Ui {
   protected readonly office = inject(Office);

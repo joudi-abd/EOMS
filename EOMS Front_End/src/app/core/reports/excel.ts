@@ -2,12 +2,12 @@ import { download, ReportSpec } from './report';
 
 type Cell = string | number;
 
-const ink = 'FF111827';
-const muted = 'FF4B5563';
-const action = 'FF2563EB';
-const line = 'FFE5E7EB';
-const zebra = 'FFF8FAFC';
-const tint = 'FFEFF6FF';
+const ink = 'FF14162B';
+const muted = 'FF454A63';
+const action = 'FF4F46C8';
+const line = 'FFE1E3EE';
+const zebra = 'FFF8F8FC';
+const tint = 'FFECEBFB';
 
 function columnLetter(index: number): string {
   let name = '';

@@ -65,7 +65,8 @@ function thisMonth(): string {
   selector: 'app-payroll-runs',
   imports: [FormsModule, RouterLink],
   templateUrl: './payroll-runs.html',
-  styleUrl: '../../finance/finance-shared.scss',
+  styleUrl: './payroll-runs.scss',
+  host: { class: 'ledger' },
 })
 export class PayrollRuns extends FinanceTab {
   private readonly payroll = inject(Payroll);

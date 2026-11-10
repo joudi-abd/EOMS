@@ -1,6 +1,51 @@
-:host { display: block; }
-.list { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
-.list li { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
-form { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; }
-label { display: grid; gap: 4px; }
-.warn { color: #a21b26; }
+/* Office-wide settings saved by key. */
+
+:host {
+  display: block;
+}
+
+section {
+  max-width: 720px;
+  margin-top: 16px;
+  padding: 22px 24px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+h2 {
+  margin-top: 0;
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.list li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+
+form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: end;
+}
+
+label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.warn {
+  color: var(--late);
+}

@@ -9,7 +9,7 @@ export const markFill: Record<DayMark, string> = {
   early: tone.violet,
   incomplete: tone.sky,
   review: tone.late,
-  absent: '#991b1b',
+  absent: 'var(--late)',
   leave: tone.info,
   mission: tone.teal,
   holiday: tone.quiet,

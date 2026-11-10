@@ -7,7 +7,6 @@ import { CopyKey } from '../../core/copy';
 import { Language } from '../../core/language';
 import { Office } from '../../data/office';
 import { Notice } from '../../shared/notice/notice';
-import { Chrome } from '../../shell/chrome';
 import { AccessFile } from './access-file/access-file';
 import { AccessTable } from './access-table/access-table';
 
@@ -28,7 +27,6 @@ export class Access {
   protected readonly language = inject(Language);
   protected readonly office = inject(Office);
   protected readonly session = inject(Session);
-  protected readonly chrome = inject(Chrome);
   private readonly router = inject(Router);
   private readonly params = toSignal(inject(ActivatedRoute).queryParamMap);
 

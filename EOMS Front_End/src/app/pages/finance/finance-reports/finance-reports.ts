@@ -19,7 +19,8 @@ const reports: { id: ReportKind; label: CopyKey }[] = [
   selector: 'app-finance-reports',
   imports: [FormsModule],
   templateUrl: './finance-reports.html',
-  styleUrl: '../finance-shared.scss',
+  styleUrl: './finance-reports.scss',
+  host: { class: 'ledger' },
 })
 export class FinanceReports extends FinanceTab {
   protected readonly reports = reports;

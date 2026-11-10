@@ -1,0 +1,50 @@
+/* Journal entries, the chart of accounts and period closing. */
+
+.fin-tree {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 14px;
+}
+
+.fin-tree li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.fin-tree li:last-child {
+  border-bottom: 0;
+}
+
+.fin-tree li.group {
+  font-weight: 600;
+}
+
+.fin-tree li.off {
+  color: var(--soft);
+}
+
+.fin-tree li > .end {
+  margin-inline-start: auto;
+}
+
+.fin-tag {
+  display: inline-block;
+  font-size: 11px;
+  padding: 1px 7px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-chip);
+  color: var(--muted);
+  background: var(--raised);
+  font-weight: 400;
+}
+
+.fin-inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}

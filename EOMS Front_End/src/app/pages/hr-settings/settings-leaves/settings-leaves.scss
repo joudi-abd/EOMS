@@ -3,11 +3,17 @@
   min-width: 0;
 }
 
+/* The second level under the settings tabs is a segmented choice, so the two rows never read as one. */
 .sections {
+  position: relative;
   display: flex;
-  gap: 4px;
+  gap: 2px;
+  width: fit-content;
+  max-width: 100%;
   margin: 16px 0 8px;
-  border-bottom: 1px solid var(--line);
+  padding: 3px;
+  background: var(--hover);
+  border-radius: var(--r-control);
   overflow-x: auto;
   scrollbar-width: none;
 }
@@ -16,17 +22,18 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  min-height: 42px;
-  padding: 8px 12px;
+  min-height: 36px;
+  padding: 6px 14px;
   color: var(--muted);
   background: transparent;
   border: 0;
-  border-bottom: 2px solid transparent;
-  border-radius: 0;
-  margin-bottom: -1px;
+  border-radius: 6px;
   white-space: nowrap;
-  font-size: 15px;
+  font-size: 14px;
   cursor: pointer;
+  transition:
+    background-color 140ms ease-out,
+    color 140ms ease-out;
 }
 
 .sections button:hover {
@@ -34,9 +41,10 @@
 }
 
 .sections button.active {
-  color: var(--action-ink);
-  border-bottom-color: var(--action);
+  background: var(--surface);
+  color: var(--mark-ink);
   font-weight: 600;
+  box-shadow: 0 0 0 1px var(--line-strong);
 }
 
 .pane {
@@ -83,6 +91,10 @@ h2:first-child {
   align-items: end;
   gap: 16px;
   margin-top: 16px;
+  padding: 22px 24px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
 }
 
 .add {
@@ -328,7 +340,7 @@ tr.now td {
 .holiday .day {
   width: 44px;
   height: 44px;
-  border-radius: 8px;
+  border-radius: var(--r-control);
   background: var(--action-tint);
   color: var(--action-ink);
   display: grid;

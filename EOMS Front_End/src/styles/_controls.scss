@@ -1,0 +1,232 @@
+/* Buttons: indigo acts, a bordered button offers, a quiet red one refuses. */
+
+.primary,
+a.primary,
+.ghost,
+.quiet,
+.text {
+  border-radius: var(--r-control);
+  min-height: 40px;
+  padding: 8px 16px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-decoration: none;
+  white-space: nowrap;
+  transition:
+    background-color 140ms ease-out,
+    border-color 140ms ease-out,
+    color 140ms ease-out;
+}
+
+.primary,
+a.primary {
+  background: var(--action);
+  color: #fff;
+  border: 1px solid var(--action);
+  font-weight: 600;
+  width: fit-content;
+}
+
+.primary:hover,
+a.primary:hover {
+  background: var(--action-ink);
+  border-color: var(--action-ink);
+}
+
+.primary:active,
+a.primary:active {
+  background: var(--scene);
+  border-color: var(--scene);
+}
+
+.primary:disabled {
+  background: var(--line);
+  border-color: var(--line);
+  color: var(--soft);
+  cursor: not-allowed;
+}
+
+.ghost,
+.text,
+a.text {
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.ghost:hover,
+.text:hover {
+  background: var(--hover);
+  border-color: var(--soft);
+}
+
+.ghost:active,
+.text:active {
+  background: var(--action-tint);
+}
+
+.text:disabled,
+.ghost:disabled {
+  color: var(--soft);
+  cursor: not-allowed;
+  background: var(--raised);
+  border-color: var(--line);
+}
+
+.quiet {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--late);
+  font-weight: 500;
+  margin-inline-start: 8px;
+}
+
+.quiet:hover {
+  background: var(--late-tint);
+  border-color: var(--late-line);
+}
+
+.quiet:disabled {
+  color: var(--soft);
+  cursor: not-allowed;
+  background: transparent;
+  border-color: transparent;
+}
+
+/* Fields */
+
+select,
+input,
+textarea {
+  min-height: 40px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-control);
+  background: var(--surface);
+  padding: 0 12px;
+  caret-color: var(--action);
+  transition:
+    border-color 140ms ease-out,
+    box-shadow 140ms ease-out;
+}
+
+textarea {
+  padding: 10px 12px;
+  line-height: 1.5;
+}
+
+::placeholder {
+  color: var(--soft);
+  opacity: 1;
+}
+
+select:hover,
+input:hover,
+textarea:hover {
+  border-color: var(--soft);
+}
+
+select:focus-visible,
+input:focus-visible,
+textarea:focus-visible {
+  border-color: var(--action);
+  outline: 0;
+  box-shadow: 0 0 0 3px var(--action-tint);
+}
+
+select:disabled,
+input:disabled,
+textarea:disabled {
+  background: var(--raised);
+  color: var(--soft);
+  cursor: not-allowed;
+}
+
+input[type='checkbox'],
+input[type='radio'] {
+  min-height: 0;
+  padding: 0;
+  width: 18px;
+  height: 18px;
+  accent-color: var(--action);
+  box-shadow: none;
+}
+
+input[type='checkbox']:focus-visible,
+input[type='radio']:focus-visible {
+  outline: 2px solid var(--action);
+  outline-offset: 2px;
+  box-shadow: none;
+}
+
+input[type='file'] {
+  padding: 7px 10px;
+}
+
+.login-mail {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  direction: ltr;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-control);
+  background: var(--surface);
+}
+
+.login-mail:focus-within {
+  border-color: var(--action);
+  box-shadow: 0 0 0 3px var(--action-tint);
+}
+
+.login-mail .domain {
+  grid-column: 2;
+  padding: 0 12px 0 8px;
+  color: var(--muted);
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.login-mail input,
+.login-mail input:hover,
+.login-mail input:focus-visible {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.login-mail + .warn {
+  display: block;
+  margin-top: 4px;
+}
+
+/* The filter bar scopes the sheet under it. */
+.filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 12px 14px;
+  margin: 18px 0;
+  padding: 16px 18px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.filters label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 13px;
+  min-width: 0;
+}
+
+.filters input,
+.filters select {
+  width: 100%;
+  margin: 0;
+}

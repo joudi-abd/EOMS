@@ -12,3 +12,8 @@ td,
 .name {
   white-space: normal;
 }
+
+/* On a narrow column the sheet scrolls sideways instead of stacking every word of a name. */
+table {
+  min-width: 760px;
+}

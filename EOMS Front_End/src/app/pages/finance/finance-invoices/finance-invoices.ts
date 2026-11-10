@@ -28,7 +28,8 @@ function plusDays(iso: string, days: number): string {
   selector: 'app-finance-invoices',
   imports: [FormsModule],
   templateUrl: './finance-invoices.html',
-  styleUrl: '../finance-shared.scss',
+  styleUrl: './finance-invoices.scss',
+  host: { class: 'ledger' },
 })
 export class FinanceInvoices extends FinanceTab {
   protected readonly statuses: InvoiceStatus[] = ['draft', 'pending', 'posted', 'cancelled'];

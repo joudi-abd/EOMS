@@ -1,0 +1,395 @@
+/* The ledger kit: working sheets, line tables and lists shared by the finance views and the pay runs.
+   A component opts in with the `ledger` class on its host. */
+
+.ledger {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+  margin-top: 18px;
+
+  > * {
+    min-width: 0;
+  }
+
+  .soft {
+    color: var(--soft);
+  }
+
+  .strong {
+    font-weight: 600;
+  }
+
+  .end {
+    text-align: end;
+  }
+
+  .block-line {
+    display: block;
+    font-size: 12px;
+  }
+
+  .sm {
+    font-size: 13px;
+  }
+
+  .summary,
+  .filters {
+    margin: 0;
+  }
+
+  .summary p.off {
+    color: var(--soft);
+    background: var(--raised);
+  }
+
+  .summary span i {
+    margin-inline-end: 4px;
+    color: var(--mark);
+  }
+
+  .fin-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .fin-toolbar .wait {
+    margin-inline-start: auto;
+    font-size: 14px;
+  }
+
+  .fin-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.6fr) minmax(320px, 1fr);
+    gap: 16px;
+    align-items: start;
+  }
+
+  .fin-stack {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+    min-width: 0;
+  }
+
+  .fin-stack > *,
+  .fin-grid > * {
+    min-width: 0;
+  }
+
+  /* A working sheet: the form or decision that sits above a list, like a dialog in place. */
+  .fin-sheet {
+    background: var(--surface);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--r-dialog);
+    padding: 20px 22px 22px;
+    display: grid;
+    gap: 16px;
+    max-width: 880px;
+  }
+
+  .fin-sheet.narrow {
+    max-width: 560px;
+  }
+
+  .fin-sheet > header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .fin-sheet h2 {
+    margin: 0;
+    font-size: 18px;
+  }
+
+  .fin-sheet fieldset {
+    border: 0;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 14px;
+    min-width: 0;
+  }
+
+  .quiet-x {
+    margin-inline-start: auto;
+    width: 36px;
+    height: 36px;
+    border-radius: var(--r-control);
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--muted);
+    cursor: pointer;
+    transition: background-color 140ms ease-out;
+  }
+
+  .quiet-x:hover {
+    background: var(--hover);
+    color: var(--ink);
+  }
+
+  .fin-form {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 14px;
+    border: 0;
+    margin: 0;
+    padding: 0;
+  }
+
+  .fin-form label,
+  .fin-field {
+    display: grid;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  .fin-form .wide,
+  .fin-field {
+    grid-column: 1 / -1;
+  }
+
+  .fin-form input,
+  .fin-form select,
+  .fin-field textarea,
+  .fin-lines input,
+  .fin-lines select {
+    width: 100%;
+  }
+
+  .fin-hint {
+    margin: 0;
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  .fin-warn {
+    margin: 0;
+    padding: 10px 14px;
+    border-radius: var(--r-control);
+    border: 1px solid var(--wait-line);
+    background: var(--wait-tint);
+    color: var(--wait);
+    font-size: 14px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .fin-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+
+  /* A segmented choice: one of a few, the chosen one a white chip in indigo ink. */
+  .seg {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 2px;
+    padding: 3px;
+    background: var(--hover);
+    border-radius: var(--r-control);
+    width: fit-content;
+  }
+
+  .seg button {
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--muted);
+    min-height: 34px;
+    padding: 6px 16px;
+    font: inherit;
+    font-size: 14px;
+    cursor: pointer;
+    transition:
+      background-color 140ms ease-out,
+      color 140ms ease-out;
+  }
+
+  .seg button:hover {
+    color: var(--ink);
+  }
+
+  .seg button.on {
+    background: var(--surface);
+    color: var(--mark-ink);
+    font-weight: 600;
+    box-shadow: 0 0 0 1px var(--line-strong);
+  }
+
+  /* The filter bar's own actions take a row to themselves, so they never spill past the bar. */
+  .fin-filter-actions {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+
+  .sheet td.end,
+  .sheet th.end {
+    text-align: end;
+  }
+
+  tr.attention td {
+    background: var(--wait-tint);
+  }
+
+  tr.picked td {
+    background: var(--action-tint);
+  }
+
+  tr.sub td {
+    background: var(--raised);
+    font-size: 13px;
+    padding-block: 8px;
+  }
+
+  .fin-row-actions {
+    white-space: nowrap;
+    text-align: end;
+  }
+
+  .text.small,
+  .quiet.small,
+  .primary.small {
+    min-height: 32px;
+    padding: 4px 12px;
+    font-size: 14px;
+    border-radius: 8px;
+  }
+
+  .fin-pager {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .fin-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .fin-list li {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 11px 0;
+    border-bottom: 1px solid var(--line);
+    font-size: 14px;
+  }
+
+  .fin-list li:last-child {
+    border-bottom: 0;
+  }
+
+  .fin-list li > .end {
+    margin-inline-start: auto;
+  }
+
+  .fin-kv {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 8px 18px;
+    margin: 0;
+    font-size: 14px;
+  }
+
+  .fin-kv dt {
+    color: var(--soft);
+  }
+
+  .fin-kv dd {
+    margin: 0;
+  }
+
+  /* Invoice and journal lines: a table of inputs that scrolls on a narrow column. */
+  .fin-lines {
+    position: relative;
+    border: 1px solid var(--line);
+    border-radius: var(--r-control);
+    overflow-x: auto;
+  }
+
+  .fin-lines table {
+    min-width: 620px;
+  }
+
+  .fin-lines th {
+    background: var(--raised);
+  }
+
+  .fin-lines td {
+    padding: 8px;
+    vertical-align: top;
+  }
+
+  .fin-lines tbody tr:hover td {
+    background: transparent;
+  }
+
+  .fin-lines .remove {
+    color: var(--late);
+  }
+
+  .fin-totals {
+    display: grid;
+    gap: 6px;
+    font-size: 14px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .fin-totals div {
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .fin-totals .grand {
+    font-weight: 600;
+    font-size: 16px;
+    border-top: 1px solid var(--mark-soft);
+    padding-top: 8px;
+  }
+
+  .fin-balanced {
+    color: var(--ontime);
+    font-weight: 600;
+  }
+
+  .fin-unbalanced {
+    color: var(--late);
+    font-weight: 600;
+  }
+
+  .link-button {
+    border: 0;
+    background: none;
+    padding: 0;
+    font: inherit;
+    color: var(--action-ink);
+    font-weight: 600;
+    cursor: pointer;
+    text-align: start;
+  }
+
+  .link-button:hover {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+}
+
+@container work (max-width: 1240px) {
+  .ledger .fin-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

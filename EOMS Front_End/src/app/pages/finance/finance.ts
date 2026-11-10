@@ -8,7 +8,6 @@ import { Finance } from '../../data/finance';
 import { Office } from '../../data/office';
 import { Records } from '../../data/records';
 import { Notice } from '../../shared/notice/notice';
-import { Chrome } from '../../shell/chrome';
 import { FinanceCash } from './finance-cash/finance-cash';
 import { FinanceInvoices } from './finance-invoices/finance-invoices';
 import { FinanceItems } from './finance-items/finance-items';
@@ -17,12 +16,12 @@ import { FinanceReports } from './finance-reports/finance-reports';
 
 type View = 'cash' | 'invoices' | 'items' | 'ledger' | 'reports';
 
-const views: { id: View; label: CopyKey; icon: string }[] = [
-  { id: 'cash', label: 'finTabCash', icon: 'fa-solid fa-cash-register' },
-  { id: 'invoices', label: 'finTabInvoices', icon: 'fa-solid fa-file-invoice' },
-  { id: 'items', label: 'finTabItems', icon: 'fa-solid fa-boxes-stacked' },
-  { id: 'ledger', label: 'finTabLedger', icon: 'fa-solid fa-book' },
-  { id: 'reports', label: 'finTabReports', icon: 'fa-solid fa-chart-column' },
+const views: { id: View; label: CopyKey }[] = [
+  { id: 'cash', label: 'finTabCash' },
+  { id: 'invoices', label: 'finTabInvoices' },
+  { id: 'items', label: 'finTabItems' },
+  { id: 'ledger', label: 'finTabLedger' },
+  { id: 'reports', label: 'finTabReports' },
 ];
 
 /** The finance area: one heading, a row of views, and the chosen view. The view lives in `?view=` so a link opens it. */
@@ -33,7 +32,6 @@ const views: { id: View; label: CopyKey; icon: string }[] = [
   styleUrl: './finance.scss',
 })
 export class FinancePage extends Ui {
-  protected readonly chrome = inject(Chrome);
   protected readonly session = inject(Session);
   private readonly finance = inject(Finance);
   private readonly office = inject(Office);

@@ -7,11 +7,11 @@ import { Dashboard } from './pages/dashboard/dashboard';
 import { Access } from './pages/access/access';
 import { Employees } from './pages/employees/employees';
 import { FinancePage } from './pages/finance/finance';
-import { Rates } from './pages/finance/rates';
+import { Rates } from './pages/finance/rates/rates';
 import { HrSettings } from './pages/hr-settings/hr-settings';
 import { Login } from './pages/login/login';
 import { Later } from './pages/later/later';
-import { PayrollPage } from './pages/payroll/payroll-page';
+import { PayrollPage } from './pages/payroll/payroll-page/payroll-page';
 import { Shell } from './shell/shell';
 
 export const routes: Routes = [

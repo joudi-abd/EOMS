@@ -22,6 +22,11 @@ export abstract class Ui {
     return iso ? this.language.formatDate(iso.slice(0, 10)) : '—';
   }
 
+  /** A server timestamp as a readable day and time. */
+  protected stamp(iso: string | null): string {
+    return iso ? this.language.formatDateTime(iso) : '—';
+  }
+
   /** Two initials for an avatar; the Arabic definite article is not a name's first letter. */
   protected initials(value: Text): string {
     return this.text(value)
@@ -29,7 +34,7 @@ export abstract class Ui {
       .split(/\s+/)
       .slice(0, 2)
       .map((word) => word.replace(/^ال/, '').charAt(0))
-      .join('');
+      .join('\u200c');
   }
 
   protected num(value: number): string {

@@ -1,0 +1,37 @@
+/* Invoices, customers and suppliers. */
+
+.fin-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 3px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.fin-chip.ok {
+  background: var(--ontime-tint);
+}
+
+.fin-chip.wait {
+  background: var(--wait-tint);
+}
+
+.fin-chip.late {
+  background: var(--late-tint);
+}
+
+.fin-chip.mute {
+  background: var(--hover);
+  color: var(--muted);
+}
+
+.fin-actions.split {
+  justify-content: space-between;
+}
+
+.filters label.fin-check {
+  align-content: end;
+}

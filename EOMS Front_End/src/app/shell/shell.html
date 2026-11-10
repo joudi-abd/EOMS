@@ -41,8 +41,20 @@
       <app-account-switch />
     </div>
   </aside>
+  @if (chrome.menuOpen()) {
+    <button class="scrim" type="button" tabindex="-1" [attr.aria-label]="t('closeMenu')" (click)="chrome.close()"></button>
+  }
   <div class="stage">
     <header class="top">
+      <button
+        class="menu"
+        type="button"
+        [attr.aria-expanded]="chrome.menuOpen()"
+        [attr.aria-label]="chrome.menuOpen() ? t('closeMenu') : t('menu')"
+        (click)="chrome.toggle()"
+      >
+        <i class="fa-solid" [class.fa-bars]="!chrome.menuOpen()" [class.fa-xmark]="chrome.menuOpen()" aria-hidden="true"></i>
+      </button>
       @if (session.can('employees')) {
         <form class="search" role="search" (submit)="search($event)">
           <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
@@ -53,7 +65,7 @@
       <div class="top-end">
         <button class="lang" type="button" (click)="toggleLanguage()" [attr.aria-label]="t('switchLabel')">
           <i class="fa-solid fa-language" aria-hidden="true"></i>
-          {{ t('switchTo') }}
+          <span>{{ t('switchTo') }}</span>
         </button>
         @if (session.can('alerts')) {
           <a class="bell" routerLink="/modules/alerts" [attr.aria-label]="t('alerts') + (notes.unread() > 0 ? ' · ' + notes.unread() : '')">

@@ -1,36 +1,47 @@
 <main class="work" id="content">
-  <button class="menu" type="button" (click)="chrome.toggle()">
-    <i class="fa-solid" [class.fa-bars]="!chrome.menuOpen()" [class.fa-xmark]="chrome.menuOpen()" aria-hidden="true"></i>
-    {{ chrome.menuOpen() ? t('closeMenu') : t('menu') }}
-  </button>
   <header class="heading">
-    <h1>{{ t('alerts') }}</h1>
-    <p class="note">{{ t('unreadLabel') }} <strong>{{ num(server.unread()) }}</strong></p>
+    <div>
+      <h1>{{ t('alerts') }}</h1>
+      <p class="sub">{{ t('unreadLabel') }} <strong class="count" [class.some]="server.unread() > 0">{{ num(server.unread()) }}</strong></p>
+    </div>
+    @if (server.unread() > 0) {
+      <div class="actions">
+        <button class="text" type="button" [disabled]="busy()" (click)="readAll()">
+          <i class="fa-solid fa-check-double" aria-hidden="true"></i>
+          {{ t('markAllRead') }}
+        </button>
+      </div>
+    }
   </header>
-  @if (error()) { <p class="warn" role="alert">{{ error() }}</p> }
-  @if (busy()) { <p class="note">{{ t('loading') }}</p> }
-  @if (server.unread() > 0) {
-    <button class="text" type="button" [disabled]="busy()" (click)="readAll()">{{ t('markAllRead') }}</button>
+
+  @if (error()) {
+    <p class="problem" role="alert"><i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i> {{ error() }}</p>
   }
-  @if (rows().length === 0 && !busy()) {
-    <p class="empty">{{ t('alertsEmpty') }}</p>
+
+  @if (rows().length === 0) {
+    <p class="empty">{{ busy() ? t('loading') : t('alertsEmpty') }}</p>
   } @else {
-    <ul class="feed">
+    <ul class="feed" [attr.aria-busy]="busy()">
       @for (item of rows(); track item.id) {
         <li [class.read]="item.read_at">
-          <p>{{ item.message || item.kind }}</p>
-          <p class="meta"><bdi>{{ item.created_at }}</bdi></p>
+          <span class="state" aria-hidden="true"></span>
+          <div class="body">
+            <p class="message">{{ item.message || item.kind }}</p>
+            <p class="when"><bdi>{{ stamp(item.created_at) }}</bdi></p>
+          </div>
           @if (!item.read_at) {
-            <button class="text" type="button" [disabled]="busy()" (click)="read(item.id)">{{ t('markRead') }}</button>
+            <button class="text small" type="button" [disabled]="busy()" (click)="read(item.id)">{{ t('markRead') }}</button>
           }
         </li>
       }
     </ul>
   }
-  <nav class="tabs">
-    <button class="text" type="button" [disabled]="busy() || page() <= 1" (click)="open(page() - 1)">{{ t('pagePrev') }}</button>
-    <span>{{ num(page()) }} / {{ num(lastPage()) }}</span>
-    <button class="text" type="button" [disabled]="busy() || page() >= lastPage()" (click)="open(page() + 1)">{{ t('pageNext') }}</button>
-  </nav>
-  <a class="text" routerLink="/">{{ t('dashboard') }}</a>
+
+  @if (lastPage() > 1) {
+    <nav class="pager" [attr.aria-label]="t('alerts')">
+      <button class="text" type="button" [disabled]="busy() || page() <= 1" (click)="open(page() - 1)">{{ t('pagePrev') }}</button>
+      <bdi>{{ num(page()) }} / {{ num(lastPage()) }}</bdi>
+      <button class="text" type="button" [disabled]="busy() || page() >= lastPage()" (click)="open(page() + 1)">{{ t('pageNext') }}</button>
+    </nav>
+  }
 </main>

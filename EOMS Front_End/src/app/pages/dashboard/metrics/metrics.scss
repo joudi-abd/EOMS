@@ -2,22 +2,27 @@
   display: block;
 }
 
+/* The home's headline figures: one joined strip, larger than the strips inside the modules. */
 .metrics {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
-  gap: 16px;
-  margin: 20px 0 0;
+  grid-template-columns: repeat(auto-fit, minmax(168px, 1fr));
+  gap: 0;
+  margin: 22px 0 0;
   padding: 0;
   list-style: none;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
 }
 
 .metric {
   background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  padding: 16px 18px;
+  box-shadow: 0 0 0 1px var(--line);
+  padding: 20px 22px 18px;
   display: grid;
-  gap: 4px;
+  align-content: start;
+  gap: 6px;
   min-width: 0;
 }
 
@@ -27,9 +32,9 @@
 }
 
 .metric strong {
-  font-size: 32px;
+  font-size: 38px;
   font-weight: 600;
-  line-height: 1.15;
+  line-height: 1.1;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.03em;
 }
@@ -55,6 +60,18 @@
 
 @media (max-width: 640px) {
   .metrics {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .metric:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+
+  .metric {
+    padding: 14px 16px;
+  }
+
+  .metric strong {
+    font-size: 28px;
   }
 }

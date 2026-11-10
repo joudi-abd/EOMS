@@ -1,0 +1,2558 @@
+{
+  "EOMS Front_End/.impeccable/config.json": {
+    "mtime": 1794178502.8615017,
+    "seen": 1794300759.9237356,
+    "ast_hash": "5f54e0cfa82a4c33e4566f2b7eb455a0",
+    "semantic_hash": "5f54e0cfa82a4c33e4566f2b7eb455a0"
+  },
+  "EOMS Front_End/.impeccable/decision-round.json": {
+    "mtime": 1794178502.862883,
+    "seen": 1794300759.9237413,
+    "ast_hash": "47ea6232ff59373fdf5d5e9cd616f640",
+    "semantic_hash": "47ea6232ff59373fdf5d5e9cd616f640"
+  },
+  "EOMS Front_End/.impeccable/design.json": {
+    "mtime": 1794178502.8645082,
+    "seen": 1794300759.923744,
+    "ast_hash": "9acef1cc595be2b6e8b7a8e1448365f0",
+    "semantic_hash": "9acef1cc595be2b6e8b7a8e1448365f0"
+  },
+  "EOMS Front_End/.vscode/extensions.json": {
+    "mtime": 1794178502.8663032,
+    "seen": 1794300759.9237454,
+    "ast_hash": "d3b118b41884c371c18cbd55e392eb07",
+    "semantic_hash": "d3b118b41884c371c18cbd55e392eb07"
+  },
+  "EOMS Front_End/.vscode/launch.json": {
+    "mtime": 1794178502.8663468,
+    "seen": 1794300759.9237463,
+    "ast_hash": "c6799d2f7ae6f5d7a740d1023654bb8d",
+    "semantic_hash": "c6799d2f7ae6f5d7a740d1023654bb8d"
+  },
+  "EOMS Front_End/.vscode/tasks.json": {
+    "mtime": 1794178502.866421,
+    "seen": 1794300759.9237473,
+    "ast_hash": "903821282d5c5b46a4673a263eeb9dee",
+    "semantic_hash": "903821282d5c5b46a4673a263eeb9dee"
+  },
+  "EOMS Front_End/angular.json": {
+    "mtime": 1794178502.8669417,
+    "seen": 1794300759.9237483,
+    "ast_hash": "403cd57986fb57fda270447aa1c48d60",
+    "semantic_hash": "403cd57986fb57fda270447aa1c48d60"
+  },
+  "EOMS Front_End/package.json": {
+    "mtime": 1794178502.8772001,
+    "seen": 1794300759.9237492,
+    "ast_hash": "0f9423808e2212cf5b91da5c41e75db7",
+    "semantic_hash": "0f9423808e2212cf5b91da5c41e75db7"
+  },
+  "EOMS Front_End/src/app/app.config.ts": {
+    "mtime": 1794178502.8781176,
+    "seen": 1794300759.9237502,
+    "ast_hash": "1c2831c95c6a75779c3389059bed3e1e",
+    "semantic_hash": "1c2831c95c6a75779c3389059bed3e1e"
+  },
+  "EOMS Front_End/src/app/app.routes.ts": {
+    "mtime": 1794222741.9453142,
+    "seen": 1794300759.9237509,
+    "ast_hash": "5376826d7cffc1890547f65974202546",
+    "semantic_hash": "5376826d7cffc1890547f65974202546"
+  },
+  "EOMS Front_End/src/app/app.spec.ts": {
+    "mtime": 1794178502.8782692,
+    "seen": 1794300759.9237516,
+    "ast_hash": "adc8993a5644411d49e478f82fea7d2f",
+    "semantic_hash": "adc8993a5644411d49e478f82fea7d2f"
+  },
+  "EOMS Front_End/src/app/app.ts": {
+    "mtime": 1794178502.8783176,
+    "seen": 1794300759.9237525,
+    "ast_hash": "694a32214057d2a202af5c83d0daef31",
+    "semantic_hash": "694a32214057d2a202af5c83d0daef31"
+  },
+  "EOMS Front_End/src/app/core/access/accounts.ts": {
+    "mtime": 1794222741.9454346,
+    "seen": 1794300759.9237533,
+    "ast_hash": "7ffd9756129fc442e4c25038438a3741",
+    "semantic_hash": "7ffd9756129fc442e4c25038438a3741"
+  },
+  "EOMS Front_End/src/app/core/access/permission-copy.ts": {
+    "mtime": 1794222741.945534,
+    "seen": 1794300759.923754,
+    "ast_hash": "95679ddfef66adfa2a28c6b28308e5fd",
+    "semantic_hash": "95679ddfef66adfa2a28c6b28308e5fd"
+  },
+  "EOMS Front_End/src/app/core/access/session.spec.ts": {
+    "mtime": 1794178502.8785388,
+    "seen": 1794300759.923755,
+    "ast_hash": "35b2761234cee07a3cc046dd8ded1181",
+    "semantic_hash": "35b2761234cee07a3cc046dd8ded1181"
+  },
+  "EOMS Front_End/src/app/core/access/session.ts": {
+    "mtime": 1794178502.8786047,
+    "seen": 1794300759.9237561,
+    "ast_hash": "6f8ad807ead352999acff38c1c7096ae",
+    "semantic_hash": "6f8ad807ead352999acff38c1c7096ae"
+  },
+  "EOMS Front_End/src/app/core/api/api.ts": {
+    "mtime": 1794222741.945642,
+    "seen": 1794300759.9237568,
+    "ast_hash": "7594ebc91042b4227806bb0ba0541604",
+    "semantic_hash": "7594ebc91042b4227806bb0ba0541604"
+  },
+  "EOMS Front_End/src/app/core/api/auth.ts": {
+    "mtime": 1794178502.8786936,
+    "seen": 1794300759.9237578,
+    "ast_hash": "10f9f1f455ecaf847d2025e03a5a896b",
+    "semantic_hash": "10f9f1f455ecaf847d2025e03a5a896b"
+  },
+  "EOMS Front_End/src/app/core/api/config.ts": {
+    "mtime": 1794178502.8787766,
+    "seen": 1794300759.9237585,
+    "ast_hash": "cb0547c2a459b9570d795a2599d95413",
+    "semantic_hash": "cb0547c2a459b9570d795a2599d95413"
+  },
+  "EOMS Front_End/src/app/core/api/guards.ts": {
+    "mtime": 1794178502.878819,
+    "seen": 1794300759.9237597,
+    "ast_hash": "7a8f84469a0144f5d20569637c207826",
+    "semantic_hash": "7a8f84469a0144f5d20569637c207826"
+  },
+  "EOMS Front_End/src/app/core/api/interceptor.ts": {
+    "mtime": 1794178502.8788638,
+    "seen": 1794300759.9237604,
+    "ast_hash": "d03b3716dd72c3c8b073a80ad4a7a6e8",
+    "semantic_hash": "d03b3716dd72c3c8b073a80ad4a7a6e8"
+  },
+  "EOMS Front_End/src/app/core/api/types.ts": {
+    "mtime": 1794222741.9457595,
+    "seen": 1794300759.9237611,
+    "ast_hash": "bfa5ce20a524cf7490a257b0a8d8da1b",
+    "semantic_hash": "bfa5ce20a524cf7490a257b0a8d8da1b"
+  },
+  "EOMS Front_End/src/app/core/copy-design.ts": {
+    "mtime": 1794222741.945855,
+    "seen": 1794300759.9237623,
+    "ast_hash": "f38a83adcbc67cd4a4e0f673221d8d22",
+    "semantic_hash": "f38a83adcbc67cd4a4e0f673221d8d22"
+  },
+  "EOMS Front_End/src/app/core/copy-finance.ts": {
+    "mtime": 1794222741.9459975,
+    "seen": 1794300759.9237633,
+    "ast_hash": "e13b6903aa3742230e96ea54b5a3cfd2",
+    "semantic_hash": "e13b6903aa3742230e96ea54b5a3cfd2"
+  },
+  "EOMS Front_End/src/app/core/copy-hr.ts": {
+    "mtime": 1794222741.9464333,
+    "seen": 1794300759.923764,
+    "ast_hash": "ddb11cea33aaa7cbb314269f64e3bc06",
+    "semantic_hash": "ddb11cea33aaa7cbb314269f64e3bc06"
+  },
+  "EOMS Front_End/src/app/core/copy-payroll.ts": {
+    "mtime": 1794222741.946522,
+    "seen": 1794300759.923765,
+    "ast_hash": "76fd7afbdb6e918f447bd2a0966cc3d6",
+    "semantic_hash": "76fd7afbdb6e918f447bd2a0966cc3d6"
+  },
+  "EOMS Front_End/src/app/core/copy.ts": {
+    "mtime": 1794222741.9467459,
+    "seen": 1794300759.9237657,
+    "ast_hash": "a80b134488aafb7ad4b0c8a8916b18e8",
+    "semantic_hash": "a80b134488aafb7ad4b0c8a8916b18e8"
+  },
+  "EOMS Front_End/src/app/core/language.ts": {
+    "mtime": 1794178502.879676,
+    "seen": 1794300759.9237666,
+    "ast_hash": "4d49735282a19f055343d9b15b3847cc",
+    "semantic_hash": "4d49735282a19f055343d9b15b3847cc"
+  },
+  "EOMS Front_End/src/app/core/login-mail.ts": {
+    "mtime": 1794222741.946791,
+    "seen": 1794300759.9237673,
+    "ast_hash": "c7301eedf293a61969ae3e537da5783b",
+    "semantic_hash": "c7301eedf293a61969ae3e537da5783b"
+  },
+  "EOMS Front_End/src/app/core/reports/dossier.ts": {
+    "mtime": 1794178502.8799949,
+    "seen": 1794300759.923768,
+    "ast_hash": "06c2f30aa4f9f1279d551a21d8daa836",
+    "semantic_hash": "06c2f30aa4f9f1279d551a21d8daa836"
+  },
+  "EOMS Front_End/src/app/core/reports/excel.ts": {
+    "mtime": 1794178502.880241,
+    "seen": 1794300759.9237688,
+    "ast_hash": "427113514b2ff414c0209580b57b4207",
+    "semantic_hash": "427113514b2ff414c0209580b57b4207"
+  },
+  "EOMS Front_End/src/app/core/reports/pdf.ts": {
+    "mtime": 1794178502.8806782,
+    "seen": 1794300759.92377,
+    "ast_hash": "f24a35cc913bcdebc7f9c3c64af7553b",
+    "semantic_hash": "f24a35cc913bcdebc7f9c3c64af7553b"
+  },
+  "EOMS Front_End/src/app/core/reports/report.ts": {
+    "mtime": 1794178502.8807335,
+    "seen": 1794300759.9237707,
+    "ast_hash": "30410bada4e35784876e4935d4449859",
+    "semantic_hash": "30410bada4e35784876e4935d4449859"
+  },
+  "EOMS Front_End/src/app/core/reports/reporter.ts": {
+    "mtime": 1794178502.880782,
+    "seen": 1794300759.9237714,
+    "ast_hash": "4b00e9c3a60c62e6b13be9195518aa1e",
+    "semantic_hash": "4b00e9c3a60c62e6b13be9195518aa1e"
+  },
+  "EOMS Front_End/src/app/core/ui.ts": {
+    "mtime": 1794178502.880832,
+    "seen": 1794300759.923772,
+    "ast_hash": "c889cecbd06465c034ec7e0ef8f7338a",
+    "semantic_hash": "c889cecbd06465c034ec7e0ef8f7338a"
+  },
+  "EOMS Front_End/src/app/data/account-edit.spec.ts": {
+    "mtime": 1794178502.8808649,
+    "seen": 1794300759.9237728,
+    "ast_hash": "14f91920a492c8b37d48bf40d2bdc3b1",
+    "semantic_hash": "14f91920a492c8b37d48bf40d2bdc3b1"
+  },
+  "EOMS Front_End/src/app/data/attendance-book.spec.ts": {
+    "mtime": 1794222741.9468508,
+    "seen": 1794300759.9237738,
+    "ast_hash": "183da05f9539d342c463cb7686db765b",
+    "semantic_hash": "183da05f9539d342c463cb7686db765b"
+  },
+  "EOMS Front_End/src/app/data/attendance-book.ts": {
+    "mtime": 1794222741.9469702,
+    "seen": 1794300759.9237745,
+    "ast_hash": "19d5a34211aa1ac7ceb794ea693cf687",
+    "semantic_hash": "19d5a34211aa1ac7ceb794ea693cf687"
+  },
+  "EOMS Front_End/src/app/data/attendance.ts": {
+    "mtime": 1794178502.8812983,
+    "seen": 1794300759.9237754,
+    "ast_hash": "c86ee5a0b803167ea0ac8cb184a7c9ae",
+    "semantic_hash": "c86ee5a0b803167ea0ac8cb184a7c9ae"
+  },
+  "EOMS Front_End/src/app/data/devices.ts": {
+    "mtime": 1794178502.881368,
+    "seen": 1794300759.9237761,
+    "ast_hash": "ea9e7cf49e5fc103b3ee85f1fb73976a",
+    "semantic_hash": "ea9e7cf49e5fc103b3ee85f1fb73976a"
+  },
+  "EOMS Front_End/src/app/data/employees.spec.ts": {
+    "mtime": 1794178502.8814273,
+    "seen": 1794300759.923777,
+    "ast_hash": "80ef46274fa3088c4bf802a319b4844c",
+    "semantic_hash": "80ef46274fa3088c4bf802a319b4844c"
+  },
+  "EOMS Front_End/src/app/data/employees.ts": {
+    "mtime": 1794178502.8814669,
+    "seen": 1794300759.9237778,
+    "ast_hash": "36db8253ad16eb1a2d8437d70063cae0",
+    "semantic_hash": "36db8253ad16eb1a2d8437d70063cae0"
+  },
+  "EOMS Front_End/src/app/data/enrollment.spec.ts": {
+    "mtime": 1794178502.8815093,
+    "seen": 1794300759.9237785,
+    "ast_hash": "6f6c64358e9ea100af0e4c5af5207162",
+    "semantic_hash": "6f6c64358e9ea100af0e4c5af5207162"
+  },
+  "EOMS Front_End/src/app/data/enrollment.ts": {
+    "mtime": 1794178502.8815918,
+    "seen": 1794300759.9237804,
+    "ast_hash": "797bdc7eb761edf790e49972575e7c55",
+    "semantic_hash": "797bdc7eb761edf790e49972575e7c55"
+  },
+  "EOMS Front_End/src/app/data/finance.spec.ts": {
+    "mtime": 1794222741.947021,
+    "seen": 1794300759.9237814,
+    "ast_hash": "33f28620eb926de7d0ebb6077a20c7c7",
+    "semantic_hash": "33f28620eb926de7d0ebb6077a20c7c7"
+  },
+  "EOMS Front_End/src/app/data/finance.ts": {
+    "mtime": 1794222741.9471004,
+    "seen": 1794300759.923782,
+    "ast_hash": "3d8f3caca513e653d376480ba447d0cd",
+    "semantic_hash": "3d8f3caca513e653d376480ba447d0cd"
+  },
+  "EOMS Front_End/src/app/data/hr.ts": {
+    "mtime": 1794178502.8816552,
+    "seen": 1794300759.9237828,
+    "ast_hash": "5d66871ab39db6e624dba0a5b0743413",
+    "semantic_hash": "5d66871ab39db6e624dba0a5b0743413"
+  },
+  "EOMS Front_End/src/app/data/leave.ts": {
+    "mtime": 1794178502.8817031,
+    "seen": 1794300759.9237838,
+    "ast_hash": "2c09a6ceb62f414f1731b820da6c6f49",
+    "semantic_hash": "2c09a6ceb62f414f1731b820da6c6f49"
+  },
+  "EOMS Front_End/src/app/data/leaves.spec.ts": {
+    "mtime": 1794222741.9471884,
+    "seen": 1794300759.9237845,
+    "ast_hash": "2bd1c3b6dae13007a7a83321aae0ec44",
+    "semantic_hash": "2bd1c3b6dae13007a7a83321aae0ec44"
+  },
+  "EOMS Front_End/src/app/data/leaves.ts": {
+    "mtime": 1794222741.9472716,
+    "seen": 1794300759.9237852,
+    "ast_hash": "6a79a855faf58067cc12d3bbbb253779",
+    "semantic_hash": "6a79a855faf58067cc12d3bbbb253779"
+  },
+  "EOMS Front_End/src/app/data/office.ts": {
+    "mtime": 1794178502.8820295,
+    "seen": 1794300759.923786,
+    "ast_hash": "5d6ae8fdeb411ed9520a9ddc04de82ea",
+    "semantic_hash": "5d6ae8fdeb411ed9520a9ddc04de82ea"
+  },
+  "EOMS Front_End/src/app/data/payroll.spec.ts": {
+    "mtime": 1794222741.9473176,
+    "seen": 1794300759.9237866,
+    "ast_hash": "720381acf53eb63062cc894e16c959a2",
+    "semantic_hash": "720381acf53eb63062cc894e16c959a2"
+  },
+  "EOMS Front_End/src/app/data/payroll.ts": {
+    "mtime": 1794222741.9473727,
+    "seen": 1794300759.9237876,
+    "ast_hash": "e66368bf591468e725995bdec2180bf0",
+    "semantic_hash": "e66368bf591468e725995bdec2180bf0"
+  },
+  "EOMS Front_End/src/app/data/records.spec.ts": {
+    "mtime": 1794178502.8820667,
+    "seen": 1794300759.9237883,
+    "ast_hash": "8ec454b3cd81a6659f1e353d482493f9",
+    "semantic_hash": "8ec454b3cd81a6659f1e353d482493f9"
+  },
+  "EOMS Front_End/src/app/data/records.ts": {
+    "mtime": 1794178502.8821309,
+    "seen": 1794300759.9237893,
+    "ast_hash": "e57e053899d794a62a10b608efad1b41",
+    "semantic_hash": "e57e053899d794a62a10b608efad1b41"
+  },
+  "EOMS Front_End/src/app/data/rehire.spec.ts": {
+    "mtime": 1794178502.8821688,
+    "seen": 1794300759.92379,
+    "ast_hash": "f1833b470b301b6e6f144e9869671f9c",
+    "semantic_hash": "f1833b470b301b6e6f144e9869671f9c"
+  },
+  "EOMS Front_End/src/app/data/server.spec.ts": {
+    "mtime": 1794222741.947419,
+    "seen": 1794300759.923791,
+    "ast_hash": "426c5ce55dfac3b8380c597233596377",
+    "semantic_hash": "426c5ce55dfac3b8380c597233596377"
+  },
+  "EOMS Front_End/src/app/data/server.ts": {
+    "mtime": 1794222741.9474647,
+    "seen": 1794300759.9237916,
+    "ast_hash": "7c08b7394375d59e679960b146bc6f1f",
+    "semantic_hash": "7c08b7394375d59e679960b146bc6f1f"
+  },
+  "EOMS Front_End/src/app/data/text.ts": {
+    "mtime": 1794178502.8823085,
+    "seen": 1794300759.9237926,
+    "ast_hash": "d6b9fc5877292371e4200528ce7af0f7",
+    "semantic_hash": "d6b9fc5877292371e4200528ce7af0f7"
+  },
+  "EOMS Front_End/src/app/pages/access/access-file/access-file.ts": {
+    "mtime": 1794222741.9477265,
+    "seen": 1794300759.9237933,
+    "ast_hash": "d82da2823e52b94179fe2552a60e3fcd",
+    "semantic_hash": "d82da2823e52b94179fe2552a60e3fcd"
+  },
+  "EOMS Front_End/src/app/pages/access/access-table/access-table.ts": {
+    "mtime": 1794178502.8826945,
+    "seen": 1794300759.9237943,
+    "ast_hash": "d95451bb49914153f85d3d373cc2c5e7",
+    "semantic_hash": "d95451bb49914153f85d3d373cc2c5e7"
+  },
+  "EOMS Front_End/src/app/pages/access/access.ts": {
+    "mtime": 1794222741.9478738,
+    "seen": 1794300759.9237952,
+    "ast_hash": "bf1e1430683ae5392772a580a0a27065",
+    "semantic_hash": "bf1e1430683ae5392772a580a0a27065"
+  },
+  "EOMS Front_End/src/app/pages/alerts/alerts.ts": {
+    "mtime": 1794222741.9480138,
+    "seen": 1794300759.923796,
+    "ast_hash": "093b0a61b03f7e1384f588ace79e4e5b",
+    "semantic_hash": "093b0a61b03f7e1384f588ace79e4e5b"
+  },
+  "EOMS Front_End/src/app/pages/attendance/attendance-day/attendance-day.spec.ts": {
+    "mtime": 1794222741.9482467,
+    "seen": 1794300759.9237967,
+    "ast_hash": "1aac5873fc788147fbc06d272d62f7d3",
+    "semantic_hash": "1aac5873fc788147fbc06d272d62f7d3"
+  },
+  "EOMS Front_End/src/app/pages/attendance/attendance-day/attendance-day.ts": {
+    "mtime": 1794222741.9483352,
+    "seen": 1794300759.9237976,
+    "ast_hash": "b500aeae29952dd33179aa79a1b9990c",
+    "semantic_hash": "b500aeae29952dd33179aa79a1b9990c"
+  },
+  "EOMS Front_End/src/app/pages/attendance/attendance-report/attendance-report.ts": {
+    "mtime": 1794222741.9485664,
+    "seen": 1794300759.9237988,
+    "ast_hash": "1a0f1f8983fd83da78e8a321d3cd3f74",
+    "semantic_hash": "1a0f1f8983fd83da78e8a321d3cd3f74"
+  },
+  "EOMS Front_End/src/app/pages/attendance/attendance-table/attendance-table.ts": {
+    "mtime": 1794178502.883858,
+    "seen": 1794300759.9238,
+    "ast_hash": "cbbd547cb66f59f3671abd490b7a554f",
+    "semantic_hash": "cbbd547cb66f59f3671abd490b7a554f"
+  },
+  "EOMS Front_End/src/app/pages/attendance/attendance.ts": {
+    "mtime": 1794178502.8845603,
+    "seen": 1794300759.9238017,
+    "ast_hash": "3c8bafad3c82bc77aa514d90c35fd868",
+    "semantic_hash": "3c8bafad3c82bc77aa514d90c35fd868"
+  },
+  "EOMS Front_End/src/app/pages/attendance/marks.ts": {
+    "mtime": 1794178502.88462,
+    "seen": 1794300759.9238029,
+    "ast_hash": "275152aedeb5920d12f014a11a55b7d7",
+    "semantic_hash": "275152aedeb5920d12f014a11a55b7d7"
+  },
+  "EOMS Front_End/src/app/pages/attendance/punch-log/punch-log.ts": {
+    "mtime": 1794178502.8847635,
+    "seen": 1794300759.9238052,
+    "ast_hash": "626ffbb0fab05c35c8dcd516ca8c9adb",
+    "semantic_hash": "626ffbb0fab05c35c8dcd516ca8c9adb"
+  },
+  "EOMS Front_End/src/app/pages/dashboard/accounts-mix/accounts-mix.ts": {
+    "mtime": 1794178502.8849342,
+    "seen": 1794300759.9238067,
+    "ast_hash": "a942b97676637546b96fd44327949d47",
+    "semantic_hash": "a942b97676637546b96fd44327949d47"
+  },
+  "EOMS Front_End/src/app/pages/dashboard/attendance/attendance.ts": {
+    "mtime": 1794178502.885324,
+    "seen": 1794300759.923808,
+    "ast_hash": "b6ab7d937aad82d84c3bdc05043cc37b",
+    "semantic_hash": "b6ab7d937aad82d84c3bdc05043cc37b"
+  },
+  "EOMS Front_End/src/app/pages/dashboard/dashboard.ts": {
+    "mtime": 1794222741.9489822,
+    "seen": 1794300759.9238093,
+    "ast_hash": "8f2bbb8b9e9e6a5f2bf7f08f23645b81",
+    "semantic_hash": "8f2bbb8b9e9e6a5f2bf7f08f23645b81"
+  },
+  "EOMS Front_End/src/app/pages/dashboard/hr-flow/hr-flow.ts": {
+    "mtime": 1794178502.8856516,
+    "seen": 1794300759.9238105,
+    "ast_hash": "6d6b082b42943a20ff594e3337c318f9",
+    "semantic_hash": "6d6b082b42943a20ff594e3337c318f9"
+  },
+  "EOMS Front_End/src/app/pages/dashboard/insights.spec.ts": {
+    "mtime": 1794178502.8857057,
+    "seen": 1794300759.9238117,
+    "ast_hash": "6af4e02b36189dd23d0356e32eb5eb3d",
+    "semantic_hash": "6af4e02b36189dd23d0356e32eb5eb3d"
+  },
+  "EOMS Front_End/src/app/pages/dashboard/insights.ts": {
+    "mtime": 1794178502.8857763,
+    "seen": 1794300759.9238126,
+    "ast_hash": "ad41684d2fc9f4c4a890e54c7a4df556",
+    "semantic_hash": "ad41684d2fc9f4c4a890e54c7a4df556"
+  },
+  "EOMS Front_End/src/app/pages/dashboard/leave/leave-queue.ts": {
+    "mtime": 1794178502.8859584,
+    "seen": 1794300759.9238138,
+    "ast_hash": "9c335e9f6abdebb82f1e0824db1f07fb",
+    "semantic_hash": "9c335e9f6abdebb82f1e0824db1f07fb"
+  },
+  "EOMS Front_End/src/app/pages/dashboard/metrics/metrics.ts": {
+    "mtime": 1794178502.8861225,
+    "seen": 1794300759.9238153,
+    "ast_hash": "3f28e3d2010fc664148f551feb7fd40a",
+    "semantic_hash": "3f28e3d2010fc664148f551feb7fd40a"
+  },
+  "EOMS Front_End/src/app/pages/dashboard/money/money.ts": {
+    "mtime": 1794222741.949138,
+    "seen": 1794300759.9238167,
+    "ast_hash": "7d9a2735ddfe22ed1b075f817dd441a1",
+    "semantic_hash": "7d9a2735ddfe22ed1b075f817dd441a1"
+  },
+  "EOMS Front_End/src/app/pages/dashboard/my-month/my-month.ts": {
+    "mtime": 1794178502.8862712,
+    "seen": 1794300759.9238176,
+    "ast_hash": "a0e4105960f4c642876d2e95e8956414",
+    "semantic_hash": "a0e4105960f4c642876d2e95e8956414"
+  },
+  "EOMS Front_End/src/app/pages/dashboard/people/people.ts": {
+    "mtime": 1794178502.8864205,
+    "seen": 1794300759.923819,
+    "ast_hash": "0781a9553390353852ad971a38894f5e",
+    "semantic_hash": "0781a9553390353852ad971a38894f5e"
+  },
+  "EOMS Front_End/src/app/pages/dashboard/purchases/purchase-table.ts": {
+    "mtime": 1794178502.8866088,
+    "seen": 1794300759.9238203,
+    "ast_hash": "dbc19888b975b68fa882acffd6e2d9cb",
+    "semantic_hash": "dbc19888b975b68fa882acffd6e2d9cb"
+  },
+  "EOMS Front_End/src/app/pages/employees/employee-contracts/employee-contracts.ts": {
+    "mtime": 1794178502.886825,
+    "seen": 1794300759.9238214,
+    "ast_hash": "b7f68ee94908284479e154eff0113cda",
+    "semantic_hash": "b7f68ee94908284479e154eff0113cda"
+  },
+  "EOMS Front_End/src/app/pages/employees/employee-documents/employee-documents.ts": {
+    "mtime": 1794178502.887016,
+    "seen": 1794300759.9238229,
+    "ast_hash": "96d5d5a17e5394a3720188e4564a71ae",
+    "semantic_hash": "96d5d5a17e5394a3720188e4564a71ae"
+  },
+  "EOMS Front_End/src/app/pages/employees/employee-dossier.ts": {
+    "mtime": 1794178502.887096,
+    "seen": 1794300759.923824,
+    "ast_hash": "beb422945e1ea747ac3acc81806499e9",
+    "semantic_hash": "beb422945e1ea747ac3acc81806499e9"
+  },
+  "EOMS Front_End/src/app/pages/employees/employee-file/employee-file.ts": {
+    "mtime": 1794222741.9493308,
+    "seen": 1794300759.9238253,
+    "ast_hash": "44681e929d05fa39d81a22a8ccb1eff3",
+    "semantic_hash": "44681e929d05fa39d81a22a8ccb1eff3"
+  },
+  "EOMS Front_End/src/app/pages/employees/employee-finger/employee-finger.ts": {
+    "mtime": 1794178502.8876846,
+    "seen": 1794300759.9238274,
+    "ast_hash": "7a6d0684f8c89e39e05ed0b532a00a21",
+    "semantic_hash": "7a6d0684f8c89e39e05ed0b532a00a21"
+  },
+  "EOMS Front_End/src/app/pages/employees/employee-form/employee-form.ts": {
+    "mtime": 1794222741.9496,
+    "seen": 1794300759.9238284,
+    "ast_hash": "ceca8b0a87ed043302db1302cadb1ce4",
+    "semantic_hash": "ceca8b0a87ed043302db1302cadb1ce4"
+  },
+  "EOMS Front_End/src/app/pages/employees/employee-history/employee-history.spec.ts": {
+    "mtime": 1794178502.888015,
+    "seen": 1794300759.9238298,
+    "ast_hash": "d0166e9070091a121309b53dc004be1d",
+    "semantic_hash": "d0166e9070091a121309b53dc004be1d"
+  },
+  "EOMS Front_End/src/app/pages/employees/employee-history/employee-history.ts": {
+    "mtime": 1794178502.8880527,
+    "seen": 1794300759.9238307,
+    "ast_hash": "69c02d56afb8ee106e996232f3c77616",
+    "semantic_hash": "69c02d56afb8ee106e996232f3c77616"
+  },
+  "EOMS Front_End/src/app/pages/employees/employee-info/employee-info.ts": {
+    "mtime": 1794222741.9498484,
+    "seen": 1794300759.9238317,
+    "ast_hash": "1ec3791bd9459fd4a78d5fd6c99a894a",
+    "semantic_hash": "1ec3791bd9459fd4a78d5fd6c99a894a"
+  },
+  "EOMS Front_End/src/app/pages/employees/employee-leaving/employee-leaving.spec.ts": {
+    "mtime": 1794178502.8885853,
+    "seen": 1794300759.923833,
+    "ast_hash": "93212a25e7f884dac242527e01368a9c",
+    "semantic_hash": "93212a25e7f884dac242527e01368a9c"
+  },
+  "EOMS Front_End/src/app/pages/employees/employee-leaving/employee-leaving.ts": {
+    "mtime": 1794178502.8886273,
+    "seen": 1794300759.923834,
+    "ast_hash": "b0e2d71b30fd1b87b6dd66fd692a87dd",
+    "semantic_hash": "b0e2d71b30fd1b87b6dd66fd692a87dd"
+  },
+  "EOMS Front_End/src/app/pages/employees/employee-table/employee-table.ts": {
+    "mtime": 1794178502.8887925,
+    "seen": 1794300759.9238353,
+    "ast_hash": "0dbbbfadab1f638f8224a188c1c8351c",
+    "semantic_hash": "0dbbbfadab1f638f8224a188c1c8351c"
+  },
+  "EOMS Front_End/src/app/pages/employees/employees.ts": {
+    "mtime": 1794222741.950113,
+    "seen": 1794300759.9238365,
+    "ast_hash": "e4acfd01a5d093dfc3347d7e9990429d",
+    "semantic_hash": "e4acfd01a5d093dfc3347d7e9990429d"
+  },
+  "EOMS Front_End/src/app/pages/employees/finger-dialog/finger-dialog.ts": {
+    "mtime": 1794178502.8893201,
+    "seen": 1794300759.9238377,
+    "ast_hash": "a5a7f519c40a055bf0d2b5d19978d5ca",
+    "semantic_hash": "a5a7f519c40a055bf0d2b5d19978d5ca"
+  },
+  "EOMS Front_End/src/app/pages/finance/finance-cash/finance-cash.ts": {
+    "mtime": 1794222741.9502492,
+    "seen": 1794300759.9238386,
+    "ast_hash": "5b9d4958b0fdbf7bbffa7c45686f7316",
+    "semantic_hash": "5b9d4958b0fdbf7bbffa7c45686f7316"
+  },
+  "EOMS Front_End/src/app/pages/finance/finance-invoices/finance-invoices.ts": {
+    "mtime": 1794222741.9504206,
+    "seen": 1794300759.92384,
+    "ast_hash": "9e9d5341afbd1c87b796d9746f494e7b",
+    "semantic_hash": "9e9d5341afbd1c87b796d9746f494e7b"
+  },
+  "EOMS Front_End/src/app/pages/finance/finance-items/finance-items.ts": {
+    "mtime": 1794222741.9505744,
+    "seen": 1794300759.923841,
+    "ast_hash": "a29b1bef24495346e7444643a161d889",
+    "semantic_hash": "a29b1bef24495346e7444643a161d889"
+  },
+  "EOMS Front_End/src/app/pages/finance/finance-ledger/finance-ledger.ts": {
+    "mtime": 1794222741.9507148,
+    "seen": 1794300759.9238427,
+    "ast_hash": "c9d9d95b94663031c2c4831999679413",
+    "semantic_hash": "c9d9d95b94663031c2c4831999679413"
+  },
+  "EOMS Front_End/src/app/pages/finance/finance-reports/finance-reports.ts": {
+    "mtime": 1794222741.9508655,
+    "seen": 1794300759.9238439,
+    "ast_hash": "8222bc5a217ca0856a471b006b8937a5",
+    "semantic_hash": "8222bc5a217ca0856a471b006b8937a5"
+  },
+  "EOMS Front_End/src/app/pages/finance/finance-tab.ts": {
+    "mtime": 1794222741.9510167,
+    "seen": 1794300759.9238453,
+    "ast_hash": "8deacd00f2b12c57d6c978f8d32fd713",
+    "semantic_hash": "8deacd00f2b12c57d6c978f8d32fd713"
+  },
+  "EOMS Front_End/src/app/pages/finance/finance.ts": {
+    "mtime": 1794222741.9511578,
+    "seen": 1794300759.923847,
+    "ast_hash": "4e8b5f24fd1b17a1a864e2ade31bd0f2",
+    "semantic_hash": "4e8b5f24fd1b17a1a864e2ade31bd0f2"
+  },
+  "EOMS Front_End/src/app/pages/finance/rates.ts": {
+    "mtime": 1794222741.9513485,
+    "seen": 1794300759.9238482,
+    "ast_hash": "21678e8847cc373ffa9c2cb2de2862c8",
+    "semantic_hash": "21678e8847cc373ffa9c2cb2de2862c8"
+  },
+  "EOMS Front_End/src/app/pages/hr-settings/hr-settings.ts": {
+    "mtime": 1794222741.9516246,
+    "seen": 1794300759.9238498,
+    "ast_hash": "9c0052af38d2138d855e87da6a0354a2",
+    "semantic_hash": "9c0052af38d2138d855e87da6a0354a2"
+  },
+  "EOMS Front_End/src/app/pages/hr-settings/settings-devices/settings-devices.ts": {
+    "mtime": 1794222741.9519122,
+    "seen": 1794300759.9238508,
+    "ast_hash": "706e07e68e215c35ccb9f772ec3c2441",
+    "semantic_hash": "706e07e68e215c35ccb9f772ec3c2441"
+  },
+  "EOMS Front_End/src/app/pages/hr-settings/settings-holidays/settings-holidays.ts": {
+    "mtime": 1794178502.8902133,
+    "seen": 1794300759.923852,
+    "ast_hash": "f3ed3eb746f25a3f06d162ba962514da",
+    "semantic_hash": "f3ed3eb746f25a3f06d162ba962514da"
+  },
+  "EOMS Front_End/src/app/pages/hr-settings/settings-leaves/settings-leaves.spec.ts": {
+    "mtime": 1794222741.9523108,
+    "seen": 1794300759.9238532,
+    "ast_hash": "deb76031f8272fd6664b47906c987509",
+    "semantic_hash": "deb76031f8272fd6664b47906c987509"
+  },
+  "EOMS Front_End/src/app/pages/hr-settings/settings-leaves/settings-leaves.ts": {
+    "mtime": 1794222741.9524183,
+    "seen": 1794300759.923854,
+    "ast_hash": "97da18c510e5563d73c34a281ec47520",
+    "semantic_hash": "97da18c510e5563d73c34a281ec47520"
+  },
+  "EOMS Front_End/src/app/pages/hr-settings/settings-list/settings-list.ts": {
+    "mtime": 1794178502.8910863,
+    "seen": 1794300759.9238553,
+    "ast_hash": "204ecfaaed8cc229fe7bc42c578b36b6",
+    "semantic_hash": "204ecfaaed8cc229fe7bc42c578b36b6"
+  },
+  "EOMS Front_End/src/app/pages/hr-settings/settings-office/settings-office.ts": {
+    "mtime": 1794222741.9525714,
+    "seen": 1794300759.9238567,
+    "ast_hash": "cbe2e5e9e87e46f6c95d7acf94b0e647",
+    "semantic_hash": "cbe2e5e9e87e46f6c95d7acf94b0e647"
+  },
+  "EOMS Front_End/src/app/pages/hr-settings/settings-shift/settings-shift.ts": {
+    "mtime": 1794178502.8915117,
+    "seen": 1794300759.923858,
+    "ast_hash": "1d2551b70ac70fbddb6a0a3d0305221f",
+    "semantic_hash": "1d2551b70ac70fbddb6a0a3d0305221f"
+  },
+  "EOMS Front_End/src/app/pages/later/later.ts": {
+    "mtime": 1794178502.8917043,
+    "seen": 1794300759.923859,
+    "ast_hash": "40b721ccbff2854a113913f48196f92c",
+    "semantic_hash": "40b721ccbff2854a113913f48196f92c"
+  },
+  "EOMS Front_End/src/app/pages/leave/leave-file/leave-file.ts": {
+    "mtime": 1794178502.8919687,
+    "seen": 1794300759.92386,
+    "ast_hash": "3d8bd38296c68344828ea9e74f95fea9",
+    "semantic_hash": "3d8bd38296c68344828ea9e74f95fea9"
+  },
+  "EOMS Front_End/src/app/pages/leave/leave-table/leave-table.ts": {
+    "mtime": 1794178502.8921857,
+    "seen": 1794300759.9238613,
+    "ast_hash": "dd4aa6a6478aa5b4935dc9facffc500c",
+    "semantic_hash": "dd4aa6a6478aa5b4935dc9facffc500c"
+  },
+  "EOMS Front_End/src/app/pages/leave/leave.ts": {
+    "mtime": 1794178502.8924506,
+    "seen": 1794300759.9238625,
+    "ast_hash": "5acf0a7029ceaf7449cbd1a4ea0a8b1c",
+    "semantic_hash": "5acf0a7029ceaf7449cbd1a4ea0a8b1c"
+  },
+  "EOMS Front_End/src/app/pages/leaves/leave-calendar/leave-calendar.ts": {
+    "mtime": 1794222741.9527795,
+    "seen": 1794300759.9238636,
+    "ast_hash": "a58b87530a169bc6fe651746dfca824a",
+    "semantic_hash": "a58b87530a169bc6fe651746dfca824a"
+  },
+  "EOMS Front_End/src/app/pages/leaves/leave-form/leave-form.ts": {
+    "mtime": 1794222741.952953,
+    "seen": 1794300759.9238648,
+    "ast_hash": "b359e8fce6f8424e383a3e8e938f52fd",
+    "semantic_hash": "b359e8fce6f8424e383a3e8e938f52fd"
+  },
+  "EOMS Front_End/src/app/pages/leaves/leave-format.ts": {
+    "mtime": 1794222741.9530306,
+    "seen": 1794300759.923866,
+    "ast_hash": "03cd0bbe127ce80ef0c623cc3eac579f",
+    "semantic_hash": "03cd0bbe127ce80ef0c623cc3eac579f"
+  },
+  "EOMS Front_End/src/app/pages/leaves/leave-periods/leave-periods.ts": {
+    "mtime": 1794222741.9531024,
+    "seen": 1794300759.9238677,
+    "ast_hash": "cc3990ec77dd25aff0c968bb80b6f456",
+    "semantic_hash": "cc3990ec77dd25aff0c968bb80b6f456"
+  },
+  "EOMS Front_End/src/app/pages/leaves/leave-register/leave-register.ts": {
+    "mtime": 1794222741.9533412,
+    "seen": 1794300759.923869,
+    "ast_hash": "3fad2a0bd4d1819731bea7f8c958d562",
+    "semantic_hash": "3fad2a0bd4d1819731bea7f8c958d562"
+  },
+  "EOMS Front_End/src/app/pages/leaves/leaves.spec.ts": {
+    "mtime": 1794222741.953591,
+    "seen": 1794300759.9238698,
+    "ast_hash": "6ab2161428230f99834ad23773536b11",
+    "semantic_hash": "6ab2161428230f99834ad23773536b11"
+  },
+  "EOMS Front_End/src/app/pages/leaves/leaves.ts": {
+    "mtime": 1794222741.9537127,
+    "seen": 1794300759.9238715,
+    "ast_hash": "7e5856af752c3cfc54ffe22a6a230207",
+    "semantic_hash": "7e5856af752c3cfc54ffe22a6a230207"
+  },
+  "EOMS Front_End/src/app/pages/login/login.ts": {
+    "mtime": 1794178502.8936014,
+    "seen": 1794300759.9238725,
+    "ast_hash": "c435c0ca50b03ce6c9a8b83f190c14cf",
+    "semantic_hash": "c435c0ca50b03ce6c9a8b83f190c14cf"
+  },
+  "EOMS Front_End/src/app/pages/payroll/payroll-facts/payroll-facts.ts": {
+    "mtime": 1794222741.9538796,
+    "seen": 1794300759.923874,
+    "ast_hash": "3dd1118ed02e9d5550d821727aa748fb",
+    "semantic_hash": "3dd1118ed02e9d5550d821727aa748fb"
+  },
+  "EOMS Front_End/src/app/pages/payroll/payroll-file/payroll-file.ts": {
+    "mtime": 1794178502.8939648,
+    "seen": 1794300759.9238753,
+    "ast_hash": "f92b9b1caff5c5d76f6e785ab228b039",
+    "semantic_hash": "f92b9b1caff5c5d76f6e785ab228b039"
+  },
+  "EOMS Front_End/src/app/pages/payroll/payroll-page.ts": {
+    "mtime": 1794222741.9539583,
+    "seen": 1794300759.9238765,
+    "ast_hash": "43900c6222a82ff10b5d179fe1124a48",
+    "semantic_hash": "43900c6222a82ff10b5d179fe1124a48"
+  },
+  "EOMS Front_End/src/app/pages/payroll/payroll-run/payroll-run.ts": {
+    "mtime": 1794178502.8944724,
+    "seen": 1794300759.923878,
+    "ast_hash": "07f59784f6f6084b99216e127e9e8da3",
+    "semantic_hash": "07f59784f6f6084b99216e127e9e8da3"
+  },
+  "EOMS Front_End/src/app/pages/payroll/payroll-runs/payroll-runs.ts": {
+    "mtime": 1794222741.954175,
+    "seen": 1794300759.9238796,
+    "ast_hash": "44baf4cfe3a4a0a1d68aa2f4c72fad6b",
+    "semantic_hash": "44baf4cfe3a4a0a1d68aa2f4c72fad6b"
+  },
+  "EOMS Front_End/src/app/pages/payroll/payroll-table/payroll-table.ts": {
+    "mtime": 1794178502.8947003,
+    "seen": 1794300759.923881,
+    "ast_hash": "25478995c30f75fb427aba4421f15dfc",
+    "semantic_hash": "25478995c30f75fb427aba4421f15dfc"
+  },
+  "EOMS Front_End/src/app/pages/payroll/payroll.ts": {
+    "mtime": 1794178502.8949125,
+    "seen": 1794300759.9238822,
+    "ast_hash": "c801b592c8fea1ee9dd1467b7a2a8d87",
+    "semantic_hash": "c801b592c8fea1ee9dd1467b7a2a8d87"
+  },
+  "EOMS Front_End/src/app/pages/payroll/run-status.ts": {
+    "mtime": 1794178502.8949814,
+    "seen": 1794300759.9238832,
+    "ast_hash": "00fdfc15b024c87a224a77ee53596aed",
+    "semantic_hash": "00fdfc15b024c87a224a77ee53596aed"
+  },
+  "EOMS Front_End/src/app/pages/requests/request-file/request-file.ts": {
+    "mtime": 1794178502.8952575,
+    "seen": 1794300759.9238844,
+    "ast_hash": "f7a0b443ee286788c569e291694dcf54",
+    "semantic_hash": "f7a0b443ee286788c569e291694dcf54"
+  },
+  "EOMS Front_End/src/app/pages/requests/request-kinds.ts": {
+    "mtime": 1794178502.8953247,
+    "seen": 1794300759.9238856,
+    "ast_hash": "73f40dab49f5586cf9140cb139eb65ca",
+    "semantic_hash": "73f40dab49f5586cf9140cb139eb65ca"
+  },
+  "EOMS Front_End/src/app/pages/requests/request-table/request-table.ts": {
+    "mtime": 1794178502.895587,
+    "seen": 1794300759.9238868,
+    "ast_hash": "e36a43a36f34e2a485bc82cd79f5f676",
+    "semantic_hash": "e36a43a36f34e2a485bc82cd79f5f676"
+  },
+  "EOMS Front_End/src/app/pages/requests/requests.ts": {
+    "mtime": 1794178502.8958035,
+    "seen": 1794300759.9238882,
+    "ast_hash": "ac597e41f5bf499df609b4806f8b5d30",
+    "semantic_hash": "ac597e41f5bf499df609b4806f8b5d30"
+  },
+  "EOMS Front_End/src/app/shared/charts/bar-chart/bar-chart.ts": {
+    "mtime": 1794178502.8961158,
+    "seen": 1794300759.9238892,
+    "ast_hash": "2c72e27ad8cb9ef2750b262191c018b8",
+    "semantic_hash": "2c72e27ad8cb9ef2750b262191c018b8"
+  },
+  "EOMS Front_End/src/app/shared/charts/chart.ts": {
+    "mtime": 1794178502.896182,
+    "seen": 1794300759.92389,
+    "ast_hash": "a58788e0711e152ea81ec01a6034a460",
+    "semantic_hash": "a58788e0711e152ea81ec01a6034a460"
+  },
+  "EOMS Front_End/src/app/shared/charts/donut-chart/donut-chart.ts": {
+    "mtime": 1794178502.8964026,
+    "seen": 1794300759.9238915,
+    "ast_hash": "0c42638a24247750ea3f1dda8c596598",
+    "semantic_hash": "0c42638a24247750ea3f1dda8c596598"
+  },
+  "EOMS Front_End/src/app/shared/charts/line-chart/line-chart.ts": {
+    "mtime": 1794178502.8966062,
+    "seen": 1794300759.9238925,
+    "ast_hash": "16036c34cefa241d4d89c36d4429b76a",
+    "semantic_hash": "16036c34cefa241d4d89c36d4429b76a"
+  },
+  "EOMS Front_End/src/app/shared/charts/rank-chart/rank-chart.ts": {
+    "mtime": 1794178502.8968182,
+    "seen": 1794300759.923899,
+    "ast_hash": "0692837bdf2b5e95f66b0b2943eefdc5",
+    "semantic_hash": "0692837bdf2b5e95f66b0b2943eefdc5"
+  },
+  "EOMS Front_End/src/app/shared/notice/notice.ts": {
+    "mtime": 1794178502.89701,
+    "seen": 1794300759.9239001,
+    "ast_hash": "affe35d0628a5bc73f1ab887da71083b",
+    "semantic_hash": "affe35d0628a5bc73f1ab887da71083b"
+  },
+  "EOMS Front_End/src/app/shell/account-switch/account-switch.ts": {
+    "mtime": 1794178502.897104,
+    "seen": 1794300759.923901,
+    "ast_hash": "b00c85836db66a423319a6bae2073d56",
+    "semantic_hash": "b00c85836db66a423319a6bae2073d56"
+  },
+  "EOMS Front_End/src/app/shell/chrome.ts": {
+    "mtime": 1794178502.8972254,
+    "seen": 1794300759.9239028,
+    "ast_hash": "d9cb0748d5a214087da32e61b885379c",
+    "semantic_hash": "d9cb0748d5a214087da32e61b885379c"
+  },
+  "EOMS Front_End/src/app/shell/icons.ts": {
+    "mtime": 1794178502.897272,
+    "seen": 1794300759.9239037,
+    "ast_hash": "029155d64cf88b709c5c0bc714b7499a",
+    "semantic_hash": "029155d64cf88b709c5c0bc714b7499a"
+  },
+  "EOMS Front_End/src/app/shell/shell.ts": {
+    "mtime": 1794224133.9246705,
+    "seen": 1794300759.9239051,
+    "ast_hash": "5e43f5258d4cc05910b5805d9013f5bd",
+    "semantic_hash": "5e43f5258d4cc05910b5805d9013f5bd"
+  },
+  "EOMS Front_End/src/main.ts": {
+    "mtime": 1794178502.8975077,
+    "seen": 1794300759.9239063,
+    "ast_hash": "f3983daa46dc263bf3c8d0dd448a5a01",
+    "semantic_hash": "f3983daa46dc263bf3c8d0dd448a5a01"
+  },
+  "EOMS Front_End/tsconfig.app.json": {
+    "mtime": 1794178502.8980021,
+    "seen": 1794300759.9239073,
+    "ast_hash": "ded1ad06ef642ba79333739b224a1671",
+    "semantic_hash": "ded1ad06ef642ba79333739b224a1671"
+  },
+  "EOMS Front_End/tsconfig.json": {
+    "mtime": 1794178502.8980505,
+    "seen": 1794300759.9239082,
+    "ast_hash": "dbbf980a953c8196e0a769cdd8006196",
+    "semantic_hash": "dbbf980a953c8196e0a769cdd8006196"
+  },
+  "EOMS Front_End/tsconfig.spec.json": {
+    "mtime": 1794178502.8981059,
+    "seen": 1794300759.9239097,
+    "ast_hash": "cfc04cc9471c956a1f47c5396cf5d8f4",
+    "semantic_hash": "cfc04cc9471c956a1f47c5396cf5d8f4"
+  },
+  "eos-backend/app/Http/Controllers/Controller.php": {
+    "mtime": 1793134834.0615287,
+    "seen": 1794300759.9239109,
+    "ast_hash": "25a307335c0719bc9a91b3f7babd186d",
+    "semantic_hash": "25a307335c0719bc9a91b3f7babd186d"
+  },
+  "eos-backend/app/Modules/Finance/Database/Migrations/2026_11_11_000001_create_finance_tables.php": {
+    "mtime": 1794222741.954701,
+    "seen": 1794300759.9239123,
+    "ast_hash": "8ec123dfee6677605be7f593acd6c719",
+    "semantic_hash": "8ec123dfee6677605be7f593acd6c719"
+  },
+  "eos-backend/app/Modules/Finance/Http/Controllers/FinanceController.php": {
+    "mtime": 1794222741.9547994,
+    "seen": 1794300759.9239137,
+    "ast_hash": "c0059b9d80a77587b7d1f5ad0246d332",
+    "semantic_hash": "c0059b9d80a77587b7d1f5ad0246d332"
+  },
+  "eos-backend/app/Modules/Finance/Models/Account.php": {
+    "mtime": 1794222741.9549496,
+    "seen": 1794300759.923915,
+    "ast_hash": "2c34120f164c42157b3cc5c74a23a648",
+    "semantic_hash": "2c34120f164c42157b3cc5c74a23a648"
+  },
+  "eos-backend/app/Modules/Finance/Models/ApprovalLimit.php": {
+    "mtime": 1794222741.9549768,
+    "seen": 1794300759.9239163,
+    "ast_hash": "cfedcccd0231b5ffd198d420cb94f058",
+    "semantic_hash": "cfedcccd0231b5ffd198d420cb94f058"
+  },
+  "eos-backend/app/Modules/Finance/Models/Box.php": {
+    "mtime": 1794222741.9549768,
+    "seen": 1794300759.9239175,
+    "ast_hash": "9b35e88a8d77bcf072b0a6970ebe4e42",
+    "semantic_hash": "9b35e88a8d77bcf072b0a6970ebe4e42"
+  },
+  "eos-backend/app/Modules/Finance/Models/Invoice.php": {
+    "mtime": 1794222741.9549768,
+    "seen": 1794300759.923919,
+    "ast_hash": "974f3c82f9b239819f22ea195149f526",
+    "semantic_hash": "974f3c82f9b239819f22ea195149f526"
+  },
+  "eos-backend/app/Modules/Finance/Models/InvoiceLine.php": {
+    "mtime": 1794222741.9550612,
+    "seen": 1794300759.9239202,
+    "ast_hash": "922a6f94c9f4d44e9d60ece69db4a0f4",
+    "semantic_hash": "922a6f94c9f4d44e9d60ece69db4a0f4"
+  },
+  "eos-backend/app/Modules/Finance/Models/Item.php": {
+    "mtime": 1794222741.9550612,
+    "seen": 1794300759.9239213,
+    "ast_hash": "d5399a04e0b71309008c0ebdab8aa27d",
+    "semantic_hash": "d5399a04e0b71309008c0ebdab8aa27d"
+  },
+  "eos-backend/app/Modules/Finance/Models/JournalEntry.php": {
+    "mtime": 1794222741.9550612,
+    "seen": 1794300759.9239228,
+    "ast_hash": "7c587b9c302546a481fcbad2e8d370eb",
+    "semantic_hash": "7c587b9c302546a481fcbad2e8d370eb"
+  },
+  "eos-backend/app/Modules/Finance/Models/JournalLine.php": {
+    "mtime": 1794222741.9550612,
+    "seen": 1794300759.923924,
+    "ast_hash": "711976ff9f354c289d966dd129144b1f",
+    "semantic_hash": "711976ff9f354c289d966dd129144b1f"
+  },
+  "eos-backend/app/Modules/Finance/Models/Party.php": {
+    "mtime": 1794222741.9550612,
+    "seen": 1794300759.9239254,
+    "ast_hash": "a80e4975403194ca480d39355ce4392e",
+    "semantic_hash": "a80e4975403194ca480d39355ce4392e"
+  },
+  "eos-backend/app/Modules/Finance/Models/Period.php": {
+    "mtime": 1794222741.9550612,
+    "seen": 1794300759.923927,
+    "ast_hash": "75cd1e8f1d4930f6efc4b4a46a469423",
+    "semantic_hash": "75cd1e8f1d4930f6efc4b4a46a469423"
+  },
+  "eos-backend/app/Modules/Finance/Models/StockMove.php": {
+    "mtime": 1794222741.9550612,
+    "seen": 1794300759.9239285,
+    "ast_hash": "fd1daab9fcf193e1607ffc1736ce2a9c",
+    "semantic_hash": "fd1daab9fcf193e1607ffc1736ce2a9c"
+  },
+  "eos-backend/app/Modules/Finance/Models/Transaction.php": {
+    "mtime": 1794222741.9550612,
+    "seen": 1794300759.92393,
+    "ast_hash": "a7efb53c650f2b99f5d5eb5a759d10c0",
+    "semantic_hash": "a7efb53c650f2b99f5d5eb5a759d10c0"
+  },
+  "eos-backend/app/Modules/Finance/Providers/FinanceServiceProvider.php": {
+    "mtime": 1794222741.9553132,
+    "seen": 1794300759.9239316,
+    "ast_hash": "c3b29da33d22cd9bb452342aa1858d32",
+    "semantic_hash": "c3b29da33d22cd9bb452342aa1858d32"
+  },
+  "eos-backend/app/Modules/Finance/Routes/api.php": {
+    "mtime": 1794222741.9553592,
+    "seen": 1794300759.923933,
+    "ast_hash": "f07ccc47bdb8fc22d97a3f1860a96946",
+    "semantic_hash": "f07ccc47bdb8fc22d97a3f1860a96946"
+  },
+  "eos-backend/app/Modules/Finance/Services/CashService.php": {
+    "mtime": 1794222741.9554174,
+    "seen": 1794300759.9239342,
+    "ast_hash": "6d6775d86d1896f396dccec3812dbab0",
+    "semantic_hash": "6d6775d86d1896f396dccec3812dbab0"
+  },
+  "eos-backend/app/Modules/Finance/Services/FinanceNotifier.php": {
+    "mtime": 1794222741.955531,
+    "seen": 1794300759.9239352,
+    "ast_hash": "454b29a86152ff6f36ab4de1243685b2",
+    "semantic_hash": "454b29a86152ff6f36ab4de1243685b2"
+  },
+  "eos-backend/app/Modules/Finance/Services/InvoiceService.php": {
+    "mtime": 1794222741.9556434,
+    "seen": 1794300759.9239368,
+    "ast_hash": "77001812a1ca630ba6d0461fc6d778d2",
+    "semantic_hash": "77001812a1ca630ba6d0461fc6d778d2"
+  },
+  "eos-backend/app/Modules/Finance/Services/LedgerService.php": {
+    "mtime": 1794222741.955731,
+    "seen": 1794300759.923938,
+    "ast_hash": "c42b774f518f6311a6b8414d491f101a",
+    "semantic_hash": "c42b774f518f6311a6b8414d491f101a"
+  },
+  "eos-backend/app/Modules/Finance/Services/ReportService.php": {
+    "mtime": 1794222741.9557893,
+    "seen": 1794300759.9239407,
+    "ast_hash": "747e5adb8c88e5f7b87cfcbd182f8172",
+    "semantic_hash": "747e5adb8c88e5f7b87cfcbd182f8172"
+  },
+  "eos-backend/app/Modules/HR/Casts/AttendanceUtcDateTime.php": {
+    "mtime": 1794178502.9000547,
+    "seen": 1794300759.923942,
+    "ast_hash": "dd0d7131123a241f1fe692184f156ab2",
+    "semantic_hash": "dd0d7131123a241f1fe692184f156ab2"
+  },
+  "eos-backend/app/Modules/HR/Console/Commands/ConfigureAdmsDevice.php": {
+    "mtime": 1794178502.9001665,
+    "seen": 1794300759.9239435,
+    "ast_hash": "284802cd86087edc82ac9a617a1534c7",
+    "semantic_hash": "284802cd86087edc82ac9a617a1534c7"
+  },
+  "eos-backend/app/Modules/HR/Console/Commands/ConfigureAttendanceDefaults.php": {
+    "mtime": 1794178502.9002068,
+    "seen": 1794300759.9239447,
+    "ast_hash": "0e950acfdc0ab77266f886a79c0265a5",
+    "semantic_hash": "0e950acfdc0ab77266f886a79c0265a5"
+  },
+  "eos-backend/app/Modules/HR/Console/Commands/ProcessExpiredContracts.php": {
+    "mtime": 1794178502.9002068,
+    "seen": 1794300759.923946,
+    "ast_hash": "44a28104b0efc1102c3bca5f103579b8",
+    "semantic_hash": "44a28104b0efc1102c3bca5f103579b8"
+  },
+  "eos-backend/app/Modules/HR/Console/Commands/ProcessLeaveBalances.php": {
+    "mtime": 1794178502.9002068,
+    "seen": 1794300759.9239478,
+    "ast_hash": "e6bb3de7d270069378a9ae0beb238b9e",
+    "semantic_hash": "e6bb3de7d270069378a9ae0beb238b9e"
+  },
+  "eos-backend/app/Modules/HR/Console/Commands/ProcessPendingDocumentCleanups.php": {
+    "mtime": 1794178502.9002068,
+    "seen": 1794300759.9239492,
+    "ast_hash": "ad81167fd3d79628e0dc18779f1992b3",
+    "semantic_hash": "ad81167fd3d79628e0dc18779f1992b3"
+  },
+  "eos-backend/app/Modules/HR/Console/Commands/ProcessScheduledContractTerminations.php": {
+    "mtime": 1794178502.9002068,
+    "seen": 1794300759.9239504,
+    "ast_hash": "93ef37a0cc33394a51f1560bf4ee6e78",
+    "semantic_hash": "93ef37a0cc33394a51f1560bf4ee6e78"
+  },
+  "eos-backend/app/Modules/HR/Console/Commands/RecalculateAttendance.php": {
+    "mtime": 1794178502.9002068,
+    "seen": 1794300759.9239516,
+    "ast_hash": "7b691188ef792ef1ffbfc8a88e9c11c4",
+    "semantic_hash": "7b691188ef792ef1ffbfc8a88e9c11c4"
+  },
+  "eos-backend/app/Modules/HR/Database/Migrations/2026_10_23_223323_create_hr_departments_table.php": {
+    "mtime": 1793134834.0616086,
+    "seen": 1794300759.923953,
+    "ast_hash": "d2786bfb8dfff283029fcd99397bf58c",
+    "semantic_hash": "d2786bfb8dfff283029fcd99397bf58c"
+  },
+  "eos-backend/app/Modules/HR/Database/Migrations/2026_10_23_223447_create_hr_job_titles_table.php": {
+    "mtime": 1793134834.0616646,
+    "seen": 1794300759.9239545,
+    "ast_hash": "5bf65ebf7431b33480d7baa51263b70b",
+    "semantic_hash": "5bf65ebf7431b33480d7baa51263b70b"
+  },
+  "eos-backend/app/Modules/HR/Database/Migrations/2026_10_23_224028_create_hr_employees_table.php": {
+    "mtime": 1793134834.0616646,
+    "seen": 1794300759.9239557,
+    "ast_hash": "106499d350d20335c4d4e0dd26210009",
+    "semantic_hash": "106499d350d20335c4d4e0dd26210009"
+  },
+  "eos-backend/app/Modules/HR/Database/Migrations/2026_10_28_000001_create_hr_employee_job_histories_table.php": {
+    "mtime": 1794178502.900373,
+    "seen": 1794300759.9239573,
+    "ast_hash": "d2c8f15cb40a92e8db5ab0e0f7263f5d",
+    "semantic_hash": "d2c8f15cb40a92e8db5ab0e0f7263f5d"
+  },
+  "eos-backend/app/Modules/HR/Database/Migrations/2026_10_28_020000_create_hr_employment_contracts_table.php": {
+    "mtime": 1794178502.9004161,
+    "seen": 1794300759.9239585,
+    "ast_hash": "bc2edb3dd646ddadd0f13bbcc4ed7ee2",
+    "semantic_hash": "bc2edb3dd646ddadd0f13bbcc4ed7ee2"
+  },
+  "eos-backend/app/Modules/HR/Database/Migrations/2026_10_28_225824_add_reason_to_hr_employee_job_histories_table.php": {
+    "mtime": 1794178502.9004161,
+    "seen": 1794300759.9239595,
+    "ast_hash": "5bd25349dbb5d71e479b1bba51f687b2",
+    "semantic_hash": "5bd25349dbb5d71e479b1bba51f687b2"
+  },
+  "eos-backend/app/Modules/HR/Database/Migrations/2026_10_29_000001_add_scheduled_termination_to_hr_employment_contracts_table.php": {
+    "mtime": 1794178502.9004161,
+    "seen": 1794300759.923961,
+    "ast_hash": "4605cdb6487843c86abe36efd6701aed",
+    "semantic_hash": "4605cdb6487843c86abe36efd6701aed"
+  },
+  "eos-backend/app/Modules/HR/Database/Migrations/2026_10_29_100000_add_father_name_and_termination_reason_to_hr_employees_table.php": {
+    "mtime": 1794178502.9004161,
+    "seen": 1794300759.923962,
+    "ast_hash": "36e58cc574de295c63a398a90e8accb4",
+    "semantic_hash": "36e58cc574de295c63a398a90e8accb4"
+  },
+  "eos-backend/app/Modules/HR/Database/Migrations/2026_10_29_100001_create_hr_employee_documents_table.php": {
+    "mtime": 1794178502.9004161,
+    "seen": 1794300759.9239633,
+    "ast_hash": "c5cf681f0f26d854a08c8f1e230d88e1",
+    "semantic_hash": "c5cf681f0f26d854a08c8f1e230d88e1"
+  },
+  "eos-backend/app/Modules/HR/Database/Migrations/2026_10_29_190000_create_hr_pending_document_cleanups_table.php": {
+    "mtime": 1794178502.9004161,
+    "seen": 1794300759.9239647,
+    "ast_hash": "5888604227afad69fc94b8202dbe1c7a",
+    "semantic_hash": "5888604227afad69fc94b8202dbe1c7a"
+  },
+  "eos-backend/app/Modules/HR/Database/Migrations/2026_10_30_000001_create_hr_attendance_tables.php": {
+    "mtime": 1794178502.900589,
+    "seen": 1794300759.923966,
+    "ast_hash": "6297d681ef3262e841a575050932c4ce",
+    "semantic_hash": "6297d681ef3262e841a575050932c4ce"
+  },
+  "eos-backend/app/Modules/HR/Database/Migrations/2026_10_30_000002_add_attendance_lateness_blocks.php": {
+    "mtime": 1794178502.900589,
+    "seen": 1794300759.9239671,
+    "ast_hash": "0ebe57d07cf645c94ecbc3c5b93874cf",
+    "semantic_hash": "0ebe57d07cf645c94ecbc3c5b93874cf"
+  },
+  "eos-backend/app/Modules/HR/Database/Migrations/2026_11_05_191346_add_adms_gateway_tables.php": {
+    "mtime": 1794178502.9006765,
+    "seen": 1794300759.9239686,
+    "ast_hash": "c478825c22ce17a6837191567027873a",
+    "semantic_hash": "c478825c22ce17a6837191567027873a"
+  },
+  "eos-backend/app/Modules/HR/Database/Migrations/2026_11_05_224351_create_hr_adms_quarantined_punches_table.php": {
+    "mtime": 1794178502.9009206,
+    "seen": 1794300759.9239697,
+    "ast_hash": "b1b2067165ef716722f3a1e0ea15c360",
+    "semantic_hash": "b1b2067165ef716722f3a1e0ea15c360"
+  },
+  "eos-backend/app/Modules/HR/Database/Migrations/2026_11_07_021819_add_contract_context_to_employee_job_histories.php": {
+    "mtime": 1794178502.9009206,
+    "seen": 1794300759.9239712,
+    "ast_hash": "bb902773bf226f333ac2dc0e60a7e41c",
+    "semantic_hash": "bb902773bf226f333ac2dc0e60a7e41c"
+  },
+  "eos-backend/app/Modules/HR/Database/Migrations/2026_11_07_025304_add_employee_service_periods_and_binding_revocation.php": {
+    "mtime": 1794178502.9009929,
+    "seen": 1794300759.9239724,
+    "ast_hash": "b7a31cf747400fc950e2cf79a864b4b8",
+    "semantic_hash": "b7a31cf747400fc950e2cf79a864b4b8"
+  },
+  "eos-backend/app/Modules/HR/Database/Migrations/2026_11_08_000001_create_hr_leave_foundation.php": {
+    "mtime": 1794178502.9009929,
+    "seen": 1794300759.9239736,
+    "ast_hash": "58188f91762c11d7d48ce38b8878ca03",
+    "semantic_hash": "58188f91762c11d7d48ce38b8878ca03"
+  },
+  "eos-backend/app/Modules/HR/Database/Migrations/2026_11_08_000002_create_hr_leave_workflows.php": {
+    "mtime": 1794178502.9010592,
+    "seen": 1794300759.9239752,
+    "ast_hash": "229d02267267bbff41fdfd72670d5668",
+    "semantic_hash": "229d02267267bbff41fdfd72670d5668"
+  },
+  "eos-backend/app/Modules/HR/Database/Migrations/2026_11_08_000003_add_leave_context_to_hr_attendance_days.php": {
+    "mtime": 1794178502.9011164,
+    "seen": 1794300759.9239767,
+    "ast_hash": "76896fa4a35f333ad6ad813092d21b30",
+    "semantic_hash": "76896fa4a35f333ad6ad813092d21b30"
+  },
+  "eos-backend/app/Modules/HR/Database/Migrations/2026_11_09_000001_retire_employee_on_leave_status.php": {
+    "mtime": 1794178502.9011164,
+    "seen": 1794300759.923978,
+    "ast_hash": "f44576ebadce4992c00ea7abdd2198ea",
+    "semantic_hash": "f44576ebadce4992c00ea7abdd2198ea"
+  },
+  "eos-backend/app/Modules/HR/Database/Migrations/2026_11_09_000002_add_manager_to_hr_departments.php": {
+    "mtime": 1794178502.9011164,
+    "seen": 1794300759.9239795,
+    "ast_hash": "24149c8bdf40e281dac0c8dda3a8ecd3",
+    "semantic_hash": "24149c8bdf40e281dac0c8dda3a8ecd3"
+  },
+  "eos-backend/app/Modules/HR/Database/Migrations/2026_11_09_000004_backfill_leave_debit_entries.php": {
+    "mtime": 1794222741.955853,
+    "seen": 1794300759.9239807,
+    "ast_hash": "b0f31955c3eb569aa4784c454edd8f0e",
+    "semantic_hash": "b0f31955c3eb569aa4784c454edd8f0e"
+  },
+  "eos-backend/app/Modules/HR/Database/Migrations/2026_11_09_000005_add_entered_by_to_hr_leave_requests.php": {
+    "mtime": 1794222741.9558918,
+    "seen": 1794300759.9239821,
+    "ast_hash": "283e96b34a42e73048b509597b6ac268",
+    "semantic_hash": "283e96b34a42e73048b509597b6ac268"
+  },
+  "eos-backend/app/Modules/HR/Database/Migrations/2026_11_09_000006_add_pay_type_to_hr_employment_contracts.php": {
+    "mtime": 1794222741.9558918,
+    "seen": 1794300759.9239833,
+    "ast_hash": "f7590a02dc72ddca52278ef1c6bd054a",
+    "semantic_hash": "f7590a02dc72ddca52278ef1c6bd054a"
+  },
+  "eos-backend/app/Modules/HR/Database/Seeders/AttendancePermissionSeeder.php": {
+    "mtime": 1794178502.9013574,
+    "seen": 1794300759.9239843,
+    "ast_hash": "aa86592e0aa072bb41967ba00f0c11b1",
+    "semantic_hash": "aa86592e0aa072bb41967ba00f0c11b1"
+  },
+  "eos-backend/app/Modules/HR/Http/Controllers/AdmsController.php": {
+    "mtime": 1794178502.901641,
+    "seen": 1794300759.9239857,
+    "ast_hash": "44590c99ecfbc6393bd95c3c245faf97",
+    "semantic_hash": "44590c99ecfbc6393bd95c3c245faf97"
+  },
+  "eos-backend/app/Modules/HR/Http/Controllers/AttendanceController.php": {
+    "mtime": 1794178502.9017391,
+    "seen": 1794300759.9239872,
+    "ast_hash": "2de2221fe74ac102e632f83e06a2e486",
+    "semantic_hash": "2de2221fe74ac102e632f83e06a2e486"
+  },
+  "eos-backend/app/Modules/HR/Http/Controllers/AttendanceIngestController.php": {
+    "mtime": 1794178502.9017391,
+    "seen": 1794300759.9239886,
+    "ast_hash": "fa7d165e5d4d4820cee1179f69a3fdc9",
+    "semantic_hash": "fa7d165e5d4d4820cee1179f69a3fdc9"
+  },
+  "eos-backend/app/Modules/HR/Http/Controllers/AttendanceSettingsController.php": {
+    "mtime": 1794178502.9018123,
+    "seen": 1794300759.9239895,
+    "ast_hash": "080924c211ca0b9e2fba8903fe532084",
+    "semantic_hash": "080924c211ca0b9e2fba8903fe532084"
+  },
+  "eos-backend/app/Modules/HR/Http/Controllers/DepartmentController.php": {
+    "mtime": 1794178502.9019015,
+    "seen": 1794300759.9239907,
+    "ast_hash": "7735607d8c9dc0cdc79b6df1e35cb504",
+    "semantic_hash": "7735607d8c9dc0cdc79b6df1e35cb504"
+  },
+  "eos-backend/app/Modules/HR/Http/Controllers/EmployeeController.php": {
+    "mtime": 1794178502.9019666,
+    "seen": 1794300759.9239922,
+    "ast_hash": "b1ae939530f6f6d8be3e7a3d9c584881",
+    "semantic_hash": "b1ae939530f6f6d8be3e7a3d9c584881"
+  },
+  "eos-backend/app/Modules/HR/Http/Controllers/EmployeeDocumentController.php": {
+    "mtime": 1794178502.9020195,
+    "seen": 1794300759.9239936,
+    "ast_hash": "a5a31141aacf712ee08ce1416664f2e4",
+    "semantic_hash": "a5a31141aacf712ee08ce1416664f2e4"
+  },
+  "eos-backend/app/Modules/HR/Http/Controllers/EmployeeJobHistoryController.php": {
+    "mtime": 1794178502.9020648,
+    "seen": 1794300759.923995,
+    "ast_hash": "624986efbbd96e13afb1b7d539382189",
+    "semantic_hash": "624986efbbd96e13afb1b7d539382189"
+  },
+  "eos-backend/app/Modules/HR/Http/Controllers/EmployeeRehireController.php": {
+    "mtime": 1794178502.9021173,
+    "seen": 1794300759.9239964,
+    "ast_hash": "fc1c9be5965df803e6e660fadeb68e2c",
+    "semantic_hash": "fc1c9be5965df803e6e660fadeb68e2c"
+  },
+  "eos-backend/app/Modules/HR/Http/Controllers/EmployeeTerminationController.php": {
+    "mtime": 1794178502.9021173,
+    "seen": 1794300759.9239976,
+    "ast_hash": "1a90520868a38b62c598871f89591f0d",
+    "semantic_hash": "1a90520868a38b62c598871f89591f0d"
+  },
+  "eos-backend/app/Modules/HR/Http/Controllers/EmploymentContractController.php": {
+    "mtime": 1794222741.956031,
+    "seen": 1794300759.9239988,
+    "ast_hash": "a28abb75d8a00fea5fb8753997d86f74",
+    "semantic_hash": "a28abb75d8a00fea5fb8753997d86f74"
+  },
+  "eos-backend/app/Modules/HR/Http/Controllers/JobTitleController.php": {
+    "mtime": 1793137278.6056287,
+    "seen": 1794300759.924,
+    "ast_hash": "a159d6c56bc7e0f2850ed1c950f40c1a",
+    "semantic_hash": "a159d6c56bc7e0f2850ed1c950f40c1a"
+  },
+  "eos-backend/app/Modules/HR/Http/Controllers/LeaveRequestController.php": {
+    "mtime": 1794222741.9561625,
+    "seen": 1794300759.9240012,
+    "ast_hash": "db7f760a3ea570d4f387d7e9a220f576",
+    "semantic_hash": "db7f760a3ea570d4f387d7e9a220f576"
+  },
+  "eos-backend/app/Modules/HR/Http/Controllers/LeaveSettingsController.php": {
+    "mtime": 1794222741.9562461,
+    "seen": 1794300759.9240024,
+    "ast_hash": "af4532cd397db21cd95ce5c70ac77d0c",
+    "semantic_hash": "af4532cd397db21cd95ce5c70ac77d0c"
+  },
+  "eos-backend/app/Modules/HR/Http/Middleware/AuthenticateAdmsDevice.php": {
+    "mtime": 1794178502.9023638,
+    "seen": 1794300759.9240036,
+    "ast_hash": "ab4666d45a03984d34b354e40ab04985",
+    "semantic_hash": "ab4666d45a03984d34b354e40ab04985"
+  },
+  "eos-backend/app/Modules/HR/Http/Middleware/AuthenticateAttendanceDevice.php": {
+    "mtime": 1794178502.9024305,
+    "seen": 1794300759.9240048,
+    "ast_hash": "aa36923a102b33cebd5856a20fe59255",
+    "semantic_hash": "aa36923a102b33cebd5856a20fe59255"
+  },
+  "eos-backend/app/Modules/HR/Http/Requests/RehireEmployeeRequest.php": {
+    "mtime": 1794178502.902532,
+    "seen": 1794300759.924006,
+    "ast_hash": "c9ba70fc08c9a203b7400914f9d2b220",
+    "semantic_hash": "c9ba70fc08c9a203b7400914f9d2b220"
+  },
+  "eos-backend/app/Modules/HR/Http/Requests/ScheduleEmploymentContractTerminationRequest.php": {
+    "mtime": 1794178502.902581,
+    "seen": 1794300759.9240074,
+    "ast_hash": "d1f350d1ddc89da1ebb840e62f7d486c",
+    "semantic_hash": "d1f350d1ddc89da1ebb840e62f7d486c"
+  },
+  "eos-backend/app/Modules/HR/Http/Requests/StoreEmployeeDocumentRequest.php": {
+    "mtime": 1794178502.902581,
+    "seen": 1794300759.9240084,
+    "ast_hash": "2b0442aac928290286127606ddb15eb8",
+    "semantic_hash": "2b0442aac928290286127606ddb15eb8"
+  },
+  "eos-backend/app/Modules/HR/Http/Requests/StoreEmployeeRequest.php": {
+    "mtime": 1794178502.9027035,
+    "seen": 1794300759.9240098,
+    "ast_hash": "83eea0decd3b62da82829e8588b922dc",
+    "semantic_hash": "83eea0decd3b62da82829e8588b922dc"
+  },
+  "eos-backend/app/Modules/HR/Http/Requests/StoreEmploymentContractRequest.php": {
+    "mtime": 1794222741.9563076,
+    "seen": 1794300759.924011,
+    "ast_hash": "681e13ca1c2ce89db6f062b1f6e79671",
+    "semantic_hash": "681e13ca1c2ce89db6f062b1f6e79671"
+  },
+  "eos-backend/app/Modules/HR/Http/Requests/StoreLeaveBalanceEntryRequest.php": {
+    "mtime": 1794178502.9027035,
+    "seen": 1794300759.9240127,
+    "ast_hash": "451fe9faba058b8cacefa2cac2158248",
+    "semantic_hash": "451fe9faba058b8cacefa2cac2158248"
+  },
+  "eos-backend/app/Modules/HR/Http/Requests/StoreLeavePolicyRequest.php": {
+    "mtime": 1794178502.9027035,
+    "seen": 1794300759.9240139,
+    "ast_hash": "53fa15304a893c1bade699c4851b4ed2",
+    "semantic_hash": "53fa15304a893c1bade699c4851b4ed2"
+  },
+  "eos-backend/app/Modules/HR/Http/Requests/SubmitLeaveRequest.php": {
+    "mtime": 1794222741.9563866,
+    "seen": 1794300759.9240153,
+    "ast_hash": "1b8814c41ce8a647f7caf944db009ddd",
+    "semantic_hash": "1b8814c41ce8a647f7caf944db009ddd"
+  },
+  "eos-backend/app/Modules/HR/Http/Requests/TerminateEmployeeRequest.php": {
+    "mtime": 1794178502.9028451,
+    "seen": 1794300759.924017,
+    "ast_hash": "8033e1eaa4c1ec335070eab020ffc718",
+    "semantic_hash": "8033e1eaa4c1ec335070eab020ffc718"
+  },
+  "eos-backend/app/Modules/HR/Http/Requests/TerminateEmploymentContractRequest.php": {
+    "mtime": 1794178502.9028451,
+    "seen": 1794300759.9240181,
+    "ast_hash": "d18529a4e83a3f637c221626c70aef45",
+    "semantic_hash": "d18529a4e83a3f637c221626c70aef45"
+  },
+  "eos-backend/app/Modules/HR/Http/Requests/UpdateEmployeeRequest.php": {
+    "mtime": 1794178502.9028451,
+    "seen": 1794300759.9240198,
+    "ast_hash": "28b4eed58edce116e95e60506108b30f",
+    "semantic_hash": "28b4eed58edce116e95e60506108b30f"
+  },
+  "eos-backend/app/Modules/HR/Http/Resources/AttendanceDayResource.php": {
+    "mtime": 1794222741.956475,
+    "seen": 1794300759.9240212,
+    "ast_hash": "c21990e142e2c9112c6d7082b78dd76b",
+    "semantic_hash": "c21990e142e2c9112c6d7082b78dd76b"
+  },
+  "eos-backend/app/Modules/HR/Http/Resources/EmployeeDocumentResource.php": {
+    "mtime": 1794178502.903003,
+    "seen": 1794300759.9240224,
+    "ast_hash": "f6b359467341c35a2195d0b8d399be32",
+    "semantic_hash": "f6b359467341c35a2195d0b8d399be32"
+  },
+  "eos-backend/app/Modules/HR/Http/Resources/EmployeeJobHistoryResource.php": {
+    "mtime": 1794178502.903003,
+    "seen": 1794300759.9240239,
+    "ast_hash": "82bed24f5c3b876470bc282be2ad140c",
+    "semantic_hash": "82bed24f5c3b876470bc282be2ad140c"
+  },
+  "eos-backend/app/Modules/HR/Http/Resources/EmployeeResource.php": {
+    "mtime": 1794178502.903136,
+    "seen": 1794300759.9240253,
+    "ast_hash": "287b082831fe02316d71b5c62946a0cc",
+    "semantic_hash": "287b082831fe02316d71b5c62946a0cc"
+  },
+  "eos-backend/app/Modules/HR/Http/Resources/EmploymentContractResource.php": {
+    "mtime": 1794222741.956539,
+    "seen": 1794300759.924027,
+    "ast_hash": "a8987e8ec294ffe1d18fd4c328a78f8a",
+    "semantic_hash": "a8987e8ec294ffe1d18fd4c328a78f8a"
+  },
+  "eos-backend/app/Modules/HR/Listeners/ProtectEmployeeAccountProfile.php": {
+    "mtime": 1794178502.9032094,
+    "seen": 1794300759.9240284,
+    "ast_hash": "0d218890bdb8f8900f863c24e974e7ab",
+    "semantic_hash": "0d218890bdb8f8900f863c24e974e7ab"
+  },
+  "eos-backend/app/Modules/HR/Models/AttendanceBinding.php": {
+    "mtime": 1794178502.9032094,
+    "seen": 1794300759.92403,
+    "ast_hash": "421e055569e7b5ddf7af742071f0cd6e",
+    "semantic_hash": "421e055569e7b5ddf7af742071f0cd6e"
+  },
+  "eos-backend/app/Modules/HR/Models/AttendanceCorrection.php": {
+    "mtime": 1794178502.9032094,
+    "seen": 1794300759.9240315,
+    "ast_hash": "96006409625b1349c6f4d077b1e15fee",
+    "semantic_hash": "96006409625b1349c6f4d077b1e15fee"
+  },
+  "eos-backend/app/Modules/HR/Models/AttendanceDay.php": {
+    "mtime": 1794178502.9033117,
+    "seen": 1794300759.924033,
+    "ast_hash": "d725b46b6d1f7681907bcf73c54f68df",
+    "semantic_hash": "d725b46b6d1f7681907bcf73c54f68df"
+  },
+  "eos-backend/app/Modules/HR/Models/AttendanceDevice.php": {
+    "mtime": 1794178502.90336,
+    "seen": 1794300759.924034,
+    "ast_hash": "b73b714c1d4d70cd0df386477c9fc4f1",
+    "semantic_hash": "b73b714c1d4d70cd0df386477c9fc4f1"
+  },
+  "eos-backend/app/Modules/HR/Models/AttendanceEnrollment.php": {
+    "mtime": 1794178502.9034166,
+    "seen": 1794300759.9240353,
+    "ast_hash": "76b8f00c3cb835ec01a35dbab8fc3c90",
+    "semantic_hash": "76b8f00c3cb835ec01a35dbab8fc3c90"
+  },
+  "eos-backend/app/Modules/HR/Models/AttendancePolicy.php": {
+    "mtime": 1794178502.9034166,
+    "seen": 1794300759.9240365,
+    "ast_hash": "7d96bf5727ad0dc0e3fc2893d8ee1d9c",
+    "semantic_hash": "7d96bf5727ad0dc0e3fc2893d8ee1d9c"
+  },
+  "eos-backend/app/Modules/HR/Models/AttendancePunch.php": {
+    "mtime": 1794178502.9034166,
+    "seen": 1794300759.9240377,
+    "ast_hash": "3415a66763a8a18a5b0aa2c47e930475",
+    "semantic_hash": "3415a66763a8a18a5b0aa2c47e930475"
+  },
+  "eos-backend/app/Modules/HR/Models/Department.php": {
+    "mtime": 1794178502.9037032,
+    "seen": 1794300759.9240391,
+    "ast_hash": "2c44111eed31789bfaf11bae237ca282",
+    "semantic_hash": "2c44111eed31789bfaf11bae237ca282"
+  },
+  "eos-backend/app/Modules/HR/Models/Employee.php": {
+    "mtime": 1794178502.9037716,
+    "seen": 1794300759.9240406,
+    "ast_hash": "31e5240f6e297e82e318f33d5a30a37e",
+    "semantic_hash": "31e5240f6e297e82e318f33d5a30a37e"
+  },
+  "eos-backend/app/Modules/HR/Models/EmployeeDocument.php": {
+    "mtime": 1794178502.9037716,
+    "seen": 1794300759.924042,
+    "ast_hash": "b38f12274619289cf4a7f1cb23af2691",
+    "semantic_hash": "b38f12274619289cf4a7f1cb23af2691"
+  },
+  "eos-backend/app/Modules/HR/Models/EmployeeJobHistory.php": {
+    "mtime": 1794178502.9038217,
+    "seen": 1794300759.9240432,
+    "ast_hash": "9f6eff67f7403405eed9b3df0de8f570",
+    "semantic_hash": "9f6eff67f7403405eed9b3df0de8f570"
+  },
+  "eos-backend/app/Modules/HR/Models/EmployeeServicePeriod.php": {
+    "mtime": 1794178502.9038515,
+    "seen": 1794300759.9240446,
+    "ast_hash": "100b3e82ff8a66c355de5767ce28f81e",
+    "semantic_hash": "100b3e82ff8a66c355de5767ce28f81e"
+  },
+  "eos-backend/app/Modules/HR/Models/EmploymentContract.php": {
+    "mtime": 1794222741.9565947,
+    "seen": 1794300759.9240458,
+    "ast_hash": "099fafbe945b56cb46bbcf08cae800ed",
+    "semantic_hash": "099fafbe945b56cb46bbcf08cae800ed"
+  },
+  "eos-backend/app/Modules/HR/Models/JobTitle.php": {
+    "mtime": 1793134834.0620124,
+    "seen": 1794300759.9240475,
+    "ast_hash": "712adbd96405a12b8085bb0ba0d9e2db",
+    "semantic_hash": "712adbd96405a12b8085bb0ba0d9e2db"
+  },
+  "eos-backend/app/Modules/HR/Models/LeaveBalanceEntry.php": {
+    "mtime": 1794178502.9038796,
+    "seen": 1794300759.9240484,
+    "ast_hash": "1d03e041262156ef934482d01916b8c2",
+    "semantic_hash": "1d03e041262156ef934482d01916b8c2"
+  },
+  "eos-backend/app/Modules/HR/Models/LeaveCycle.php": {
+    "mtime": 1794178502.9038796,
+    "seen": 1794300759.9240496,
+    "ast_hash": "781544e4a8d598a48efc517bb6b97cfd",
+    "semantic_hash": "781544e4a8d598a48efc517bb6b97cfd"
+  },
+  "eos-backend/app/Modules/HR/Models/LeavePolicy.php": {
+    "mtime": 1794178502.9038796,
+    "seen": 1794300759.924051,
+    "ast_hash": "599ff0b4c8adf2417495fcb4ee7c55f1",
+    "semantic_hash": "599ff0b4c8adf2417495fcb4ee7c55f1"
+  },
+  "eos-backend/app/Modules/HR/Models/LeaveRequest.php": {
+    "mtime": 1794222741.9566798,
+    "seen": 1794300759.924052,
+    "ast_hash": "1409a7e7e45e9dd534e31bf144cb7862",
+    "semantic_hash": "1409a7e7e45e9dd534e31bf144cb7862"
+  },
+  "eos-backend/app/Modules/HR/Models/LeaveRequestDay.php": {
+    "mtime": 1794178502.9040093,
+    "seen": 1794300759.9240532,
+    "ast_hash": "643d9c393455cfb09c61ffcb352f5e2b",
+    "semantic_hash": "643d9c393455cfb09c61ffcb352f5e2b"
+  },
+  "eos-backend/app/Modules/HR/Models/LeaveType.php": {
+    "mtime": 1794178502.9040093,
+    "seen": 1794300759.9240546,
+    "ast_hash": "b8805bd0ae57401ed48f7d43c8103629",
+    "semantic_hash": "b8805bd0ae57401ed48f7d43c8103629"
+  },
+  "eos-backend/app/Modules/HR/Models/OfficeHoliday.php": {
+    "mtime": 1794178502.9040093,
+    "seen": 1794300759.9240558,
+    "ast_hash": "8e0f9830e6aa1336010aa6d27916f168",
+    "semantic_hash": "8e0f9830e6aa1336010aa6d27916f168"
+  },
+  "eos-backend/app/Modules/HR/Models/PendingDocumentCleanup.php": {
+    "mtime": 1794178502.9040093,
+    "seen": 1794300759.924057,
+    "ast_hash": "de4b52b078d31332fcf5a3268049897c",
+    "semantic_hash": "de4b52b078d31332fcf5a3268049897c"
+  },
+  "eos-backend/app/Modules/HR/Notifications/HrNotification.php": {
+    "mtime": 1794178502.9041414,
+    "seen": 1794300759.9240584,
+    "ast_hash": "33340e099b595762a36ba64e209ec32b",
+    "semantic_hash": "33340e099b595762a36ba64e209ec32b"
+  },
+  "eos-backend/app/Modules/HR/Providers/HrServiceProvider.php": {
+    "mtime": 1794222741.956764,
+    "seen": 1794300759.9240594,
+    "ast_hash": "06d9f754fba8ef6027522929c2c24226",
+    "semantic_hash": "06d9f754fba8ef6027522929c2c24226"
+  },
+  "eos-backend/app/Modules/HR/Routes/api.php": {
+    "mtime": 1794222741.956838,
+    "seen": 1794300759.9240608,
+    "ast_hash": "655317d4482e2a2f37164eb947a8dd05",
+    "semantic_hash": "655317d4482e2a2f37164eb947a8dd05"
+  },
+  "eos-backend/app/Modules/HR/Routes/attendance.php": {
+    "mtime": 1794178502.9043303,
+    "seen": 1794300759.9240623,
+    "ast_hash": "ce19e65697d4e597edb37c7a0769ae00",
+    "semantic_hash": "ce19e65697d4e597edb37c7a0769ae00"
+  },
+  "eos-backend/app/Modules/HR/Routes/leaves.php": {
+    "mtime": 1794222741.9569077,
+    "seen": 1794300759.9240634,
+    "ast_hash": "9f0079855161368ab404c76e8954b686",
+    "semantic_hash": "9f0079855161368ab404c76e8954b686"
+  },
+  "eos-backend/app/Modules/HR/Services/Attendance/AdmsDiagnostics.php": {
+    "mtime": 1794178502.904416,
+    "seen": 1794300759.9240649,
+    "ast_hash": "b7c7e1a47dc5fbd8386d7903904fc7f6",
+    "semantic_hash": "b7c7e1a47dc5fbd8386d7903904fc7f6"
+  },
+  "eos-backend/app/Modules/HR/Services/Attendance/AdmsGateway.php": {
+    "mtime": 1794222741.9570973,
+    "seen": 1794300759.924066,
+    "ast_hash": "0e12df79490370d36fcbc676df680c84",
+    "semantic_hash": "0e12df79490370d36fcbc676df680c84"
+  },
+  "eos-backend/app/Modules/HR/Services/Attendance/AdmsQuarantineService.php": {
+    "mtime": 1794178502.9050379,
+    "seen": 1794300759.9240673,
+    "ast_hash": "7d594f0f8d909af7be3589c6ded90c30",
+    "semantic_hash": "7d594f0f8d909af7be3589c6ded90c30"
+  },
+  "eos-backend/app/Modules/HR/Services/Attendance/AttendanceAccess.php": {
+    "mtime": 1794178502.905068,
+    "seen": 1794300759.9240708,
+    "ast_hash": "abbde3b0f1f9ab8dd7e4ce5220224dee",
+    "semantic_hash": "abbde3b0f1f9ab8dd7e4ce5220224dee"
+  },
+  "eos-backend/app/Modules/HR/Services/Attendance/AttendanceCalculator.php": {
+    "mtime": 1794222741.9572363,
+    "seen": 1794300759.9240723,
+    "ast_hash": "9ac3f2a6b5e35a0582309bb3ba54f918",
+    "semantic_hash": "9ac3f2a6b5e35a0582309bb3ba54f918"
+  },
+  "eos-backend/app/Modules/HR/Services/Attendance/AttendanceClock.php": {
+    "mtime": 1794178502.9051964,
+    "seen": 1794300759.9240735,
+    "ast_hash": "e7641c56f79300a37afb5f068cd99f27",
+    "semantic_hash": "e7641c56f79300a37afb5f068cd99f27"
+  },
+  "eos-backend/app/Modules/HR/Services/Attendance/AttendanceDeviceService.php": {
+    "mtime": 1794178502.9052515,
+    "seen": 1794300759.9240746,
+    "ast_hash": "b19f0ceb99ba80a82112d58509c68529",
+    "semantic_hash": "b19f0ceb99ba80a82112d58509c68529"
+  },
+  "eos-backend/app/Modules/HR/Services/Attendance/AttendanceImportService.php": {
+    "mtime": 1794178502.9052918,
+    "seen": 1794300759.924076,
+    "ast_hash": "7e101bf4db56019e9dbb7c47e06d67d3",
+    "semantic_hash": "7e101bf4db56019e9dbb7c47e06d67d3"
+  },
+  "eos-backend/app/Modules/HR/Services/Attendance/AttendanceLeaveContext.php": {
+    "mtime": 1794178502.9052918,
+    "seen": 1794300759.924077,
+    "ast_hash": "91d40203a19d6520cb0b81b039b35002",
+    "semantic_hash": "91d40203a19d6520cb0b81b039b35002"
+  },
+  "eos-backend/app/Modules/HR/Services/Attendance/AttendanceLeaveSync.php": {
+    "mtime": 1794178502.9053476,
+    "seen": 1794300759.924078,
+    "ast_hash": "d765037aa57c9c05e7738e280b86b6c6",
+    "semantic_hash": "d765037aa57c9c05e7738e280b86b6c6"
+  },
+  "eos-backend/app/Modules/HR/Services/Attendance/AttendanceReviewService.php": {
+    "mtime": 1794178502.9054215,
+    "seen": 1794300759.9240794,
+    "ast_hash": "04b24bff552d48fcf121993c7c0e00eb",
+    "semantic_hash": "04b24bff552d48fcf121993c7c0e00eb"
+  },
+  "eos-backend/app/Modules/HR/Services/Attendance/EmployeeFingerprintStatus.php": {
+    "mtime": 1794178502.9054606,
+    "seen": 1794300759.9240808,
+    "ast_hash": "50732f06cd617a9ff5cf8364608b55ac",
+    "semantic_hash": "50732f06cd617a9ff5cf8364608b55ac"
+  },
+  "eos-backend/app/Modules/HR/Services/Attendance/LatenessCharge.php": {
+    "mtime": 1794178502.9054606,
+    "seen": 1794300759.9240823,
+    "ast_hash": "aee32ac91a5d6c09d790814063926642",
+    "semantic_hash": "aee32ac91a5d6c09d790814063926642"
+  },
+  "eos-backend/app/Modules/HR/Services/Attendance/PayrollInputService.php": {
+    "mtime": 1794222741.9573345,
+    "seen": 1794300759.9240837,
+    "ast_hash": "4f766de9932f76cd3aa6a565b47c701e",
+    "semantic_hash": "4f766de9932f76cd3aa6a565b47c701e"
+  },
+  "eos-backend/app/Modules/HR/Services/DepartmentService.php": {
+    "mtime": 1793134834.0620124,
+    "seen": 1794300759.9240851,
+    "ast_hash": "7cb28375f155eee83a2a9771a328b1e4",
+    "semantic_hash": "7cb28375f155eee83a2a9771a328b1e4"
+  },
+  "eos-backend/app/Modules/HR/Services/EmployeeDocumentService.php": {
+    "mtime": 1794178502.9056337,
+    "seen": 1794300759.9240866,
+    "ast_hash": "5dd1e8b77f844f468b566e203a23941f",
+    "semantic_hash": "5dd1e8b77f844f468b566e203a23941f"
+  },
+  "eos-backend/app/Modules/HR/Services/EmployeeJobHistoryService.php": {
+    "mtime": 1794178502.9056792,
+    "seen": 1794300759.9240878,
+    "ast_hash": "e27832ad14c2b6f865dd4bde7a34c17e",
+    "semantic_hash": "e27832ad14c2b6f865dd4bde7a34c17e"
+  },
+  "eos-backend/app/Modules/HR/Services/EmployeeRehireService.php": {
+    "mtime": 1794222741.9574184,
+    "seen": 1794300759.9240887,
+    "ast_hash": "ee12b1a6ffe9ba9aea4beb17e7fa7a55",
+    "semantic_hash": "ee12b1a6ffe9ba9aea4beb17e7fa7a55"
+  },
+  "eos-backend/app/Modules/HR/Services/EmployeeService.php": {
+    "mtime": 1794178502.9058225,
+    "seen": 1794300759.9240901,
+    "ast_hash": "4c531b150e168d14469063fbea33404a",
+    "semantic_hash": "4c531b150e168d14469063fbea33404a"
+  },
+  "eos-backend/app/Modules/HR/Services/EmployeeTerminationService.php": {
+    "mtime": 1794178502.9058578,
+    "seen": 1794300759.924091,
+    "ast_hash": "bbe76e482cd78ac5627df1371594ee42",
+    "semantic_hash": "bbe76e482cd78ac5627df1371594ee42"
+  },
+  "eos-backend/app/Modules/HR/Services/EmploymentContractService.php": {
+    "mtime": 1794178502.9059243,
+    "seen": 1794300759.9240925,
+    "ast_hash": "14ea2119b101e9bf4700f87756e53c52",
+    "semantic_hash": "14ea2119b101e9bf4700f87756e53c52"
+  },
+  "eos-backend/app/Modules/HR/Services/EmploymentPeriodService.php": {
+    "mtime": 1794178502.9059587,
+    "seen": 1794300759.924094,
+    "ast_hash": "aec8c68b6655ba0f57e68f583d6cbf0f",
+    "semantic_hash": "aec8c68b6655ba0f57e68f583d6cbf0f"
+  },
+  "eos-backend/app/Modules/HR/Services/HrNotifier.php": {
+    "mtime": 1794222741.957504,
+    "seen": 1794300759.9240952,
+    "ast_hash": "699dde4eed989e00d73ab47e7346ae34",
+    "semantic_hash": "699dde4eed989e00d73ab47e7346ae34"
+  },
+  "eos-backend/app/Modules/HR/Services/HrScope.php": {
+    "mtime": 1794178502.9060612,
+    "seen": 1794300759.9240968,
+    "ast_hash": "c8659ac942e70d4b495b0b2af2c933d0",
+    "semantic_hash": "c8659ac942e70d4b495b0b2af2c933d0"
+  },
+  "eos-backend/app/Modules/HR/Services/IdentityEmployeeDirectory.php": {
+    "mtime": 1794222741.9575493,
+    "seen": 1794300759.9240983,
+    "ast_hash": "62b8c3628b6d7730945a2aeb36ab14a3",
+    "semantic_hash": "62b8c3628b6d7730945a2aeb36ab14a3"
+  },
+  "eos-backend/app/Modules/HR/Services/JobTitleService.php": {
+    "mtime": 1793134834.0622025,
+    "seen": 1794300759.9240997,
+    "ast_hash": "1f7b2682e43577f67e93f8e827ba3c37",
+    "semantic_hash": "1f7b2682e43577f67e93f8e827ba3c37"
+  },
+  "eos-backend/app/Modules/HR/Services/LeaveBalanceService.php": {
+    "mtime": 1794222741.9576406,
+    "seen": 1794300759.924101,
+    "ast_hash": "8fb3d0f3907d64a2a8ca51ae4c453d33",
+    "semantic_hash": "8fb3d0f3907d64a2a8ca51ae4c453d33"
+  },
+  "eos-backend/app/Modules/HR/Services/LeaveSettingsService.php": {
+    "mtime": 1794222741.95774,
+    "seen": 1794300759.924103,
+    "ast_hash": "f17072615d76009f321c23d19dc059f9",
+    "semantic_hash": "f17072615d76009f321c23d19dc059f9"
+  },
+  "eos-backend/app/Modules/HR/Services/LeaveWorkflowService.php": {
+    "mtime": 1794222741.9579167,
+    "seen": 1794300759.9241042,
+    "ast_hash": "521e647dec8b8ca89e969a85f1f0093b",
+    "semantic_hash": "521e647dec8b8ca89e969a85f1f0093b"
+  },
+  "eos-backend/app/Modules/HR/Services/PendingDocumentCleanupService.php": {
+    "mtime": 1794178502.9068117,
+    "seen": 1794300759.924106,
+    "ast_hash": "ca984f93c098b9fee5381d5da3dee7f3",
+    "semantic_hash": "ca984f93c098b9fee5381d5da3dee7f3"
+  },
+  "eos-backend/app/Modules/Identity/Contracts/EmployeeDirectory.php": {
+    "mtime": 1794222741.9579558,
+    "seen": 1794300759.9241078,
+    "ast_hash": "d367a6a5f77b650e9e20418eac6d1b23",
+    "semantic_hash": "d367a6a5f77b650e9e20418eac6d1b23"
+  },
+  "eos-backend/app/Modules/Identity/Contracts/NullEmployeeDirectory.php": {
+    "mtime": 1794222741.9579968,
+    "seen": 1794300759.924109,
+    "ast_hash": "6f3e76798140d05db26eabd74af690ac",
+    "semantic_hash": "6f3e76798140d05db26eabd74af690ac"
+  },
+  "eos-backend/app/Modules/Identity/Database/Factories/UserFactory.php": {
+    "mtime": 1793134834.0623097,
+    "seen": 1794300759.9241104,
+    "ast_hash": "145e665d8a7e04938bcaeb73960490be",
+    "semantic_hash": "145e665d8a7e04938bcaeb73960490be"
+  },
+  "eos-backend/app/Modules/Identity/Database/Migrations/2026_10_22_203202_create_usr_users_table.php": {
+    "mtime": 1793134834.0623097,
+    "seen": 1794300759.9241116,
+    "ast_hash": "9ffa06f1498bf38ce7590fd6cfae8249",
+    "semantic_hash": "9ffa06f1498bf38ce7590fd6cfae8249"
+  },
+  "eos-backend/app/Modules/Identity/Database/Migrations/2026_10_22_212409_create_usr_audit_logs_table.php": {
+    "mtime": 1793134834.0624058,
+    "seen": 1794300759.9241138,
+    "ast_hash": "533053163870adb73cb760ba4fd1586d",
+    "semantic_hash": "533053163870adb73cb760ba4fd1586d"
+  },
+  "eos-backend/app/Modules/Identity/Database/Migrations/2026_11_09_000003_create_notifications_table.php": {
+    "mtime": 1794178502.9068966,
+    "seen": 1794300759.924115,
+    "ast_hash": "bcffa666bf51f538e5dbcd9f6c165ff5",
+    "semantic_hash": "bcffa666bf51f538e5dbcd9f6c165ff5"
+  },
+  "eos-backend/app/Modules/Identity/Database/Seeders/RolePermissionSeeder.php": {
+    "mtime": 1794222741.9581041,
+    "seen": 1794300759.9241168,
+    "ast_hash": "92b218238c4329ee50f757f4a449b849",
+    "semantic_hash": "92b218238c4329ee50f757f4a449b849"
+  },
+  "eos-backend/app/Modules/Identity/Database/Seeders/SystemAdminSeeder.php": {
+    "mtime": 1793134834.0624816,
+    "seen": 1794300759.9241183,
+    "ast_hash": "bb42a2c8d2e33fea446e60c5778c1490",
+    "semantic_hash": "bb42a2c8d2e33fea446e60c5778c1490"
+  },
+  "eos-backend/app/Modules/Identity/Events/UserProfileUpdating.php": {
+    "mtime": 1794178502.9070685,
+    "seen": 1794300759.9241195,
+    "ast_hash": "0e7c3bc5516fbe495a694a12621c66ea",
+    "semantic_hash": "0e7c3bc5516fbe495a694a12621c66ea"
+  },
+  "eos-backend/app/Modules/Identity/Http/Controllers/AuthController.php": {
+    "mtime": 1794178502.9071705,
+    "seen": 1794300759.924121,
+    "ast_hash": "4a4e281cf970f482335bf47aab46c16b",
+    "semantic_hash": "4a4e281cf970f482335bf47aab46c16b"
+  },
+  "eos-backend/app/Modules/Identity/Http/Controllers/NotificationController.php": {
+    "mtime": 1794178502.907203,
+    "seen": 1794300759.924122,
+    "ast_hash": "3894a36695b03ff694008a7e166f7b43",
+    "semantic_hash": "3894a36695b03ff694008a7e166f7b43"
+  },
+  "eos-backend/app/Modules/Identity/Http/Controllers/UserController.php": {
+    "mtime": 1793137278.6057885,
+    "seen": 1794300759.924123,
+    "ast_hash": "0646eb1f913c18d91472db596d939149",
+    "semantic_hash": "0646eb1f913c18d91472db596d939149"
+  },
+  "eos-backend/app/Modules/Identity/Http/Middleware/RequirePermission.php": {
+    "mtime": 1793134834.062571,
+    "seen": 1794300759.9241247,
+    "ast_hash": "6755817c0210e84fdb1cfbc770c6f789",
+    "semantic_hash": "6755817c0210e84fdb1cfbc770c6f789"
+  },
+  "eos-backend/app/Modules/Identity/Http/Requests/LoginRequest.php": {
+    "mtime": 1793134834.062571,
+    "seen": 1794300759.9241261,
+    "ast_hash": "35cf92549fa755cd38fb94527d0980d3",
+    "semantic_hash": "35cf92549fa755cd38fb94527d0980d3"
+  },
+  "eos-backend/app/Modules/Identity/Http/Requests/StoreUserRequest.php": {
+    "mtime": 1794178502.9072654,
+    "seen": 1794300759.9241276,
+    "ast_hash": "1cde8e37d197239f8090452513601080",
+    "semantic_hash": "1cde8e37d197239f8090452513601080"
+  },
+  "eos-backend/app/Modules/Identity/Http/Requests/UpdateUserRequest.php": {
+    "mtime": 1793134834.062696,
+    "seen": 1794300759.9241292,
+    "ast_hash": "e6e136e73d26ceb9a237d25f2e614f63",
+    "semantic_hash": "e6e136e73d26ceb9a237d25f2e614f63"
+  },
+  "eos-backend/app/Modules/Identity/Http/Resources/UserResource.php": {
+    "mtime": 1794222741.9581943,
+    "seen": 1794300759.9241307,
+    "ast_hash": "984b971657187dcc289e977e9cbe163e",
+    "semantic_hash": "984b971657187dcc289e977e9cbe163e"
+  },
+  "eos-backend/app/Modules/Identity/Models/AuditLog.php": {
+    "mtime": 1793134834.062696,
+    "seen": 1794300759.9241319,
+    "ast_hash": "71d0a4aab00b33a887818792a448b86b",
+    "semantic_hash": "71d0a4aab00b33a887818792a448b86b"
+  },
+  "eos-backend/app/Modules/Identity/Models/User.php": {
+    "mtime": 1793134834.0628095,
+    "seen": 1794300759.924133,
+    "ast_hash": "d9c550c95e27d5dec32d632161d502d7",
+    "semantic_hash": "d9c550c95e27d5dec32d632161d502d7"
+  },
+  "eos-backend/app/Modules/Identity/Notifications/SystemNotification.php": {
+    "mtime": 1794222741.9582274,
+    "seen": 1794300759.9241345,
+    "ast_hash": "df60136792e9cc3bb94959f3f4e0d58d",
+    "semantic_hash": "df60136792e9cc3bb94959f3f4e0d58d"
+  },
+  "eos-backend/app/Modules/Identity/Policies/UserPolicy.php": {
+    "mtime": 1793134834.0628095,
+    "seen": 1794300759.9241357,
+    "ast_hash": "78a66df2ed9dd56c8b8f1b1c9f7b1977",
+    "semantic_hash": "78a66df2ed9dd56c8b8f1b1c9f7b1977"
+  },
+  "eos-backend/app/Modules/Identity/Providers/IdentityServiceProvider.php": {
+    "mtime": 1794222741.9583125,
+    "seen": 1794300759.9241366,
+    "ast_hash": "7c063823c7e42e32bf132bf486105cda",
+    "semantic_hash": "7c063823c7e42e32bf132bf486105cda"
+  },
+  "eos-backend/app/Modules/Identity/Routes/api.php": {
+    "mtime": 1794178502.9075224,
+    "seen": 1794300759.924138,
+    "ast_hash": "17241222164987e6dccbbffb87d762cb",
+    "semantic_hash": "17241222164987e6dccbbffb87d762cb"
+  },
+  "eos-backend/app/Modules/Identity/Services/AuditLogger.php": {
+    "mtime": 1793134834.0628095,
+    "seen": 1794300759.9241393,
+    "ast_hash": "ca18897c3a3619f2fe201dbad4d9b7f9",
+    "semantic_hash": "ca18897c3a3619f2fe201dbad4d9b7f9"
+  },
+  "eos-backend/app/Modules/Identity/Services/AuthService.php": {
+    "mtime": 1793134834.063003,
+    "seen": 1794300759.9241412,
+    "ast_hash": "3b21e9649acb661285f2c5acc6c95dac",
+    "semantic_hash": "3b21e9649acb661285f2c5acc6c95dac"
+  },
+  "eos-backend/app/Modules/Identity/Services/UserService.php": {
+    "mtime": 1794222741.9584045,
+    "seen": 1794300759.9241424,
+    "ast_hash": "37a27003ea5d6510660a748b2d582603",
+    "semantic_hash": "37a27003ea5d6510660a748b2d582603"
+  },
+  "eos-backend/app/Modules/Payroll/Database/Migrations/2026_11_10_000001_create_payroll_tables.php": {
+    "mtime": 1794222741.9584386,
+    "seen": 1794300759.9241438,
+    "ast_hash": "7f23c705f57e0fa13773b9c4f80e7bb3",
+    "semantic_hash": "7f23c705f57e0fa13773b9c4f80e7bb3"
+  },
+  "eos-backend/app/Modules/Payroll/Database/Migrations/2026_11_11_000002_link_pay_payments_to_finance.php": {
+    "mtime": 1794222741.958509,
+    "seen": 1794300759.924145,
+    "ast_hash": "d5998106818278660bd26e32528e131a",
+    "semantic_hash": "d5998106818278660bd26e32528e131a"
+  },
+  "eos-backend/app/Modules/Payroll/Database/Migrations/2026_11_12_000001_allow_voiding_pay_payments.php": {
+    "mtime": 1794222741.958509,
+    "seen": 1794300759.9241462,
+    "ast_hash": "c2491d43c7485ffafa3efdb08aa1d0a4",
+    "semantic_hash": "c2491d43c7485ffafa3efdb08aa1d0a4"
+  },
+  "eos-backend/app/Modules/Payroll/Http/Controllers/PayRunController.php": {
+    "mtime": 1794222741.9585903,
+    "seen": 1794300759.9241471,
+    "ast_hash": "37c2db1f1f60e594d9d49ec481279765",
+    "semantic_hash": "37c2db1f1f60e594d9d49ec481279765"
+  },
+  "eos-backend/app/Modules/Payroll/Models/PayPayment.php": {
+    "mtime": 1794222741.9586854,
+    "seen": 1794300759.9241486,
+    "ast_hash": "bba22afa4e902fff4241b63416ffb56c",
+    "semantic_hash": "bba22afa4e902fff4241b63416ffb56c"
+  },
+  "eos-backend/app/Modules/Payroll/Models/PayRun.php": {
+    "mtime": 1794222741.9587262,
+    "seen": 1794300759.9241495,
+    "ast_hash": "554fe7e8803bd35dbc074b9df379a492",
+    "semantic_hash": "554fe7e8803bd35dbc074b9df379a492"
+  },
+  "eos-backend/app/Modules/Payroll/Models/PayRunItem.php": {
+    "mtime": 1794222741.9587708,
+    "seen": 1794300759.9241507,
+    "ast_hash": "5124065301d853284977399458338883",
+    "semantic_hash": "5124065301d853284977399458338883"
+  },
+  "eos-backend/app/Modules/Payroll/Models/PayRunLine.php": {
+    "mtime": 1794222741.958809,
+    "seen": 1794300759.9241524,
+    "ast_hash": "db648e3779f2cfcea8f8cfb9f44f6cb5",
+    "semantic_hash": "db648e3779f2cfcea8f8cfb9f44f6cb5"
+  },
+  "eos-backend/app/Modules/Payroll/Providers/PayrollServiceProvider.php": {
+    "mtime": 1794222741.9588366,
+    "seen": 1794300759.9241536,
+    "ast_hash": "deac1af1f18183fd4b462ea799038d9b",
+    "semantic_hash": "deac1af1f18183fd4b462ea799038d9b"
+  },
+  "eos-backend/app/Modules/Payroll/Routes/api.php": {
+    "mtime": 1794222741.9588735,
+    "seen": 1794300759.924155,
+    "ast_hash": "fcf41195e9749a577907f9f3b720124b",
+    "semantic_hash": "fcf41195e9749a577907f9f3b720124b"
+  },
+  "eos-backend/app/Modules/Payroll/Services/PayRunService.php": {
+    "mtime": 1794222741.9590597,
+    "seen": 1794300759.9241564,
+    "ast_hash": "2ad92762cc7d808b06d1cfb1a97bdbfd",
+    "semantic_hash": "2ad92762cc7d808b06d1cfb1a97bdbfd"
+  },
+  "eos-backend/app/Modules/Payroll/Services/PayrollCalculator.php": {
+    "mtime": 1794222741.9591343,
+    "seen": 1794300759.9241586,
+    "ast_hash": "76bf2e357f255fc3045951cbe611988d",
+    "semantic_hash": "76bf2e357f255fc3045951cbe611988d"
+  },
+  "eos-backend/app/Modules/Settings/Console/CreateApiClientCommand.php": {
+    "mtime": 1793134834.0631006,
+    "seen": 1794300759.9241598,
+    "ast_hash": "8fcb763e74c23cc9ce414603945d39bf",
+    "semantic_hash": "8fcb763e74c23cc9ce414603945d39bf"
+  },
+  "eos-backend/app/Modules/Settings/Database/Migrations/2026_10_22_174917_create_sys_currencies_table.php": {
+    "mtime": 1793134834.0631485,
+    "seen": 1794300759.924161,
+    "ast_hash": "293e40f79183a0af622084350d0c138f",
+    "semantic_hash": "293e40f79183a0af622084350d0c138f"
+  },
+  "eos-backend/app/Modules/Settings/Database/Migrations/2026_10_22_174918_create_sys_exchange_rates_table.php": {
+    "mtime": 1793134834.063189,
+    "seen": 1794300759.9241621,
+    "ast_hash": "7c9167cc416fc4ebe4c5cbd4a7190e17",
+    "semantic_hash": "7c9167cc416fc4ebe4c5cbd4a7190e17"
+  },
+  "eos-backend/app/Modules/Settings/Database/Migrations/2026_10_22_174919_create_sys_settings_table.php": {
+    "mtime": 1793134834.063189,
+    "seen": 1794300759.9241633,
+    "ast_hash": "4a61275bd9147d9e0783edf5be20ff4c",
+    "semantic_hash": "4a61275bd9147d9e0783edf5be20ff4c"
+  },
+  "eos-backend/app/Modules/Settings/Database/Migrations/2026_10_23_002045_create_sys_api_clients_table.php": {
+    "mtime": 1793134834.063189,
+    "seen": 1794300759.9241645,
+    "ast_hash": "3bce02a80860aec437db0d359e05c2f7",
+    "semantic_hash": "3bce02a80860aec437db0d359e05c2f7"
+  },
+  "eos-backend/app/Modules/Settings/Database/Seeders/CurrencySeeder.php": {
+    "mtime": 1793134834.063189,
+    "seen": 1794300759.9241657,
+    "ast_hash": "7cde94845fe7bc8f3584d96eb5f124b4",
+    "semantic_hash": "7cde94845fe7bc8f3584d96eb5f124b4"
+  },
+  "eos-backend/app/Modules/Settings/Database/Seeders/SettingsSeeder.php": {
+    "mtime": 1793134834.0632787,
+    "seen": 1794300759.9241667,
+    "ast_hash": "0e911104ed599825da1e0d3f9dc5b00e",
+    "semantic_hash": "0e911104ed599825da1e0d3f9dc5b00e"
+  },
+  "eos-backend/app/Modules/Settings/Http/Controllers/ExchangeRateController.php": {
+    "mtime": 1794222741.9592857,
+    "seen": 1794300759.9241679,
+    "ast_hash": "dcc8df715f073f48dcf04b09cc5cf250",
+    "semantic_hash": "dcc8df715f073f48dcf04b09cc5cf250"
+  },
+  "eos-backend/app/Modules/Settings/Http/Controllers/SettingController.php": {
+    "mtime": 1794178502.9084098,
+    "seen": 1794300759.9241693,
+    "ast_hash": "64b8a03b8bd1c934c48bd8d5bdeccc22",
+    "semantic_hash": "64b8a03b8bd1c934c48bd8d5bdeccc22"
+  },
+  "eos-backend/app/Modules/Settings/Http/Requests/StoreExchangeRateRequest.php": {
+    "mtime": 1793134834.0633695,
+    "seen": 1794300759.9241734,
+    "ast_hash": "e65983ce7966f2c0c62a53505bdaaf8d",
+    "semantic_hash": "e65983ce7966f2c0c62a53505bdaaf8d"
+  },
+  "eos-backend/app/Modules/Settings/Models/ApiClient.php": {
+    "mtime": 1793134834.0633695,
+    "seen": 1794300759.9241745,
+    "ast_hash": "5ab66f13415f9d1723e37e24226d8850",
+    "semantic_hash": "5ab66f13415f9d1723e37e24226d8850"
+  },
+  "eos-backend/app/Modules/Settings/Models/Currency.php": {
+    "mtime": 1793134834.0634723,
+    "seen": 1794300759.924176,
+    "ast_hash": "3ddb59e808380fe59362633865efd4df",
+    "semantic_hash": "3ddb59e808380fe59362633865efd4df"
+  },
+  "eos-backend/app/Modules/Settings/Models/ExchangeRate.php": {
+    "mtime": 1793134834.0634723,
+    "seen": 1794300759.924177,
+    "ast_hash": "d81c3ffc9b86f8881fcab12f02cf197a",
+    "semantic_hash": "d81c3ffc9b86f8881fcab12f02cf197a"
+  },
+  "eos-backend/app/Modules/Settings/Models/Setting.php": {
+    "mtime": 1793134834.0634723,
+    "seen": 1794300759.9241781,
+    "ast_hash": "0b60a64eea22657e3c0252be1a42dd98",
+    "semantic_hash": "0b60a64eea22657e3c0252be1a42dd98"
+  },
+  "eos-backend/app/Modules/Settings/Providers/SettingsServiceProvider.php": {
+    "mtime": 1793134834.0634723,
+    "seen": 1794300759.9241793,
+    "ast_hash": "4b02fcefa70b24c91e111e2a42cc461e",
+    "semantic_hash": "4b02fcefa70b24c91e111e2a42cc461e"
+  },
+  "eos-backend/app/Modules/Settings/Routes/api.php": {
+    "mtime": 1794222741.959373,
+    "seen": 1794300759.9241807,
+    "ast_hash": "0aa613d54c5abe4322bdfdd3c95c98ab",
+    "semantic_hash": "0aa613d54c5abe4322bdfdd3c95c98ab"
+  },
+  "eos-backend/app/Modules/Settings/Services/ExchangeRateService.php": {
+    "mtime": 1794224133.9248002,
+    "seen": 1794300759.9241817,
+    "ast_hash": "23bdaa53cd5ac46ef1d8bbb380e164a5",
+    "semantic_hash": "23bdaa53cd5ac46ef1d8bbb380e164a5"
+  },
+  "eos-backend/app/Modules/Settings/Services/SettingService.php": {
+    "mtime": 1794178502.908602,
+    "seen": 1794300759.9241831,
+    "ast_hash": "6eec56d5398ee956560a43e0a17ecdea",
+    "semantic_hash": "6eec56d5398ee956560a43e0a17ecdea"
+  },
+  "eos-backend/app/Providers/AppServiceProvider.php": {
+    "mtime": 1793134834.0636518,
+    "seen": 1794300759.924184,
+    "ast_hash": "c08553056766b1aba5d1221313d4c5be",
+    "semantic_hash": "c08553056766b1aba5d1221313d4c5be"
+  },
+  "eos-backend/app/Support/ApiResponse.php": {
+    "mtime": 1793134834.0636518,
+    "seen": 1794300759.924185,
+    "ast_hash": "2f17fcb9833abd0f79d2fe50e161e081",
+    "semantic_hash": "2f17fcb9833abd0f79d2fe50e161e081"
+  },
+  "eos-backend/app/Support/CsvResponse.php": {
+    "mtime": 1794178502.908635,
+    "seen": 1794300759.9241862,
+    "ast_hash": "e8f324763052809b8a663b8ae1aa1656",
+    "semantic_hash": "e8f324763052809b8a663b8ae1aa1656"
+  },
+  "eos-backend/artisan": {
+    "mtime": 1793134834.0636518,
+    "seen": 1794300759.9241872,
+    "ast_hash": "e66bb13691f6184c762c196427d8e685",
+    "semantic_hash": "e66bb13691f6184c762c196427d8e685"
+  },
+  "eos-backend/bootstrap/app.php": {
+    "mtime": 1793134834.0636518,
+    "seen": 1794300759.9241884,
+    "ast_hash": "e0af7120fcc56cfb2316008aada1a16a",
+    "semantic_hash": "e0af7120fcc56cfb2316008aada1a16a"
+  },
+  "eos-backend/bootstrap/once-autoload.php": {
+    "mtime": 1793134834.0638258,
+    "seen": 1794300759.9241893,
+    "ast_hash": "2dfc76ec8f6cb5d9917b0f277a7fef75",
+    "semantic_hash": "2dfc76ec8f6cb5d9917b0f277a7fef75"
+  },
+  "eos-backend/bootstrap/providers.php": {
+    "mtime": 1794222741.9594543,
+    "seen": 1794300759.9241905,
+    "ast_hash": "162b5227a21d81213fb861524bad2829",
+    "semantic_hash": "162b5227a21d81213fb861524bad2829"
+  },
+  "eos-backend/composer.json": {
+    "mtime": 1794178502.9087737,
+    "seen": 1794300759.9241915,
+    "ast_hash": "996ea1352add8e08ec3ab98f015ebd89",
+    "semantic_hash": "996ea1352add8e08ec3ab98f015ebd89"
+  },
+  "eos-backend/config/app.php": {
+    "mtime": 1794178502.9102027,
+    "seen": 1794300759.9241927,
+    "ast_hash": "7916161ff64e24ee3464959da2b7c8b8",
+    "semantic_hash": "7916161ff64e24ee3464959da2b7c8b8"
+  },
+  "eos-backend/config/attendance.php": {
+    "mtime": 1794178502.9102614,
+    "seen": 1794300759.9241939,
+    "ast_hash": "39d734aa41c0377ce9d1581e8d1a21d0",
+    "semantic_hash": "39d734aa41c0377ce9d1581e8d1a21d0"
+  },
+  "eos-backend/config/auth.php": {
+    "mtime": 1793134834.064496,
+    "seen": 1794300759.924195,
+    "ast_hash": "0f1c33a7252e9d8e26e95fd219f21836",
+    "semantic_hash": "0f1c33a7252e9d8e26e95fd219f21836"
+  },
+  "eos-backend/config/cache.php": {
+    "mtime": 1793134834.064496,
+    "seen": 1794300759.9241962,
+    "ast_hash": "9775fa662b3c35e5f130b66f785155d2",
+    "semantic_hash": "9775fa662b3c35e5f130b66f785155d2"
+  },
+  "eos-backend/config/database.php": {
+    "mtime": 1793134834.064496,
+    "seen": 1794300759.9241977,
+    "ast_hash": "594a01554ab7583541a8fb05a69f935f",
+    "semantic_hash": "594a01554ab7583541a8fb05a69f935f"
+  },
+  "eos-backend/config/filesystems.php": {
+    "mtime": 1793134834.064496,
+    "seen": 1794300759.9241986,
+    "ast_hash": "bde1aa1027f0448f17348dbd93f3d7ea",
+    "semantic_hash": "bde1aa1027f0448f17348dbd93f3d7ea"
+  },
+  "eos-backend/config/identity.php": {
+    "mtime": 1793134834.064496,
+    "seen": 1794300759.9241998,
+    "ast_hash": "a79d1de9c5524cf9f490db7f2ceb344e",
+    "semantic_hash": "a79d1de9c5524cf9f490db7f2ceb344e"
+  },
+  "eos-backend/config/logging.php": {
+    "mtime": 1794178502.9103527,
+    "seen": 1794300759.9242015,
+    "ast_hash": "e9c4f63819762e4d0a63160aef4fc869",
+    "semantic_hash": "e9c4f63819762e4d0a63160aef4fc869"
+  },
+  "eos-backend/config/mail.php": {
+    "mtime": 1793134834.064496,
+    "seen": 1794300759.924203,
+    "ast_hash": "18601a927b48d38337ba2077426a7d60",
+    "semantic_hash": "18601a927b48d38337ba2077426a7d60"
+  },
+  "eos-backend/config/permission.php": {
+    "mtime": 1793134834.064496,
+    "seen": 1794300759.924204,
+    "ast_hash": "ff650ce6a70de763f8b96fe3a8e9ac83",
+    "semantic_hash": "ff650ce6a70de763f8b96fe3a8e9ac83"
+  },
+  "eos-backend/config/queue.php": {
+    "mtime": 1793134834.064496,
+    "seen": 1794300759.9242055,
+    "ast_hash": "f98ce92e7bf51db1fabaf8a30e12fc5a",
+    "semantic_hash": "f98ce92e7bf51db1fabaf8a30e12fc5a"
+  },
+  "eos-backend/config/sanctum.php": {
+    "mtime": 1793918958.4524744,
+    "seen": 1794300759.9242072,
+    "ast_hash": "e3887ebee464a1b2c014cb16696a2b50",
+    "semantic_hash": "e3887ebee464a1b2c014cb16696a2b50"
+  },
+  "eos-backend/config/scramble.php": {
+    "mtime": 1793137278.6070018,
+    "seen": 1794300759.9242084,
+    "ast_hash": "e1594483efafa931aafffa7ec5c6fe81",
+    "semantic_hash": "e1594483efafa931aafffa7ec5c6fe81"
+  },
+  "eos-backend/config/services.php": {
+    "mtime": 1793134834.064496,
+    "seen": 1794300759.9242096,
+    "ast_hash": "918f5aa09663e375f4570301a91548f9",
+    "semantic_hash": "918f5aa09663e375f4570301a91548f9"
+  },
+  "eos-backend/config/session.php": {
+    "mtime": 1793134834.064496,
+    "seen": 1794300759.924211,
+    "ast_hash": "5ea7169252ec3cc7fad471f5cd0d7678",
+    "semantic_hash": "5ea7169252ec3cc7fad471f5cd0d7678"
+  },
+  "eos-backend/database/migrations/0001_01_01_000001_create_cache_table.php": {
+    "mtime": 1793134834.0652819,
+    "seen": 1794300759.9242122,
+    "ast_hash": "6952fb360e8d8b84e6f47573e4459d48",
+    "semantic_hash": "6952fb360e8d8b84e6f47573e4459d48"
+  },
+  "eos-backend/database/migrations/0001_01_01_000002_create_jobs_table.php": {
+    "mtime": 1793134834.0653145,
+    "seen": 1794300759.9242136,
+    "ast_hash": "8fa222036799ffdcd282a99adae2804b",
+    "semantic_hash": "8fa222036799ffdcd282a99adae2804b"
+  },
+  "eos-backend/database/migrations/2026_10_22_131231_create_personal_access_tokens_table.php": {
+    "mtime": 1793134834.0653145,
+    "seen": 1794300759.9242148,
+    "ast_hash": "eb77af89d184f92ec893eff344c34999",
+    "semantic_hash": "eb77af89d184f92ec893eff344c34999"
+  },
+  "eos-backend/database/migrations/2026_10_22_131332_create_permission_tables.php": {
+    "mtime": 1793134834.0653145,
+    "seen": 1794300759.9242163,
+    "ast_hash": "d928b4ff4a7db48cb62919e510829eb6",
+    "semantic_hash": "d928b4ff4a7db48cb62919e510829eb6"
+  },
+  "eos-backend/database/migrations/2026_10_22_145925_create_sessions_table.php": {
+    "mtime": 1793134834.0653145,
+    "seen": 1794300759.924218,
+    "ast_hash": "c484154db3842339f4bca3105cb29025",
+    "semantic_hash": "c484154db3842339f4bca3105cb29025"
+  },
+  "eos-backend/database/seeders/DatabaseSeeder.php": {
+    "mtime": 1793134834.0653145,
+    "seen": 1794300759.9242194,
+    "ast_hash": "e9780dbda14f7f92c4af7a5e92698d6a",
+    "semantic_hash": "e9780dbda14f7f92c4af7a5e92698d6a"
+  },
+  "eos-backend/deptrac.yaml": {
+    "mtime": 1794222741.9596174,
+    "seen": 1794300759.924221,
+    "ast_hash": "2c170fa4cf4becdecf55d598a8fe9442",
+    "semantic_hash": "2c170fa4cf4becdecf55d598a8fe9442"
+  },
+  "eos-backend/docs/Attendance_ADMS.postman_collection.json": {
+    "mtime": 1794178502.911018,
+    "seen": 1794300759.9242222,
+    "ast_hash": "346c6d97bbeef451631dbedd0bc42428",
+    "semantic_hash": "346c6d97bbeef451631dbedd0bc42428"
+  },
+  "eos-backend/docs/Attendance_V1.postman_collection.json": {
+    "mtime": 1794178502.9110656,
+    "seen": 1794300759.924224,
+    "ast_hash": "e2a9bec602947336e207f84ee8096ca0",
+    "semantic_hash": "e2a9bec602947336e207f84ee8096ca0"
+  },
+  "eos-backend/package.json": {
+    "mtime": 1793134834.0653145,
+    "seen": 1794300759.924225,
+    "ast_hash": "59ec21ff5f1f5b3acb8f2f82c8b6dc77",
+    "semantic_hash": "59ec21ff5f1f5b3acb8f2f82c8b6dc77"
+  },
+  "eos-backend/public/index.php": {
+    "mtime": 1793134834.0656242,
+    "seen": 1794300759.9242258,
+    "ast_hash": "d8eda274115af5fd2aaa8230af329ef7",
+    "semantic_hash": "d8eda274115af5fd2aaa8230af329ef7"
+  },
+  "eos-backend/resources/js/app.js": {
+    "mtime": 1793134834.0656955,
+    "seen": 1794300759.9242268,
+    "ast_hash": "b519d08ef66fd54910edbedba6181ec2",
+    "semantic_hash": "b519d08ef66fd54910edbedba6181ec2"
+  },
+  "eos-backend/resources/views/welcome.blade.php": {
+    "mtime": 1793134834.0656955,
+    "seen": 1794300759.9242275,
+    "ast_hash": "1a03818ea91deb4f3989c6c994e5867c",
+    "semantic_hash": "1a03818ea91deb4f3989c6c994e5867c"
+  },
+  "eos-backend/routes/api.php": {
+    "mtime": 1793134834.0656955,
+    "seen": 1794300759.9242284,
+    "ast_hash": "d2b547b00ec0831b11601e6f50fb23b0",
+    "semantic_hash": "d2b547b00ec0831b11601e6f50fb23b0"
+  },
+  "eos-backend/routes/console.php": {
+    "mtime": 1794178502.9115744,
+    "seen": 1794300759.9242291,
+    "ast_hash": "ad4b1fc2dc8a2f02c37a7c2020bb9cbb",
+    "semantic_hash": "ad4b1fc2dc8a2f02c37a7c2020bb9cbb"
+  },
+  "eos-backend/routes/web.php": {
+    "mtime": 1793134834.0660453,
+    "seen": 1794300759.9242299,
+    "ast_hash": "84625c52e743b1a4178bb27b7afb3615",
+    "semantic_hash": "84625c52e743b1a4178bb27b7afb3615"
+  },
+  "eos-backend/tests/Feature/ExampleTest.php": {
+    "mtime": 1793134834.066448,
+    "seen": 1794300759.9242308,
+    "ast_hash": "0f4d91c9c5bbcd4e2f46cf885acb7fb6",
+    "semantic_hash": "0f4d91c9c5bbcd4e2f46cf885acb7fb6"
+  },
+  "eos-backend/tests/Feature/Finance/FinanceTest.php": {
+    "mtime": 1794222741.9604917,
+    "seen": 1794300759.924232,
+    "ast_hash": "b1a9cbbf23100b89ae97494604c79765",
+    "semantic_hash": "b1a9cbbf23100b89ae97494604c79765"
+  },
+  "eos-backend/tests/Feature/HR/AdmsGatewayTest.php": {
+    "mtime": 1794222741.9607055,
+    "seen": 1794300759.9242327,
+    "ast_hash": "f6a34b98c1aaacda205db4b9faf490bd",
+    "semantic_hash": "f6a34b98c1aaacda205db4b9faf490bd"
+  },
+  "eos-backend/tests/Feature/HR/AttendanceIntegrationTest.php": {
+    "mtime": 1794178502.9126678,
+    "seen": 1794300759.9242334,
+    "ast_hash": "e7d056b7c5f18084668fc68a088e398a",
+    "semantic_hash": "e7d056b7c5f18084668fc68a088e398a"
+  },
+  "eos-backend/tests/Feature/HR/AttendancePolicyMigrationTest.php": {
+    "mtime": 1794178502.9127414,
+    "seen": 1794300759.9242342,
+    "ast_hash": "94d90af6a8d9584b9fa790b34057293d",
+    "semantic_hash": "94d90af6a8d9584b9fa790b34057293d"
+  },
+  "eos-backend/tests/Feature/HR/AttendanceTest.php": {
+    "mtime": 1794178502.91285,
+    "seen": 1794300759.924235,
+    "ast_hash": "a79f4ae9a45ab6214ab963ba416ff54f",
+    "semantic_hash": "a79f4ae9a45ab6214ab963ba416ff54f"
+  },
+  "eos-backend/tests/Feature/HR/Concerns/LeaveAttendanceFixture.php": {
+    "mtime": 1794178502.9129043,
+    "seen": 1794300759.924238,
+    "ast_hash": "ce273a3aa38677daa5e507a492f5e44d",
+    "semantic_hash": "ce273a3aa38677daa5e507a492f5e44d"
+  },
+  "eos-backend/tests/Feature/HR/ContractJobHistoryTest.php": {
+    "mtime": 1794178502.9129894,
+    "seen": 1794300759.924239,
+    "ast_hash": "073a88b2c0c4a0d7d47def0a168c4bc9",
+    "semantic_hash": "073a88b2c0c4a0d7d47def0a168c4bc9"
+  },
+  "eos-backend/tests/Feature/HR/EmployeeAccountSyncTest.php": {
+    "mtime": 1794178502.9130275,
+    "seen": 1794300759.9242396,
+    "ast_hash": "28d561d32f08b0c7c95149d8ca9c0a2a",
+    "semantic_hash": "28d561d32f08b0c7c95149d8ca9c0a2a"
+  },
+  "eos-backend/tests/Feature/HR/EmployeeDocumentsTest.php": {
+    "mtime": 1794178502.9130774,
+    "seen": 1794300759.9242406,
+    "ast_hash": "2e26603d9e253f5da46cf8528c56df51",
+    "semantic_hash": "2e26603d9e253f5da46cf8528c56df51"
+  },
+  "eos-backend/tests/Feature/HR/EmployeeJobHistoryTest.php": {
+    "mtime": 1794178502.913127,
+    "seen": 1794300759.9242418,
+    "ast_hash": "b67f98f5fae8856d505ab5e706524a76",
+    "semantic_hash": "b67f98f5fae8856d505ab5e706524a76"
+  },
+  "eos-backend/tests/Feature/HR/EmployeeOnboardingTest.php": {
+    "mtime": 1794178502.913175,
+    "seen": 1794300759.9242425,
+    "ast_hash": "97d43496f78e56cb066289ee4a067d8b",
+    "semantic_hash": "97d43496f78e56cb066289ee4a067d8b"
+  },
+  "eos-backend/tests/Feature/HR/EmployeePrivacyTest.php": {
+    "mtime": 1794178502.913175,
+    "seen": 1794300759.9242432,
+    "ast_hash": "ff47933105238fee8cdd3668653309ef",
+    "semantic_hash": "ff47933105238fee8cdd3668653309ef"
+  },
+  "eos-backend/tests/Feature/HR/EmployeeRehireTest.php": {
+    "mtime": 1794178502.913312,
+    "seen": 1794300759.9242442,
+    "ast_hash": "ed4a298a77884e7501cf633dac61537f",
+    "semantic_hash": "ed4a298a77884e7501cf633dac61537f"
+  },
+  "eos-backend/tests/Feature/HR/EmployeeTerminationTest.php": {
+    "mtime": 1794178502.9133682,
+    "seen": 1794300759.9242449,
+    "ast_hash": "33cdeccc15e39a3fe0c6291067bcd724",
+    "semantic_hash": "33cdeccc15e39a3fe0c6291067bcd724"
+  },
+  "eos-backend/tests/Feature/HR/EmploymentContractTest.php": {
+    "mtime": 1794178502.9133682,
+    "seen": 1794300759.9242458,
+    "ast_hash": "589f176e69b2bc4a2480c4e74e8c057e",
+    "semantic_hash": "589f176e69b2bc4a2480c4e74e8c057e"
+  },
+  "eos-backend/tests/Feature/HR/ExpiredContractTest.php": {
+    "mtime": 1794178502.9134316,
+    "seen": 1794300759.9242465,
+    "ast_hash": "5ede488e337050c67ce8ab5e529dd3ef",
+    "semantic_hash": "5ede488e337050c67ce8ab5e529dd3ef"
+  },
+  "eos-backend/tests/Feature/HR/ExpiringContractsTest.php": {
+    "mtime": 1794222741.9607658,
+    "seen": 1794300759.9242473,
+    "ast_hash": "9375c288a60d6c5baf6a6f4372e8598b",
+    "semantic_hash": "9375c288a60d6c5baf6a6f4372e8598b"
+  },
+  "eos-backend/tests/Feature/HR/LeaveAttendanceCompletionTest.php": {
+    "mtime": 1794178502.9134903,
+    "seen": 1794300759.924248,
+    "ast_hash": "ae13e778c132f02eec0395573d7e2817",
+    "semantic_hash": "ae13e778c132f02eec0395573d7e2817"
+  },
+  "eos-backend/tests/Feature/HR/LeaveAttendanceIntegrationTest.php": {
+    "mtime": 1794222741.9608831,
+    "seen": 1794300759.924249,
+    "ast_hash": "c27cd0c6552e4f5d8670622ec38239d5",
+    "semantic_hash": "c27cd0c6552e4f5d8670622ec38239d5"
+  },
+  "eos-backend/tests/Feature/HR/LeaveAttendanceOverlapTest.php": {
+    "mtime": 1794222741.9609504,
+    "seen": 1794300759.92425,
+    "ast_hash": "1a00dd02d14ce3b2a90d53e44e62d331",
+    "semantic_hash": "1a00dd02d14ce3b2a90d53e44e62d331"
+  },
+  "eos-backend/tests/Feature/HR/LeaveReviewGapsTest.php": {
+    "mtime": 1794222741.9611056,
+    "seen": 1794300759.9242506,
+    "ast_hash": "1edc61b3674f0b78ac84771566875cad",
+    "semantic_hash": "1edc61b3674f0b78ac84771566875cad"
+  },
+  "eos-backend/tests/Feature/HR/LeaveSettingsTest.php": {
+    "mtime": 1794178502.913769,
+    "seen": 1794300759.9242516,
+    "ast_hash": "19fdb45fc78a0f70bf24c4d05c772129",
+    "semantic_hash": "19fdb45fc78a0f70bf24c4d05c772129"
+  },
+  "eos-backend/tests/Feature/HR/LeaveWorkflowTest.php": {
+    "mtime": 1794178502.9138548,
+    "seen": 1794300759.9242525,
+    "ast_hash": "f293fe1399f80a6e457e3b87ee75fe0b",
+    "semantic_hash": "f293fe1399f80a6e457e3b87ee75fe0b"
+  },
+  "eos-backend/tests/Feature/HR/PendingDocumentCleanupTest.php": {
+    "mtime": 1794178502.9139307,
+    "seen": 1794300759.9242532,
+    "ast_hash": "c4dceba6e978cfac5ec035b1eb139222",
+    "semantic_hash": "c4dceba6e978cfac5ec035b1eb139222"
+  },
+  "eos-backend/tests/Feature/HR/ScheduledContractTerminationTest.php": {
+    "mtime": 1794178502.9139812,
+    "seen": 1794300759.924254,
+    "ast_hash": "9a142daa39727160caeaf29f98ae045f",
+    "semantic_hash": "9a142daa39727160caeaf29f98ae045f"
+  },
+  "eos-backend/tests/Feature/Identity/IdentityTest.php": {
+    "mtime": 1793134834.0665026,
+    "seen": 1794300759.9242547,
+    "ast_hash": "ea29ad52783f933b30ae560e31c3cd8c",
+    "semantic_hash": "ea29ad52783f933b30ae560e31c3cd8c"
+  },
+  "eos-backend/tests/Feature/Identity/RoleEscalationTest.php": {
+    "mtime": 1793134834.066601,
+    "seen": 1794300759.9242554,
+    "ast_hash": "0b979322eb4facc048045a34e8a87d1d",
+    "semantic_hash": "0b979322eb4facc048045a34e8a87d1d"
+  },
+  "eos-backend/tests/Feature/Payroll/PayrollTest.php": {
+    "mtime": 1794222741.9612908,
+    "seen": 1794300759.9242563,
+    "ast_hash": "69f461472099e2ddc62ed7ec52d23cf2",
+    "semantic_hash": "69f461472099e2ddc62ed7ec52d23cf2"
+  },
+  "eos-backend/tests/Feature/Settings/ExchangeRateTest.php": {
+    "mtime": 1794224133.9248998,
+    "seen": 1794300759.924257,
+    "ast_hash": "434708d1a9117b1c399f422c5b6284b4",
+    "semantic_hash": "434708d1a9117b1c399f422c5b6284b4"
+  },
+  "eos-backend/tests/Feature/Settings/SettingsTest.php": {
+    "mtime": 1794178502.9143193,
+    "seen": 1794300759.9242578,
+    "ast_hash": "02e6cdb8614df4d9e40dfbcb15847d18",
+    "semantic_hash": "02e6cdb8614df4d9e40dfbcb15847d18"
+  },
+  "eos-backend/tests/TestCase.php": {
+    "mtime": 1793134834.0666766,
+    "seen": 1794300759.9242587,
+    "ast_hash": "7e567dc27e68d5b57bae16af07f68907",
+    "semantic_hash": "7e567dc27e68d5b57bae16af07f68907"
+  },
+  "eos-backend/tests/Unit/ExampleTest.php": {
+    "mtime": 1793134834.0666766,
+    "seen": 1794300759.9242597,
+    "ast_hash": "3f679e9508c834f0ad95943455fcd836",
+    "semantic_hash": "3f679e9508c834f0ad95943455fcd836"
+  },
+  "eos-backend/tests/Unit/HR/LatenessChargeTest.php": {
+    "mtime": 1794178502.9143705,
+    "seen": 1794300759.9242604,
+    "ast_hash": "0c5b90ac754c399a37b4f51bce436cad",
+    "semantic_hash": "0c5b90ac754c399a37b4f51bce436cad"
+  },
+  "eos-backend/tests/Unit/ModuleBoundariesTest.php": {
+    "mtime": 1794222741.9614162,
+    "seen": 1794300759.924261,
+    "ast_hash": "cae884c3600d1dffbcb9674cd5442c7a",
+    "semantic_hash": "cae884c3600d1dffbcb9674cd5442c7a"
+  },
+  "eos-backend/vite.config.js": {
+    "mtime": 1793134834.0666766,
+    "seen": 1794300759.9242618,
+    "ast_hash": "8ef22d264079dab94f6d36526b0cb1bc",
+    "semantic_hash": "8ef22d264079dab94f6d36526b0cb1bc"
+  }
+}

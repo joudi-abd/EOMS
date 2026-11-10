@@ -10,7 +10,7 @@ h2 {
   margin-top: 20px;
   padding: 16px;
   border: 1px solid var(--late-line);
-  border-radius: 8px;
+  border-radius: var(--r-control);
   max-width: 880px;
 }
 
@@ -68,7 +68,7 @@ dt,
   color: inherit;
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--r-control);
   min-height: 88px;
   padding: 10px;
   resize: vertical;
