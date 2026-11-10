@@ -10,7 +10,8 @@ type Panel = 'none' | 'item' | 'adjust' | 'moves';
   selector: 'app-finance-items',
   imports: [FormsModule],
   templateUrl: './finance-items.html',
-  styleUrl: '../finance-shared.scss',
+  styleUrl: './finance-items.scss',
+  host: { class: 'ledger' },
 })
 export class FinanceItems extends FinanceTab {
   protected readonly panel = signal<Panel>('none');

@@ -17,7 +17,7 @@
           <span class="label">{{ t('email') }}</span>
           <span class="control">
             <i class="fa-solid fa-envelope lead" aria-hidden="true"></i>
-            <input name="email" type="email" autocomplete="username" spellcheck="false" dir="ltr" required [disabled]="busy()" placeholder="Email"/>
+            <input name="email" type="email" autocomplete="username" spellcheck="false" dir="ltr" required [disabled]="busy()" placeholder="name@ufuq.com" />
           </span>
         </label>
 
@@ -33,7 +33,6 @@
               dir="ltr"
               required
               [disabled]="busy()"
-              placeholder="Password"
             />
             <button
               class="eye"
@@ -68,12 +67,12 @@
 
     </section>
 
-    <footer class="foot">© {{ year }} · {{ t('brand') }}</footer>
+    <footer class="foot"><bdi>© {{ year }}</bdi> <span>{{ t('brand') }}</span></footer>
   </main>
 
   <aside class="scene" aria-hidden="true">
     <div class="scene-copy">
-      <img class="mark" src="/brand/ufuq.png" width="176" height="121" alt="" />
+      <span class="plaque"><img class="mark" src="/brand/ufuq.png" width="176" height="121" alt="" /></span>
       <p class="scene-title">{{ t('brand') }}</p>
     </div>
 

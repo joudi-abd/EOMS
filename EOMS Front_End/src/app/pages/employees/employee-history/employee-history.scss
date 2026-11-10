@@ -79,7 +79,7 @@ dd {
 .reason {
   margin: 10px 0 0;
   padding: 8px 12px;
-  border-radius: 8px;
+  border-radius: var(--r-control);
   background: var(--raised);
   border: 1px solid var(--line);
   color: var(--muted);
@@ -131,7 +131,7 @@ dd {
   color: inherit;
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--r-control);
   padding: 10px;
   resize: vertical;
 }

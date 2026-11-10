@@ -1,18 +1,14 @@
 import { Component, inject, signal } from '@angular/core';
-import { RouterLink } from '@angular/router';
 import { serverMessage } from '../../core/api/api';
 import { Ui } from '../../core/ui';
 import { NoticeItem, Server } from '../../data/server';
-import { Chrome } from '../../shell/chrome';
 
 @Component({
   selector: 'app-alerts',
-  imports: [RouterLink],
   templateUrl: './alerts.html',
   styleUrl: './alerts.scss',
 })
 export class Alerts extends Ui {
-  protected readonly chrome = inject(Chrome);
   protected readonly server = inject(Server);
   protected readonly rows = signal<NoticeItem[]>([]);
   protected readonly page = signal(1);

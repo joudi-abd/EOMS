@@ -1,0 +1,52 @@
+@media print {
+  @page {
+    margin: 14mm;
+  }
+
+  html,
+  body {
+    background: #fff;
+  }
+
+  .rail,
+  .skip,
+  .notice,
+  .filters,
+  .actions,
+  .views,
+  .tabs,
+  button,
+  form {
+    display: none !important;
+  }
+
+  .app {
+    display: block !important;
+  }
+
+  .work {
+    padding: 0;
+  }
+
+  .heading::after {
+    display: none;
+  }
+
+  .sheet {
+    overflow: visible;
+  }
+
+  tbody tr:hover td {
+    background: none;
+  }
+
+  .panel-head a,
+  .actions a {
+    display: none !important;
+  }
+
+  a {
+    color: inherit !important;
+    text-decoration: none !important;
+  }
+}

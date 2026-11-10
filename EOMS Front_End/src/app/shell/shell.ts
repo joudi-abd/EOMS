@@ -109,7 +109,7 @@ export class Shell {
       .split(/\s+/)
       .slice(0, 2)
       .map((word) => word.replace(/^ال/, '').charAt(0))
-      .join(' ');
+      .join('\u200c');
   }
 
   /** The top search looks up employees by name, number or national id on the employees page. */

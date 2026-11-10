@@ -1,28 +1,42 @@
 :host { display: block; }
 
-.scopes { margin-top: 28px; }
+/* Whose requests: a segmented choice above the register. */
+.scopes {
+  display: flex;
+  gap: 2px;
+  width: fit-content;
+  max-width: 100%;
+  margin: 28px 0 0;
+  padding: 3px;
+  background: var(--hover);
+  border: 0;
+  border-radius: var(--r-control);
+}
 
 .scopes button {
   display: inline-flex;
   align-items: center;
-  min-height: 42px;
-  padding: 8px 12px;
+  min-height: 36px;
+  padding: 6px 16px;
   color: var(--muted);
   background: transparent;
   border: 0;
-  border-bottom: 2px solid transparent;
-  border-radius: 0;
-  margin-bottom: -1px;
-  font-size: 15px;
+  border-radius: 6px;
+  white-space: nowrap;
+  font-size: 14px;
   cursor: pointer;
+  transition:
+    background-color 140ms ease-out,
+    color 140ms ease-out;
 }
 
 .scopes button:hover:not(:disabled) { color: var(--ink); }
 
 .scopes button.active {
-  color: var(--action-ink);
-  border-bottom-color: var(--action);
+  background: var(--surface);
+  color: var(--mark-ink);
   font-weight: 600;
+  box-shadow: 0 0 0 1px var(--line-strong);
 }
 
 .scopes button:disabled { cursor: not-allowed; }
@@ -138,7 +152,7 @@ tr.picked td {
 .detail {
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 16px;
+  border-radius: var(--r-dialog);
   padding: 18px 20px 20px;
   display: grid;
   gap: 14px;
@@ -186,7 +200,7 @@ tr.picked td {
   margin-inline-start: auto;
   width: 36px;
   height: 36px;
-  border-radius: 8px;
+  border-radius: var(--r-control);
   border: 1px solid var(--line);
   background: var(--surface);
   color: var(--muted);
@@ -274,7 +288,8 @@ tr.picked td {
 
 .day-sheet {
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: var(--r-control);
+  position: relative;
   overflow-x: auto;
 }
 
@@ -293,13 +308,13 @@ tr.picked td {
   margin: 0;
   padding: 8px 12px;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--r-control);
   background: var(--raised);
   font-size: 14px;
 }
 
 .wait-box {
-  border-color: #fde68a;
+  border-color: var(--wait-line);
   background: var(--wait-tint);
 }
 

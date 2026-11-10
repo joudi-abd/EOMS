@@ -5,7 +5,6 @@ import { Ui } from '../../core/ui';
 import { officeToday } from '../../data/attendance';
 import { Office } from '../../data/office';
 import { Notice } from '../../shared/notice/notice';
-import { Chrome } from '../../shell/chrome';
 import { AttendanceBlock } from './attendance/attendance';
 import { MyMonth } from './my-month/my-month';
 import { AccountsMix } from './accounts-mix/accounts-mix';
@@ -21,7 +20,6 @@ import { People } from './people/people';
 })
 export class Dashboard extends Ui {
   protected readonly office = inject(Office);
-  protected readonly chrome = inject(Chrome);
   protected readonly session = inject(Session);
   private readonly reporter = inject(Reporter);
   private readonly host = inject(ElementRef<HTMLElement>);

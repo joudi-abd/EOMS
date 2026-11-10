@@ -10,7 +10,7 @@
     (pointerleave)="active.set(null)"
   >
     @for (tick of ticks(); track tick.value) {
-      <line class="grid" [attr.x1]="rtl() ? 8 : pad.start" [attr.x2]="rtl() ? width() - pad.start : width() - pad.end" [attr.y1]="tick.y" [attr.y2]="tick.y" />
+      <line class="grid" [class.base]="tick.value === 0" [attr.x1]="rtl() ? 8 : pad.start" [attr.x2]="rtl() ? width() - pad.start : width() - pad.end" [attr.y1]="tick.y" [attr.y2]="tick.y" />
       <text class="axis" [attr.x]="axisX()" [attr.y]="tick.y + 4" text-anchor="end">{{ format(tick.value) }}</text>
     }
     @if (active() !== null) {

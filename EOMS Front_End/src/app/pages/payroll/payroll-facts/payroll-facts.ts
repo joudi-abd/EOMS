@@ -13,6 +13,27 @@ const blockerKey: Record<string, CopyKey> = {
   leave_change_pending: 'blockerLeaveChange',
 };
 
+/** The server's day status in the words the attendance screens already use. */
+const dayStateKey: Record<string, CopyKey> = {
+  pending: 'reviewMark',
+  absent_unconfirmed: 'reviewMark',
+  present: 'present',
+  incomplete: 'incomplete',
+  absent: 'absent',
+  day_off: 'offDay',
+  outside_service: 'bulkOutside',
+  on_leave: 'onLeave',
+  holiday: 'holidayMark',
+};
+
+const dayStateTone: Record<string, string> = {
+  pending: 'wait',
+  absent_unconfirmed: 'wait',
+  incomplete: 'wait',
+  present: 'ok',
+  absent: 'late',
+};
+
 @Component({
   selector: 'app-payroll-facts',
   templateUrl: './payroll-facts.html',
@@ -53,6 +74,15 @@ export class PayrollFacts extends Ui {
   protected blocker(code: string): string {
     const key = blockerKey[code];
     return key ? this.t(key) : code;
+  }
+
+  protected dayState(status: string): string {
+    const key = dayStateKey[status];
+    return key ? this.t(key) : status;
+  }
+
+  protected dayTone(status: string): string {
+    return dayStateTone[status] ?? '';
   }
 
   protected blocked(row: PayrollMonth): PayrollDay[] {

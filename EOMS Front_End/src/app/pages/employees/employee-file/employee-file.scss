@@ -3,9 +3,23 @@
 }
 
 .sub {
-  margin: 4px 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  margin: 8px 0 0;
   color: var(--muted);
   font-size: 14px;
+}
+
+/* The staff number reads as a tag beside the name, wherever the file is opened. */
+.staff-no {
+  padding: 2px 10px;
+  border-radius: var(--r-chip);
+  background: var(--mark-tint);
+  color: var(--mark-ink);
+  font-size: 13px;
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
 }
 

@@ -5,7 +5,7 @@
 .gate {
   min-height: 100dvh;
   display: grid;
-  grid-template-columns: minmax(460px, 1fr) minmax(0, 1.2fr);
+  grid-template-columns: minmax(460px, 1fr) minmax(0, 1.15fr);
 }
 
 /* Sign-in column */
@@ -16,7 +16,6 @@
   min-width: 0;
   padding: 28px 56px 32px;
   background: var(--surface);
-  border-inline-end: 1px solid var(--line);
 }
 
 .bar {
@@ -41,20 +40,21 @@
   min-height: 40px;
   padding: 0 14px;
   background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-control);
   color: var(--muted);
   font-size: 14px;
   cursor: pointer;
   transition:
-    background-color 120ms ease-out,
-    border-color 120ms ease-out;
+    background-color 140ms ease-out,
+    border-color 140ms ease-out,
+    color 140ms ease-out;
 }
 
 .lang:hover {
   background: var(--hover);
-  border-color: var(--line-strong);
-  color: var(--ink);
+  border-color: var(--action);
+  color: var(--action-ink);
 }
 
 .entry {
@@ -64,23 +64,36 @@
   padding: 48px 0;
 }
 
+/* The same datum as every page heading: the title stands on a hairline with an indigo segment. */
 h1 {
-  font-size: 36px;
-  line-height: 1.25;
-  font-weight: 600;
+  position: relative;
+  font-size: 34px;
+  line-height: 1.4;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--line);
+}
+
+h1::after {
+  content: '';
+  position: absolute;
+  inset-inline-start: 0;
+  bottom: -2px;
+  width: 72px;
+  height: 3px;
+  background: var(--mark);
 }
 
 .lede {
-  margin: 12px 0 0;
+  margin: 18px 0 0;
   color: var(--muted);
   font-size: 16px;
-  line-height: 1.6;
+  line-height: 1.7;
 }
 
 .form {
   display: grid;
   gap: 22px;
-  margin-top: 40px;
+  margin-top: 36px;
 }
 
 .field {
@@ -107,13 +120,10 @@ h1 {
   margin: 0;
   padding: 0 52px;
   border: 1px solid var(--line-strong);
-  border-radius: 10px;
+  border-radius: var(--radius);
   background: var(--raised);
   color: var(--ink);
   font-size: 16px;
-  transition:
-    border-color 120ms ease-out,
-    background-color 120ms ease-out;
 }
 
 .control input:hover {
@@ -123,8 +133,7 @@ h1 {
 .control input:focus-visible {
   border-color: var(--action);
   background: var(--surface);
-  outline: 2px solid var(--action-tint);
-  outline-offset: 0;
+  box-shadow: 0 0 0 3px var(--action-tint);
 }
 
 .control input:disabled {
@@ -138,7 +147,7 @@ h1 {
   color: var(--soft);
   font-size: 16px;
   pointer-events: none;
-  transition: color 120ms ease-out;
+  transition: color 140ms ease-out;
 }
 
 .control:focus-within .lead {
@@ -154,13 +163,13 @@ h1 {
   height: 40px;
   padding: 0;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--r-control);
   background: transparent;
   color: var(--soft);
   cursor: pointer;
   transition:
-    background-color 120ms ease-out,
-    color 120ms ease-out;
+    background-color 140ms ease-out,
+    color 140ms ease-out;
 }
 
 .eye i {
@@ -180,7 +189,7 @@ h1 {
   margin: 0;
   padding: 12px 14px;
   border: 1px solid var(--late-line);
-  border-radius: 10px;
+  border-radius: var(--r-control);
   background: var(--late-tint);
   color: var(--late);
   font-size: 14px;
@@ -200,17 +209,21 @@ h1 {
   height: 54px;
   margin-top: 6px;
   border: 0;
-  border-radius: 10px;
+  border-radius: var(--radius);
   background: var(--action);
   color: #fff;
   font-size: 16px;
   font-weight: 600;
   cursor: pointer;
-  transition: background-color 120ms ease-out;
+  transition: background-color 140ms ease-out;
 }
 
 .submit:hover {
   background: var(--action-ink);
+}
+
+.submit:active {
+  background: var(--scene);
 }
 
 .submit:disabled {
@@ -236,74 +249,57 @@ h1 {
   }
 }
 
-.hint {
-  margin: 28px 0 0;
-  padding-top: 20px;
-  border-top: 1px solid var(--line);
-  color: var(--soft);
-  font-size: 14px;
-  line-height: 1.6;
-}
-
 .foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
   color: var(--soft);
   font-size: 13px;
 }
 
-/* Brand scene: a drafting sheet with building elevations */
+/* Brand scene: the one place the indigo goes deep, with the office's elevations drawn on the horizon. */
 
 .scene {
   position: relative;
   display: flex;
   flex-direction: column;
   min-width: 0;
-  padding: 56px 64px 36px;
+  padding: 56px 64px 0;
   overflow: hidden;
-  background-color: var(--ground);
-  background-image:
-    linear-gradient(rgb(37 99 235 / 0.08) 1px, transparent 1px),
-    linear-gradient(90deg, rgb(37 99 235 / 0.08) 1px, transparent 1px),
-    linear-gradient(rgb(37 99 235 / 0.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgb(37 99 235 / 0.035) 1px, transparent 1px);
-  background-size:
-    120px 120px,
-    120px 120px,
-    24px 24px,
-    24px 24px;
-  background-position: -1px -1px;
+  background: var(--scene);
+  color: var(--scene-ink);
 }
 
 .scene-copy {
   max-width: 560px;
 }
 
+.plaque {
+  display: inline-grid;
+  place-items: center;
+  padding: 22px 28px 20px;
+  background: var(--surface);
+  border-radius: var(--r-dialog);
+}
+
 .mark {
   display: block;
-  width: 200px;
+  width: 148px;
   height: auto;
 }
 
 .scene-title {
   margin: 40px 0 0;
-  color: var(--ink);
   font-size: 34px;
   font-weight: 600;
-  line-height: 1.35;
+  line-height: 1.5;
   text-wrap: balance;
-}
-
-.scene-lede {
-  margin: 16px 0 0;
-  max-width: 46ch;
-  color: var(--muted);
-  font-size: 17px;
-  line-height: 1.7;
 }
 
 .skyline {
   display: block;
   width: 100%;
-  max-height: 44vh;
+  max-height: 46vh;
   margin-top: auto;
   padding-top: 32px;
 }
@@ -315,27 +311,20 @@ h1 {
 }
 
 .frame {
-  stroke: var(--action);
+  stroke: var(--scene-soft);
   stroke-width: 1.4;
-  stroke-opacity: 0.6;
+  stroke-opacity: 0.9;
 }
 
 .dims {
-  stroke: var(--soft);
+  stroke: var(--scene-soft);
   stroke-width: 1;
-  stroke-opacity: 0.6;
+  stroke-opacity: 0.55;
 }
 
 .ground-line {
-  stroke: var(--ink);
-  stroke-width: 1.5;
-  stroke-opacity: 0.35;
-}
-
-.scene-foot {
-  margin: 16px 0 0;
-  color: var(--soft);
-  font-size: 13px;
+  stroke: var(--scene-ink);
+  stroke-width: 3;
 }
 
 @media (max-width: 960px) {
@@ -349,7 +338,6 @@ h1 {
 
   .desk {
     padding: 20px 24px 24px;
-    border: 0;
   }
 
   .mark-small {
@@ -371,7 +359,7 @@ h1 {
   }
 
   h1 {
-    font-size: 30px;
+    font-size: 28px;
   }
 }
 

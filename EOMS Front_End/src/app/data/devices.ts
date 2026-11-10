@@ -59,7 +59,7 @@ export class Devices {
   }
 
   async setActive(device: ApiDevice, active: boolean): Promise<DeviceOutcome> {
-    return this.change(device, 'deviceUpdated', () => this.api.patch(`/attendance/devices/${device.id}`, { is_active: active }));
+    return this.change('deviceUpdated', () => this.api.patch(`/attendance/devices/${device.id}`, { is_active: active }));
   }
 
   async rotate(device: ApiDevice): Promise<DeviceOutcome> {
@@ -75,7 +75,7 @@ export class Devices {
 
   async configure(device: ApiDevice, mode: 'bridge' | 'adms', sourceIp: string): Promise<DeviceOutcome> {
     const body: Record<string, unknown> = { connection_mode: mode, adms_source_ip: mode === 'adms' ? sourceIp.trim() : null };
-    return this.change(device, 'connectionSaved', () => this.api.patch(`/attendance/devices/${device.id}/connection`, body));
+    return this.change('connectionSaved', () => this.api.patch(`/attendance/devices/${device.id}/connection`, body));
   }
 
   async bind(deviceId: number, entry: { employeeId: string; pin: string; from: string; to: string }): Promise<DeviceOutcome> {
@@ -102,7 +102,7 @@ export class Devices {
     }
   }
 
-  private async change(device: ApiDevice, message: CopyKey, run: () => Promise<unknown>): Promise<DeviceOutcome> {
+  private async change(message: CopyKey, run: () => Promise<unknown>): Promise<DeviceOutcome> {
     try {
       await run();
       await this.load();

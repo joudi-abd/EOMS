@@ -9,7 +9,8 @@ import { leaveClock, leaveLabel, leaveShift, leaveTone } from '../leave-format';
   selector: 'app-leave-calendar',
   imports: [FormsModule],
   templateUrl: './leave-calendar.html',
-  styleUrl: '../leave-fields.scss',
+  styleUrl: './leave-calendar.scss',
+  host: { class: 'leave-kit' },
 })
 export class LeaveCalendar extends Ui {
   protected readonly office = inject(Office);

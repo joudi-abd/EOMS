@@ -30,7 +30,7 @@
   color: inherit;
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--r-control);
   padding: 10px;
   resize: vertical;
 }

@@ -1,3 +1,5 @@
+/* The account card at the foot of the rail. */
+
 :host {
   display: block;
 }
@@ -7,19 +9,20 @@
   align-items: center;
   gap: 10px;
   margin-bottom: 12px;
+  padding-inline: 6px;
 }
 
 .avatar {
-  width: 36px;
-  height: 36px;
+  width: 38px;
+  height: 38px;
   border-radius: 50%;
   display: grid;
   place-items: center;
   flex: none;
-  background: var(--action-tint);
-  color: var(--action-ink);
+  background: var(--mark-tint);
+  color: var(--mark-ink);
   font-weight: 600;
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .id {
@@ -49,18 +52,21 @@
   justify-content: center;
   gap: 8px;
   width: 100%;
-  min-height: 36px;
+  min-height: 38px;
   background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-control);
   color: var(--ink);
   font-size: 14px;
   cursor: pointer;
+  transition:
+    background-color 140ms ease-out,
+    border-color 140ms ease-out;
 }
 
 .out:hover {
   background: var(--hover);
-  border-color: var(--line-strong);
+  border-color: var(--soft);
 }
 
 .out:disabled {

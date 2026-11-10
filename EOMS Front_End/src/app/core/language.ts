@@ -70,6 +70,19 @@ export class Language {
     }).format(new Date(year, month - 1, day));
   }
 
+  /** A full timestamp as the day and the clock time, in the reader's own zone. */
+  formatDateTime(iso: string): string {
+    const moment = new Date(iso);
+    if (Number.isNaN(moment.getTime())) return iso;
+    return new Intl.DateTimeFormat(this.locale(), {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    }).format(moment);
+  }
+
   formatDate(iso: string): string {
     const [year, month, day] = iso.split('-').map(Number);
     return new Intl.DateTimeFormat(this.locale(), {
