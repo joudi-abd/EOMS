@@ -106,7 +106,8 @@ class AdmsGateway
                 }
                 $valid[] = $event;
             }
-            // Original body + held events + valid punches all commit before OK: N.
+            // ATTLOG and heartbeats never assert complete_through: ADMS does not prove the device
+            // has finished sending every historical record. Operators confirm sync explicitly.
             $result = $this->importer->import($device, $valid, null);
 
             return ['received' => count($lines), 'imported' => $result['inserted'],
@@ -116,6 +117,7 @@ class AdmsGateway
 
     public function touch(AttendanceDevice $device): void
     {
+        // last_seen_at only; never raise complete_through from a heartbeat.
         DB::transaction(function () use ($device) {
             $this->lock($device)->update(['last_seen_at' => CarbonImmutable::now('UTC')]);
         }, 3);

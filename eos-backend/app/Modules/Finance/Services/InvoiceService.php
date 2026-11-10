@@ -40,6 +40,8 @@ class InvoiceService
             $currency = strtoupper($data['currency_code']);
             $lines = $this->lines($type, $currency, $data['lines']);
             abort_unless($lines->sum('amount') > 0, 422, 'إجمالي الفاتورة يجب أن يكون أكبر من صفر.');
+            // Drafts count as unsettled for month-close; take the period lock before inserting.
+            $this->ledger->ensureOpen($data['date']);
             $values = ['party_id' => $party->id, 'date' => $data['date'], 'due_date' => $data['due_date'] ?? $data['date'],
                 'currency_code' => $currency, 'notes' => $data['notes'] ?? null,
                 'total' => round($lines->sum('amount'), 2)];
@@ -105,13 +107,20 @@ class InvoiceService
         });
     }
 
-    /** Reverses the invoice's entries and stock; payments must be reversed first. */
+    /**
+     * Reverses the invoice's entries and stock; payments must be reversed first.
+     * A purchase cannot be cancelled once later stock moves touched its items (WAC would drift from the ledger);
+     * use a return document or a stock count adjustment instead.
+     */
     public function cancel(Invoice $invoice, string $date, string $reason, User $actor): Invoice
     {
         return DB::transaction(function () use ($invoice, $date, $reason, $actor) {
             $invoice = Invoice::query()->lockForUpdate()->findOrFail($invoice->id);
             abort_unless($invoice->status === 'posted', 409, 'تُلغى الفواتير المرحّلة فقط.');
             abort_if((float) $invoice->paid > 0, 409, 'اعكس دفعات الفاتورة أولاً.');
+            if ($invoice->type === 'purchase') {
+                $this->assertPurchaseCancellable($invoice);
+            }
             foreach (JournalEntry::query()->where('source_type', 'invoice')->where('source_id', $invoice->id)->whereNull('reverses_id')->get() as $entry) {
                 $this->ledger->reverse($entry, $date, $reason, $actor);
             }
@@ -138,15 +147,15 @@ class InvoiceService
             $item = Item::query()->lockForUpdate()->findOrFail($item->id);
             $quantity = round((float) $data['quantity'], 3);
             abort_if($quantity == 0, 422, 'أدخل فرق الكمية.');
-            $this->ledger->postable((int) $data['account_id']);
+            $counterpart = $this->ledger->stockAdjustmentCounterpart((int) $data['account_id']);
             $cost = $quantity > 0 ? (float) ($data['unit_cost'] ?? $item->average_cost) : (float) $item->average_cost;
             $move = $this->move($item, $quantity, $cost, $data['date'], 'adjustment', 0, $data['reason'], $actor);
             $value = round(abs($quantity) * $cost, 2);
             if ($value > 0) {
                 $inventory = $this->ledger->systemAccount('inventory')->id;
                 $lines = $quantity > 0
-                    ? [['account_id' => $inventory, 'debit' => $value], ['account_id' => (int) $data['account_id'], 'credit' => $value]]
-                    : [['account_id' => (int) $data['account_id'], 'debit' => $value], ['account_id' => $inventory, 'credit' => $value]];
+                    ? [['account_id' => $inventory, 'debit' => $value], ['account_id' => $counterpart->id, 'credit' => $value]]
+                    : [['account_id' => $counterpart->id, 'debit' => $value], ['account_id' => $inventory, 'credit' => $value]];
                 $this->ledger->post($item->currency_code, $data['date'], 'تسوية جرد: '.$item->name.' — '.$data['reason'], $lines, $actor, 'stock_move', $move->id);
             }
 
@@ -199,6 +208,27 @@ class InvoiceService
         $this->audit->log('finance.invoice_posted', $invoice, null, ['number' => $invoice->number], $actor->id);
     }
 
+    /**
+     * Purchase cancellation is safe only while this invoice is still the latest stock layer for each item.
+     * Later purchases, sales, or adjustments would make reversing the original unit cost diverge from qty × average.
+     */
+    private function assertPurchaseCancellable(Invoice $invoice): void
+    {
+        foreach ($invoice->lines()->whereNotNull('item_id')->get()->groupBy('item_id') as $itemId => $lines) {
+            $item = Item::query()->findOrFail($itemId);
+            $moveIds = StockMove::query()->where('item_id', $itemId)
+                ->where('source_type', 'invoice')->where('source_id', $invoice->id)->pluck('id');
+            if ($moveIds->isEmpty()) {
+                continue;
+            }
+            if (StockMove::query()->where('item_id', $itemId)->where('id', '>', $moveIds->max())->exists()) {
+                throw ValidationException::withMessages([
+                    'invoice' => ['لا يمكن إلغاء فاتورة الشراء بعد حركات لاحقة على '.$item->name.'؛ سجّل مرتجعاً أو تسوية جرد بدل الإلغاء المباشر.'],
+                ]);
+            }
+        }
+    }
+
     /** Weighted average cost: purchases re-average; sales and losses leave at average; stock never goes negative. */
     private function move(Item $item, float $quantity, float $unitCost, string $date, string $sourceType, int $sourceId, ?string $reason, User $actor): StockMove
     {
@@ -211,8 +241,8 @@ class InvoiceService
         if ($quantity > 0 && $after > 0) {
             $average = ($onHand * $average + $quantity * $unitCost) / $after;
         } elseif ($quantity < 0 && $sourceType === 'invoice_cancel' && $after > 0) {
-            // Cancelling a purchase removes it at its own price.
-            $average = max(0, ($onHand * $average + $quantity * $unitCost) / $after);
+            // Cancelling a purchase (only when it is still the latest layer) removes value at its own unit price.
+            $average = ($onHand * $average + $quantity * $unitCost) / $after;
         } elseif ($after == 0.0) {
             $average = 0;
         }
@@ -245,9 +275,14 @@ class InvoiceService
                 abort_unless($account, 422, "البند $i: حدّد الحساب لبند الوصف الحر.");
             }
             if ($account) {
+                $posted = $this->ledger->postable((int) $account, "lines.$i.account_id");
                 $allowed = $type === 'sale' ? ['revenue'] : ['expense', 'asset'];
-                abort_unless(in_array($this->ledger->postable((int) $account, "lines.$i.account_id")->type, $allowed, true), 422,
+                abort_unless(in_array($posted->type, $allowed, true), 422,
                     $type === 'sale' ? "البند $i: حساب إيراد مطلوب." : "البند $i: حساب مصروف أو أصل مطلوب.");
+                // Free-text lines must not touch inventory GL without a catalogue item (stock move).
+                if ($posted->system_key === 'inventory') {
+                    throw ValidationException::withMessages(["lines.$i.account_id" => ["البند $i: حساب المخزون يتحرك مع المواد فقط؛ اختر مادة من المخزون."]]);
+                }
             }
 
             // A stock item is always counted in its catalogue unit; a free-text line takes the unit the user writes (metre, kg...).

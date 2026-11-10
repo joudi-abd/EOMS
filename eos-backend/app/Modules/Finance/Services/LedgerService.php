@@ -23,6 +23,9 @@ class LedgerService
 {
     public const TYPES = ['asset', 'liability', 'equity', 'revenue', 'expense'];
 
+    /** Only these posting sources may debit/credit the system inventory account (and their reversals keep the same source). */
+    private const INVENTORY_SOURCES = ['invoice', 'stock_move'];
+
     public function __construct(private AuditLogger $audit) {}
 
     /**
@@ -93,7 +96,7 @@ class LedgerService
 
     /**
      * Ledger-wide invariants, enforced for every posting path (operations, invoices, reversals, manual entries):
-     * receivable/payable lines name their party; inventory moves only with stock; a box never goes negative.
+     * receivable/payable lines name their party; inventory moves only with stock documents; a box never goes negative.
      */
     private function guard(array $rows, string $currency, ?string $sourceType): void
     {
@@ -103,8 +106,8 @@ class LedgerService
             if (in_array($key, ['receivables', 'payables'], true) && empty($row['party_id'])) {
                 throw ValidationException::withMessages(["lines.$i.party_id" => ['سطر ذمم العملاء أو الموردين يحتاج الطرف.']]);
             }
-            if ($key === 'inventory' && in_array($sourceType, ['manual', null], true)) {
-                throw ValidationException::withMessages(["lines.$i.account_id" => ['حساب المخزون يتحرك مع المواد فقط؛ استخدم تسوية الجرد.']]);
+            if ($key === 'inventory' && ! in_array($sourceType, self::INVENTORY_SOURCES, true)) {
+                throw ValidationException::withMessages(["lines.$i.account_id" => ['حساب المخزون يتحرك مع المواد فقط عبر فاتورة أو تسوية جرد.']]);
             }
         }
         $boxes = Box::query()->whereIn('account_id', array_column($rows, 'account_id'))->lockForUpdate()->get()->keyBy('account_id');
@@ -120,10 +123,14 @@ class LedgerService
         }
     }
 
+    /**
+     * Refuses activity in a closed month. Locks the period row so close-approval and posting cannot race.
+     */
     public function ensureOpen(string $date): void
     {
         $month = substr($date, 0, 7);
-        if (Period::query()->where('month', $month)->where('status', 'closed')->exists()) {
+        $period = Period::query()->where('month', $month)->lockForUpdate()->first();
+        if ($period && $period->status === 'closed') {
             throw ValidationException::withMessages(['date' => ["الشهر $month مقفل؛ سجّل التصحيح في شهر مفتوح."]]);
         }
     }
@@ -139,6 +146,23 @@ class LedgerService
         $account = Account::query()->find($accountId);
         if (! $account || ! $account->active || Account::query()->where('parent_id', $accountId)->exists()) {
             throw ValidationException::withMessages([$field => ['الحساب غير موجود أو غير فعّال أو له حسابات فرعية.']]);
+        }
+
+        return $account;
+    }
+
+    /**
+     * Counterpart for a stock count adjustment: postable, not a box, and not a system control account
+     * (inventory, receivables, payables, COGS, salaries, FX clearing, opening balances, entry differences).
+     */
+    public function stockAdjustmentCounterpart(int $accountId, string $field = 'account_id'): Account
+    {
+        $account = $this->postable($accountId, $field);
+        if ($account->system_key !== null) {
+            throw ValidationException::withMessages([$field => ['حساب المقابل لتسوية الجرد لا يكون حساب نظام؛ اختر مصروفاً أو إيراداً أو حقوق ملكية مناسباً.']]);
+        }
+        if (Box::query()->where('account_id', $account->id)->exists()) {
+            throw ValidationException::withMessages([$field => ['لا تستخدم حساب صندوق كمقابل لتسوية الجرد.']]);
         }
 
         return $account;
@@ -186,10 +210,7 @@ class LedgerService
             abort_unless($month < now()->format('Y-m'), 422, 'يُقفل الشهر بعد انتهائه.');
             $period = Period::query()->lockForUpdate()->firstOrNew(['month' => $month]);
             abort_if(in_array($period->status, ['closed', 'close_requested'], true), 409, 'الشهر مقفل أو بانتظار الموافقة.');
-            [$from, $to] = $this->bounds($month);
-            $pending = Transaction::query()->where('status', 'pending')->whereBetween('date', [$from, $to])->count()
-                + Invoice::query()->whereIn('status', ['draft', 'pending'])->whereBetween('date', [$from, $to])->count();
-            abort_if($pending > 0, 409, "توجد $pending عملية أو فاتورة غير محسومة في هذا الشهر.");
+            $this->assertMonthSettled($month);
             $period->fill(['status' => 'close_requested', 'requested_by' => $actor->id, 'decided_by' => null, 'note' => null])->save();
             $this->audit->log('finance.period_close_requested', $period, null, ['month' => $month], $actor->id);
             app(FinanceNotifier::class)->toApprovers('finance.period_close_requested', "طلب إقفال الشهر المالي $month بانتظار موافقتك.", ['month' => $month], $actor->id);
@@ -203,6 +224,10 @@ class LedgerService
         return DB::transaction(function () use ($month, $approve, $note, $actor) {
             $period = Period::query()->lockForUpdate()->where('month', $month)->firstOrFail();
             abort_unless($period->status === 'close_requested', 409, 'لا يوجد طلب إقفال لهذا الشهر.');
+            // Re-check under the period lock: activity may have arrived while approval was pending.
+            if ($approve) {
+                $this->assertMonthSettled($month);
+            }
             $period->update(['status' => $approve ? 'closed' : 'open', 'decided_by' => $actor->id,
                 'closed_at' => $approve ? now() : null, 'note' => $note]);
             $this->audit->log($approve ? 'finance.period_closed' : 'finance.period_close_rejected', $period, null, ['month' => $month], $actor->id);
@@ -211,6 +236,15 @@ class LedgerService
 
             return $period;
         });
+    }
+
+    /** Pending payments and draft/pending invoices in the month must be cleared before close request or approval. */
+    private function assertMonthSettled(string $month): void
+    {
+        [$from, $to] = $this->bounds($month);
+        $pending = Transaction::query()->where('status', 'pending')->whereBetween('date', [$from, $to])->lockForUpdate()->count()
+            + Invoice::query()->whereIn('status', ['draft', 'pending'])->whereBetween('date', [$from, $to])->lockForUpdate()->count();
+        abort_if($pending > 0, 409, "توجد $pending عملية أو فاتورة غير محسومة في هذا الشهر.");
     }
 
     public function reopen(string $month, string $reason, User $actor): Period
@@ -242,7 +276,8 @@ class LedgerService
         return [$start->toDateString(), $start->endOfMonth()->toDateString()];
     }
 
-    private function checkParent(Account $parent, string $type): void
+    /** Parent must match type, have no postings yet, and must not be a box or protected system account. */
+    public function checkParent(Account $parent, string $type): void
     {
         abort_unless($parent->type === $type, 422, 'الحساب الفرعي يجب أن يكون من نوع الحساب الأب.');
         abort_if(JournalLine::query()->where('account_id', $parent->id)->exists(), 422, 'للحساب الأب حركات؛ لا يمكن أن يصبح حساباً تجميعياً.');

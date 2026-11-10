@@ -9,8 +9,6 @@ Route::prefix('api/v1/leave-settings')
     ->controller(LeaveSettingsController::class)
     ->group(function () {
         Route::get('/', 'index');
-        Route::get('calendar', 'calendar');
-        Route::get('export', 'export');
         Route::post('types', 'storeType');
         Route::post('types/{leaveType}/policies', 'publishPolicy');
         Route::patch('types/{leaveType}/activation', 'updateActivation');

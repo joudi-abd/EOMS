@@ -18,8 +18,9 @@ use Illuminate\Support\Collection;
  *   automatically; lateness, early exit and absence are proposed deductions for the company manager.
  * - daily: paid for present days and the paid share of leave; holidays and rest days unpaid; lateness/early proposed.
  * - hourly: paid for minutes worked inside the schedule, paid leave by its minutes, holidays by schedule minutes.
- * - overtime for everyone: minutes after the scheduled end, or every minute worked on a rest day or holiday,
- *   × hour rate × the attendance policy multiplier, paid automatically. Arrival before the start is never paid.
+ * - overtime for everyone: post-shift minutes capped by the valid in/out span (and never above worked minutes),
+ *   or every minute worked on a rest day or holiday, × hour rate × the attendance policy multiplier.
+ *   Arrival before the start is never paid.
  */
 class PayrollCalculator
 {
@@ -134,8 +135,18 @@ class PayrollCalculator
             }
         }
 
-        // Overtime: after the scheduled end, or the whole day when working on a rest day or holiday.
-        $overtime = in_array($status, ['day_off', 'holiday'], true) ? (int) ($row['worked_minutes'] ?? 0) : (int) ($row['extra_minutes'] ?? 0);
+        // Overtime: capped post-shift minutes on working days, or the full worked span on a rest day / holiday.
+        // Never pay more OT than minutes actually worked (guards stale days that credited end→out without a late arrival).
+        if (in_array($status, ['day_off', 'holiday'], true)) {
+            $overtime = (int) ($row['worked_minutes'] ?? 0);
+        } else {
+            $overtime = (int) ($row['extra_minutes'] ?? 0);
+            if ($row['worked_minutes'] !== null) {
+                $overtime = min($overtime, (int) $row['worked_minutes']);
+            } elseif ($overtime > 0) {
+                $overtime = 0;
+            }
+        }
         if ($overtime > 0) {
             $this->add($items, 'overtime', 'earning', 'auto', 'minutes', $overtime,
                 $hourRate * $overtime / 60 * $row['overtime_multiplier'], $date);

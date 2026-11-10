@@ -17,6 +17,8 @@
 | GET `/leave-settings/pending-openings` | الموظفون العائدون للخدمة الذين ينتظرون رصيداً افتتاحياً، مع الأنواع المتوقفة. يصل أيضاً إشعار `leave.opening_balance_needed` عند إعادة التعيين |
 | PUT `/leaves/half-days` | فترتا نصف اليوم |
 
+التقويم وتصدير الطلبات ليسا ضمن `leave-settings`؛ المساران المعتمدان هما `GET /leaves/calendar` و`GET /leaves/export` أدناه.
+
 ## الطلب ودورة حياته
 
 | المسار | الوصف |

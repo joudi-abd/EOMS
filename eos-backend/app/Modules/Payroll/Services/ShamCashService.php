@@ -27,9 +27,16 @@ class ShamCashService
     public function export(PayRun $run, string $currency, string $date, ?array $lineIds, bool $skipMissing, User $actor): PayExport
     {
         return DB::transaction(function () use ($run, $currency, $date, $lineIds, $skipMissing, $actor) {
+            // Lock order shared with individual pay and confirm: run → open exports → lines.
             $run = PayRun::query()->lockForUpdate()->findOrFail($run->id);
             abort_unless($run->status === 'approved', 409, 'يُصدَّر ملف الشام كاش بعد اعتماد الكشف.');
+            PayExport::query()->where('pay_run_id', $run->id)->whereNull('cancelled_at')->whereNull('confirmed_at')
+                ->orderBy('id')->lockForUpdate()->get();
             $lines = $this->payable($run, $currency, $lineIds);
+            abort_if($lines->isEmpty(), 422, 'لا يوجد موظفون مستحقون غير مدفوعين لهذا الملف.');
+            $lines = PayRunLine::query()->whereIn('id', $lines->pluck('id'))->orderBy('id')->lockForUpdate()->get();
+            // Under the locks, drop anyone paid or reserved since the first read.
+            $lines = $this->payable($run, $currency, $lines->pluck('id')->all());
             abort_if($lines->isEmpty(), 422, 'لا يوجد موظفون مستحقون غير مدفوعين لهذا الملف.');
             $employees = Employee::query()->whereIn('id', $lines->pluck('employee_id'))->get()->keyBy('id');
             $rows = [];
@@ -74,18 +81,23 @@ class ShamCashService
             'amount' => (float) $r['amount'], 'note' => $export->note], $export->rows), $export->currency_code, $export->doc_id, $export->note);
     }
 
-    /** Sham Cash executed the file: every row becomes a recorded payment from the box, all or nothing. */
+    /** Sham Cash executed the file: every reserved row becomes a recorded payment from the box, all or nothing. */
     public function confirm(PayExport $export, int $boxId, User $actor): PayExport
     {
         return DB::transaction(function () use ($export, $boxId, $actor) {
+            // run → open export → lines (same order as export and individual pay).
+            PayRun::query()->lockForUpdate()->findOrFail($export->pay_run_id);
             $export = PayExport::query()->lockForUpdate()->findOrFail($export->id);
             abort_if($export->confirmed_at !== null, 409, 'الملف مؤكَّد مسبقاً.');
             abort_if($export->cancelled_at !== null, 409, 'الملف ملغى.');
+            $lineIds = collect($export->line_ids)->map(fn ($id) => (int) $id)->sort()->values()->all();
+            PayRunLine::query()->whereIn('id', $lineIds)->orderBy('id')->lockForUpdate()->get();
             foreach ($export->rows as $row) {
+                abort_unless(in_array((int) $row['line_id'], $lineIds, true), 409, 'تأكيد الملف يدفع فقط سطوره المحجوزة في هذا الملف.');
                 $line = PayRunLine::query()->findOrFail($row['line_id']);
                 $this->runs->recordPayment($line, ['currency' => $export->currency_code, 'method' => 'sham_cash', 'box_id' => $boxId,
                     'paid_at' => $export->pay_date->format('Y-m-d'), 'reference' => $export->doc_id, 'expected_amount' => $row['amount'],
-                    'note' => 'ملف شام كاش '.$export->doc_id], $actor);
+                    'wallet' => $row['wallet'], 'from_export_id' => $export->id, 'note' => 'ملف شام كاش '.$export->doc_id], $actor);
             }
             $export->update(['confirmed_at' => now(), 'confirmed_by' => $actor->id, 'box_id' => $boxId]);
             $this->audit->log('payroll.shamcash_confirmed', $export, null, ['doc_id' => $export->doc_id, 'box_id' => $boxId], $actor->id);
@@ -94,10 +106,11 @@ class ShamCashService
         });
     }
 
-    /** A file that was never sent to Sham Cash: its employees become available for a new file. */
+    /** A file that was never sent to Sham Cash: its employees become available for a new file or individual pay. */
     public function cancel(PayExport $export, User $actor): PayExport
     {
         return DB::transaction(function () use ($export, $actor) {
+            PayRun::query()->lockForUpdate()->findOrFail($export->pay_run_id);
             $export = PayExport::query()->lockForUpdate()->findOrFail($export->id);
             abort_if($export->confirmed_at !== null, 409, 'الملف مؤكَّد ودُفعت رواتبه؛ ألغِ الدفعات بشكل فردي.');
             abort_if($export->cancelled_at !== null, 409, 'الملف ملغى مسبقاً.');

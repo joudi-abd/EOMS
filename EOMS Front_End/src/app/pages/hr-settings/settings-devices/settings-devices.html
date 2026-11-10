@@ -104,6 +104,23 @@
                   </button>
                 </form>
 
+                <h3>{{ t('syncConfirmTitle') }}</h3>
+                <p class="note">{{ t('syncConfirmNote') }}</p>
+                <form class="form" (submit)="confirmSync($event, device)">
+                  <label>
+                    <span>{{ t('syncConfirmThrough') }}</span>
+                    <input name="through" type="datetime-local" required dir="ltr" [value]="syncDefault(device)" />
+                  </label>
+                  <label class="wide">
+                    <span>{{ t('syncConfirmReason') }}</span>
+                    <input name="note" required minlength="5" maxlength="500" autocomplete="off" [attr.placeholder]="t('syncConfirmReasonHint')" />
+                  </label>
+                  <button class="primary" type="submit" [disabled]="working()">
+                    <i class="fa-solid fa-clipboard-check" aria-hidden="true"></i>
+                    {{ t('syncConfirmSave') }}
+                  </button>
+                </form>
+
                 <h3>{{ t('bindingsTitle') }}</h3>
                 <p class="note">{{ t('bindingsNote') }}</p>
                 @if (rows(); as list) {

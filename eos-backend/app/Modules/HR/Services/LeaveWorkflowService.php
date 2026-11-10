@@ -184,6 +184,8 @@ class LeaveWorkflowService
                 $from = $halves[$input['half'].'_start'];
                 $to = $halves[$input['half'].'_end'];
             }
+            // unit=day stores the then-current schedule hours; attendance treats day_units=1_000_000 as a full day
+            // against whatever schedule is later in force (see AttendanceCalculator::leaveWindow).
             $minutes = $this->minutes($to) - $this->minutes($from);
             if ($minutes <= 0 || $this->minutes($from) < $this->minutes($schedule->start_time)
                 || $this->minutes($to) > $this->minutes($schedule->end_time)) {

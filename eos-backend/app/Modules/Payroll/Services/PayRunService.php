@@ -10,6 +10,7 @@ use App\Modules\HR\Notifications\HrNotification;
 use App\Modules\HR\Services\EmploymentPeriodService;
 use App\Modules\Identity\Models\User;
 use App\Modules\Identity\Services\AuditLogger;
+use App\Modules\Payroll\Models\PayExport;
 use App\Modules\Payroll\Models\PayPayment;
 use App\Modules\Payroll\Models\PayRun;
 use App\Modules\Payroll\Models\PayRunItem;
@@ -199,8 +200,9 @@ class PayRunService
     }
 
     /**
-     * Approval locks the month. It needs every employee's attendance ready, no blocking line issue, no negative
-     * net, and data unchanged since the last calculation. Proposed deductions not yet reviewed are accepted.
+     * Approval locks the month. It re-resolves the eligible roster, rechecks each line's attendance/contract
+     * fingerprint, and re-prices locked-month adjustments against current sources. Any drift rejects approval
+     * so HR must return the run to draft and recalculate. Proposed deductions not yet reviewed are accepted.
      */
     public function approve(PayRun $run, User $actor): PayRun
     {
@@ -209,28 +211,19 @@ class PayRunService
             abort_if($run->prepared_by === $actor->id, 403, 'لا يعتمد أحد كشفاً أنشأه بنفسه.');
             abort_if($this->items($run)->where('origin', 'adjustment')->where('status', 'proposed')->exists(), 409,
                 'قرّر في تسويات الأشهر المقفلة قبل الاعتماد.');
-            $problems = [];
-            foreach (PayRunLine::query()->where('pay_run_id', $run->id)->orderBy('id')->get() as $line) {
-                $employee = Employee::query()->findOrFail($line->employee_id);
-                $fresh = $this->calculator->forEmployee($employee, $run->month);
-                $name = $employee->full_name;
-                if (! $fresh['attendance_ready']) {
-                    $problems[] = $name.': حضور الشهر غير جاهز ('.$fresh['blocked_days'].' يوم).';
-                } elseif ($this->fingerprint($fresh) !== $line->source_hash) {
-                    $problems[] = $name.': تغيّرت بيانات الحضور أو العقد بعد الحساب؛ أعد الكشف للمسودة وأعد الحساب.';
-                }
-                foreach (collect($fresh['issues'])->where('blocking', true) as $issue) {
-                    $problems[] = $name.': '.$issue['message'];
-                }
-            }
+
+            $this->lockApprovalSources($run);
+            $lines = PayRunLine::query()->where('pay_run_id', $run->id)->orderBy('id')->lockForUpdate()->get();
+            $problems = $this->approvalSourceProblems($run, $lines);
             if ($problems !== []) {
                 throw ValidationException::withMessages(['run' => $problems]);
             }
+
             $this->items($run)->whereIn('origin', ['proposed', 'manual'])->where('status', 'proposed')->get()->each(function (PayRunItem $item) use ($actor) {
                 $item->update(['status' => 'approved', 'amount' => $item->proposed_amount, 'decided_by' => $actor->id, 'decided_at' => now()]);
             });
-            foreach (PayRunLine::query()->where('pay_run_id', $run->id)->get() as $line) {
-                $this->totals($line);
+            foreach ($lines as $line) {
+                $this->totals($line->refresh());
                 if ((float) $line->net < 0) {
                     throw ValidationException::withMessages(['run' => [Employee::find($line->employee_id)?->full_name.': صافي الراتب سالب.']]);
                 }
@@ -244,12 +237,18 @@ class PayRunService
         }, 3);
     }
 
-    /** One payment per line: converted at the payment-date rate, then SYP rounded to 1000 and USD to 1. */
+    /**
+     * One payment per line: converted at the payment-date rate, then SYP rounded to 1000 and USD to 1.
+     * Pass from_export_id when confirming that open Sham Cash file; otherwise a reserved line is refused.
+     */
     public function recordPayment(PayRunLine $line, array $data, User $actor): PayPayment
     {
         return DB::transaction(function () use ($line, $data, $actor) {
-            $line = PayRunLine::query()->lockForUpdate()->findOrFail($line->id);
-            abort_unless($line->run->status === 'approved', 409, 'يُسجَّل الدفع بعد اعتماد الكشف.');
+            // Same lock order as Sham Cash export/confirm: run → open exports → line.
+            $run = PayRun::query()->lockForUpdate()->findOrFail($line->pay_run_id);
+            $this->assertShamCashReservation($line->id, $run->id, isset($data['from_export_id']) ? (int) $data['from_export_id'] : null);
+            $line = PayRunLine::query()->whereKey($line->id)->lockForUpdate()->firstOrFail();
+            abort_unless($run->status === 'approved', 409, 'يُسجَّل الدفع بعد اعتماد الكشف.');
             abort_if($line->payment()->exists(), 409, 'سُجّل الدفع لهذا الموظف مسبقاً.');
             abort_unless((float) $line->net > 0, 409, 'لا يوجد مبلغ مستحق.');
             $paidCurrency = strtoupper($data['currency']);
@@ -260,7 +259,10 @@ class PayRunService
             }
             $wallet = null;
             if ($data['method'] === 'sham_cash') {
-                $wallet = Employee::query()->whereKey($line->employee_id)->value('sham_cash_wallet');
+                // File confirm passes the wallet frozen in the export row; individual pay uses the employee record.
+                $wallet = isset($data['wallet']) && $data['wallet'] !== ''
+                    ? (string) $data['wallet']
+                    : Employee::query()->whereKey($line->employee_id)->value('sham_cash_wallet');
                 if (! $wallet) {
                     throw ValidationException::withMessages(['method' => ['لا توجد محفظة شام كاش مسجّلة للموظف.']]);
                 }
@@ -274,12 +276,26 @@ class PayRunService
             ]);
             // The salary leaves the chosen finance box: one posted cash operation and journal entry.
             $tx = $this->cash->payroll((int) $data['box_id'], $paidCurrency, $paid, $data['paid_at'],
-                'راتب '.$line->run->month.': '.Employee::find($line->employee_id)?->full_name, $payment->id, $actor);
+                'راتب '.$run->month.': '.Employee::find($line->employee_id)?->full_name, $payment->id, $actor);
             $payment->update(['finance_transaction_id' => $tx->id]);
             $this->audit->log('payroll.payment_recorded', $payment, null, $payment->getAttributes(), $actor->id);
 
             return $payment;
         });
+    }
+
+    /** A line in an open Sham Cash file is reserved for that file's confirm; individual pay must wait for cancel. */
+    private function assertShamCashReservation(int $lineId, int $runId, ?int $fromExportId): void
+    {
+        $open = PayExport::query()->where('pay_run_id', $runId)
+            ->whereNull('cancelled_at')->whereNull('confirmed_at')->orderBy('id')->lockForUpdate()->get();
+        $holding = $open->first(fn (PayExport $export) => in_array($lineId, array_map('intval', $export->line_ids ?? []), true));
+        if ($fromExportId !== null) {
+            abort_unless($holding !== null && $holding->id === $fromExportId, 409, 'تأكيد الملف يدفع فقط سطوره المحجوزة في هذا الملف.');
+
+            return;
+        }
+        abort_if($holding !== null, 409, 'الموظف مدرج في ملف شام كاش مفتوح؛ ألغِ الملف غير المنفَّذ أو أكّده قبل الدفع الفردي.');
     }
 
     /**
@@ -319,11 +335,34 @@ class PayRunService
     /** Re-prices earlier locked months and proposes the difference not yet settled by earlier adjustments. */
     private function addAdjustments(PayRunLine $line, Employee $employee, string $month, Collection $decided): void
     {
+        ['issues' => $extraIssues, 'items' => $items] = $this->computeAdjustments($employee, $month, $line->currency_code);
+        $issues = [...($line->issues ?? []), ...$extraIssues];
+        foreach ($items as $item) {
+            $previous = $decided->get($this->adjustmentKey($item['details']));
+            if ($previous) {
+                $line->items()->create([...$previous->only(['kind', 'category', 'origin', 'proposed_amount', 'amount',
+                    'status', 'reason', 'decided_by', 'decided_at']), 'details' => $item['details']]);
+
+                continue;
+            }
+            $this->storeItem($line, $item, 'proposed');
+        }
+        $line->update(['issues' => $issues]);
+    }
+
+    /**
+     * Locked prior-month deltas and non-blocking notes that recalculate would attach for one employee.
+     *
+     * @return array{issues: list<array>, items: list<array>}
+     */
+    private function computeAdjustments(Employee $employee, string $month, ?string $lineCurrency): array
+    {
         $from = CarbonImmutable::createFromFormat('!Y-m', $month)->subMonths(self::ADJUSTMENT_LOOKBACK_MONTHS)->format('Y-m');
         $lockedLines = PayRunLine::query()->where('employee_id', $employee->id)
             ->whereHas('run', fn ($q) => $q->where('status', 'approved')->where('month', '<', $month)->where('month', '>=', $from))
-            ->with('run')->get();
-        $issues = $line->issues;
+            ->with('run')->orderBy('id')->get();
+        $issues = [];
+        $items = [];
         foreach ($lockedLines as $locked) {
             $fresh = $this->calculator->forEmployee($employee, $locked->run->month);
             if (! $fresh['attendance_ready']) {
@@ -332,7 +371,7 @@ class PayRunService
 
                 continue;
             }
-            if ($fresh['currency_code'] !== $line->currency_code) {
+            if ($lineCurrency !== null && $fresh['currency_code'] !== $lineCurrency) {
                 $issues[] = ['code' => 'adjustment_currency', 'message' => 'عملة الشهر المقفل '.$locked->run->month.' تختلف عن عملة هذا الشهر؛ التسوية يدوية.', 'detail' => $locked->run->month, 'blocking' => false];
 
                 continue;
@@ -340,33 +379,158 @@ class PayRunService
             $recomputed = collect($fresh['items'])->keyBy('kind');
             $original = $locked->items()->whereIn('origin', ['auto', 'proposed'])->get()->keyBy('kind');
             foreach ($recomputed->keys()->merge($original->keys())->unique() as $kind) {
-                $new = $this->signed($recomputed->get($kind)['category'] ?? null, (float) ($recomputed->get($kind)['amount'] ?? 0));
-                $old = $this->signed($original->get($kind)?->category, (float) ($original->get($kind)?->proposed_amount ?? 0));
+                $freshItem = $recomputed->get($kind);
+                $lockedItem = $original->get($kind);
+                $new = $this->signed($freshItem['category'] ?? null, (float) ($freshItem['amount'] ?? 0));
+                // Financial baseline is what was applied after finance review, not the system proposal.
+                $applied = $this->signed($lockedItem?->category, (float) ($lockedItem?->amount ?? 0));
+                $proposed = $this->signed($lockedItem?->category, (float) ($lockedItem?->proposed_amount ?? 0));
+                $target = $this->adjustmentTarget($applied, $proposed, $new);
                 $settled = $this->settledAdjustments($employee->id, $locked->run->month, $kind, $month);
-                $delta = round($new - $old - $settled, 2);
-                if (abs($delta) >= 0.01) {
-                    $details = ['source_month' => $locked->run->month, 'source_kind' => $kind, 'locked' => $old,
-                        'recomputed' => $new, 'previously_settled' => $settled, 'signed_delta' => $delta];
-                    $previous = $decided->get($this->adjustmentKey($details));
-                    if ($previous) {
-                        $line->items()->create([...$previous->only(['kind', 'category', 'origin', 'proposed_amount', 'amount',
-                            'status', 'reason', 'decided_by', 'decided_at']), 'details' => $details]);
+                $delta = round($target - $applied - $settled, 2);
+                if (abs($delta) < 0.01) {
+                    continue;
+                }
+                $details = [
+                    'source_month' => $locked->run->month, 'source_kind' => $kind,
+                    'locked' => $applied, 'locked_proposed' => $proposed,
+                    'recomputed' => $new, 'previously_settled' => $settled, 'signed_delta' => $delta,
+                ];
+                $items[] = [
+                    'kind' => 'adjustment', 'category' => $delta > 0 ? 'earning' : 'deduction', 'origin' => 'adjustment',
+                    'unit' => null, 'quantity' => null, 'amount' => abs($delta), 'details' => $details,
+                ];
+            }
+        }
 
-                        continue;
-                    }
-                    $this->storeItem($line, [
-                        'kind' => 'adjustment', 'category' => $delta > 0 ? 'earning' : 'deduction', 'origin' => 'adjustment',
-                        'unit' => null, 'quantity' => null, 'amount' => abs($delta), 'details' => $details,
-                    ], 'proposed');
+        return ['issues' => $issues, 'items' => $items];
+    }
+
+    /** Hold eligibility and locked-month rows still while approval rechecks sources. */
+    private function lockApprovalSources(PayRun $run): void
+    {
+        $from = CarbonImmutable::createFromFormat('!Y-m', $run->month)->subMonths(self::ADJUSTMENT_LOOKBACK_MONTHS)->format('Y-m');
+        $monthStart = $run->month.'-01';
+        $monthEnd = CarbonImmutable::parse($monthStart)->endOfMonth()->toDateString();
+        EmployeeServicePeriod::query()
+            ->whereDate('start_date', '<=', $monthEnd)
+            ->where(fn ($q) => $q->whereNull('end_date')->orWhereDate('end_date', '>=', $monthStart))
+            ->orderBy('id')->lockForUpdate()->get();
+        PayRun::query()->where('status', 'approved')->where('month', '<', $run->month)->where('month', '>=', $from)
+            ->orderBy('id')->lockForUpdate()->get();
+        PayRunLine::query()->whereIn('pay_run_id', PayRun::query()->where('status', 'approved')
+            ->where('month', '<', $run->month)->where('month', '>=', $from)->select('id'))
+            ->orderBy('id')->lockForUpdate()->get();
+    }
+
+    /**
+     * Roster, current-month fingerprints, and locked-month adjustment payloads must still match the submitted run.
+     *
+     * @param  Collection<int, PayRunLine>  $lines
+     * @return list<string>
+     */
+    private function approvalSourceProblems(PayRun $run, Collection $lines): array
+    {
+        $problems = [];
+        $inService = $this->employeesFor($run->month);
+        $former = $this->formerEmployees($run->month, $inService->pluck('id'));
+        $lineByEmployee = $lines->keyBy('employee_id');
+
+        foreach ($inService as $employee) {
+            if (! $lineByEmployee->has($employee->id)) {
+                $problems[] = $employee->full_name.': مستحق في هذا الشهر وغير موجود في الكشف؛ أعد الكشف للمسودة وأعد الحساب.';
+            }
+        }
+
+        foreach ($lines as $line) {
+            $employee = Employee::query()->findOrFail($line->employee_id);
+            $name = $employee->full_name;
+            $served = $inService->contains('id', $employee->id);
+            $fresh = $this->calculator->forEmployee($employee, $run->month);
+            $expected = $this->computeAdjustments($employee, $run->month, $line->currency_code);
+            $hasManual = $line->items()->where('origin', 'manual')->exists();
+
+            if (! $served) {
+                if (! $former->contains('id', $employee->id) && ! $hasManual) {
+                    $problems[] = $name.': لم يعد مستحقاً لهذا الشهر؛ أعد الكشف للمسودة وأعد الحساب.';
+                } elseif ($expected['items'] === [] && ! $hasManual) {
+                    $problems[] = $name.': لا تسوية مستحقة بعد؛ أعد الكشف للمسودة وأعد الحساب.';
+                }
+            } else {
+                if (! $fresh['attendance_ready']) {
+                    $problems[] = $name.': حضور الشهر غير جاهز ('.$fresh['blocked_days'].' يوم).';
+                } elseif ($this->fingerprint($fresh) !== $line->source_hash) {
+                    $problems[] = $name.': تغيّرت بيانات الحضور أو العقد بعد الحساب؛ أعد الكشف للمسودة وأعد الحساب.';
+                }
+                foreach (collect($fresh['issues'])->where('blocking', true) as $issue) {
+                    $problems[] = $name.': '.$issue['message'];
+                }
+            }
+
+            if ($this->adjustmentsDrifted($line, $expected['items'])) {
+                $problems[] = $name.': تغيّرت مصادر أو مبالغ تسويات الأشهر المقفلة؛ أعد الكشف للمسودة وأعد الحساب.';
+            }
+        }
+
+        return $problems;
+    }
+
+    /** True when stored adjustment rows no longer match a fresh reprice of locked months. */
+    private function adjustmentsDrifted(PayRunLine $line, array $expectedItems): bool
+    {
+        $stored = $line->items()->where('origin', 'adjustment')->get()
+            ->mapWithKeys(fn (PayRunItem $item) => [$this->adjustmentKey($item->details) => $item]);
+        $expected = collect($expectedItems)
+            ->mapWithKeys(fn (array $item) => [$this->adjustmentKey($item['details']) => $item]);
+        if ($stored->keys()->sort()->values()->all() !== $expected->keys()->sort()->values()->all()) {
+            return true;
+        }
+        foreach ($expected as $key => $item) {
+            $row = $stored->get($key);
+            if ($row === null) {
+                return true;
+            }
+            if ($row->category !== $item['category'] || abs((float) $row->proposed_amount - (float) $item['amount']) >= 0.01) {
+                return true;
+            }
+            foreach (['locked', 'locked_proposed', 'recomputed', 'previously_settled', 'signed_delta'] as $field) {
+                if (abs((float) ($row->details[$field] ?? 0) - (float) ($item['details'][$field] ?? 0)) >= 0.01) {
+                    return true;
                 }
             }
         }
-        $line->update(['issues' => $issues]);
+
+        return false;
     }
 
     private function adjustmentKey(?array $details): string
     {
         return ($details['source_month'] ?? '').'|'.($details['source_kind'] ?? '').'|'.number_format((float) ($details['signed_delta'] ?? 0), 2, '.', '');
+    }
+
+    /**
+     * Target signed amount for a locked kind after recompute.
+     * Starts from the applied decision (amount), follows attendance/data changes relative to the original
+     * proposal, and never re-imposes a waived/reduced deduction without a new finance decision—only
+     * liability beyond the original proposal is newly proposed.
+     */
+    private function adjustmentTarget(float $applied, float $proposed, float $fresh): float
+    {
+        if (abs($fresh - $proposed) < 0.005) {
+            return $applied;
+        }
+
+        $shifted = $applied + ($fresh - $proposed);
+        // Finance softened a deduction (waive/modify): keep that relief unless the recomputed liability grows past the original proposal.
+        if ($proposed < -0.005 && $applied > $proposed + 0.005) {
+            if ($fresh < $proposed - 0.005) {
+                return $shifted;
+            }
+
+            return max($applied, $fresh);
+        }
+
+        return $shifted;
     }
 
     /** Net of accepted adjustments already applied in approved runs for one locked month and kind. */

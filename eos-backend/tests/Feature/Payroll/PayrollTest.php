@@ -6,6 +6,7 @@ use App\Modules\Finance\Models\Account;
 use App\Modules\Finance\Models\Box;
 use App\Modules\Finance\Services\CashService;
 use App\Modules\HR\Models\AttendanceDay;
+use App\Modules\HR\Models\Employee;
 use App\Modules\HR\Models\EmploymentContract;
 use App\Modules\HR\Services\Attendance\AttendanceReviewService;
 use App\Modules\HR\Services\EmployeeTerminationService;
@@ -254,6 +255,75 @@ class PayrollTest extends TestCase
         $this->assertStringContainsString('غير جاهز', $errors[0]);
     }
 
+    public function test_approval_rejects_stale_roster_after_service_period_changes(): void
+    {
+        $this->october();
+        $run = $this->createRun();
+        $this->postJson('/api/v1/payroll/runs/'.$run['id'].'/submit')->assertOk();
+
+        $hire = Employee::create(['employee_no' => 'LA-2', 'first_name' => 'Sara', 'last_name' => 'Nader',
+            'hire_date' => '2025-01-01', 'national_id' => 'LA-2', 'national_id_hash' => hash('sha256', 'LA-2')]);
+        $hire->servicePeriods()->create(['start_date' => '2025-01-01']);
+        EmploymentContract::create(['employee_id' => $hire->id, 'contract_number' => 'C-PAY-2', 'type' => 'indefinite',
+            'status' => 'active', 'start_date' => '2025-01-01', 'base_salary' => 2_600_000, 'currency_code' => 'SYP', 'pay_type' => 'monthly']);
+
+        Sanctum::actingAs($this->director);
+        $errors = $this->postJson('/api/v1/payroll/runs/'.$run['id'].'/approve')->assertUnprocessable()->json('errors.run');
+        $this->assertTrue(collect($errors)->contains(fn ($message) => str_contains($message, 'غير موجود في الكشف')));
+
+        Sanctum::actingAs($this->finance);
+        $this->postJson('/api/v1/payroll/runs/'.$run['id'].'/return', ['note' => 'New hire missing'])->assertOk();
+        $this->employee->servicePeriods()->first()->update(['end_date' => '2026-09-30']);
+        Sanctum::actingAs($this->hr);
+        $this->postJson('/api/v1/payroll/runs/'.$run['id'].'/recalculate')->assertOk();
+        $this->postJson('/api/v1/payroll/runs/'.$run['id'].'/submit')->assertOk();
+        // After ending service before October, the original line must leave the run (no prior locked month).
+        $this->assertSame(0, PayRunLine::query()->where('pay_run_id', $run['id'])->where('employee_id', $this->employee->id)->count());
+    }
+
+    public function test_approval_rejects_when_locked_month_adjustment_sources_change(): void
+    {
+        $this->october();
+        $october = $this->createRun();
+        $this->postJson('/api/v1/payroll/runs/'.$october['id'].'/submit')->assertOk();
+        Sanctum::actingAs($this->director);
+        $this->postJson('/api/v1/payroll/runs/'.$october['id'].'/approve')->assertOk();
+
+        $day = AttendanceDay::where('work_date', '2026-10-06')->firstOrFail();
+        $this->approvedLeave(['start_date' => '2026-10-06'], consent: true);
+        $day->refresh();
+        app(AttendanceReviewService::class)->reopen($day, $day->version, 'Leave approved retroactively', $this->hr);
+        $day->refresh();
+        app(AttendanceReviewService::class)->approve($day, $day->version, $this->hr);
+
+        $this->travelTo(CarbonImmutable::parse('2026-12-02T10:00:00+03:00'));
+        $this->punches('2026-11-30', [], '2026-11-30T16:00:00');
+        app(AttendanceReviewService::class)->approveMany(collect([$this->employee]),
+            CarbonImmutable::parse('2026-11-01'), CarbonImmutable::parse('2026-11-30'), $this->hr);
+        Sanctum::actingAs($this->hr);
+        $november = $this->postJson('/api/v1/payroll/runs', ['month' => '2026-11'])->assertCreated()->json('data');
+        $adjustments = PayRunItem::query()->where('origin', 'adjustment')->get();
+        $this->postJson('/api/v1/payroll/runs/'.$november['id'].'/submit')->assertOk();
+        Sanctum::actingAs($this->finance);
+        foreach ($adjustments as $adjustment) {
+            $this->postJson('/api/v1/payroll/items/'.$adjustment->id.'/adjustment-decision', ['decision' => 'accept', 'reason' => 'Reviewed'])->assertOk();
+        }
+
+        // Another locked-day change after decisions: adjustment payloads are stale until recalculate.
+        $late = AttendanceDay::where('work_date', '2026-10-05')->firstOrFail();
+        $checker = $this->actor('hr_manager');
+        $reviews = app(AttendanceReviewService::class);
+        $late = $reviews->reopen($late, $late->version, 'Correct lateness', $this->hr);
+        $correction = $reviews->request($late, ['version' => $late->version, 'type' => 'times', 'first_in' => '2026-10-05T09:00:00+03:00',
+            'last_out' => '2026-10-05T16:00:00+03:00', 'reason' => 'Was on time'], $this->hr);
+        $reviews->review($correction, ['decision' => 'approve', 'reason' => 'Checked'], $checker);
+        $late->refresh();
+        $reviews->approve($late, $late->version, $checker);
+
+        $errors = $this->postJson('/api/v1/payroll/runs/'.$november['id'].'/approve')->assertUnprocessable()->json('errors.run');
+        $this->assertTrue(collect($errors)->contains(fn ($message) => str_contains($message, 'تسويات الأشهر المقفلة')));
+    }
+
     public function test_change_to_a_locked_month_becomes_an_adjustment_in_the_next_run(): void
     {
         $this->october();
@@ -390,6 +460,85 @@ class PayrollTest extends TestCase
         $this->postJson('/api/v1/payroll/runs/'.$run['id'].'/approve')->assertOk();
     }
 
+    public function test_adjustments_follow_applied_amount_and_preserve_waivers(): void
+    {
+        $this->october();
+        $october = $this->createRun();
+        $absence = $this->items($october['id'])['absence'];
+        $this->postJson('/api/v1/payroll/runs/'.$october['id'].'/submit')->assertOk();
+        Sanctum::actingAs($this->finance);
+        $this->postJson('/api/v1/payroll/items/'.$absence->id.'/review', ['decision' => 'waive', 'reason' => 'First absence forgiven'])
+            ->assertOk()->assertJsonPath('data.amount', '0.00');
+        Sanctum::actingAs($this->director);
+        $this->postJson('/api/v1/payroll/runs/'.$october['id'].'/approve')->assertOk();
+        $this->assertSame('0.00', $absence->refresh()->amount);
+
+        $this->travelTo(CarbonImmutable::parse('2026-12-02T10:00:00+03:00'));
+        $this->punches('2026-11-30', [], '2026-11-30T16:00:00');
+        app(AttendanceReviewService::class)->approveMany(collect([$this->employee]),
+            CarbonImmutable::parse('2026-11-01'), CarbonImmutable::parse('2026-11-30'), $this->hr);
+        Sanctum::actingAs($this->hr);
+        $this->postJson('/api/v1/payroll/runs', ['month' => '2026-11'])->assertCreated();
+        // Day still absent: waived deduction must not be re-imposed automatically.
+        $this->assertSame(0, PayRunItem::query()->where('origin', 'adjustment')
+            ->get()->filter(fn (PayRunItem $i) => ($i->details['source_kind'] ?? null) === 'absence')->count());
+
+        $checker = $this->actor('hr_manager');
+        $reviews = app(AttendanceReviewService::class);
+        $day = AttendanceDay::where('work_date', '2026-10-06')->firstOrFail();
+        $day = $reviews->reopen($day, $day->version, 'Device was offline', $this->hr);
+        $correction = $reviews->request($day, ['version' => $day->version, 'type' => 'times', 'first_in' => '2026-10-06T09:00:00+03:00',
+            'last_out' => '2026-10-06T16:00:00+03:00', 'reason' => 'Confirmed by site log'], $this->hr);
+        $reviews->review($correction, ['decision' => 'approve', 'reason' => 'Checked'], $checker);
+        $day->refresh();
+        $reviews->approve($day, $day->version, $checker);
+
+        $november = PayRunLine::query()->whereHas('run', fn ($q) => $q->where('month', '2026-11'))->firstOrFail()->run;
+        Sanctum::actingAs($this->hr);
+        $this->postJson('/api/v1/payroll/runs/'.$november->id.'/recalculate')->assertOk();
+        // Nothing was deducted: correcting the day must not invent a 100,000 refund.
+        $this->assertSame(0, PayRunItem::query()->where('origin', 'adjustment')
+            ->get()->filter(fn (PayRunItem $i) => ($i->details['source_kind'] ?? null) === 'absence')->count());
+    }
+
+    public function test_modified_deduction_refunds_only_what_was_applied(): void
+    {
+        $this->october();
+        $october = $this->createRun();
+        $absence = $this->items($october['id'])['absence'];
+        $this->postJson('/api/v1/payroll/runs/'.$october['id'].'/submit')->assertOk();
+        Sanctum::actingAs($this->finance);
+        $this->postJson('/api/v1/payroll/items/'.$absence->id.'/review', [
+            'decision' => 'modify', 'amount' => 40000, 'reason' => 'Partial penalty',
+        ])->assertOk()->assertJsonPath('data.amount', '40000.00');
+        Sanctum::actingAs($this->director);
+        $this->postJson('/api/v1/payroll/runs/'.$october['id'].'/approve')->assertOk();
+
+        $checker = $this->actor('hr_manager');
+        $reviews = app(AttendanceReviewService::class);
+        $day = AttendanceDay::where('work_date', '2026-10-06')->firstOrFail();
+        $day = $reviews->reopen($day, $day->version, 'Device was offline', $this->hr);
+        $correction = $reviews->request($day, ['version' => $day->version, 'type' => 'times', 'first_in' => '2026-10-06T09:00:00+03:00',
+            'last_out' => '2026-10-06T16:00:00+03:00', 'reason' => 'Confirmed by site log'], $this->hr);
+        $reviews->review($correction, ['decision' => 'approve', 'reason' => 'Checked'], $checker);
+        $day->refresh();
+        $reviews->approve($day, $day->version, $checker);
+
+        $this->travelTo(CarbonImmutable::parse('2026-12-02T10:00:00+03:00'));
+        $this->punches('2026-11-30', [], '2026-11-30T16:00:00');
+        $reviews->approveMany(collect([$this->employee]),
+            CarbonImmutable::parse('2026-11-01'), CarbonImmutable::parse('2026-11-30'), $this->hr);
+        Sanctum::actingAs($this->hr);
+        $this->postJson('/api/v1/payroll/runs', ['month' => '2026-11'])->assertCreated();
+        $adjustment = PayRunItem::query()->where('origin', 'adjustment')
+            ->get()->first(fn (PayRunItem $i) => ($i->details['source_kind'] ?? null) === 'absence');
+        $this->assertNotNull($adjustment);
+        $this->assertSame('earning', $adjustment->category);
+        $this->assertSame('40000.00', $adjustment->proposed_amount);
+        $this->assertSame(-40000.0, (float) $adjustment->details['locked']);
+        $this->assertSame(0.0, (float) $adjustment->details['recomputed']);
+    }
+
     public function test_an_employee_who_left_still_receives_adjustments_for_a_locked_month(): void
     {
         $this->approvedOctober();
@@ -467,7 +616,7 @@ class PayrollTest extends TestCase
         // Confirmation records the payments from the box, referenced by the DocId.
         $this->postJson('/api/v1/payroll/shamcash-exports/'.$export->id.'/confirm', ['box_id' => $box->id])->assertOk();
         $payment = PayPayment::query()->sole();
-        $this->assertSame(['sham_cash', $second, '2443000.00', '0012 3456 7890 1234'], [$payment->method, $payment->reference, $payment->paid_amount, $payment->wallet]);
+        $this->assertSame(['sham_cash', $second, '2443000.00', '0012345678901234'], [$payment->method, $payment->reference, $payment->paid_amount, $payment->wallet]);
         $this->assertSame(2_557_000.0, app(CashService::class)->balance($box));
         $this->postJson('/api/v1/payroll/shamcash-exports/'.$export->id.'/confirm', ['box_id' => $box->id])->assertStatus(409);
         $this->postJson('/api/v1/payroll/shamcash-exports/'.$export->id.'/cancel')->assertStatus(409);
@@ -495,6 +644,45 @@ class PayrollTest extends TestCase
         $this->postJson('/api/v1/payroll/shamcash-exports/'.$export->id.'/confirm', ['box_id' => $box->id])
             ->assertUnprocessable()->assertJsonValidationErrors('currency');
         $this->assertSame(0, PayPayment::count());
+    }
+
+    public function test_individual_payment_is_blocked_while_line_is_in_an_open_sham_cash_file(): void
+    {
+        $line = $this->approvedOctober();
+        $this->employee->update(['sham_cash_wallet' => '0012345678901234']);
+        $box = $this->box('SYP', 5_000_000);
+        Sanctum::actingAs($this->finance);
+        $docId = $this->post('/api/v1/payroll/runs/'.$line->pay_run_id.'/shamcash', ['currency' => 'SYP', 'date' => '2026-11-03'])
+            ->assertOk()->headers->get('X-Doc-Id');
+        $export = PayExport::where('doc_id', $docId)->sole();
+
+        $this->postJson('/api/v1/payroll/lines/'.$line->id.'/payment', [
+            'currency' => 'SYP', 'method' => 'cash', 'paid_at' => '2026-11-03', 'box_id' => $box->id,
+        ])->assertStatus(409);
+        $this->assertSame(0, PayPayment::count());
+
+        $this->postJson('/api/v1/payroll/shamcash-exports/'.$export->id.'/cancel')->assertOk();
+        $this->postJson('/api/v1/payroll/lines/'.$line->id.'/payment', [
+            'currency' => 'SYP', 'method' => 'cash', 'paid_at' => '2026-11-03', 'box_id' => $box->id,
+        ])->assertCreated();
+        $this->assertSame(1, PayPayment::count());
+    }
+
+    public function test_sham_cash_confirm_records_the_wallet_frozen_in_the_file(): void
+    {
+        $line = $this->approvedOctober();
+        $this->employee->update(['sham_cash_wallet' => '0012345678901234']);
+        $box = $this->box('SYP', 5_000_000);
+        Sanctum::actingAs($this->finance);
+        $docId = $this->post('/api/v1/payroll/runs/'.$line->pay_run_id.'/shamcash', ['currency' => 'SYP', 'date' => '2026-11-03'])
+            ->assertOk()->headers->get('X-Doc-Id');
+        $export = PayExport::where('doc_id', $docId)->sole();
+        $this->assertSame('0012345678901234', $export->rows[0]['wallet']);
+
+        // Employee wallet changes after the file was produced and (presumably) executed outside.
+        $this->employee->update(['sham_cash_wallet' => '9999888877776666']);
+        $this->postJson('/api/v1/payroll/shamcash-exports/'.$export->id.'/confirm', ['box_id' => $box->id])->assertOk();
+        $this->assertSame('0012345678901234', PayPayment::query()->sole()->wallet);
     }
 
     /** @return array{sheet: string, workbook: string, calcChain: bool} */

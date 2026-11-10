@@ -27,11 +27,14 @@ class CashService
     public function createBox(array $data, User $actor): Box
     {
         return DB::transaction(function () use ($data, $actor) {
-            $account = Account::create(['code' => 'BOX-'.uniqid(), 'name' => 'صندوق: '.$data['name'], 'type' => 'asset',
-                'parent_id' => $data['parent_account_id'] ?? null]);
-            if ($account->parent_id) {
-                abort_unless(Account::find($account->parent_id)?->type === 'asset', 422, 'حساب الصندوق يُوضع تحت حساب أصول.');
+            $parentId = $data['parent_account_id'] ?? null;
+            // Same parent rules as chart accounts: lock, matching type, no postings, not a box/system leaf.
+            if ($parentId) {
+                $parent = Account::query()->lockForUpdate()->findOrFail($parentId);
+                $this->ledger->checkParent($parent, 'asset');
             }
+            $account = Account::create(['code' => 'BOX-'.uniqid(), 'name' => 'صندوق: '.$data['name'], 'type' => 'asset',
+                'parent_id' => $parentId]);
             $box = Box::create(['name' => $data['name'], 'kind' => $data['kind'], 'currency_code' => strtoupper($data['currency_code']),
                 'account_id' => $account->id]);
             $account->update(['code' => 'BOX-'.$box->id]);
@@ -237,8 +240,11 @@ class CashService
             abort_unless(Party::query()->whereKey($party)->where('kind', $kind)->where('active', true)->exists(), 422,
                 $kind === 'customer' ? 'القبض من عميل فعّال.' : 'الصرف لمورد فعّال.');
         } else {
-            $this->ledger->postable((int) $account);
+            $counter = $this->ledger->postable((int) $account);
             abort_if(Box::query()->where('account_id', $account)->exists(), 422, 'استخدم التحويل بين الصناديق.');
+            if ($counter->system_key === 'inventory') {
+                throw ValidationException::withMessages(['account_id' => ['حساب المخزون يتحرك مع المواد فقط عبر فاتورة أو تسوية جرد.']]);
+            }
         }
         if (! empty($data['invoice_id'])) {
             $invoice = Invoice::query()->findOrFail($data['invoice_id']);
@@ -249,6 +255,9 @@ class CashService
 
     private function make(string $kind, array $data, Box $box, User $actor, string $status): Transaction
     {
+        // Lock the period before inserting (including pending payments that do not post yet).
+        $this->ledger->ensureOpen($data['date']);
+
         return Transaction::create([
             'kind' => $kind, 'date' => $data['date'], 'box_id' => $box->id, 'amount' => round((float) $data['amount'], 2),
             'counter_box_id' => $data['counter_box_id'] ?? null,

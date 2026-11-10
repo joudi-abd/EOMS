@@ -6,6 +6,7 @@ use App\Modules\HR\Models\AttendanceBinding;
 use App\Modules\HR\Models\AttendanceDevice;
 use App\Modules\HR\Models\AttendancePolicy;
 use App\Modules\HR\Services\Attendance\AttendanceDeviceService;
+use App\Modules\HR\Services\Attendance\AttendanceImportService;
 use App\Modules\Identity\Services\AuditLogger;
 use App\Support\ApiResponse;
 use Carbon\CarbonImmutable;
@@ -51,8 +52,17 @@ class AttendanceSettingsController extends Controller
             if (AttendancePolicy::query()->where('effective_from', $data['effective_from'])->exists()) {
                 throw ValidationException::withMessages(['effective_from' => ['توجد سياسة بنفس تاريخ السريان.']]);
             }
+            $previous = AttendancePolicy::query()->where('effective_from', '<=', $data['effective_from'])
+                ->orderByDesc('effective_from')->first();
             $policy = AttendancePolicy::create($data);
-            $audit->log('attendance.policy_created', $policy, null, $data);
+            $scheduleChanged = $previous !== null && (
+                substr((string) $previous->start_time, 0, 5) !== $data['start_time']
+                || substr((string) $previous->end_time, 0, 5) !== $data['end_time']
+                || $previous->working_days != $data['working_days']
+            );
+            $audit->log('attendance.policy_created', $policy, null, $data + ['schedule_changed' => $scheduleChanged]);
+            // Full-day leave keeps its meaning via day_units; hourly/half leave is re-interpreted on the next
+            // attendance calculation (drafts refresh, approved days surface pending_changes for HR review).
 
             return $policy;
         }, 3);
@@ -87,6 +97,25 @@ class AttendanceSettingsController extends Controller
     public function rotateToken(AttendanceDevice $device, AttendanceDeviceService $devices): JsonResponse
     {
         return ApiResponse::ok($devices->rotate($device));
+    }
+
+    /**
+     * Attest that every punch on this device through the given instant has been received.
+     * Required for ADMS (and any incomplete bridge batch) because a single punch is not full sync.
+     */
+    public function confirmSync(Request $request, AttendanceDevice $device, AttendanceImportService $importer): JsonResponse
+    {
+        $data = $request->validate([
+            'complete_through' => ['required', 'string', 'max:40'],
+            'note' => ['required', 'string', 'min:5', 'max:500'],
+        ]);
+
+        return ApiResponse::ok($importer->confirmSync(
+            $device,
+            $data['complete_through'],
+            $data['note'],
+            (int) $request->user()->id,
+        ));
     }
 
     public function bindings(AttendanceDevice $device): JsonResponse

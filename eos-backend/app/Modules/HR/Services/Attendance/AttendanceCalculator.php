@@ -164,8 +164,14 @@ class AttendanceCalculator
                 $worked = (int) floor(($last->timestamp - $first->timestamp - $overlap) / 60);
             }
             $early = $last ? (int) ceil($this->unexcusedSeconds($last->timestamp, $requiredEnd->timestamp, $leave) / 60) : null;
-            // Overtime is measured from the scheduled end, never from a leave-shortened end.
-            $extra = $last ? max(0, (int) floor(($last->timestamp - $end->timestamp) / 60)) : null;
+            // Overtime = intersection of the valid in/out span with time after the scheduled end (not leave-shortened).
+            // Start at the later of first_in and end; never credit OT from end→out when the employee arrived after end.
+            $extra = null;
+            if ($validPair) {
+                $otStart = max($first->timestamp, $end->timestamp);
+                $extra = max(0, (int) floor(($last->timestamp - $otStart) / 60));
+                $extra = min($extra, $worked);
+            }
             $required = $working && ! $outside && ! $holiday
                 ? intdiv($end->timestamp - $start->timestamp - $leaveSeconds, 60) : null;
             if ($leave !== null && ! $fullLeave) {
@@ -182,13 +188,15 @@ class AttendanceCalculator
                 }
             } elseif (! $working) {
                 $status = 'day_off';
-                $lateActual = $late = $early = null;
+                // Rest-day OT is the full worked span (payroll); schedule-end extra does not apply.
+                $lateActual = $late = $early = $extra = null;
                 if ($raw->isNotEmpty()) {
                     $flags[] = 'work_on_day_off';
                 }
             } elseif ($holiday) {
                 $status = 'holiday';
-                $lateActual = $late = $early = null;
+                // Holiday OT is the full worked span (payroll); schedule-end extra does not apply.
+                $lateActual = $late = $early = $extra = null;
                 if ($raw->isNotEmpty()) {
                     $flags[] = 'work_on_holiday';
                 }
@@ -252,6 +260,9 @@ class AttendanceCalculator
 
     /**
      * The approved leave interval clipped to this day's schedule, or null when it covers no scheduled time.
+     * A full-day leave (day_units = 1 day) keeps that meaning against the schedule in force now—so a later
+     * longer/shorter shift does not demote it to partial leave based on the hours stored at submission.
+     * Hourly/half-day leave stays on its wall-clock window, clipped to the current schedule.
      *
      * @return array{day: LeaveRequestDay, from: CarbonImmutable, to: CarbonImmutable, full: bool}|null
      */
@@ -260,6 +271,10 @@ class AttendanceCalculator
         $leaveDay = $context->approvedDay($employeeId, $date);
         if (! $leaveDay) {
             return null;
+        }
+        // One full day of balance was reserved/debited: cover the whole current schedule.
+        if ((int) $leaveDay->day_units === 1_000_000) {
+            return ['day' => $leaveDay, 'from' => $start, 'to' => $end, 'full' => true];
         }
         // Leave times are office-local wall clock times, like the attendance schedule.
         $from = AttendanceClock::at($date, substr($leaveDay->start_time, 0, 5), $policy->timezone)->max($start);
