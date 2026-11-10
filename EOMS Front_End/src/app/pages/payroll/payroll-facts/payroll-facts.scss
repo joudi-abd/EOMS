@@ -1,38 +1,17 @@
+/* An employee's attendance inputs for one pay month. The figure strip, filter bar and sheet are the shared ones. */
+
 :host {
   display: block;
 }
 
 .filters {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-bottom: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 280px));
 }
 
-.filters label {
-  display: grid;
-  gap: 4px;
-  min-width: 180px;
-}
-
-.summary {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 12px;
-  margin: 16px 0;
-}
-
-.summary p {
-  margin: 0;
-  display: grid;
-  gap: 4px;
-}
-
-.summary span {
-  color: var(--muted);
-  font-size: 14px;
+h2 {
+  margin-top: 28px;
 }
 
 .warn {
-  color: #a21b26;
+  color: var(--late);
 }

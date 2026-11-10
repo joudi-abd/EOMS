@@ -31,7 +31,8 @@ function blank(): DraftLine {
   selector: 'app-finance-ledger',
   imports: [FormsModule],
   templateUrl: './finance-ledger.html',
-  styleUrl: '../finance-shared.scss',
+  styleUrl: './finance-ledger.scss',
+  host: { class: 'ledger' },
 })
 export class FinanceLedger extends FinanceTab {
   protected readonly types: AccountType[] = ['asset', 'liability', 'equity', 'revenue', 'expense'];

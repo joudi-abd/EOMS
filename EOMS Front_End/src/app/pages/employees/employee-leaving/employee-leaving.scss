@@ -1,10 +1,25 @@
 :host {
   display: block;
   max-width: 880px;
+  margin-top: 16px;
+  padding: 22px 24px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
 }
 
 h2 {
-  margin-top: 28px;
+  margin: 0;
+}
+
+h3 {
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+
+.note {
+  margin-top: 6px;
 }
 
 .inline {

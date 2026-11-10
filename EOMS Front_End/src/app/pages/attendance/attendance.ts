@@ -9,7 +9,6 @@ import { AttendanceBook, clockOf, dateOf, lineOf, markOf, RollLine, zonedIso } f
 import { Devices } from '../../data/devices';
 import { Office } from '../../data/office';
 import { Notice } from '../../shared/notice/notice';
-import { Chrome } from '../../shell/chrome';
 import { AttendanceDay } from './attendance-day/attendance-day';
 import { AttendanceReport, ReportView } from './attendance-report/attendance-report';
 import { AttendanceTable } from './attendance-table/attendance-table';
@@ -26,7 +25,6 @@ export class Attendance extends Ui {
   protected readonly book = inject(AttendanceBook);
   protected readonly devices = inject(Devices);
   protected readonly session = inject(Session);
-  protected readonly chrome = inject(Chrome);
   private readonly router = inject(Router);
   private readonly params = toSignal(inject(ActivatedRoute).queryParamMap);
 

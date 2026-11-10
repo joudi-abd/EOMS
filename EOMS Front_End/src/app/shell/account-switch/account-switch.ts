@@ -29,7 +29,7 @@ export class AccountSwitch {
     return words
       .slice(0, 2)
       .map((word) => word.replace(/^ال/, '').charAt(0))
-      .join('');
+      .join('\u200c');
   }
 
   protected async signOut(): Promise<void> {

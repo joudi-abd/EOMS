@@ -1,0 +1,54 @@
+/* Tabs share the heading's datum: a hairline, and indigo under where you are. */
+
+.tabs,
+.views {
+  position: relative;
+  display: flex;
+  gap: 4px;
+  margin: 20px 0 8px;
+  border-bottom: 1px solid var(--line);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.tabs a,
+.views a {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 8px 14px;
+  color: var(--muted);
+  text-decoration: none;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -1px;
+  white-space: nowrap;
+  font-size: 15px;
+  transition:
+    color 140ms ease-out,
+    background-color 140ms ease-out;
+}
+
+.tabs a:hover,
+.views a:hover {
+  color: var(--ink);
+  background: var(--hover);
+}
+
+.tabs a.active,
+.views a.active {
+  color: var(--ink);
+  border-bottom-color: var(--mark);
+  font-weight: 600;
+}
+
+.tabs i,
+.views i {
+  font-size: 14px;
+  color: var(--soft);
+}
+
+.tabs a.active i,
+.views a.active i {
+  color: var(--mark);
+}

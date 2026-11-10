@@ -55,7 +55,7 @@
 .token code {
   display: block;
   padding: 8px 10px;
-  border-radius: 8px;
+  border-radius: var(--r-control);
   background: var(--surface);
   font-size: 13px;
   word-break: break-all;
@@ -105,7 +105,7 @@
   grid-row: span 2;
   width: 40px;
   height: 40px;
-  border-radius: 10px;
+  border-radius: var(--r-control);
   display: grid;
   place-items: center;
   background: var(--hover);
@@ -314,6 +314,15 @@ h3 {
 
   .grid {
     display: block;
+    position: relative;
     overflow-x: auto;
   }
+}
+
+/* The add-device form stands on its own sheet; the forms inside a device card stay flat. */
+.devices > .form {
+  padding: 22px 24px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
 }

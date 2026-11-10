@@ -1,0 +1,30 @@
+<main class="work" id="content">
+  @if (!session.can('payroll') && !session.has('attendance.view')) {
+    <h1>{{ t('payroll') }}</h1>
+    <p class="empty">{{ t('noAccess') }}</p>
+    <a class="primary" routerLink="/">{{ t('back') }}</a>
+  } @else {
+    <app-notice />
+    <header class="heading">
+      <div>
+        <h1>{{ view() === 'runs' ? t('prTitle') : t('payrollFactsTitle') }}</h1>
+        @if (view() === 'runs') { <p class="lede">{{ t('prLede') }}</p> }
+      </div>
+    </header>
+    @if (session.has('payroll.view')) {
+      <nav class="tabs" [attr.aria-label]="t('payroll')">
+        <a [routerLink]="[]" [queryParams]="{ view: null }" [class.active]="view() === 'runs'" [attr.aria-current]="view() === 'runs' ? 'page' : null">
+          {{ t('prTabRuns') }}
+        </a>
+        <a [routerLink]="[]" [queryParams]="{ view: 'facts' }" [class.active]="view() === 'facts'" [attr.aria-current]="view() === 'facts' ? 'page' : null">
+          {{ t('prTabFacts') }}
+        </a>
+      </nav>
+    }
+    @if (view() === 'runs') {
+      <app-payroll-runs />
+    } @else {
+      <app-payroll-facts />
+    }
+  }
+</main>

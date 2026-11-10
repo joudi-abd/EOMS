@@ -9,12 +9,17 @@
   margin-top: 16px;
 }
 
+/* The file's facts sit on one sheet, two to a row. */
 .file {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 16px 24px;
-  margin: 20px 0 16px;
+  gap: 18px 28px;
+  margin: 16px 0;
   max-width: 880px;
+  padding: 22px 24px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
 }
 
 .file div {
@@ -25,8 +30,8 @@
 }
 
 dt {
-  color: var(--muted);
-  font-size: 14px;
+  color: var(--soft);
+  font-size: 13px;
 }
 
 dd {
@@ -48,7 +53,7 @@ dd {
   margin: 8px 0 20px;
   padding: 18px 20px 20px;
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: var(--radius);
   background: var(--surface);
 }
 

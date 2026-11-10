@@ -12,7 +12,6 @@ import { ChartRow, ChartSlice, tone } from '../../shared/charts/chart';
 import { DonutChart } from '../../shared/charts/donut-chart/donut-chart';
 import { RankChart } from '../../shared/charts/rank-chart/rank-chart';
 import { Notice } from '../../shared/notice/notice';
-import { Chrome } from '../../shell/chrome';
 import { EmployeeFile } from './employee-file/employee-file';
 import { fingerKey } from './employee-info/employee-info';
 import { EmployeeTable } from './employee-table/employee-table';
@@ -41,7 +40,6 @@ const statusFill: Record<EmployeeStatus, string> = { active: tone.ok, away: tone
 export class Employees extends Ui {
   protected readonly office = inject(Office);
   protected readonly session = inject(Session);
-  protected readonly chrome = inject(Chrome);
   protected readonly exporting = signal(false);
   private readonly reporter = inject(Reporter);
   private readonly host = inject(ElementRef<HTMLElement>);

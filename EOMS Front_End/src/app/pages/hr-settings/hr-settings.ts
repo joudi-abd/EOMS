@@ -6,37 +6,35 @@ import { CopyKey } from '../../core/copy';
 import { Ui } from '../../core/ui';
 import { Office } from '../../data/office';
 import { Notice } from '../../shared/notice/notice';
-import { Chrome } from '../../shell/chrome';
 import { SettingsDevices } from './settings-devices/settings-devices';
 import { SettingsList } from './settings-list/settings-list';
 import { SettingsShift } from './settings-shift/settings-shift';
 
-import { SettingsLeaves } from './settings-leaves/settings-leaves';
-import { SettingsOffice } from './settings-office/settings-office';
-
-type Tab = 'shift' | 'structure' | 'devices' | 'leaves' | 'office';
+type Tab = 'shift' | 'structure' | 'devices';
 
 @Component({
   selector: 'app-hr-settings',
-  imports: [Notice, RouterLink, SettingsShift, SettingsList, SettingsDevices, SettingsLeaves, SettingsOffice],
+  imports: [Notice, RouterLink, SettingsShift, SettingsList, SettingsDevices],
   templateUrl: './hr-settings.html',
   styleUrl: './hr-settings.scss',
 })
 export class HrSettings extends Ui {
   protected readonly office = inject(Office);
   protected readonly session = inject(Session);
-  protected readonly chrome = inject(Chrome);
   private readonly params = toSignal(inject(ActivatedRoute).queryParamMap);
 
   /** The device list and bindings need `attendance.manage`; the other tabs follow the screen's own access. */
-  protected readonly tabs = computed<{ id: Tab; label: CopyKey; icon: string }[]>(() => {
-    const list: { id: Tab; label: CopyKey; icon: string }[] = [
-      { id: 'shift', label: 'tabShift', icon: 'fa-clock' },
-      { id: 'structure', label: 'tabStructure', icon: 'fa-sitemap' },
+  protected readonly tabs = computed<{ id: Tab; label: CopyKey }[]>(() => {
+    const list: { id: Tab; label: CopyKey }[] = [
+      { id: 'shift', label: 'tabShift' },
+      { id: 'structure', label: 'tabStructure' },
     ];
+<<<<<<< Updated upstream
+    if (this.session.has('attendance.manage')) list.push({ id: 'devices', label: 'tabDevices' });
+    if (this.session.has('leaves.manage')) list.push({ id: 'leaves', label: 'leaveSetupTab' });
+    if (this.session.has('settings.view')) list.push({ id: 'office', label: 'companySettings' });
+=======
     if (this.session.has('attendance.manage')) list.push({ id: 'devices', label: 'tabDevices', icon: 'fa-fingerprint' });
-    if (this.session.has('leaves.manage')) list.push({ id: 'leaves', label: 'leaveSetupTab', icon: 'fa-calendar-days' });
-    if (this.session.has('settings.view')) list.push({ id: 'office', label: 'companySettings', icon: 'fa-building' });
     return list;
   });
 

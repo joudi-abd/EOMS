@@ -1,24 +1,108 @@
-:host { display: block; }
+:host {
+  display: block;
+}
 
+.count {
+  font-variant-numeric: tabular-nums;
+}
+
+.count.some {
+  color: var(--action-ink);
+}
+
+/* One sheet of alerts: an indigo dot marks the ones not yet read. */
 .feed {
   list-style: none;
-  margin: 16px 0;
+  margin: 20px 0 0;
   padding: 0;
-  display: grid;
-  gap: 12px;
+  max-width: 880px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
 }
 
 .feed li {
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  padding: 12px 14px;
-  background: var(--surface);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--line);
 }
 
-.feed li.read { color: var(--muted); }
+.feed li:last-child {
+  border-bottom: 0;
+}
 
-.feed p { margin: 0 0 6px; }
+.state {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--action);
+}
 
-.meta { font-size: 13px; }
+.feed li.read .state {
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px var(--line-strong);
+}
 
-.warn { color: #a21b26; }
+.message {
+  margin: 0;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.feed li.read .message {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.when {
+  margin: 2px 0 0;
+  color: var(--soft);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.small {
+  min-height: 34px;
+  padding: 4px 12px;
+  font-size: 14px;
+}
+
+.problem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 880px;
+  margin: 16px 0 0;
+  padding: 10px 14px;
+  border: 1px solid var(--late-line);
+  border-radius: var(--r-control);
+  background: var(--late-tint);
+  color: var(--late);
+  font-size: 14px;
+}
+
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  max-width: 880px;
+  margin-top: 16px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 640px) {
+  .feed li {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .feed li .small {
+    grid-column: 2;
+    justify-self: start;
+  }
+}

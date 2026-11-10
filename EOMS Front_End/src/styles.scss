@@ -1,3 +1,17 @@
+<<<<<<< Updated upstream
+/* UFUQ design system. Tokens first, then the shared pieces every screen is built from.
+   A component's own .scss holds only what belongs to that component. */
+@use 'styles/tokens';
+@use 'styles/base';
+@use 'styles/frame';
+@use 'styles/controls';
+@use 'styles/surfaces';
+@use 'styles/tabs';
+@use 'styles/tables';
+@use 'styles/ledger';
+@use 'styles/leave-kit';
+@use 'styles/print';
+=======
 :root {
   --ground: #f5f6f8;
   --surface: #ffffff;
@@ -180,27 +194,6 @@ h3 {
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 12px 16px;
-}
-
-.crumb {
-  margin: 0 0 4px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--soft);
-  font-size: 13px;
-}
-
-.crumb-sep {
-  font-size: 10px;
-}
-
-html[dir='ltr'] .crumb-sep {
-  transform: scaleX(-1);
-}
-
-.heading h1 {
-  letter-spacing: -0.02em;
 }
 
 .heading .sub,
@@ -768,10 +761,6 @@ tbody tr:hover td {
   font-weight: 600;
 }
 
-.mute {
-  color: var(--soft);
-}
-
 td.ok,
 td.wait,
 td.late,
@@ -888,18 +877,4 @@ dd.late::before {
     text-decoration: none !important;
   }
 }
-
-/* Status words in tables carry a small dot in their own color, as in the design. */
-.sheet td > span.ok::before,
-.sheet td > span.wait::before,
-.sheet td > span.late::before,
-.sheet td > span.mute::before {
-  content: '';
-  display: inline-block;
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: currentColor;
-  margin-inline-end: 6px;
-  vertical-align: middle;
-}
+>>>>>>> Stashed changes

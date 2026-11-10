@@ -12,7 +12,7 @@
   <header class="heading">
     <div>
       <h1>{{ text(person.name) }}</h1>
-      <p class="sub">{{ person.staffNo }} · {{ text(person.title) }}</p>
+      <p class="sub"><bdi class="staff-no">{{ person.staffNo }}</bdi>@if (text(person.title)) { <span>{{ text(person.title) }}</span> }</p>
     </div>
     <div class="actions">
       <button class="text" type="button" [disabled]="exporting()" [attr.aria-busy]="exporting()" (click)="exportDossier(person)">
@@ -36,7 +36,6 @@
           [class.active]="tab() === item.id"
           [attr.aria-current]="tab() === item.id ? 'page' : null"
         >
-          <i class="fa-solid {{ item.icon }}" aria-hidden="true"></i>
           {{ t(item.label) }}
         </a>
       }

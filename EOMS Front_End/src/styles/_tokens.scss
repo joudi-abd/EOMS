@@ -1,0 +1,73 @@
+/* Slate and Indigo. Cool slate neutrals carry the office; one indigo acts and marks where you are;
+   red, amber and green state a condition and nothing else. */
+:root {
+  /* Ground and surfaces */
+  --ground: #f2f3f8;
+  --surface: #ffffff;
+  --raised: #f8f8fc;
+  --hover: #ecedf5;
+  --row: #f7f7fc;
+  --line: #e1e3ee;
+  --line-strong: #c7cadb;
+
+  /* Ink */
+  --ink: #14162b;
+  --muted: #454a63;
+  --soft: #666b85;
+
+  /* Indigo acts */
+  --action: #4f46c8;
+  --action-ink: #3f37a8;
+  --action-tint: #ecebfb;
+
+  /* Indigo marks position: the active link, the active tab, the datum under a title */
+  --mark: #4f46c8;
+  --mark-ink: #3f37a8;
+  --mark-soft: #b9b5f0;
+  --mark-tint: #ecebfb;
+
+  /* The sign-in scene, the one place the indigo goes deep */
+  --scene: #1e1b52;
+  --scene-ink: #f1f0ff;
+  --scene-soft: #b9b5f0;
+
+  /* Status */
+  --late: #b42318;
+  --late-tint: #fdecea;
+  --late-line: #f3c2bc;
+  --ontime: #0f7b5c;
+  --ontime-tint: #e1f4ec;
+  --wait: #96590a;
+  --wait-tint: #fcf1d6;
+  --wait-line: #edd79b;
+  --notice: #ecebfb;
+  --notice-line: #cfcbf3;
+
+  /* Data */
+  --series-1: #4f46c8;
+  --series-2: #b9b5f0;
+  --series-3: #0e8fa3;
+  --series-4: #9aa0b8;
+  --series-5: #b4488a;
+  --fill-ok: #2ba37a;
+  --fill-wait: #e3a11b;
+  --fill-late: #d9503f;
+  --fill-info: #5b9bd5;
+  --fill-quiet: #cdd1e0;
+
+  /* Shape */
+  --radius: 12px;
+  --r-control: 8px;
+  --r-chip: 6px;
+  --r-dialog: 16px;
+  --rail: 256px;
+  --shadow-pop: 0 18px 40px -12px rgb(20 22 43 / 0.22), 0 2px 6px rgb(20 22 43 / 0.06);
+
+  /* Type: one family for Arabic and Latin */
+  --font-ui: 'Readex Pro Variable', sans-serif;
+
+  color-scheme: light;
+  font-family: var(--font-ui);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}

@@ -1,6 +1,6 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { Session } from '../core/access/session';
-import { Api, revealed } from '../core/api/api';
+import { Api } from '../core/api/api';
 import {
   ApiAttendanceBundle,
   ApiAttendanceCorrection,
