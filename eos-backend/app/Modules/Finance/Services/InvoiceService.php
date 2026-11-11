@@ -67,14 +67,9 @@ class InvoiceService
         return DB::transaction(function () use ($invoice, $actor) {
             $invoice = Invoice::query()->lockForUpdate()->findOrFail($invoice->id);
             abort_unless($invoice->status === 'draft', 409, 'الفاتورة ليست مسودة.');
-            // Refuse impossible sales before they reach the approval queue; posting checks again.
+            // Lock items in id order (same as cancel/post) before the stock check so concurrent sales cannot oversell.
             if ($invoice->type === 'sale') {
-                foreach ($invoice->lines()->whereNotNull('item_id')->get()->groupBy('item_id') as $itemId => $lines) {
-                    $item = Item::query()->findOrFail($itemId);
-                    if ($lines->sum(fn ($l) => (float) $l->quantity) - (float) $item->quantity > 0.0005) {
-                        throw ValidationException::withMessages(['quantity' => ["الكمية المتوفرة من {$item->name} هي ".rtrim(rtrim(number_format((float) $item->quantity, 3, '.', ''), '0'), '.').' فقط.']]);
-                    }
-                }
+                $this->assertSaleStockAvailable($invoice, $this->lockItems($invoice));
             }
             if ($this->cash->needsApproval($invoice->currency_code, (float) $invoice->total)) {
                 $invoice->update(['status' => 'pending', 'version' => $invoice->version + 1]);
@@ -122,12 +117,7 @@ class InvoiceService
             // Stock moves at zero cost post no entry; check the period here, not only through the ledger.
             $this->ledger->ensureOpen($date);
             abort_if((float) $invoice->paid > 0, 409, 'اعكس دفعات الفاتورة أولاً.');
-            // Lock stock rows before the value check so a concurrent post/adjust cannot slip in.
-            $itemIds = $invoice->lines()->whereNotNull('item_id')->pluck('item_id')->unique()->sort()->values();
-            $items = [];
-            foreach ($itemIds as $itemId) {
-                $items[$itemId] = Item::query()->lockForUpdate()->findOrFail($itemId);
-            }
+            $items = $this->lockItems($invoice);
             $this->assertStockInvoiceCancellable($invoice, $items);
             foreach (JournalEntry::query()->where('source_type', 'invoice')->where('source_id', $invoice->id)->whereNull('reverses_id')->get() as $entry) {
                 $this->ledger->reverse($entry, $date, $reason, $actor);
@@ -190,6 +180,11 @@ class InvoiceService
     {
         $date = $invoice->date->format('Y-m-d');
         $this->ledger->ensureOpen($date);
+        // Same item_id lock order as cancel/submit — never lock by invoice line order (deadlock risk).
+        $items = $this->lockItems($invoice);
+        if ($invoice->type === 'sale') {
+            $this->assertSaleStockAvailable($invoice, $items);
+        }
         $invoice->update(['number' => $invoice->number ?? $this->ledger->number($invoice->type === 'sale' ? 'S' : 'P', $date, 4)]);
         $party = $this->ledger->systemAccount($invoice->type === 'sale' ? 'receivables' : 'payables')->id;
         $inventory = $this->ledger->systemAccount('inventory')->id;
@@ -202,13 +197,13 @@ class InvoiceService
                 $lines[] = ['account_id' => $account, 'debit' => $amount, 'memo' => $line->description];
                 if ($line->item_id) {
                     // Valued at the amount posted to the inventory account, so stock and ledger share one cost basis.
-                    $this->move(Item::query()->lockForUpdate()->findOrFail($line->item_id), (float) $line->quantity,
+                    $this->move($items[$line->item_id], (float) $line->quantity,
                         $this->unitCost($amount, (float) $line->quantity), $date, 'invoice', $invoice->id, null, $actor);
                 }
             } else {
                 $lines[] = ['account_id' => $line->account_id, 'credit' => $amount, 'memo' => $line->description];
                 if ($line->item_id) {
-                    $item = Item::query()->lockForUpdate()->findOrFail($line->item_id);
+                    $item = $items[$line->item_id];
                     $cost = round((float) $line->quantity * (float) $item->average_cost, 2);
                     $line->update(['cost_amount' => $cost]);
                     // Goods leave at the average (a sale never changes it); the entry carries that value rounded to cents.
@@ -234,10 +229,39 @@ class InvoiceService
     }
 
     /**
+     * Lock every stock item on the invoice in ascending id order (shared by submit, post, and cancel).
+     *
+     * @return array<int, Item>
+     */
+    private function lockItems(Invoice $invoice): array
+    {
+        $itemIds = $invoice->lines()->whereNotNull('item_id')->pluck('item_id')->unique()->sort()->values();
+        $items = [];
+        foreach ($itemIds as $itemId) {
+            $items[$itemId] = Item::query()->lockForUpdate()->findOrFail($itemId);
+        }
+
+        return $items;
+    }
+
+    /** @param  array<int, Item>  $items */
+    private function assertSaleStockAvailable(Invoice $invoice, array $items): void
+    {
+        foreach ($invoice->lines()->whereNotNull('item_id')->get()->groupBy('item_id') as $itemId => $lines) {
+            $item = $items[$itemId];
+            if ($lines->sum(fn ($l) => (float) $l->quantity) - (float) $item->quantity > 0.0005) {
+                throw ValidationException::withMessages(['quantity' => ["الكمية المتوفرة من {$item->name} هي ".rtrim(rtrim(number_format((float) $item->quantity, 3, '.', ''), '0'), '.').' فقط.']]);
+            }
+        }
+    }
+
+    /**
      * A purchase is undone only while it is the latest stock move of each item: later sales or counts were valued
      * at an average that included it, and taking it out at its own price afterwards can leave a negative cost.
      * Sales are always reversible (the goods come back at the cost they left with). The resulting average is
      * computed exactly as move() will, on the same cost basis, and must not be negative.
+     *
+     * @param  array<int, Item>  $items
      */
     private function assertStockInvoiceCancellable(Invoice $invoice, array $items): void
     {

@@ -496,8 +496,9 @@ class LeaveWorkflowService
         $employeeIds = LeaveRequestDay::where('date', $date)->where('active', true)->distinct()->orderBy('employee_id')->pluck('employee_id');
         foreach ($employeeIds as $employeeId) {
             Employee::lockForUpdate()->findOrFail($employeeId);
-            foreach (LeaveRequestDay::where('employee_id', $employeeId)->where('date', $date)->where('active', true)->get() as $day) {
-                $request = LeaveRequest::findOrFail($day->leave_request_id);
+            foreach (LeaveRequestDay::where('employee_id', $employeeId)->where('date', $date)->where('active', true)->orderBy('id')->get() as $day) {
+                // Same request lock as holidayRemoved / approve so refund and status updates are not interleaved.
+                $request = LeaveRequest::query()->lockForUpdate()->findOrFail($day->leave_request_id);
                 $fromStatus = $request->status;
                 if ($request->policy['annual_days'] !== null && $day->covered_units > 0) {
                     $this->entry($request, $day, $day->covered_units, 'holiday_refund', 'استثناء عطلة رسمية من الإجازة', (int) auth()->id());

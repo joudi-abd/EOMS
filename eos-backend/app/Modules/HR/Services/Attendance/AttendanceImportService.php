@@ -78,6 +78,19 @@ class AttendanceImportService
             }
             $device->update($update);
             $device = $device->refresh();
+            // Bridge may advance coverage; record the same audit action as confirm-sync so payroll readiness is traceable.
+            if ($advanced) {
+                $this->audit->log(
+                    'attendance.device_sync_confirmed',
+                    $device,
+                    ['complete_through' => $previousMarker?->toIso8601String()],
+                    [
+                        'complete_through' => $device->complete_through?->toIso8601String(),
+                        'note' => 'تأكيد تغطية من دفعة استيراد الوسيط',
+                        'source' => 'bridge_ingest',
+                    ],
+                );
+            }
 
             return ['inserted' => $inserted, 'duplicates' => $duplicates, 'unmatched' => $unmatched,
                 'complete_through' => $device->complete_through?->toIso8601String(),

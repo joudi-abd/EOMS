@@ -224,6 +224,30 @@ class FinanceTest extends TestCase
         $this->assertEquals(1725, $ledger['closing_balance'], 'The inventory account always equals quantity × average cost');
     }
 
+    public function test_pending_sale_rechecks_stock_under_item_locks_at_approval(): void
+    {
+        $this->limits();
+        $supplier = $this->api('parties', ['kind' => 'supplier', 'name' => 'Stock Co.']);
+        $customer = $this->api('parties', ['kind' => 'customer', 'name' => 'Buyer']);
+        $item = Item::find($this->api('items', ['name' => 'Panel', 'unit' => 'pcs', 'currency_code' => 'USD', 'revenue_account_id' => $this->sales->id])['id']);
+        $buy = $this->api('invoices', ['type' => 'purchase', 'party_id' => $supplier['id'], 'date' => '2026-11-02', 'currency_code' => 'USD',
+            'lines' => [['item_id' => $item->id, 'quantity' => 5, 'unit_price' => 100]]]);
+        $this->api('invoices/'.$buy['id'].'/submit', [], 200);
+        // Above the USD approval limit → pending; stock is not reserved until post.
+        $pending = $this->api('invoices', ['type' => 'sale', 'party_id' => $customer['id'], 'date' => '2026-11-03', 'currency_code' => 'USD',
+            'lines' => [['item_id' => $item->id, 'quantity' => 5, 'unit_price' => 500]]]);
+        $this->assertSame('pending', $this->api('invoices/'.$pending['id'].'/submit', [], 200)['status']);
+        // Another sale within the limit takes the stock first.
+        $posted = $this->api('invoices', ['type' => 'sale', 'party_id' => $customer['id'], 'date' => '2026-11-03', 'currency_code' => 'USD',
+            'lines' => [['item_id' => $item->id, 'quantity' => 5, 'unit_price' => 150]]]);
+        $this->api('invoices/'.$posted['id'].'/submit', [], 200);
+        $this->assertSame('0.000', $item->refresh()->quantity);
+        Sanctum::actingAs($this->director);
+        $this->postJson('/api/v1/finance/invoices/'.$pending['id'].'/decision', ['decision' => 'approve'])
+            ->assertUnprocessable()->assertJsonValidationErrors('quantity');
+        $this->assertSame('pending', Invoice::find($pending['id'])->status);
+    }
+
     public function test_purchase_cancel_only_as_the_latest_stock_move_and_never_to_a_negative_cost(): void
     {
         $this->limits();

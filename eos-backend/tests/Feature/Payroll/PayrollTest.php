@@ -707,6 +707,25 @@ class PayrollTest extends TestCase
         $this->assertSame(1, PayPayment::count());
     }
 
+    public function test_termination_is_blocked_while_employee_is_in_an_open_sham_cash_file(): void
+    {
+        $line = $this->approvedOctober();
+        $this->employee->update(['sham_cash_wallet' => '0012345678901234']);
+        Sanctum::actingAs($this->finance);
+        $this->post('/api/v1/payroll/runs/'.$line->pay_run_id.'/shamcash', ['currency' => 'SYP', 'date' => '2026-11-03'])->assertOk();
+        $this->contract->update(['status' => 'terminated', 'terminated_at' => '2026-10-31']);
+        Sanctum::actingAs($this->hr);
+        try {
+            app(EmployeeTerminationService::class)->terminate(
+                $this->employee, ['termination_date' => '2026-10-31', 'reason' => 'Resigned'], $this->hr
+            );
+            $this->fail('Expected termination to be blocked by the open Sham Cash file.');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            $this->assertArrayHasKey('payroll', $e->errors());
+        }
+        $this->assertSame('active', $this->employee->fresh()->status);
+    }
+
     public function test_sham_cash_confirm_records_the_wallet_frozen_in_the_file(): void
     {
         $line = $this->approvedOctober();

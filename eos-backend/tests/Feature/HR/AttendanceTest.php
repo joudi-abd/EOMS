@@ -548,6 +548,10 @@ class AttendanceTest extends TestCase
     {
         $device = $this->device();
         $this->events($device, [], '2026-11-02T16:00:00+03:00');
+        $this->assertDatabaseHas('usr_audit_logs', [
+            'action' => 'attendance.device_sync_confirmed',
+            'auditable_id' => $device->id,
+        ]);
         $this->events($device, [], '2026-11-02T15:00:00+03:00');
         $this->assertSame(13, $device->fresh()->complete_through->hour);
         $this->expectException(ValidationException::class);
