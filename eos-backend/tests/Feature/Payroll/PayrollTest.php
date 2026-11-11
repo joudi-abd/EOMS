@@ -749,6 +749,31 @@ class PayrollTest extends TestCase
         $this->assertSame('2487142.86', PayRunLine::query()->firstOrFail()->net);
     }
 
+    public function test_runs_opened_before_explicit_decisions_stop_counting_undecided_items(): void
+    {
+        $this->october();
+        $run = $this->createRun();
+        $items = $this->items($run['id']);
+        $line = PayRunLine::query()->firstOrFail();
+        $net = (float) $line->net;
+        // As an older version stored it: the undecided absence at its full amount, and in the line total.
+        PayRunItem::query()->whereKey($items['absence']->id)->update(['amount' => $items['absence']->proposed_amount]);
+        $line->update(['deductions' => (float) $line->deductions + 100000, 'net' => $net - 100000]);
+        $this->postJson('/api/v1/payroll/runs/'.$run['id'].'/submit')->assertOk();
+
+        // Deciding another item rebuilds the line without the undecided one.
+        Sanctum::actingAs($this->finance);
+        $this->postJson('/api/v1/payroll/items/'.$items['late']->id.'/review', ['decision' => 'approve'])->assertOk();
+        $this->assertEqualsWithDelta($net + 0 - (float) $items['late']->proposed_amount, (float) $line->refresh()->net, 0.001);
+
+        // The data migration fixes open runs that nobody touches again.
+        PayRunItem::query()->whereKey($items['absence']->id)->update(['amount' => $items['absence']->proposed_amount]);
+        $line->update(['net' => 1]);
+        (require base_path('app/Modules/Payroll/Database/Migrations/2026_11_15_000001_zero_undecided_items_in_open_runs.php'))->up();
+        $this->assertSame('0.00', $items['absence']->refresh()->amount);
+        $this->assertEqualsWithDelta($net - (float) $items['late']->proposed_amount, (float) $line->refresh()->net, 0.001);
+    }
+
     /** @return array{sheet: string, workbook: string, calcChain: bool} */
     private function xlsx(string $path): array
     {

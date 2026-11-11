@@ -29,6 +29,9 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class FinanceController extends Controller
 {
+    /** Whole-transaction retries on deadlocks and serialization conflicts (MariaDB 1020, PostgreSQL 40001/40P01). */
+    private const TX_ATTEMPTS = 3;
+
     public function __construct(private LedgerService $ledger, private CashService $cash, private InvoiceService $invoices, private ReportService $reports,
         private AuditLogger $audit) {}
 
@@ -268,7 +271,7 @@ class FinanceController extends Controller
             $party->update($data);
 
             return $party->refresh();
-        });
+        }, self::TX_ATTEMPTS);
 
         return ApiResponse::ok($party);
     }

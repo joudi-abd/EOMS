@@ -21,6 +21,9 @@ use Illuminate\Validation\ValidationException;
  */
 class InvoiceService
 {
+    /** Whole-transaction retries on deadlocks and serialization conflicts (MariaDB 1020, PostgreSQL 40001/40P01). */
+    private const TX_ATTEMPTS = 3;
+
     public function __construct(private LedgerService $ledger, private CashService $cash, private AuditLogger $audit) {}
 
     public function save(array $data, User $actor, ?Invoice $invoice = null): Invoice
@@ -55,7 +58,7 @@ class InvoiceService
             $this->audit->log('finance.invoice_saved', $invoice, null, ['total' => $invoice->total], $actor->id);
 
             return $invoice->load(['lines' => fn ($q) => $q->orderBy('id')]);
-        });
+        }, self::TX_ATTEMPTS);
     }
 
     /** Posts directly within the approval limit, otherwise waits for the company manager. */
@@ -83,7 +86,7 @@ class InvoiceService
             $this->post($invoice, $actor);
 
             return $invoice->refresh();
-        });
+        }, self::TX_ATTEMPTS);
     }
 
     public function decide(Invoice $invoice, bool $approve, ?string $note, User $actor): Invoice
@@ -104,7 +107,7 @@ class InvoiceService
                 ($approve ? 'اعتُمدت الفاتورة ' : 'أُعيدت الفاتورة للتعديل ').($invoice->number ?? '#'.$invoice->id).($note ? ': '.$note : '.'), ['invoice_id' => $invoice->id]);
 
             return $invoice->refresh();
-        });
+        }, self::TX_ATTEMPTS);
     }
 
     /**
@@ -129,9 +132,22 @@ class InvoiceService
             foreach (JournalEntry::query()->where('source_type', 'invoice')->where('source_id', $invoice->id)->whereNull('reverses_id')->get() as $entry) {
                 $this->ledger->reverse($entry, $date, $reason, $actor);
             }
-            foreach ($invoice->lines()->whereNotNull('item_id')->get() as $line) {
+            // A sale comes back at the exact unit cost it left with (its stock move), not the cent-rounded entry,
+            // so the average returns to where it was; the entry reversal returns the rounded amount.
+            $saleMoves = $invoice->type === 'sale'
+                ? StockMove::query()->where('source_type', 'invoice')->where('source_id', $invoice->id)->where('quantity', '<', 0)
+                    ->orderBy('id')->get()->groupBy('item_id')->map(fn ($moves) => $moves->values())
+                : collect();
+            $taken = [];
+            foreach ($invoice->lines()->whereNotNull('item_id')->orderBy('id')->get() as $line) {
                 $sign = $invoice->type === 'sale' ? 1 : -1;
-                $cost = $this->unitCost((float) ($invoice->type === 'sale' ? $line->cost_amount : $line->amount), (float) $line->quantity);
+                if ($invoice->type === 'sale') {
+                    $index = $taken[$line->item_id] = ($taken[$line->item_id] ?? -1) + 1;
+                    $saleMove = $saleMoves->get($line->item_id)?->get($index);
+                    $cost = $saleMove ? (float) $saleMove->unit_cost : $this->unitCost((float) $line->cost_amount, (float) $line->quantity);
+                } else {
+                    $cost = $this->unitCost((float) $line->amount, (float) $line->quantity);
+                }
                 $this->move($items[$line->item_id], $sign * (float) $line->quantity, $cost, $date,
                     'invoice_cancel', $invoice->id, $reason, $actor);
             }
@@ -139,7 +155,7 @@ class InvoiceService
             $this->audit->log('finance.invoice_cancelled', $invoice, null, ['reason' => $reason], $actor->id);
 
             return $invoice->refresh();
-        });
+        }, self::TX_ATTEMPTS);
     }
 
     /**
@@ -167,7 +183,7 @@ class InvoiceService
             }
 
             return $move;
-        });
+        }, self::TX_ATTEMPTS);
     }
 
     private function post(Invoice $invoice, User $actor): void
@@ -195,7 +211,8 @@ class InvoiceService
                     $item = Item::query()->lockForUpdate()->findOrFail($line->item_id);
                     $cost = round((float) $line->quantity * (float) $item->average_cost, 2);
                     $line->update(['cost_amount' => $cost]);
-                    $this->move($item, -(float) $line->quantity, $this->unitCost($cost, (float) $line->quantity), $date, 'invoice', $invoice->id, null, $actor);
+                    // Goods leave at the average (a sale never changes it); the entry carries that value rounded to cents.
+                    $this->move($item, -(float) $line->quantity, (float) $item->average_cost, $date, 'invoice', $invoice->id, null, $actor);
                     $costs[$item->currency_code] = ($costs[$item->currency_code] ?? 0) + $cost;
                 }
             }

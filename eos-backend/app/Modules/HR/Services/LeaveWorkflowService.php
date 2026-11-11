@@ -525,11 +525,9 @@ class LeaveWorkflowService
      */
     public function holidayRemoved(string $date): void
     {
-        // Rows deactivated before inactive_reason existed are recognised by the holiday's own records (see holidayDay).
-        $days = LeaveRequestDay::query()->where('date', $date)->where('active', false)
-            ->where(fn ($query) => $query->where('inactive_reason', 'holiday')->orWhereNull('inactive_reason'))
-            ->orderBy('employee_id')->orderBy('id')->get()
-            ->filter(fn (LeaveRequestDay $day) => $this->holidayDay($day));
+        // Rows from before inactive_reason existed were backfilled by 2026_11_15_000002_backfill_leave_day_inactive_reason.
+        $days = LeaveRequestDay::query()->where('date', $date)->where('active', false)->where('inactive_reason', 'holiday')
+            ->orderBy('employee_id')->orderBy('id')->get();
         foreach ($days->groupBy('employee_id') as $employeeId => $employeeDays) {
             Employee::lockForUpdate()->findOrFail($employeeId);
             if (LeaveRequestDay::query()->where('employee_id', $employeeId)->where('date', $date)->where('active', true)->exists()) {
@@ -609,25 +607,7 @@ class LeaveWorkflowService
     {
         return LeaveRequestDay::query()->where('leave_request_id', $request->id)->where('active', false)
             ->whereKeyNot($exceptDayId)->where(fn ($q) => $q->whereNull('inactive_reason')->orWhereNotIn('inactive_reason', ['holiday', 'edited']))
-            ->get()->reject(fn (LeaveRequestDay $day) => $this->holidayDay($day))->values();
-    }
-
-    /**
-     * Whether a holiday took this day away. Newer rows say so in inactive_reason. Rows from before that column
-     * are recognised by what holidayAdded left behind: a holiday_refund balance entry for limited leave types,
-     * and for every type its leave.holiday_refunded audit record for that request and date.
-     */
-    private function holidayDay(LeaveRequestDay $day): bool
-    {
-        if ($day->active || $day->inactive_reason !== null) {
-            return ! $day->active && $day->inactive_reason === 'holiday';
-        }
-        $date = substr((string) $day->date, 0, 10);
-
-        return LeaveBalanceEntry::query()->where('leave_request_day_id', $day->id)->where('kind', 'holiday_refund')->exists()
-            || DB::table('usr_audit_logs')->where('action', 'leave.holiday_refunded')
-                ->where('auditable_type', (new LeaveRequest)->getMorphClass())->where('auditable_id', $day->leave_request_id)
-                ->where('new_values->date', $date)->exists();
+            ->get();
     }
 
     public function maintain(Employee $employee): void

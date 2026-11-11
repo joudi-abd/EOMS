@@ -21,6 +21,9 @@ use Illuminate\Validation\ValidationException;
  */
 class LedgerService
 {
+    /** Whole-transaction retries on deadlocks and serialization conflicts (MariaDB 1020, PostgreSQL 40001/40P01). */
+    private const TX_ATTEMPTS = 3;
+
     public const TYPES = ['asset', 'liability', 'equity', 'revenue', 'expense'];
 
     /** Only these posting sources may debit/credit the system inventory account (and their reversals keep the same source). */
@@ -70,7 +73,7 @@ class LedgerService
             $this->audit->log('finance.entry_posted', $entry, null, ['number' => $entry->number, 'total' => round($debit, 2)], $actor->id);
 
             return $entry->load('lines');
-        });
+        }, self::TX_ATTEMPTS);
     }
 
     /** Mirror entry dated in an open month; an entry can be reversed once, and a reversal is never reversed. */
@@ -91,7 +94,7 @@ class LedgerService
             }
 
             return $reversal;
-        });
+        }, self::TX_ATTEMPTS);
     }
 
     /**
@@ -180,7 +183,7 @@ class LedgerService
             $this->audit->log('finance.account_created', $account, null, $account->getAttributes(), $actor->id);
 
             return $account;
-        });
+        }, self::TX_ATTEMPTS);
     }
 
     /** Type never changes once created; system accounts can be renamed and moved but not deactivated. */
@@ -202,7 +205,7 @@ class LedgerService
             $this->audit->log('finance.account_updated', $account, $old, $account->getAttributes(), $actor->id);
 
             return $account->refresh();
-        });
+        }, self::TX_ATTEMPTS);
     }
 
     public function requestClose(string $month, User $actor): Period
@@ -217,7 +220,7 @@ class LedgerService
             app(FinanceNotifier::class)->toApprovers('finance.period_close_requested', "طلب إقفال الشهر المالي $month بانتظار موافقتك.", ['month' => $month], $actor->id);
 
             return $period;
-        });
+        }, self::TX_ATTEMPTS);
     }
 
     public function decideClose(string $month, bool $approve, ?string $note, User $actor): Period
@@ -236,7 +239,7 @@ class LedgerService
                 ($approve ? 'تمت الموافقة على إقفال ' : 'رُفض طلب إقفال ').$month.($note ? ': '.$note : '.'), ['month' => $month]);
 
             return $period;
-        });
+        }, self::TX_ATTEMPTS);
     }
 
     /** Pending payments and draft/pending invoices in the month must be cleared before close request or approval. */
@@ -257,7 +260,7 @@ class LedgerService
             $this->audit->log('finance.period_reopened', $period, null, ['month' => $month, 'reason' => $reason], $actor->id);
 
             return $period;
-        });
+        }, self::TX_ATTEMPTS);
     }
 
     /** Sequential numbers per prefix and year, e.g. JE-2026-000001, S-2026-0001. */

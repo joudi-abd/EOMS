@@ -269,6 +269,25 @@ class FinanceTest extends TestCase
         $this->assertGreaterThanOrEqual(0, (float) StockMove::query()->where('item_id', $bolt->id)->min('average_cost_after'));
     }
 
+    public function test_sale_cancel_restores_the_exact_cost_it_took_out(): void
+    {
+        $this->limits();
+        $customer = $this->api('parties', ['kind' => 'customer', 'name' => 'Buyer']);
+        $inventory = Account::where('system_key', 'inventory')->value('id');
+        $item = Item::find($this->api('items', ['name' => 'Washer', 'unit' => 'pcs', 'currency_code' => 'USD', 'revenue_account_id' => $this->sales->id])['id']);
+        $this->api('items/'.$item->id.'/adjust', ['date' => '2026-11-02', 'quantity' => 1, 'unit_cost' => 0.01,
+            'account_id' => Account::where('system_key', 'opening_balances')->value('id'), 'reason' => 'Opening count']);
+        // 0.4 × 0.01 = 0.004 leaves the stock but rounds to a 0.00 cost entry; twice over.
+        foreach ([1, 2] as $round) {
+            $sale = $this->api('invoices', ['type' => 'sale', 'party_id' => $customer['id'], 'date' => '2026-11-03', 'currency_code' => 'USD',
+                'lines' => [['item_id' => $item->id, 'quantity' => 0.4, 'unit_price' => 1]]]);
+            $this->api('invoices/'.$sale['id'].'/submit', [], 200);
+            $this->api('invoices/'.$sale['id'].'/cancel', ['date' => '2026-11-04', 'reason' => 'Entered twice'], 200);
+            $this->assertSame(['1.000', '0.010000'], [$item->refresh()->quantity, $item->average_cost], "round $round");
+        }
+        $this->assertEquals(0.01, $this->getJson('/api/v1/finance/reports/ledger?account_id='.$inventory.'&currency=USD&from=2026-11-01&to=2026-11-30')->json('data.closing_balance'));
+    }
+
     public function test_cash_counterpart_rejects_system_accounts_except_opening_balances(): void
     {
         $syp = $this->box('SYP', 1_000_000);

@@ -297,6 +297,7 @@ class LeaveWorkflowTest extends TestCase
         // Simulate a pre-migration row: holiday_refund exists, inactive_reason was never set.
         DB::table('hr_leave_request_days')->where('leave_request_id', $row['id'])->where('date', '2026-11-09')
             ->update(['inactive_reason' => null, 'inactive_from_status' => null]);
+        $this->backfillLegacyDays();
         $this->deleteJson('/api/v1/leave-settings/holidays/'.$holiday['id'])->assertOk();
         $this->assertDatabaseHas('hr_leave_request_days', [
             'leave_request_id' => $row['id'], 'date' => '2026-11-09', 'active' => true,
@@ -509,6 +510,7 @@ class LeaveWorkflowTest extends TestCase
         // Simulate a row deactivated before inactive_reason existed.
         DB::table('hr_leave_request_days')->where('leave_request_id', $row['id'])->where('date', '2026-11-09')
             ->update(['inactive_reason' => null, 'inactive_from_status' => null]);
+        $this->backfillLegacyDays();
         $this->assertSame(0, LeaveBalanceEntry::query()->whereIn('leave_request_day_id',
             LeaveRequestDay::query()->where('leave_request_id', $row['id'])->select('id'))->count());
 
@@ -530,10 +532,55 @@ class LeaveWorkflowTest extends TestCase
         Sanctum::actingAs($this->hr);
         $this->action($row, 'approve-change')->assertOk();
         DB::table('hr_leave_request_days')->where('leave_request_id', $row['id'])->update(['inactive_reason' => null, 'inactive_from_status' => null]);
+        $this->backfillLegacyDays();
 
         $this->deleteJson('/api/v1/leave-settings/holidays/'.$holiday['id'])->assertOk();
         $this->assertSame([], $this->activeDays($row['id']));
         $this->assertSame('cancelled', LeaveRequest::find($row['id'])->status);
+    }
+
+    public function test_holiday_removal_restores_a_day_of_a_request_edited_before_the_reason_column(): void
+    {
+        $this->policy->update(['annual_days' => 5]);
+        $row = $this->submit(['end_date' => '2026-11-10']);
+        Sanctum::actingAs($this->hr);
+        $holiday = $this->postJson('/api/v1/leave-settings/holidays', ['date' => '2026-11-10', 'name' => 'Office closed'])->assertCreated()->json('data');
+        Sanctum::actingAs($this->employeeUser);
+        $row = $this->getJson('/api/v1/leaves/'.$row['id'])->json('data');
+        $input = $this->input(['end_date' => '2026-11-11']);
+        $quote = $this->postJson('/api/v1/leaves/'.$row['id'].'/preview', $input)->assertOk()->json('data');
+        $this->putJson('/api/v1/leaves/'.$row['id'], [...$input, 'version' => $row['version'], 'quote_token' => $quote['quote_token']])->assertOk();
+        // Before the column existed neither the holiday day nor the replaced day carried a reason.
+        DB::table('hr_leave_request_days')->where('leave_request_id', $row['id'])->update(['inactive_reason' => null, 'inactive_from_status' => null]);
+        $this->backfillLegacyDays();
+        $this->assertSame(['edited', 'holiday'], LeaveRequestDay::query()->where('leave_request_id', $row['id'])->where('active', false)
+            ->orderBy('inactive_reason')->pluck('inactive_reason')->all());
+
+        Sanctum::actingAs($this->hr);
+        $this->deleteJson('/api/v1/leave-settings/holidays/'.$holiday['id'])->assertOk();
+        $this->assertSame(['2026-11-09', '2026-11-10', '2026-11-11'], $this->activeDays($row['id']));
+        $this->assertSame('pending', LeaveRequest::find($row['id'])->status);
+    }
+
+    public function test_legacy_single_day_approved_leave_without_balance_comes_back_approved(): void
+    {
+        $this->policy->update(['annual_days' => null]);
+        $row = $this->submit();
+        Sanctum::actingAs($this->hr);
+        $this->action($row, 'approve')->assertOk();
+        $holiday = $this->postJson('/api/v1/leave-settings/holidays', ['date' => '2026-11-09', 'name' => 'Office closed'])->assertCreated()->json('data');
+        $this->assertSame('cancelled', LeaveRequest::find($row['id'])->status, 'The holiday took its only day');
+        DB::table('hr_leave_request_days')->where('leave_request_id', $row['id'])->update(['inactive_reason' => null, 'inactive_from_status' => null]);
+        $this->backfillLegacyDays();
+
+        $this->deleteJson('/api/v1/leave-settings/holidays/'.$holiday['id'])->assertOk();
+        $this->assertSame(['2026-11-09'], $this->activeDays($row['id']));
+        $this->assertSame('approved', LeaveRequest::find($row['id'])->status);
+    }
+
+    private function backfillLegacyDays(): void
+    {
+        (require base_path('app/Modules/HR/Database/Migrations/2026_11_15_000002_backfill_leave_day_inactive_reason.php'))->up();
     }
 
     /** Approved 9–11 Nov leave (5-day policy), a holiday inside it, a shortening, then the holiday deleted. */

@@ -22,6 +22,9 @@ use Illuminate\Validation\ValidationException;
  */
 class CashService
 {
+    /** Whole-transaction retries on deadlocks and serialization conflicts (MariaDB 1020, PostgreSQL 40001/40P01). */
+    private const TX_ATTEMPTS = 3;
+
     public function __construct(private LedgerService $ledger, private AuditLogger $audit) {}
 
     public function createBox(array $data, User $actor): Box
@@ -50,7 +53,7 @@ class CashService
             }
 
             return $box;
-        });
+        }, self::TX_ATTEMPTS);
     }
 
     public function balance(Box $box): float
@@ -84,7 +87,7 @@ class CashService
             $this->postTransaction($tx, $actor);
 
             return $tx->refresh();
-        });
+        }, self::TX_ATTEMPTS);
     }
 
     /** Payment out of a box, to a supplier (optionally against a purchase invoice) or debited to an account. */
@@ -103,7 +106,7 @@ class CashService
             }
 
             return $tx->refresh();
-        });
+        }, self::TX_ATTEMPTS);
     }
 
     public function transfer(array $data, User $actor): Transaction
@@ -116,7 +119,7 @@ class CashService
             $this->postTransaction($tx, $actor);
 
             return $tx->refresh();
-        });
+        }, self::TX_ATTEMPTS);
     }
 
     /** Sell `amount` from one box for `counter_amount` into a box of another currency; one entry per currency. */
@@ -130,7 +133,7 @@ class CashService
             $this->postTransaction($tx, $actor);
 
             return $tx->refresh();
-        });
+        }, self::TX_ATTEMPTS);
     }
 
     /** Called by the payroll module inside its payment transaction: salary paid out of the chosen box. */
@@ -166,7 +169,7 @@ class CashService
                 ($approve ? 'اعتُمد الصرف: ' : 'رُفض الصرف: ').$tx->description.($note ? ' — '.$note : ''), ['transaction_id' => $tx->id]);
 
             return $tx->refresh();
-        });
+        }, self::TX_ATTEMPTS);
     }
 
     /** Reverses every entry of a posted operation and restores the paid amount of a linked invoice. */
@@ -187,7 +190,7 @@ class CashService
             $this->audit->log('finance.transaction_reversed', $tx, null, ['reason' => $reason], $actor->id);
 
             return $tx->refresh();
-        });
+        }, self::TX_ATTEMPTS);
     }
 
     private function postTransaction(Transaction $tx, User $actor): void

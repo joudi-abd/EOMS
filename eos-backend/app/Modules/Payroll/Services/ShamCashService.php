@@ -19,6 +19,9 @@ use Illuminate\Validation\ValidationException;
  */
 class ShamCashService
 {
+    /** Whole-transaction retries on deadlocks and serialization conflicts (MariaDB 1020, PostgreSQL 40001/40P01). */
+    private const TX_ATTEMPTS = 3;
+
     public function __construct(private PayRunService $runs, private ShamCashFile $file, private AuditLogger $audit) {}
 
     /**
@@ -71,7 +74,7 @@ class ShamCashService
                 'total' => $export->total, 'skipped' => $missing], $actor->id);
 
             return $export;
-        });
+        }, self::TX_ATTEMPTS);
     }
 
     /** Path of the .xlsx for an export (rebuilt from the stored rows, so a re-download is identical). */
@@ -103,7 +106,7 @@ class ShamCashService
             $this->audit->log('payroll.shamcash_confirmed', $export, null, ['doc_id' => $export->doc_id, 'box_id' => $boxId], $actor->id);
 
             return $export->refresh();
-        });
+        }, self::TX_ATTEMPTS);
     }
 
     /** A file that was never sent to Sham Cash: its employees become available for a new file or individual pay. */
@@ -118,7 +121,7 @@ class ShamCashService
             $this->audit->log('payroll.shamcash_cancelled', $export, null, ['doc_id' => $export->doc_id], $actor->id);
 
             return $export->refresh();
-        });
+        }, self::TX_ATTEMPTS);
     }
 
     /** Approved-run lines with a positive net, no active payment and not already in an open file. */

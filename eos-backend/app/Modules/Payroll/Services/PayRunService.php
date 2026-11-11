@@ -31,6 +31,9 @@ use Illuminate\Validation\ValidationException;
  */
 class PayRunService
 {
+    /** Whole-transaction retries on deadlocks and serialization conflicts (MariaDB 1020, PostgreSQL 40001/40P01). */
+    private const TX_ATTEMPTS = 3;
+
     /** How far back locked months are re-checked for adjustments. */
     private const ADJUSTMENT_LOOKBACK_MONTHS = 12;
 
@@ -50,7 +53,7 @@ class PayRunService
             $this->audit->log('payroll.run_created', $run, null, ['month' => $month], $actor->id);
 
             return $run;
-        });
+        }, self::TX_ATTEMPTS);
 
         return $this->recalculate($run, $actor);
     }
@@ -96,7 +99,7 @@ class PayRunService
             $this->audit->log('payroll.run_calculated', $run, null, ['lines' => $employees->count()], $actor->id);
 
             return $run->refresh();
-        }, 3);
+        }, self::TX_ATTEMPTS);
     }
 
     public function addManualItem(PayRun $run, array $data, User $actor): PayRunItem
@@ -116,7 +119,7 @@ class PayRunService
             $this->audit->log('payroll.manual_item_added', $item, null, $item->getAttributes(), $actor->id);
 
             return $item;
-        });
+        }, self::TX_ATTEMPTS);
     }
 
     public function removeManualItem(PayRunItem $item, User $actor): void
@@ -129,7 +132,7 @@ class PayRunService
             $item->delete();
             $this->totals($line);
             $this->touch($run);
-        });
+        }, self::TX_ATTEMPTS);
     }
 
     /** Finance accepts or rejects an adjustment for a locked month while reviewing the submitted run. */
@@ -146,7 +149,7 @@ class PayRunService
             $this->audit->log('payroll.adjustment_decided', $item, null, ['status' => $item->status], $actor->id);
 
             return $item->refresh();
-        });
+        }, self::TX_ATTEMPTS);
     }
 
     public function submit(PayRun $run, User $actor): PayRun
@@ -166,7 +169,7 @@ class PayRunService
             $this->notify('payroll.approve', 'payroll.run_submitted', 'كشف رواتب '.$run->month.' مرفوع من الموارد البشرية بانتظار اعتماد المالية.', $run);
 
             return $run->refresh();
-        });
+        }, self::TX_ATTEMPTS);
     }
 
     public function returnToDraft(PayRun $run, string $note, User $actor): PayRun
@@ -178,7 +181,7 @@ class PayRunService
             $this->notify('payroll.manage', 'payroll.run_returned', 'أُعيد كشف رواتب '.$run->month.' للتعديل: '.$note, $run);
 
             return $run->refresh();
-        });
+        }, self::TX_ATTEMPTS);
     }
 
     /** Finance accepts, changes (between 0 and the proposal) or waives a system-proposed deduction or an item HR entered. */
@@ -204,7 +207,7 @@ class PayRunService
             $this->audit->log('payroll.deduction_reviewed', $item, null, ['status' => $item->status, 'amount' => $item->amount], $actor->id);
 
             return $item->refresh();
-        });
+        }, self::TX_ATTEMPTS);
     }
 
     /**
@@ -233,7 +236,7 @@ class PayRunService
             }
 
             return $items->count();
-        });
+        }, self::TX_ATTEMPTS);
     }
 
     /**
@@ -271,7 +274,7 @@ class PayRunService
             $this->notify('payroll.pay', 'payroll.run_approved', 'اعتُمد كشف رواتب '.$run->month.' ويمكن البدء بالصرف.', $run);
 
             return $run->refresh();
-        }, 3);
+        }, self::TX_ATTEMPTS);
     }
 
     /**
@@ -318,7 +321,7 @@ class PayRunService
             $this->audit->log('payroll.payment_recorded', $payment, null, $payment->getAttributes(), $actor->id);
 
             return $payment;
-        });
+        }, self::TX_ATTEMPTS);
     }
 
     /** A line in an open Sham Cash file is reserved for that file's confirm; individual pay must wait for cancel. */
@@ -366,7 +369,7 @@ class PayRunService
             $this->audit->log('payroll.payment_voided', $payment, null, ['reason' => $reason], $actor->id);
 
             return $payment->refresh();
-        });
+        }, self::TX_ATTEMPTS);
     }
 
     /** Re-prices earlier locked months and proposes the difference not yet settled by earlier adjustments. */
@@ -610,7 +613,8 @@ class PayRunService
 
     private function totals(PayRunLine $line): void
     {
-        $items = $line->items()->get();
+        // An item still awaiting a finance decision never counts, whatever amount an older version stored.
+        $items = $line->items()->where('status', '!=', 'proposed')->get();
         $earnings = round($items->where('category', 'earning')->sum(fn ($i) => (float) $i->amount), 2);
         $deductions = round($items->where('category', 'deduction')->sum(fn ($i) => (float) $i->amount), 2);
         $line->update(['earnings' => $earnings, 'deductions' => $deductions, 'net' => round($earnings - $deductions, 2)]);
