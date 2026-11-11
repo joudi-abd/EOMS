@@ -8,6 +8,7 @@ use App\Modules\Finance\Models\Invoice;
 use App\Modules\Finance\Models\Item;
 use App\Modules\Finance\Models\JournalEntry;
 use App\Modules\Finance\Models\JournalLine;
+use App\Modules\Finance\Models\StockMove;
 use App\Modules\Finance\Models\Transaction;
 use App\Modules\Finance\Services\CashService;
 use App\Modules\Identity\Database\Seeders\RolePermissionSeeder;
@@ -209,21 +210,21 @@ class FinanceTest extends TestCase
         $this->assertSame(6_000_000, (int) $statement['closing_balance']);
         $this->assertSame(6_000_000, (int) $statement['overdue_total']);
 
-        // Supplier payment blocks cancel until reversed; cancelling returns the stock effect at the purchase price.
+        // Supplier payment blocks cancel until reversed; after a sale, purchase cancel stays blocked (later stock moves).
         $pay = $this->api('transactions/payment', ['box_id' => $usd->id, 'amount' => 1_000, 'date' => '2026-11-07', 'description' => 'Pay',
             'party_id' => $supplier['id'], 'invoice_id' => $first['id']]);
         $this->api('invoices/'.$first['id'].'/cancel', ['date' => '2026-11-08', 'reason' => 'Returned'], 409);
         $this->api('transactions/'.$pay['id'].'/reverse', ['date' => '2026-11-08', 'reason' => 'Refunded'], 200);
-        $this->api('invoices/'.$first['id'].'/cancel', ['date' => '2026-11-08', 'reason' => 'Returned'], 200);
+        $this->postJson('/api/v1/finance/invoices/'.$first['id'].'/cancel', ['date' => '2026-11-08', 'reason' => 'Returned'])
+            ->assertUnprocessable()->assertJsonValidationErrors('invoice');
         $cement->refresh();
-        // 15 bags worth 1,725 minus the cancelled 1,000 leaves 725 for 5 bags.
-        $this->assertSame(['5.000', '145.000000'], [$cement->quantity, $cement->average_cost]);
+        $this->assertSame(['15.000', '115.000000'], [$cement->quantity, $cement->average_cost]);
         $inventory = Account::where('system_key', 'inventory')->value('id');
         $ledger = $this->getJson('/api/v1/finance/reports/ledger?account_id='.$inventory.'&currency=USD&from=2026-11-01&to=2026-11-30')->json('data');
-        $this->assertEquals(725, $ledger['closing_balance'], 'The inventory account always equals quantity × average cost');
+        $this->assertEquals(1725, $ledger['closing_balance'], 'The inventory account always equals quantity × average cost');
     }
 
-    public function test_invoice_cancel_keeps_inventory_equal_to_quantity_times_average(): void
+    public function test_purchase_cancel_only_as_the_latest_stock_move_and_never_to_a_negative_cost(): void
     {
         $this->limits();
         $supplier = $this->api('parties', ['kind' => 'supplier', 'name' => 'Steel Co.']);
@@ -239,33 +240,33 @@ class FinanceTest extends TestCase
         };
         $cancel = fn (array $invoice) => $this->postJson('/api/v1/finance/invoices/'.$invoice['id'].'/cancel', ['date' => '2026-11-09', 'reason' => 'Entered by mistake']);
 
-        // An earlier purchase can be cancelled after a later one: 20 @ 115 minus 10 @ 100 leaves 10 @ 130.
+        // Only the latest purchase can be cancelled.
         $beam = $newItem('Beam');
         $first = $post('purchase', $beam, 10, 100, '2026-11-02');
-        $post('purchase', $beam, 10, 130, '2026-11-03');
-        $cancel($first)->assertOk();
-        $this->assertSame(['10.000', '130.000000'], [$beam->refresh()->quantity, $beam->average_cost]);
-        $this->assertEquals(1300, $ledger());
+        $second = $post('purchase', $beam, 10, 130, '2026-11-03');
+        $cancel($first)->assertUnprocessable()->assertJsonValidationErrors('invoice');
+        $cancel($second)->assertOk();
+        $this->assertSame(['10.000', '100.000000'], [$beam->refresh()->quantity, $beam->average_cost]);
+        $this->assertEquals(1000, $ledger());
 
-        // A sale is cancelled after a restock: the goods come back at the cost they left with.
+        // A sale can be cancelled after a restock: the goods come back at the cost they left with.
         $sale = $post('sale', $beam, 4, 200, '2026-11-04');
         $post('purchase', $beam, 2, 140, '2026-11-05');
+        $cancel($first)->assertUnprocessable()->assertJsonValidationErrors('invoice');
         $cancel($sale)->assertOk();
         $this->assertSame('12.000', $beam->refresh()->quantity);
-        $this->assertEquals(1580, $ledger());
-        $this->assertEqualsWithDelta(1580, (float) $beam->quantity * (float) $beam->average_cost, 0.01);
+        $this->assertEquals(1280, $ledger());
+        $this->assertEqualsWithDelta(1280, (float) $beam->quantity * (float) $beam->average_cost, 0.01);
 
-        // Sales at a lower average leave too little value to take an expensive purchase out: refused.
-        $pipe = $newItem('Pipe');
-        $expensive = $post('purchase', $pipe, 10, 100, '2026-11-02');
-        $cheap = $post('purchase', $pipe, 10, 10, '2026-11-03');
-        $post('sale', $pipe, 5, 80, '2026-11-04'); // 5 leave at 55: 15 left worth 825
-        $cancel($expensive)->assertUnprocessable()->assertJsonValidationErrors('invoice');
-        $this->assertSame('15.000', $pipe->refresh()->quantity);
-        // Taking it to zero quantity must also leave zero value.
-        $post('sale', $pipe, 5, 80, '2026-11-05'); // 10 left worth 550
-        $cancel($cheap)->assertUnprocessable()->assertJsonValidationErrors('invoice');
-        $this->assertEquals(1580 + 550, $ledger());
+        // Zero-cost stock plus a purchase whose average rounds down: cancelling it never stores a negative cost.
+        $bolt = $newItem('Bolt');
+        $this->api('items/'.$bolt->id.'/adjust', ['date' => '2026-11-02', 'quantity' => 1.936, 'unit_cost' => 0,
+            'account_id' => Account::where('system_key', 'opening_balances')->value('id'), 'reason' => 'Opening count']);
+        $odd = $post('purchase', $bolt, 1, 0.92, '2026-11-03');
+        $this->assertSame('0.313351', $bolt->refresh()->average_cost);
+        $cancel($odd)->assertOk();
+        $this->assertSame(['1.936', '0.000000'], [$bolt->refresh()->quantity, $bolt->average_cost]);
+        $this->assertGreaterThanOrEqual(0, (float) StockMove::query()->where('item_id', $bolt->id)->min('average_cost_after'));
     }
 
     public function test_cash_counterpart_rejects_system_accounts_except_opening_balances(): void
@@ -369,6 +370,12 @@ class FinanceTest extends TestCase
         Sanctum::actingAs($this->finance);
         $this->api('transactions/receipt', ['box_id' => $box->id, 'amount' => 1, 'date' => '2026-11-30', 'description' => 'Late', 'account_id' => $this->capital->id], 422);
         $this->api('transactions/receipt', ['box_id' => $box->id, 'amount' => 1, 'date' => '2026-12-01', 'description' => 'Ok', 'account_id' => $this->capital->id]);
+        // A zero-value stock count posts no entry but still changes quantity: the closed month refuses it too.
+        $item = Item::find($this->api('items', ['name' => 'Gift sample', 'unit' => 'pcs', 'currency_code' => 'USD'])['id']);
+        $this->postJson('/api/v1/finance/items/'.$item->id.'/adjust', ['date' => '2026-11-15', 'quantity' => 3, 'unit_cost' => 0,
+            'account_id' => $this->capital->id, 'reason' => 'Free samples'])->assertUnprocessable()->assertJsonValidationErrors('date');
+        $this->assertSame('0.000', $item->refresh()->quantity);
+        $this->assertSame(0, StockMove::count());
         Sanctum::actingAs($this->director);
         $this->api('periods/2026-11/reopen', ['reason' => 'Missing invoice'], 200);
         Sanctum::actingAs($this->finance);

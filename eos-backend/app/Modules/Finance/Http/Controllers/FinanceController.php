@@ -262,7 +262,7 @@ class FinanceController extends Controller
         $party = DB::transaction(function () use ($party, $data) {
             $party = Party::query()->lockForUpdate()->findOrFail($party->id);
             if (($data['active'] ?? true) === false) {
-                abort_if(Transaction::query()->where('status', 'pending')->where('party_id', $party->id)->lockForUpdate()->exists(),
+                abort_if(Transaction::query()->where('status', 'pending')->where('party_id', $party->id)->lockForUpdate()->first(['id']) !== null,
                     422, 'للطرف عمليات بانتظار الاعتماد.');
             }
             $party->update($data);

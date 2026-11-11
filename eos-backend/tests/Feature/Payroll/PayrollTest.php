@@ -167,14 +167,20 @@ class PayrollTest extends TestCase
             ->assertOk()->assertJsonPath('data.amount', '0.00');
         $this->postJson('/api/v1/payroll/items/'.$items['absence']->id.'/review', ['decision' => 'modify', 'amount' => 200000, 'reason' => 'Too high'])
             ->assertUnprocessable();
+        // Nothing is accepted implicitly: the undecided bonus and absence count as zero and block approval.
+        $this->assertSame('2557142.86', $line->refresh()->net);
+        $this->postJson('/api/v1/payroll/runs/'.$run['id'].'/approve')->assertStatus(409);
+        $this->getJson('/api/v1/payroll/runs/'.$run['id'])->assertJsonPath('data.undecided_items', 2);
+        $this->postJson('/api/v1/payroll/runs/'.$run['id'].'/review-remaining', ['decision' => 'approve'])
+            ->assertOk()->assertJsonPath('data.decided', 2)->assertJsonPath('data.run.undecided_items', 0);
         $this->postJson('/api/v1/payroll/runs/'.$run['id'].'/approve')->assertOk()->assertJsonPath('data.status', 'approved');
 
         $line->refresh();
-        // 2,600,000 + 57,142.86 + 50,000 − 100,000 unpaid − 100,000 absence (accepted at approval) − 0 late.
+        // 2,600,000 + 57,142.86 + 50,000 − 100,000 unpaid − 100,000 absence (approved explicitly) − 0 late.
         $this->assertSame('2507142.86', $line->net);
         $this->assertSame('approved', $items['absence']->refresh()->status);
-        $this->assertSame('approved', PayRunItem::find($bonus['id'])->status, 'An undecided HR item is accepted with the run');
-        $this->assertSame(1, $this->hr->notifications()->where('data->kind', 'payroll.run_approved')->count());
+        $this->assertSame('approved', PayRunItem::find($bonus['id'])->status);
+        $this->assertSame(1, $this->hr->notifications()->get()->where('data.kind', 'payroll.run_approved')->count());
 
         // HR cannot pay; finance can.
         Sanctum::actingAs($this->hr);
@@ -212,6 +218,7 @@ class PayrollTest extends TestCase
         $run = $this->createRun();
         $this->postJson('/api/v1/payroll/runs/'.$run['id'].'/submit')->assertOk();
         Sanctum::actingAs($this->director);
+        $this->postJson('/api/v1/payroll/runs/'.$run['id'].'/review-remaining', ['decision' => 'approve'])->assertOk();
         $this->postJson('/api/v1/payroll/runs/'.$run['id'].'/approve')->assertOk();
         $line = PayRunLine::query()->firstOrFail();
         $this->assertSame('2442857.15', $line->net); // 2,657,142.86 − 100,000 − 14,285.71 − 100,000
@@ -287,6 +294,7 @@ class PayrollTest extends TestCase
         $october = $this->createRun();
         $this->postJson('/api/v1/payroll/runs/'.$october['id'].'/submit')->assertOk();
         Sanctum::actingAs($this->director);
+        $this->postJson('/api/v1/payroll/runs/'.$october['id'].'/review-remaining', ['decision' => 'approve'])->assertOk();
         $this->postJson('/api/v1/payroll/runs/'.$october['id'].'/approve')->assertOk();
 
         $day = AttendanceDay::where('work_date', '2026-10-06')->firstOrFail();
@@ -330,6 +338,7 @@ class PayrollTest extends TestCase
         $october = $this->createRun();
         $this->postJson('/api/v1/payroll/runs/'.$october['id'].'/submit')->assertOk();
         Sanctum::actingAs($this->director);
+        $this->postJson('/api/v1/payroll/runs/'.$october['id'].'/review-remaining', ['decision' => 'approve'])->assertOk();
         $this->postJson('/api/v1/payroll/runs/'.$october['id'].'/approve')->assertOk();
 
         // HR records the 6 Oct absence as unpaid leave afterwards: the locked month is re-priced in November's run.
@@ -370,6 +379,7 @@ class PayrollTest extends TestCase
 
         // Once November is approved, the October difference counts as settled and is not proposed again.
         Sanctum::actingAs($this->finance);
+        $this->postJson('/api/v1/payroll/runs/'.$november['id'].'/review-remaining', ['decision' => 'approve'])->assertOk();
         $this->postJson('/api/v1/payroll/runs/'.$november['id'].'/approve')->assertOk();
         $this->travelTo(CarbonImmutable::parse('2027-01-02T10:00:00+03:00'));
         Sanctum::actingAs($this->hr);
@@ -424,6 +434,7 @@ class PayrollTest extends TestCase
         $run = $this->createRun();
         $this->postJson('/api/v1/payroll/runs/'.$run['id'].'/submit')->assertOk();
         Sanctum::actingAs($this->director);
+        $this->postJson('/api/v1/payroll/runs/'.$run['id'].'/review-remaining', ['decision' => 'approve'])->assertOk();
         $this->postJson('/api/v1/payroll/runs/'.$run['id'].'/approve')->assertOk();
         Sanctum::actingAs($this->finance);
 
@@ -457,6 +468,7 @@ class PayrollTest extends TestCase
         $this->postJson('/api/v1/payroll/runs/'.$run['id'].'/submit')->assertOk();
         $this->postJson('/api/v1/payroll/runs/'.$run['id'].'/approve')->assertForbidden();
         Sanctum::actingAs($this->director);
+        $this->postJson('/api/v1/payroll/runs/'.$run['id'].'/review-remaining', ['decision' => 'approve'])->assertOk();
         $this->postJson('/api/v1/payroll/runs/'.$run['id'].'/approve')->assertOk();
     }
 
@@ -470,6 +482,7 @@ class PayrollTest extends TestCase
         $this->postJson('/api/v1/payroll/items/'.$absence->id.'/review', ['decision' => 'waive', 'reason' => 'First absence forgiven'])
             ->assertOk()->assertJsonPath('data.amount', '0.00');
         Sanctum::actingAs($this->director);
+        $this->postJson('/api/v1/payroll/runs/'.$october['id'].'/review-remaining', ['decision' => 'approve'])->assertOk();
         $this->postJson('/api/v1/payroll/runs/'.$october['id'].'/approve')->assertOk();
         $this->assertSame('0.00', $absence->refresh()->amount);
 
@@ -512,6 +525,7 @@ class PayrollTest extends TestCase
             'decision' => 'modify', 'amount' => 40000, 'reason' => 'Partial penalty',
         ])->assertOk()->assertJsonPath('data.amount', '40000.00');
         Sanctum::actingAs($this->director);
+        $this->postJson('/api/v1/payroll/runs/'.$october['id'].'/review-remaining', ['decision' => 'approve'])->assertOk();
         $this->postJson('/api/v1/payroll/runs/'.$october['id'].'/approve')->assertOk();
 
         $checker = $this->actor('hr_manager');
@@ -708,6 +722,31 @@ class PayrollTest extends TestCase
         $this->employee->update(['sham_cash_wallet' => '9999888877776666']);
         $this->postJson('/api/v1/payroll/shamcash-exports/'.$export->id.'/confirm', ['box_id' => $box->id])->assertOk();
         $this->assertSame('0012345678901234', PayPayment::query()->sole()->wallet);
+    }
+
+    public function test_finance_decides_remaining_items_in_bulk_by_kind(): void
+    {
+        $this->october();
+        $run = $this->createRun();
+        $items = $this->items($run['id']);
+        $bonus = $this->postJson('/api/v1/payroll/runs/'.$run['id'].'/items', ['employee_id' => $this->employee->id,
+            'category' => 'earning', 'amount' => 50000, 'reason' => 'Project bonus'])->assertCreated()->json('data');
+        $this->assertSame('0.00', PayRunItem::find($bonus['id'])->amount, 'An HR item counts as zero until finance decides');
+        $this->postJson('/api/v1/payroll/runs/'.$run['id'].'/submit')->assertOk();
+        $this->postJson('/api/v1/payroll/runs/'.$run['id'].'/review-remaining', ['decision' => 'approve'])->assertForbidden();
+
+        Sanctum::actingAs($this->finance);
+        $this->postJson('/api/v1/payroll/runs/'.$run['id'].'/review-remaining', ['decision' => 'waive'])->assertUnprocessable();
+        // Waive all lateness at once; the absence and the bonus still wait.
+        $this->postJson('/api/v1/payroll/runs/'.$run['id'].'/review-remaining', ['decision' => 'waive', 'kinds' => ['late'], 'reason' => 'Transport strike'])
+            ->assertOk()->assertJsonPath('data.decided', 1);
+        $this->assertSame(['waived', 'proposed', 'proposed'], [$items['late']->refresh()->status, $items['absence']->refresh()->status, PayRunItem::find($bonus['id'])->status]);
+        $this->postJson('/api/v1/payroll/runs/'.$run['id'].'/approve')->assertStatus(409);
+        $this->postJson('/api/v1/payroll/items/'.$bonus['id'].'/review', ['decision' => 'modify', 'amount' => 30000, 'reason' => 'Half the project'])->assertOk();
+        $this->postJson('/api/v1/payroll/runs/'.$run['id'].'/review-remaining', ['decision' => 'approve'])->assertOk()->assertJsonPath('data.decided', 1);
+        $this->postJson('/api/v1/payroll/runs/'.$run['id'].'/approve')->assertOk();
+        // 2,600,000 + 57,142.86 + 30,000 − 100,000 unpaid − 100,000 absence − 0 late.
+        $this->assertSame('2487142.86', PayRunLine::query()->firstOrFail()->net);
     }
 
     /** @return array{sheet: string, workbook: string, calcChain: bool} */

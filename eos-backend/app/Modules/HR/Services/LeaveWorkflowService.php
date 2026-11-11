@@ -263,7 +263,8 @@ class LeaveWorkflowService
             $values = ['input' => array_intersect_key($input, array_flip(['start_date', 'end_date', 'unit', 'half', 'start_time', 'end_time', 'reason'])),
                 'expires_on' => min(array_column($days, 'cycle_end')), 'unpaid_consent' => $input['unpaid_consent'] ?? false];
             if ($editing) {
-                $this->release($editing, $actor->id, 'تعديل الطلب');
+                // The old plan is replaced, not withdrawn: its days are marked "edited" (see holidayRemoved).
+                $this->release($editing, $actor->id, 'تعديل الطلب', null, 'edited');
                 $editing->update([...$values, 'version' => $editing->version + 1]);
                 $request = $editing;
             } else {
@@ -437,15 +438,15 @@ class LeaveWorkflowService
     }
 
     /** Pending days give their reservation back ("release"); approved days give back a debit ("refund"). */
-    private function release(LeaveRequest $request, int $actor, string $reason, ?string $from = null): void
+    private function release(LeaveRequest $request, int $actor, string $reason, ?string $from = null, ?string $inactiveReason = null): void
     {
         $kind = $request->status === 'approved' ? 'refund' : 'release';
+        $inactiveReason ??= $kind === 'refund' ? 'cancelled' : 'released';
         foreach ($request->days()->where('active', true)->when($from, fn ($q) => $q->where('date', '>=', $from))->get() as $day) {
             if ($request->policy['annual_days'] !== null && $day->covered_units > 0) {
                 $this->entry($request, $day, $day->covered_units, $kind, $reason, $actor);
             }
-            $day->update(['active' => false, 'inactive_reason' => $kind === 'refund' ? 'cancelled' : 'released',
-                'inactive_from_status' => $request->status]);
+            $day->update(['active' => false, 'inactive_reason' => $inactiveReason, 'inactive_from_status' => $request->status]);
         }
     }
 
@@ -524,16 +525,11 @@ class LeaveWorkflowService
      */
     public function holidayRemoved(string $date): void
     {
+        // Rows deactivated before inactive_reason existed are recognised by the holiday's own records (see holidayDay).
         $days = LeaveRequestDay::query()->where('date', $date)->where('active', false)
-            ->where(function ($query) {
-                $query->where('inactive_reason', 'holiday')
-                    ->orWhere(function ($legacy) {
-                        // Rows deactivated before inactive_reason existed keep the holiday_refund link.
-                        $legacy->whereNull('inactive_reason')
-                            ->whereIn('id', LeaveBalanceEntry::query()->where('kind', 'holiday_refund')->select('leave_request_day_id'));
-                    });
-            })
-            ->orderBy('employee_id')->orderBy('id')->get();
+            ->where(fn ($query) => $query->where('inactive_reason', 'holiday')->orWhereNull('inactive_reason'))
+            ->orderBy('employee_id')->orderBy('id')->get()
+            ->filter(fn (LeaveRequestDay $day) => $this->holidayDay($day));
         foreach ($days->groupBy('employee_id') as $employeeId => $employeeDays) {
             Employee::lockForUpdate()->findOrFail($employeeId);
             if (LeaveRequestDay::query()->where('employee_id', $employeeId)->where('date', $date)->where('active', true)->exists()) {
@@ -545,9 +541,13 @@ class LeaveWorkflowService
                     continue;
                 }
                 // The holiday must be the only thing that took this day away: a request the employee or HR
-                // cancelled, or shortened before this date, stays as they left it.
+                // cancelled, or shortened before this date, stays as they left it; an edit that moved the
+                // request off this date already says the employee no longer wants it.
                 $withdrawn = $this->withdrawnDays($request, $day->id);
-                if (($request->status === 'cancelled' && $withdrawn->isNotEmpty())
+                $range = $request->input ?? [];
+                $outsideRange = isset($range['start_date'], $range['end_date'])
+                    && ($date < $range['start_date'] || $date > $range['end_date']);
+                if ($outsideRange || ($request->status === 'cancelled' && $withdrawn->isNotEmpty())
                     || $withdrawn->contains(fn (LeaveRequestDay $other) => substr((string) $other->date, 0, 10) <= $date)) {
                     $this->audit->log('leave.holiday_restore_skipped', $request, null, [
                         'date' => $date, 'reason' => 'request_cancelled_or_shortened',
@@ -601,20 +601,33 @@ class LeaveWorkflowService
 
     /**
      * Inactive days of a request removed by a person (cancel, withdraw, shorten, reject, service end) rather than
-     * by a holiday. Rows from before inactive_reason existed count as holiday days only with a holiday_refund link.
+     * by a holiday or replaced by an edit of the request.
      *
      * @return Collection<int, LeaveRequestDay>
      */
     private function withdrawnDays(LeaveRequest $request, int $exceptDayId): Collection
     {
         return LeaveRequestDay::query()->where('leave_request_id', $request->id)->where('active', false)
-            ->whereKeyNot($exceptDayId)
-            ->where(function ($query) {
-                $query->where(fn ($q) => $q->whereNotNull('inactive_reason')->where('inactive_reason', '!=', 'holiday'))
-                    ->orWhere(fn ($q) => $q->whereNull('inactive_reason')
-                        ->whereNotIn('id', LeaveBalanceEntry::query()->where('kind', 'holiday_refund')
-                            ->whereNotNull('leave_request_day_id')->select('leave_request_day_id')));
-            })->get();
+            ->whereKeyNot($exceptDayId)->where(fn ($q) => $q->whereNull('inactive_reason')->orWhereNotIn('inactive_reason', ['holiday', 'edited']))
+            ->get()->reject(fn (LeaveRequestDay $day) => $this->holidayDay($day))->values();
+    }
+
+    /**
+     * Whether a holiday took this day away. Newer rows say so in inactive_reason. Rows from before that column
+     * are recognised by what holidayAdded left behind: a holiday_refund balance entry for limited leave types,
+     * and for every type its leave.holiday_refunded audit record for that request and date.
+     */
+    private function holidayDay(LeaveRequestDay $day): bool
+    {
+        if ($day->active || $day->inactive_reason !== null) {
+            return ! $day->active && $day->inactive_reason === 'holiday';
+        }
+        $date = substr((string) $day->date, 0, 10);
+
+        return LeaveBalanceEntry::query()->where('leave_request_day_id', $day->id)->where('kind', 'holiday_refund')->exists()
+            || DB::table('usr_audit_logs')->where('action', 'leave.holiday_refunded')
+                ->where('auditable_type', (new LeaveRequest)->getMorphClass())->where('auditable_id', $day->leave_request_id)
+                ->where('new_values->date', $date)->exists();
     }
 
     public function maintain(Employee $employee): void

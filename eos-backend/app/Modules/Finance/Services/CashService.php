@@ -109,8 +109,7 @@ class CashService
     public function transfer(array $data, User $actor): Transaction
     {
         return DB::transaction(function () use ($data, $actor) {
-            $from = $this->box($data['box_id']);
-            $to = $this->box($data['counter_box_id']);
+            [$from, $to] = $this->boxPair($data['box_id'], $data['counter_box_id']);
             abort_if($from->id === $to->id, 422, 'اختر صندوقين مختلفين.');
             abort_unless($from->currency_code === $to->currency_code, 422, 'التحويل بين صندوقين بنفس العملة؛ استخدم صرف العملة لغير ذلك.');
             $tx = $this->make('transfer', [...$data, 'counter_amount' => $data['amount']], $from, $actor, 'posted');
@@ -124,8 +123,7 @@ class CashService
     public function exchange(array $data, User $actor): Transaction
     {
         return DB::transaction(function () use ($data, $actor) {
-            $from = $this->box($data['box_id']);
-            $to = $this->box($data['counter_box_id']);
+            [$from, $to] = $this->boxPair($data['box_id'], $data['counter_box_id']);
             abort_if($from->currency_code === $to->currency_code, 422, 'صرف العملة بين عملتين مختلفتين؛ استخدم التحويل لنفس العملة.');
             $data['rate'] = round((float) $data['counter_amount'] / (float) $data['amount'], 6);
             $tx = $this->make('exchange', $data, $from, $actor, 'posted');
@@ -305,9 +303,26 @@ class CashService
         ]);
     }
 
+    /** Two boxes locked in id order, so opposite transfers between the same boxes cannot deadlock. */
+    private function boxPair(int|string $fromId, int|string $toId): array
+    {
+        $ids = [(int) $fromId, (int) $toId];
+        $locked = [];
+        foreach (array_unique([min($ids), max($ids)]) as $id) {
+            $locked[$id] = $this->box($id);
+        }
+
+        return [$locked[$ids[0]], $locked[$ids[1]]];
+    }
+
+    /**
+     * Every write path takes the box row lock before inserting the operation. The insert's foreign key
+     * otherwise takes a shared lock first, and two concurrent payments from one box deadlock when both
+     * then ask for the exclusive lock (reproduced on PostgreSQL; InnoDB behaves the same).
+     */
     private function box(int|string $id): Box
     {
-        $box = Box::query()->find($id);
+        $box = Box::query()->lockForUpdate()->find($id);
         abort_unless($box && $box->active, 422, 'الصندوق غير موجود أو غير فعّال.');
 
         return $box;

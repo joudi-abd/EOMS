@@ -43,7 +43,7 @@ class PayRunService
             throw ValidationException::withMessages(['month' => ['يُنشأ كشف الشهر بعد انتهائه فقط.']]);
         }
         $run = DB::transaction(function () use ($month, $actor) {
-            if (PayRun::query()->where('month', $month)->lockForUpdate()->exists()) {
+            if (PayRun::query()->where('month', $month)->lockForUpdate()->first(['id']) !== null) {
                 throw ValidationException::withMessages(['month' => ['يوجد كشف لهذا الشهر مسبقاً.']]);
             }
             $run = PayRun::create(['month' => $month, 'prepared_by' => $actor->id]);
@@ -107,7 +107,8 @@ class PayRunService
             $item = $line->items()->create([
                 'kind' => $data['category'] === 'earning' ? 'bonus' : 'manual_deduction', 'category' => $data['category'],
                 // HR proposes; finance approves, changes or waives it when reviewing the run.
-                'origin' => 'manual', 'proposed_amount' => $data['amount'], 'amount' => $data['amount'], 'status' => 'proposed',
+                // It counts as zero until then.
+                'origin' => 'manual', 'proposed_amount' => $data['amount'], 'amount' => 0, 'status' => 'proposed',
                 'reason' => $data['reason'], 'created_by' => $actor->id,
             ]);
             $this->totals($line);
@@ -207,9 +208,39 @@ class PayRunService
     }
 
     /**
+     * One decision for every item still awaiting review (optionally only some kinds, e.g. all lateness), so finance
+     * need not open dozens of small deductions one by one. Each item is recorded as its own decision.
+     *
+     * @param  list<string>|null  $kinds
+     */
+    public function reviewRemaining(PayRun $run, string $decision, ?array $kinds, string $reason, User $actor): int
+    {
+        return DB::transaction(function () use ($run, $decision, $kinds, $reason, $actor) {
+            $run = $this->lock($run, 'submitted');
+            $items = $this->items($run)->whereIn('origin', ['proposed', 'manual'])->where('status', 'proposed')
+                ->when($kinds, fn ($q) => $q->whereIn('kind', $kinds))->orderBy('id')->lockForUpdate()->get();
+            foreach ($items as $item) {
+                $item->update(['amount' => $decision === 'approve' ? $item->proposed_amount : 0,
+                    'status' => $decision === 'approve' ? 'approved' : 'waived', 'reason' => $reason,
+                    'decided_by' => $actor->id, 'decided_at' => now()]);
+                $this->audit->log('payroll.deduction_reviewed', $item, null, ['status' => $item->status, 'amount' => $item->amount, 'bulk' => true], $actor->id);
+            }
+            foreach (PayRunLine::query()->whereIn('id', $items->pluck('pay_run_line_id')->unique())->get() as $line) {
+                $this->totals($line);
+            }
+            if ($items->isNotEmpty()) {
+                $this->touch($run);
+            }
+
+            return $items->count();
+        });
+    }
+
+    /**
      * Approval locks the month. It re-resolves the eligible roster, rechecks each line's attendance/contract
      * fingerprint, and re-prices locked-month adjustments against current sources. Any drift rejects approval
-     * so HR must return the run to draft and recalculate. Proposed deductions not yet reviewed are accepted.
+     * so HR must return the run to draft and recalculate. Every proposed item (system deductions, HR bonuses and
+     * deductions, locked-month adjustments) needs an explicit finance decision first; nothing is accepted implicitly.
      */
     public function approve(PayRun $run, User $actor): PayRun
     {
@@ -225,10 +256,9 @@ class PayRunService
             if ($problems !== []) {
                 throw ValidationException::withMessages(['run' => $problems]);
             }
+            $undecided = $this->items($run)->whereIn('origin', ['proposed', 'manual'])->where('status', 'proposed')->count();
+            abort_if($undecided > 0, 409, "يوجد $undecided بنداً بلا قرار (خصومات مقترحة أو بنود الموارد البشرية)؛ اعتمدها أو عدّلها أو ألغها قبل اعتماد المسير.");
 
-            $this->items($run)->whereIn('origin', ['proposed', 'manual'])->where('status', 'proposed')->get()->each(function (PayRunItem $item) use ($actor) {
-                $item->update(['status' => 'approved', 'amount' => $item->proposed_amount, 'decided_by' => $actor->id, 'decided_at' => now()]);
-            });
             foreach ($lines as $line) {
                 $this->totals($line->refresh());
                 if ((float) $line->net < 0) {
@@ -572,8 +602,8 @@ class PayRunService
         $line->items()->create([
             'kind' => $item['kind'], 'category' => $item['category'], 'origin' => $item['origin'], 'unit' => $item['unit'],
             'quantity' => $item['quantity'], 'proposed_amount' => $item['amount'],
-            // A proposal counts in full until the company manager decides; adjustments count once finance accepts.
-            'amount' => $item['origin'] === 'adjustment' ? 0 : $item['amount'],
+            // Anything awaiting a finance decision counts as zero until it is approved or modified.
+            'amount' => $status === 'proposed' ? 0 : $item['amount'],
             'status' => $status, 'details' => $item['details'] ?? null,
         ]);
     }

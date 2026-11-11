@@ -243,8 +243,9 @@ class LedgerService
     private function assertMonthSettled(string $month): void
     {
         [$from, $to] = $this->bounds($month);
-        $pending = Transaction::query()->where('status', 'pending')->whereBetween('date', [$from, $to])->lockForUpdate()->count()
-            + Invoice::query()->whereIn('status', ['draft', 'pending'])->whereBetween('date', [$from, $to])->lockForUpdate()->count();
+        // Lock the rows themselves (FOR UPDATE cannot wrap an aggregate on every engine), then count them.
+        $pending = Transaction::query()->where('status', 'pending')->whereBetween('date', [$from, $to])->lockForUpdate()->pluck('id')->count()
+            + Invoice::query()->whereIn('status', ['draft', 'pending'])->whereBetween('date', [$from, $to])->lockForUpdate()->pluck('id')->count();
         abort_if($pending > 0, 409, "توجد $pending عملية أو فاتورة غير محسومة في هذا الشهر.");
     }
 

@@ -109,13 +109,15 @@ class InvoiceService
 
     /**
      * Reverses the invoice's entries and stock; payments must be reversed first.
-     * Refused when undoing a purchase would leave inventory value out of line with quantity × average.
+     * A purchase is cancelled only while it is still the latest stock move of each of its items.
      */
     public function cancel(Invoice $invoice, string $date, string $reason, User $actor): Invoice
     {
         return DB::transaction(function () use ($invoice, $date, $reason, $actor) {
             $invoice = Invoice::query()->lockForUpdate()->findOrFail($invoice->id);
             abort_unless($invoice->status === 'posted', 409, 'تُلغى الفواتير المرحّلة فقط.');
+            // Stock moves at zero cost post no entry; check the period here, not only through the ledger.
+            $this->ledger->ensureOpen($date);
             abort_if((float) $invoice->paid > 0, 409, 'اعكس دفعات الفاتورة أولاً.');
             // Lock stock rows before the value check so a concurrent post/adjust cannot slip in.
             $itemIds = $invoice->lines()->whereNotNull('item_id')->pluck('item_id')->unique()->sort()->values();
@@ -129,7 +131,7 @@ class InvoiceService
             }
             foreach ($invoice->lines()->whereNotNull('item_id')->get() as $line) {
                 $sign = $invoice->type === 'sale' ? 1 : -1;
-                $cost = $invoice->type === 'sale' ? (float) $line->cost_amount / (float) $line->quantity : (float) $line->unit_price;
+                $cost = $this->unitCost((float) ($invoice->type === 'sale' ? $line->cost_amount : $line->amount), (float) $line->quantity);
                 $this->move($items[$line->item_id], $sign * (float) $line->quantity, $cost, $date,
                     'invoice_cancel', $invoice->id, $reason, $actor);
             }
@@ -147,6 +149,8 @@ class InvoiceService
     public function adjustStock(Item $item, array $data, User $actor): StockMove
     {
         return DB::transaction(function () use ($item, $data, $actor) {
+            // A zero-value count posts no entry, so the period check cannot be left to the ledger.
+            $this->ledger->ensureOpen($data['date']);
             $item = Item::query()->lockForUpdate()->findOrFail($item->id);
             $quantity = round((float) $data['quantity'], 3);
             abort_if($quantity == 0, 422, 'أدخل فرق الكمية.');
@@ -181,8 +185,9 @@ class InvoiceService
                 $account = $line->item_id ? $inventory : $line->account_id;
                 $lines[] = ['account_id' => $account, 'debit' => $amount, 'memo' => $line->description];
                 if ($line->item_id) {
-                    $this->move(Item::query()->lockForUpdate()->findOrFail($line->item_id), (float) $line->quantity, (float) $line->unit_price,
-                        $date, 'invoice', $invoice->id, null, $actor);
+                    // Valued at the amount posted to the inventory account, so stock and ledger share one cost basis.
+                    $this->move(Item::query()->lockForUpdate()->findOrFail($line->item_id), (float) $line->quantity,
+                        $this->unitCost($amount, (float) $line->quantity), $date, 'invoice', $invoice->id, null, $actor);
                 }
             } else {
                 $lines[] = ['account_id' => $line->account_id, 'credit' => $amount, 'memo' => $line->description];
@@ -190,7 +195,7 @@ class InvoiceService
                     $item = Item::query()->lockForUpdate()->findOrFail($line->item_id);
                     $cost = round((float) $line->quantity * (float) $item->average_cost, 2);
                     $line->update(['cost_amount' => $cost]);
-                    $this->move($item, -(float) $line->quantity, (float) $item->average_cost, $date, 'invoice', $invoice->id, null, $actor);
+                    $this->move($item, -(float) $line->quantity, $this->unitCost($cost, (float) $line->quantity), $date, 'invoice', $invoice->id, null, $actor);
                     $costs[$item->currency_code] = ($costs[$item->currency_code] ?? 0) + $cost;
                 }
             }
@@ -212,29 +217,68 @@ class InvoiceService
     }
 
     /**
-     * Undoing an invoice must keep the inventory account equal to quantity × average cost.
-     * A sale cancel returns the goods at the cost they left with, which always holds. A purchase cancel
-     * removes them at their own price, which holds unless later sales at a lower average left less value
-     * on hand than that price (it would go negative, or leave value with no quantity). Those need a stock count adjustment.
+     * A purchase is undone only while it is the latest stock move of each item: later sales or counts were valued
+     * at an average that included it, and taking it out at its own price afterwards can leave a negative cost.
+     * Sales are always reversible (the goods come back at the cost they left with). The resulting average is
+     * computed exactly as move() will, on the same cost basis, and must not be negative.
      */
     private function assertStockInvoiceCancellable(Invoice $invoice, array $items): void
     {
         if ($invoice->type !== 'purchase') {
             return;
         }
-        foreach ($invoice->lines()->whereNotNull('item_id')->get()->groupBy('item_id') as $itemId => $lines) {
+        foreach ($invoice->lines()->whereNotNull('item_id')->orderBy('id')->get()->groupBy('item_id') as $itemId => $lines) {
             $item = $items[$itemId];
-            $quantityAfter = round((float) $item->quantity - (float) $lines->sum('quantity'), 3);
-            $valueAfter = round((float) $item->quantity * (float) $item->average_cost - (float) $lines->sum('amount'), 2);
-            if ($quantityAfter < -0.0005) {
-                continue; // move() reports the missing quantity
-            }
-            if ($valueAfter < -0.005 || ($quantityAfter < 0.0005 && abs($valueAfter) >= 0.01)) {
+            $lastOwnMove = StockMove::query()->where('item_id', $itemId)->where('source_type', 'invoice')
+                ->where('source_id', $invoice->id)->max('id');
+            if ($lastOwnMove !== null && StockMove::query()->where('item_id', $itemId)->where('id', '>', $lastOwnMove)->exists()) {
                 throw ValidationException::withMessages([
-                    'invoice' => ['لا يمكن إلغاء فاتورة الشراء: بيع جزء من '.$item->name.' بمتوسط تكلفة أقل من سعرها، فلا تكفي قيمة المخزون المتبقي لإلغائها. سجّل تسوية جرد بدل الإلغاء.'],
+                    'invoice' => ['لا تُلغى فاتورة الشراء بعد حركات لاحقة على '.$item->name.'؛ سجّل تسوية جرد بدل الإلغاء.'],
                 ]);
             }
+            $quantity = (float) $item->quantity;
+            $average = (float) $item->average_cost;
+            foreach ($lines as $line) {
+                $removed = -(float) $line->quantity;
+                $after = round($quantity + $removed, 3);
+                if ($after < -0.0005) {
+                    break; // move() reports the missing quantity
+                }
+                $average = $this->averageAfter($quantity, $average, $removed, $this->unitCost((float) $line->amount, (float) $line->quantity), 'invoice_cancel');
+                if ($average < 0) {
+                    throw ValidationException::withMessages([
+                        'invoice' => ['إلغاء فاتورة الشراء يجعل متوسط تكلفة '.$item->name.' سالباً؛ سجّل تسوية جرد بدل الإلغاء.'],
+                    ]);
+                }
+                $quantity = $after;
+            }
         }
+    }
+
+    /** Unit cost of a stock line from the amount posted for it. */
+    private function unitCost(float $amount, float $quantity): float
+    {
+        return $quantity > 0 ? $amount / $quantity : 0.0;
+    }
+
+    /** The weighted average after a move, rounded as stored (6 places); shared by move() and the cancel check. */
+    private function averageAfter(float $onHand, float $average, float $quantity, float $unitCost, string $sourceType): float
+    {
+        $after = round($onHand + $quantity, 3);
+        if ($after == 0.0) {
+            return 0.0;
+        }
+        if ($quantity > 0 || $sourceType === 'invoice_cancel') {
+            $average = ($onHand * $average + $quantity * $unitCost) / $after;
+        }
+        $average = round($average, 6);
+        // Stock with (almost) zero cost can come out a fraction of a cent below zero from rounding alone:
+        // that is zero. Anything larger stays negative so the cancel check refuses it.
+        if ($average < 0 && abs($average * $after) < 0.005) {
+            return 0.0;
+        }
+
+        return $average + 0.0; // + 0.0 turns -0.0 into 0.0
     }
 
     /** Weighted average cost: purchases re-average; sales and losses leave at average; stock never goes negative. */
@@ -245,16 +289,9 @@ class InvoiceService
         if ($after < -0.0005) {
             throw ValidationException::withMessages(['quantity' => ["الكمية المتوفرة من {$item->name} هي ".rtrim(rtrim(number_format($onHand, 3, '.', ''), '0'), '.').' فقط.']]);
         }
-        $average = (float) $item->average_cost;
-        if ($quantity > 0 && $after > 0) {
-            $average = ($onHand * $average + $quantity * $unitCost) / $after;
-        } elseif ($quantity < 0 && $sourceType === 'invoice_cancel' && $after > 0) {
-            // Cancelling a purchase removes value at its own unit price (assertStockInvoiceCancellable keeps it ≥ 0).
-            $average = ($onHand * $average + $quantity * $unitCost) / $after;
-        } elseif ($after == 0.0) {
-            $average = 0;
-        }
-        $item->update(['quantity' => $after, 'average_cost' => round($average, 6)]);
+        // A sale cancel adds back at its cost and a purchase cancel removes at its price (checked ≥ 0 beforehand).
+        $average = $this->averageAfter($onHand, (float) $item->average_cost, $quantity, $unitCost, $sourceType);
+        $item->update(['quantity' => $after, 'average_cost' => $average]);
 
         return StockMove::create(['item_id' => $item->id, 'date' => $date, 'quantity' => $quantity, 'unit_cost' => round($unitCost, 6),
             'quantity_after' => $after, 'average_cost_after' => round($average, 6), 'source_type' => $sourceType, 'source_id' => $sourceId,

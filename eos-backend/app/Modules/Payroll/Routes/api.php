@@ -22,6 +22,7 @@ Route::prefix('api/v1/payroll')->middleware(['api', 'auth:sanctum'])->controller
     // Review and approve: finance (payroll.approve; the company manager holds it too).
     Route::middleware('perm:payroll.approve')->group(function () {
         Route::post('items/{item}/review', 'reviewDeduction')->whereNumber('item');
+        Route::post('runs/{run}/review-remaining', 'reviewRemaining')->whereNumber('run');
         Route::post('items/{item}/adjustment-decision', 'decideAdjustment')->whereNumber('item');
         Route::post('runs/{run}/return', 'returnToDraft')->whereNumber('run');
         Route::post('runs/{run}/approve', 'approve')->whereNumber('run');
