@@ -5,6 +5,7 @@ use App\Modules\HR\Providers\HrServiceProvider;
 use App\Modules\Identity\Providers\IdentityServiceProvider;
 use App\Modules\Payroll\Providers\PayrollServiceProvider;
 use App\Modules\Settings\Providers\SettingsServiceProvider;
+use App\Modules\Tasks\Providers\TasksServiceProvider;
 use App\Providers\AppServiceProvider;
 
 return [
@@ -14,4 +15,5 @@ return [
     HrServiceProvider::class,
     FinanceServiceProvider::class,
     PayrollServiceProvider::class,
+    TasksServiceProvider::class,
 ];

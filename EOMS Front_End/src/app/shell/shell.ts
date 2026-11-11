@@ -13,7 +13,7 @@ import { moduleIcon } from './icons';
 
 const navGroups: { label: CopyKey; ids: ModuleId[] }[] = [
   { label: 'navPeople', ids: ['employees', 'attendance', 'leave', 'requests', 'payroll', 'hrSettings'] },
-  { label: 'navWork', ids: ['projects', 'clients', 'procurement', 'documents', 'assets', 'meetings'] },
+  { label: 'navWork', ids: ['tasks', 'projects', 'clients', 'procurement', 'documents', 'assets', 'meetings'] },
   { label: 'navMoney', ids: ['finance'] },
   { label: 'navSystem', ids: ['access', 'alerts'] },
 ];

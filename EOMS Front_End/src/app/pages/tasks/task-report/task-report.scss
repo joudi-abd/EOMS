@@ -1,0 +1,24 @@
+/* Task reports: the period filters, the totals and one row per person. */
+
+:host {
+  display: block;
+  margin-top: 16px;
+}
+
+.tk-filters {
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.tk-filters label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.85rem;
+}
+
+.summary,
+.sheet {
+  margin-top: 12px;
+}

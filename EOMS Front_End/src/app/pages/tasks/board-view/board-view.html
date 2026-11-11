@@ -1,0 +1,361 @@
+@if (loading()) {
+  <p class="empty">{{ t('loading') }}</p>
+} @else if (missing() || !snapshot()) {
+  <a class="text" [routerLink]="[]" [queryParams]="{}"><i class="fa-solid fa-arrow-right flip" aria-hidden="true"></i> {{ t('tkBackToBoards') }}</a>
+}
+@if (!loading() && !missing() && snapshot(); as s) {
+  <header class="tk-head" [style.--board]="s.board.color || 'var(--action)'">
+    <a class="text small" [routerLink]="[]" [queryParams]="{}"><i class="fa-solid fa-arrow-right flip" aria-hidden="true"></i> {{ t('tkBackToBoards') }}</a>
+    <div class="tk-title">
+      <h1>{{ s.board.name }}</h1>
+      <span class="tk-chip">{{ typeLabel(s.board.type) }}</span>
+      <span class="tk-chip">{{ roleLabel(s.role) }}</span>
+      <span class="tk-live" [attr.title]="t('tkLive')"><i class="fa-solid fa-circle" aria-hidden="true"></i> {{ t('tkLive') }}</span>
+    </div>
+    @if (s.board.description) { <p class="lede">{{ s.board.description }}</p> }
+    <nav class="tk-tools" [attr.aria-label]="t('tkSettings')">
+      @if (!isPersonal()) {
+        <button class="text" type="button" [class.on]="panel() === 'members'" [attr.aria-expanded]="panel() === 'members'" (click)="show('members')">
+          <i class="fa-solid fa-users" aria-hidden="true"></i> {{ t('tkMembers') }} <bdi class="soft">{{ num(members().length) }}</bdi>
+        </button>
+      }
+      <button class="text" type="button" [class.on]="panel() === 'labels'" [attr.aria-expanded]="panel() === 'labels'" (click)="show('labels')">
+        <i class="fa-solid fa-tags" aria-hidden="true"></i> {{ t('tkLabels') }}
+      </button>
+      <button class="text" type="button" [class.on]="panel() === 'recurring'" [attr.aria-expanded]="panel() === 'recurring'" (click)="show('recurring')">
+        <i class="fa-solid fa-repeat" aria-hidden="true"></i> {{ t('tkRecurring') }}
+      </button>
+      <button class="text" type="button" [class.on]="panel() === 'archive'" [attr.aria-expanded]="panel() === 'archive'" (click)="show('archive')">
+        <i class="fa-solid fa-box-archive" aria-hidden="true"></i> {{ t('tkArchive') }}
+      </button>
+      @if (s.role === 'owner') {
+        <button class="text" type="button" [class.on]="panel() === 'settings'" [attr.aria-expanded]="panel() === 'settings'" (click)="show('settings')">
+          <i class="fa-solid fa-gear" aria-hidden="true"></i> {{ t('tkSettings') }}
+        </button>
+      }
+    </nav>
+  </header>
+
+  @if (archived()) {
+    <p class="fin-warn">{{ t('tkArchivedBoard') }}</p>
+  } @else if (s.role === 'viewer') {
+    <p class="fin-hint">{{ t('tkReadOnly') }}</p>
+  }
+
+  <!-- Members -->
+  @if (panel() === 'members') {
+    <section class="fin-sheet">
+      <header>
+        <h2>{{ t('tkMembers') }}</h2>
+        <button class="quiet-x" type="button" (click)="panel.set('none')" [attr.aria-label]="t('dismiss')"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+      </header>
+      <ul class="fin-list">
+        @for (m of members(); track m.user_id) {
+          <li>
+            <span class="tk-person"><i class="tk-avatar" aria-hidden="true">{{ ini(m.name) }}</i> {{ m.name }}
+              @if (m.implicit) { <span class="soft">· {{ t('tkImplicit') }}</span> }
+            </span>
+            <span class="end">
+              @if (isOwner()) {
+                <label><span class="vh">{{ t('tkRoleOwner') }}</span>
+                  <select [ngModel]="m.role" (ngModelChange)="changeRole(m, $event)" [disabled]="busy()">
+                    @for (r of roles; track r) { <option [ngValue]="r">{{ roleLabel(r) }}</option> }
+                  </select>
+                </label>
+                @if (!m.implicit) {
+                  <button class="text small" type="button" [disabled]="busy()" (click)="removeMember(m)">{{ t('tkRemove') }}</button>
+                }
+              } @else {
+                <span class="soft">{{ roleLabel(m.role) }}</span>
+              }
+            </span>
+          </li>
+        }
+      </ul>
+      @if (isOwner() && peopleAllowed()) {
+        <form class="fin-form tk-add-member" (ngSubmit)="searchPeople()">
+          <label>{{ t('tkSearchPeople') }}<input name="peopleQuery" type="search" [(ngModel)]="peopleQuery" (input)="searchPeople()" /></label>
+          <label>{{ t('tkRoleMember') }}
+            <select name="newRole" [(ngModel)]="newMemberRole">
+              @for (r of roles; track r) { <option [ngValue]="r">{{ roleLabel(r) }}</option> }
+            </select>
+          </label>
+        </form>
+        <ul class="fin-list tk-people">
+          @for (p of candidates().slice(0, 30); track p.user_id) {
+            <li>
+              <span>{{ p.name }} @if (p.department_name) { <span class="soft">· {{ p.department_name }}</span> }</span>
+              <span class="end"><button class="text small" type="button" [disabled]="busy()" (click)="addMember(p)"><i class="fa-solid fa-user-plus" aria-hidden="true"></i> {{ t('tkAddMember') }}</button></span>
+            </li>
+          }
+        </ul>
+      }
+    </section>
+  }
+
+  <!-- Labels -->
+  @if (panel() === 'labels') {
+    <section class="fin-sheet narrow">
+      <header>
+        <h2>{{ t('tkLabels') }}</h2>
+        <button class="quiet-x" type="button" (click)="panel.set('none')" [attr.aria-label]="t('dismiss')"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+      </header>
+      <ul class="fin-list">
+        @for (l of labels(); track l.id) {
+          <li>
+            <span class="tk-label-chip" [style.background]="l.color">{{ l.name }}</span>
+            @if (canWork()) {
+              <span class="end">
+                <button class="text small" type="button" (click)="editLabel(l)">{{ t('tkEdit') }}</button>
+                <button class="text small" type="button" [disabled]="busy()" (click)="deleteLabel(l)">{{ t('tkDelete') }}</button>
+              </span>
+            }
+          </li>
+        }
+      </ul>
+      @if (canWork()) {
+        <form class="fin-form" (ngSubmit)="saveLabel()">
+          <label class="wide">{{ t('tkLabelName') }}<input name="labelName" maxlength="50" required [(ngModel)]="labelForm.name" /></label>
+          <div class="tk-swatches wide" role="radiogroup" [attr.aria-label]="t('tkBoardColor')">
+            @for (c of swatches; track c) {
+              <button type="button" role="radio" [attr.aria-checked]="labelForm.color === c" [class.on]="labelForm.color === c" [style.background]="c" [attr.aria-label]="c" (click)="labelForm.color = c"></button>
+            }
+          </div>
+          <div class="fin-actions wide">
+            @if (labelForm.id) { <button class="text" type="button" (click)="labelForm = { id: 0, name: '', color: swatches[0] }">{{ t('cancel') }}</button> }
+            <button class="primary" type="submit" [disabled]="busy() || !labelForm.name.trim()">{{ labelForm.id ? t('save') : t('tkAddLabel') }}</button>
+          </div>
+        </form>
+      }
+    </section>
+  }
+
+  <!-- Recurring -->
+  @if (panel() === 'recurring') {
+    <section class="fin-sheet">
+      <header>
+        <h2>{{ t('tkRecurring') }}</h2>
+        <button class="quiet-x" type="button" (click)="panel.set('none')" [attr.aria-label]="t('dismiss')"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+      </header>
+      <p class="fin-hint">{{ t('tkRecurringHint') }}</p>
+      <ul class="fin-list">
+        @for (r of recurrences(); track r.id) {
+          <li>
+            <span>
+              <strong>{{ r.template?.title }}</strong>
+              <span class="soft"> · {{ recurrenceWhen(r) }}</span>
+              @if (r.active) { <span class="soft"> · {{ t('tkNextRun') }} {{ short(r.next_run_on ?? '') }}</span> } @else { <span class="mute"> · {{ t('tkStopped') }}</span> }
+            </span>
+            @if (r.active && canWork()) {
+              <span class="end"><button class="text small" type="button" [disabled]="busy()" (click)="stopRecurring(r)">{{ t('tkStop') }}</button></span>
+            }
+          </li>
+        }
+      </ul>
+      @if (canWork()) {
+        <form class="fin-form" (ngSubmit)="saveRecurring()">
+          <h3 class="wide">{{ t('tkNewRecurring') }}</h3>
+          <label class="wide">{{ t('tkCardTitle') }}<input name="rTitle" maxlength="200" required [(ngModel)]="recurring.title" /></label>
+          <label>{{ t('tkLists') }}
+            <select name="rList" [(ngModel)]="recurring.list_id">
+              @for (l of lists(); track l.id) { @if (l.kind === 'normal') { <option [ngValue]="l.id">{{ l.name }}</option> } }
+            </select>
+          </label>
+          <label>{{ t('tkPriority') }}
+            <select name="rPriority" [(ngModel)]="recurring.priority">
+              @for (p of priorities; track p) { <option [ngValue]="p">{{ priorityLabel(p) }}</option> }
+            </select>
+          </label>
+          <div class="wide">
+            <span class="tk-label">{{ t('tkFrequency') }}</span>
+            <div class="seg" role="radiogroup" [attr.aria-label]="t('tkFrequency')">
+              <button type="button" role="radio" [class.on]="recurring.frequency === 'daily'" [attr.aria-checked]="recurring.frequency === 'daily'" (click)="recurring.frequency = 'daily'">{{ t('tkDaily') }}</button>
+              <button type="button" role="radio" [class.on]="recurring.frequency === 'weekly'" [attr.aria-checked]="recurring.frequency === 'weekly'" (click)="recurring.frequency = 'weekly'">{{ t('tkWeekly') }}</button>
+              <button type="button" role="radio" [class.on]="recurring.frequency === 'monthly'" [attr.aria-checked]="recurring.frequency === 'monthly'" (click)="recurring.frequency = 'monthly'">{{ t('tkMonthly') }}</button>
+            </div>
+          </div>
+          @if (recurring.frequency === 'weekly') {
+            <fieldset class="wide tk-checks">
+              <legend>{{ t('tkWeekdays') }}</legend>
+              @for (key of dayKeys; track $index) {
+                <label><input type="checkbox" [checked]="recurring.weekdays.includes($index)" (change)="recurring.weekdays = toggleIn(recurring.weekdays, $index)" /> {{ t(key) }}</label>
+              }
+            </fieldset>
+          }
+          @if (recurring.frequency === 'monthly') {
+            <label>{{ t('tkMonthDay') }}<input name="rDay" type="number" min="1" max="31" [(ngModel)]="recurring.month_day" /></label>
+          }
+          <label>{{ t('tkDueInDays') }}<input name="rDue" type="number" min="0" max="60" [(ngModel)]="recurring.due_in_days" /></label>
+          @if (workers().length) {
+            <fieldset class="wide tk-checks">
+              <legend>{{ t('tkAssignees') }}</legend>
+              @for (m of workers(); track m.user_id) {
+                <label><input type="checkbox" [checked]="recurring.assignee_ids.includes(m.user_id)" (change)="recurring.assignee_ids = toggleIn(recurring.assignee_ids, m.user_id)" /> {{ m.name }}</label>
+              }
+            </fieldset>
+          }
+          <div class="fin-actions wide">
+            <button class="primary" type="submit" [disabled]="busy() || !recurring.title.trim() || !recurring.list_id">{{ t('save') }}</button>
+          </div>
+        </form>
+      }
+    </section>
+  }
+
+  <!-- Archive -->
+  @if (panel() === 'archive') {
+    <section class="fin-sheet">
+      <header>
+        <h2>{{ t('tkArchive') }}</h2>
+        <button class="quiet-x" type="button" (click)="panel.set('none')" [attr.aria-label]="t('dismiss')"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+      </header>
+      @if (!archivedLists().length && !archivedCards().length) {
+        <p class="empty">{{ t('tkEmptyList') }}</p>
+      }
+      <ul class="fin-list">
+        @for (l of archivedLists(); track l.id) {
+          <li>
+            <span><i class="fa-solid fa-table-columns soft" aria-hidden="true"></i> {{ l.name }}</span>
+            @if (isOwner()) { <span class="end"><button class="text small" type="button" [disabled]="busy()" (click)="restoreList(l)">{{ t('tkRestore') }}</button></span> }
+          </li>
+        }
+        @for (c of archivedCards(); track c.id) {
+          <li>
+            <span>{{ c.title }} <span class="soft">· {{ listName(c.list_id) }}</span></span>
+            @if (canWork()) { <span class="end"><button class="text small" type="button" [disabled]="busy()" (click)="restoreCard(c)">{{ t('tkRestore') }}</button></span> }
+          </li>
+        }
+      </ul>
+    </section>
+  }
+
+  <!-- Settings -->
+  @if (panel() === 'settings' && s.role === 'owner') {
+    <form class="fin-sheet narrow" (ngSubmit)="saveSettings()">
+      <header>
+        <h2>{{ t('tkSettings') }}</h2>
+        <button class="quiet-x" type="button" (click)="panel.set('none')" [attr.aria-label]="t('dismiss')"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+      </header>
+      <fieldset class="fin-form" [disabled]="busy()">
+        @if (!archived()) {
+          <label class="wide">{{ t('tkBoardName') }}<input name="sName" required maxlength="150" [(ngModel)]="settings.name" /></label>
+          <label class="wide">{{ t('tkBoardDescription') }}<textarea name="sDescription" rows="2" maxlength="2000" [(ngModel)]="settings.description"></textarea></label>
+          <div class="tk-swatches wide" role="radiogroup" [attr.aria-label]="t('tkBoardColor')">
+            @for (c of swatches; track c) {
+              <button type="button" role="radio" [attr.aria-checked]="settings.color === c" [class.on]="settings.color === c" [style.background]="c" [attr.aria-label]="c" (click)="settings.color = c"></button>
+            }
+          </div>
+        }
+        <div class="fin-actions wide">
+          @if (archived()) {
+            <button class="primary" type="button" (click)="archiveBoard(false)">{{ t('tkRestoreBoard') }}</button>
+          } @else {
+            <button class="quiet" type="button" (click)="archiveBoard(true)"><i class="fa-solid fa-box-archive" aria-hidden="true"></i> {{ t('tkArchiveBoard') }}</button>
+            <button class="primary" type="submit" [disabled]="!settings.name.trim()">{{ t('save') }}</button>
+          }
+        </div>
+      </fieldset>
+    </form>
+  }
+
+  @if (canWork()) { <p class="fin-hint tk-drag-hint">{{ t('tkDragHint') }}</p> }
+
+  <div class="tk-board" [class.dragging]="dragging() !== null" (dragend)="dragEnd()">
+    @for (list of lists(); track list.id; let i = $index) {
+      <section class="tk-list" [class.done]="list.kind === 'done'" [class.finished]="list.kind === 'finished'"
+               [attr.aria-label]="list.name" (dragover)="overList($event, list)" (drop)="drop($event)">
+        <header class="tk-list-head">
+          @if (renaming() === list.id) {
+            <form (ngSubmit)="rename(list)">
+              <label><span class="vh">{{ t('tkListName') }}</span>
+                <input name="rename" maxlength="100" [(ngModel)]="renameText" (blur)="rename(list)" (keydown.escape)="renaming.set(null)" />
+              </label>
+            </form>
+          } @else {
+            <h2>{{ list.name }} <bdi class="soft">{{ num(cardsIn(list.id).length) }}</bdi></h2>
+          }
+          @if (list.kind === 'done') { <span class="tk-kind wait">{{ t('tkKindDone') }}</span> }
+          @if (list.kind === 'finished') { <span class="tk-kind ok">{{ t('tkKindFinished') }}</span> }
+          @if (isOwner()) {
+            <span class="tk-list-tools">
+              <button class="quiet-x" type="button" (click)="startRename(list)" [attr.aria-label]="t('tkRenameList')" [attr.title]="t('tkRenameList')"><i class="fa-solid fa-pen" aria-hidden="true"></i></button>
+              @if (list.kind === 'normal') {
+                <button class="quiet-x" type="button" [disabled]="!canShift(list, -1) || busy()" (click)="shiftList(list, -1)" [attr.aria-label]="t('tkMoveLeft')" [attr.title]="t('tkMoveLeft')"><i class="fa-solid fa-chevron-right flip" aria-hidden="true"></i></button>
+                <button class="quiet-x" type="button" [disabled]="!canShift(list, 1) || busy()" (click)="shiftList(list, 1)" [attr.aria-label]="t('tkMoveRight')" [attr.title]="t('tkMoveRight')"><i class="fa-solid fa-chevron-left flip" aria-hidden="true"></i></button>
+                <button class="quiet-x" type="button" [disabled]="cardsIn(list.id).length > 0 || busy()" (click)="archiveList(list)" [attr.aria-label]="t('tkArchiveList')" [attr.title]="t('tkArchiveList')"><i class="fa-solid fa-box-archive" aria-hidden="true"></i></button>
+              }
+            </span>
+          }
+        </header>
+
+        <ol class="tk-cards">
+          @for (card of cardsIn(list.id); track card.id) {
+            @if (showGap(list.id, card.id)) { <li class="tk-gap" aria-hidden="true">{{ t('tkDropHere') }}</li> }
+            <li class="tk-card" [class.lifted]="dragging() === card.id" [class.active]="cardId() === card.id"
+                [attr.draggable]="canWork() && list.kind !== 'finished'"
+                (dragstart)="dragStart($event, card)" (dragover)="overCard($event, list, card)">
+              <div class="tk-card-open" role="button" tabindex="0" (click)="open(card)" (keydown.enter)="open(card)" (keydown.space)="open(card); $event.preventDefault()">
+                @if (card.label_ids.length) {
+                  <span class="tk-card-labels">
+                    @for (id of card.label_ids; track id) {
+                      @if (label(id); as l) { <span class="tk-label-bar" [style.background]="l.color" [attr.title]="l.name"><span class="vh">{{ l.name }}</span></span> }
+                    }
+                  </span>
+                }
+                <span class="tk-card-title">
+                  @if (card.priority === 'urgent' || card.priority === 'high') {
+                    <i class="fa-solid fa-flag" [class.late]="card.priority === 'urgent'" [class.wait]="card.priority === 'high'" [attr.title]="priorityLabel(card.priority)" aria-hidden="true"></i>
+                    <span class="vh">{{ priorityLabel(card.priority) }}</span>
+                  }
+                  {{ card.title }}
+                </span>
+                <span class="tk-card-meta">
+                  @if (card.due_date) {
+                    <span [class.late]="overdue(card)" [class.ok]="!!card.done_at"><i class="fa-regular fa-clock" aria-hidden="true"></i> {{ short(card.due_date) }}</span>
+                  }
+                  @if (card.checklist.total) {
+                    <span [class.ok]="card.checklist.done === card.checklist.total"><i class="fa-regular fa-square-check" aria-hidden="true"></i> {{ num(card.checklist.done) }}/{{ num(card.checklist.total) }}</span>
+                  }
+                  @if (card.comments) { <span><i class="fa-regular fa-comment" aria-hidden="true"></i> {{ num(card.comments) }}</span> }
+                  @if (card.attachments) { <span><i class="fa-solid fa-paperclip" aria-hidden="true"></i> {{ num(card.attachments) }}</span> }
+                  @if (card.has_description) { <span><i class="fa-solid fa-align-left" aria-hidden="true"></i><span class="vh">{{ t('tkDescription') }}</span></span> }
+                  @if (card.recurrence_id) { <span><i class="fa-solid fa-repeat" aria-hidden="true"></i><span class="vh">{{ t('tkRecurring') }}</span></span> }
+                  @if (card.assignee_ids.length) {
+                    <span class="tk-avatars">
+                      @for (id of card.assignee_ids.slice(0, 4); track id) {
+                        <i class="tk-avatar" [attr.title]="member(id)?.name">{{ ini(member(id)?.name ?? '?') }}</i>
+                      }
+                    </span>
+                  }
+                </span>
+              </div>
+            </li>
+          }
+          @if (showGap(list.id, null)) { <li class="tk-gap" aria-hidden="true">{{ t('tkDropHere') }}</li> }
+          @if (!cardsIn(list.id).length && !showGap(list.id, null)) { <li class="tk-none">{{ t('tkEmptyList') }}</li> }
+        </ol>
+
+        @if (canWork() && list.kind === 'normal') {
+          <form class="tk-quick" (ngSubmit)="addCard(list)">
+            <label><span class="vh">{{ t('tkAddCard') }}</span>
+              <input [name]="'new' + list.id" maxlength="200" [placeholder]="'+ ' + t('tkAddCard')" [attr.title]="t('tkNewCardHint')" [(ngModel)]="newCard[list.id]" />
+            </label>
+          </form>
+        }
+      </section>
+    }
+
+    @if (isOwner()) {
+      <form class="tk-list tk-new-list" (ngSubmit)="addList()">
+        <label><span class="vh">{{ t('tkListName') }}</span>
+          <input name="newList" maxlength="100" [placeholder]="'+ ' + t('tkAddList')" [(ngModel)]="newList" />
+        </label>
+        <button class="text small" type="submit" [disabled]="busy() || !newList.trim()">{{ t('tkAddList') }}</button>
+      </form>
+    }
+  </div>
+
+  @if (cardId()) {
+    <app-card-panel [cardId]="cardId()" [board]="s" [refresh]="refresh()" (closed)="closeCard()" (changed)="cardChanged()" />
+  }
+}

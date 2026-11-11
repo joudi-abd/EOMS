@@ -1,0 +1,296 @@
+<div class="tk-scrim" (click)="closed.emit()" aria-hidden="true"></div>
+<aside class="tk-drawer" role="dialog" aria-modal="false" [attr.aria-label]="t('tkCard')" (keydown.escape)="closed.emit()">
+  <header class="tk-drawer-head">
+    <span class="soft">{{ t('tkInList') }} <strong>{{ list()?.name ?? '—' }}</strong></span>
+    <button class="quiet-x" type="button" (click)="closed.emit()" [attr.aria-label]="t('dismiss')"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+  </header>
+
+  @if (loading()) {
+    <p class="empty">{{ t('loading') }}</p>
+  } @else if (card(); as c) {
+    <!-- Title -->
+    <h2 class="vh" tabindex="-1" #heading>{{ c.title }}</h2>
+    @if (editable()) {
+      <label class="tk-title-field"><span class="vh">{{ t('tkCardTitle') }}</span>
+        <textarea name="title" rows="2" maxlength="200" [(ngModel)]="draft.title" (blur)="saveTitle()" (keydown.enter)="$any($event.target).blur(); $event.preventDefault()"></textarea>
+      </label>
+    } @else {
+      <p class="tk-title-text">{{ c.title }}</p>
+    }
+
+    @if (c.archived_at) { <p class="fin-warn">{{ t('tkArchiveCard') }} · {{ stamp(c.archived_at) }}</p> }
+    @if (kind() === 'finished') { <p class="fin-hint tk-note ok">{{ t('tkFinishedNote') }}</p> }
+    @if (kind() === 'done') { <p class="fin-hint tk-note wait">{{ t('tkDoneNote') }}</p> }
+    @for (w of c.warnings; track w.user_id) {
+      <p class="fin-warn"><i class="fa-solid fa-plane-departure" aria-hidden="true"></i> {{ warningName(w.user_id) }} — {{ t('tkOnLeave') }}</p>
+    }
+
+    <!-- Completion -->
+    @if (!c.archived_at && boardOpen()) {
+      <div class="tk-flow">
+        @if (kind() === 'normal' && (isOwner() || isAssignee()) && board().role !== 'viewer') {
+          <button class="primary" type="button" [disabled]="busy()" (click)="markDone()"><i class="fa-solid fa-check" aria-hidden="true"></i> {{ t('tkMarkDone') }}</button>
+        }
+        @if (kind() === 'done' && isOwner()) {
+          <button class="primary" type="button" [disabled]="busy()" (click)="approve()"><i class="fa-solid fa-check-double" aria-hidden="true"></i> {{ t('tkApprove') }}</button>
+          <button class="quiet" type="button" [disabled]="busy()" (click)="rejecting = !rejecting">{{ t('tkReject') }}</button>
+        }
+        @if (kind() === 'finished' && isOwner()) {
+          <button class="quiet" type="button" [disabled]="busy()" (click)="reopen()"><i class="fa-solid fa-rotate-left" aria-hidden="true"></i> {{ t('tkReopen') }}</button>
+        }
+        @if (board().role !== 'viewer') {
+          <button class="text" type="button" [attr.aria-pressed]="c.watching" (click)="watch()">
+            <i [class]="c.watching ? 'fa-solid fa-eye' : 'fa-regular fa-eye'" aria-hidden="true"></i> {{ c.watching ? t('tkWatching') : t('tkWatch') }}
+          </button>
+        }
+      </div>
+      @if (rejecting) {
+        <form class="fin-form" (ngSubmit)="reject()">
+          <label class="wide">{{ t('tkRejectReason') }}<textarea name="reason" rows="2" minlength="3" maxlength="1000" required [(ngModel)]="rejectReason"></textarea></label>
+          <div class="fin-actions wide">
+            <button class="text" type="button" (click)="rejecting = false">{{ t('cancel') }}</button>
+            <button class="primary" type="submit" [disabled]="busy() || rejectReason.trim().length < 3">{{ t('tkReject') }}</button>
+          </div>
+        </form>
+      }
+    }
+
+    <!-- Fields -->
+    <section class="tk-sec">
+      <div class="fin-form">
+        <label>{{ t('tkPriority') }}
+          <select name="priority" [disabled]="!editable() || busy()" [ngModel]="draft.priority" (ngModelChange)="draft.priority = $event; saveFields({ priority: $event })">
+            @for (p of priorities; track p) { <option [ngValue]="p">{{ priorityLabel(p) }}</option> }
+          </select>
+        </label>
+        <span></span>
+        <label>{{ t('tkStart') }}<input name="start" type="date" [disabled]="!editable() || busy()" [(ngModel)]="draft.start_date" (change)="saveDates()" /></label>
+        <label>{{ t('tkDue') }}<input name="due" type="date" [disabled]="!editable() || busy()" [min]="draft.start_date" [(ngModel)]="draft.due_date" (change)="saveDates()" /></label>
+      </div>
+    </section>
+
+    <!-- Assignees -->
+    <section class="tk-sec">
+      <h3>{{ t('tkAssignees') }}</h3>
+      @if (editable()) {
+        <div class="tk-pills">
+          @for (m of workers(); track m.user_id) {
+            <button type="button" class="tk-pill" [class.on]="c.assignee_ids.includes(m.user_id)" [attr.aria-pressed]="c.assignee_ids.includes(m.user_id)" [disabled]="busy()" (click)="toggleAssignee(m.user_id)">
+              <i class="tk-avatar" aria-hidden="true">{{ ini(m.name) }}</i> {{ m.name }}
+            </button>
+          }
+        </div>
+      } @else if (c.assignee_ids.length) {
+        <p>@for (id of c.assignee_ids; track id; let last = $last) { {{ nameOf(id) }}@if (!last) {، } }</p>
+      } @else {
+        <p class="soft">{{ t('tkNoAssignees') }}</p>
+      }
+    </section>
+
+    <!-- Labels -->
+    @if (board().labels.length) {
+      <section class="tk-sec">
+        <h3>{{ t('tkLabels') }}</h3>
+        <div class="tk-pills">
+          @for (l of board().labels; track l.id) {
+            @if (editable()) {
+              <button type="button" class="tk-tag" [class.off]="!c.label_ids.includes(l.id)" [style.background]="l.color" [attr.aria-pressed]="c.label_ids.includes(l.id)" [disabled]="busy()" (click)="toggleLabel(l.id)">{{ l.name }}</button>
+            } @else if (c.label_ids.includes(l.id)) {
+              <span class="tk-tag" [style.background]="l.color">{{ l.name }}</span>
+            }
+          }
+        </div>
+      </section>
+    }
+
+    <!-- Description -->
+    <section class="tk-sec">
+      <h3>{{ t('tkDescription') }}
+        @if (editable() && !editingDescription) { <button class="text small" type="button" (click)="editingDescription = true">{{ t('tkEdit') }}</button> }
+      </h3>
+      @if (editingDescription) {
+        <form (ngSubmit)="saveDescription()">
+          <label><span class="vh">{{ t('tkDescription') }}</span><textarea name="description" rows="6" maxlength="10000" [(ngModel)]="draft.description"></textarea></label>
+          <div class="fin-actions">
+            <button class="text" type="button" (click)="editingDescription = false; draft.description = c.description ?? ''">{{ t('cancel') }}</button>
+            <button class="primary" type="submit" [disabled]="busy()">{{ t('save') }}</button>
+          </div>
+        </form>
+      } @else if (c.description) {
+        <p class="tk-description">{{ c.description }}</p>
+      } @else {
+        <p class="soft">—</p>
+      }
+    </section>
+
+    <!-- Checklists -->
+    <section class="tk-sec">
+      <h3>{{ t('tkChecklists') }}</h3>
+      @for (list of c.checklists; track list.id) {
+        <div class="tk-checklist">
+          <h4>{{ list.title }} <bdi class="soft">{{ progress(list) }}</bdi>
+            @if (editable()) { <button class="quiet-x" type="button" [disabled]="busy()" (click)="deleteChecklist(list)" [attr.aria-label]="t('tkDelete')"><i class="fa-solid fa-trash-can" aria-hidden="true"></i></button> }
+          </h4>
+          <ul>
+            @for (item of list.items; track item.id) {
+              <li [class.checked]="item.done">
+                <label><input type="checkbox" [checked]="item.done" [disabled]="!editable() || busy()" (change)="toggleItem(item.id, $any($event.target).checked)" /> {{ item.text }}</label>
+                @if (editable()) { <button class="quiet-x" type="button" [disabled]="busy()" (click)="deleteItem(item.id)" [attr.aria-label]="t('tkDelete')"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button> }
+              </li>
+            }
+          </ul>
+          @if (editable()) {
+            <form class="tk-inline" (ngSubmit)="addItem(list)">
+              <label><span class="vh">{{ t('tkAddItem') }}</span><input [name]="'item' + list.id" maxlength="500" [placeholder]="'+ ' + t('tkAddItem')" [(ngModel)]="newItem[list.id]" /></label>
+            </form>
+          }
+        </div>
+      }
+      @if (editable()) {
+        <form class="tk-inline" (ngSubmit)="addChecklist()">
+          <label><span class="vh">{{ t('tkNewChecklist') }}</span><input name="newChecklist" maxlength="150" [placeholder]="'+ ' + t('tkNewChecklist')" [(ngModel)]="newChecklist" /></label>
+        </form>
+      }
+    </section>
+
+    <!-- Attachments -->
+    <section class="tk-sec">
+      <h3>{{ t('tkAttachments') }}</h3>
+      <ul class="fin-list">
+        @for (a of c.attachments; track a.id) {
+          <li>
+            <button class="text small" type="button" (click)="download(a)"><i class="fa-solid fa-paperclip" aria-hidden="true"></i> {{ a.original_name }}</button>
+            <span class="end">
+              <span class="soft">{{ size(a.size) }}</span>
+              @if (editable()) { <button class="quiet-x" type="button" [disabled]="busy()" (click)="detach(a)" [attr.aria-label]="t('tkDelete')"><i class="fa-solid fa-trash-can" aria-hidden="true"></i></button> }
+            </span>
+          </li>
+        }
+      </ul>
+      @if (editable()) {
+        <label class="text tk-upload">
+          <i class="fa-solid fa-upload" aria-hidden="true"></i> {{ t('tkAttach') }}
+          <input class="vh" type="file" accept=".jpg,.jpeg,.png,.webp,.gif,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.csv,.txt,.dwg,.dxf,.zip,.rar,.7z" [disabled]="busy()" (change)="upload($event)" />
+        </label>
+        <p class="fin-hint">{{ t('tkAttachHint') }}</p>
+      }
+    </section>
+
+    <!-- Comments -->
+    <section class="tk-sec">
+      <h3>{{ t('tkComments') }}</h3>
+      @if (board().role !== 'viewer' && boardOpen() && !c.archived_at) {
+        <form class="tk-comment-form" (ngSubmit)="comment()">
+          <label><span class="vh">{{ t('tkWriteComment') }}</span><textarea name="comment" rows="3" maxlength="5000" [placeholder]="t('tkWriteComment')" [(ngModel)]="commentBody"></textarea></label>
+          <div class="fin-actions">
+            <label class="tk-mention"><span class="vh">{{ t('tkMention') }}</span>
+              <select name="mention" [ngModel]="mentionPick" (ngModelChange)="mention($event)">
+                <option [ngValue]="0">@ {{ t('tkMention') }}</option>
+                @for (m of readers(); track m.user_id) { @if (m.user_id !== me) { <option [ngValue]="m.user_id">{{ m.name }}</option> } }
+              </select>
+            </label>
+            <button class="primary" type="submit" [disabled]="busy() || !commentBody.trim()">{{ t('tkSend') }}</button>
+          </div>
+        </form>
+      }
+      <ol class="tk-comments">
+        @for (row of c.comments.slice().reverse(); track row.id) {
+          <li>
+            <header>
+              <i class="tk-avatar" aria-hidden="true">{{ ini(row.user_name ?? '?') }}</i>
+              <strong>{{ row.user_name }}</strong>
+              <span class="soft">{{ stamp(row.created_at) }}@if (row.edited_at) { · {{ t('tkEdited') }} }</span>
+              @if (row.user_id === me && editingComment !== row.id && board().role !== 'viewer' && boardOpen()) {
+                <span class="end">
+                  <button class="text small" type="button" (click)="startEdit(row)">{{ t('tkEdit') }}</button>
+                  <button class="text small" type="button" [disabled]="busy()" (click)="deleteComment(row)">{{ t('tkDelete') }}</button>
+                </span>
+              }
+            </header>
+            @if (editingComment === row.id) {
+              <form (ngSubmit)="saveEdit(row)">
+                <label><span class="vh">{{ t('tkEdit') }}</span><textarea name="editComment" rows="3" maxlength="5000" [(ngModel)]="editText"></textarea></label>
+                <div class="fin-actions">
+                  <button class="text" type="button" (click)="editingComment = 0">{{ t('cancel') }}</button>
+                  <button class="primary" type="submit" [disabled]="busy() || !editText.trim()">{{ t('save') }}</button>
+                </div>
+              </form>
+            } @else {
+              <p>{{ row.body }}</p>
+            }
+          </li>
+        }
+      </ol>
+    </section>
+
+    <!-- Move and archive -->
+    @if (board().role !== 'viewer' && boardOpen()) {
+      <section class="tk-sec">
+        <h3>{{ t('tkMoveTo') }}</h3>
+        @if (!c.archived_at && kind() !== 'finished') {
+          <form class="fin-form" (ngSubmit)="move(moveTo, moveWhere)">
+            <label>{{ t('tkLists') }}
+              <select name="moveTo" [(ngModel)]="moveTo">
+                @for (l of lists(); track l.id) { @if (movable(l)) { <option [ngValue]="l.id">{{ l.name }}</option> } }
+              </select>
+            </label>
+            <label><span class="vh">{{ t('tkMoveTo') }}</span>
+              <select name="moveWhere" [(ngModel)]="moveWhere">
+                <option value="top">{{ t('tkTop') }}</option>
+                <option value="bottom">{{ t('tkBottom') }}</option>
+              </select>
+            </label>
+            <div class="fin-actions wide"><button class="text" type="submit" [disabled]="busy()">{{ t('tkTransfer') }}</button></div>
+          </form>
+          <div class="tk-flow">
+            <button class="text" type="button" [class.on]="elsewhere() === 'transfer'" (click)="startElsewhere('transfer')"><i class="fa-solid fa-right-left" aria-hidden="true"></i> {{ t('tkTransfer') }} · {{ t('tkOtherBoard') }}</button>
+            <button class="text" type="button" [class.on]="elsewhere() === 'copy'" (click)="startElsewhere('copy')"><i class="fa-regular fa-copy" aria-hidden="true"></i> {{ t('tkCopy') }}</button>
+          </div>
+        } @else if (kind() === 'finished') {
+          <div class="tk-flow">
+            <button class="text" type="button" [class.on]="elsewhere() === 'copy'" (click)="startElsewhere('copy')"><i class="fa-regular fa-copy" aria-hidden="true"></i> {{ t('tkCopy') }}</button>
+          </div>
+        }
+        @if (elsewhere() !== 'none') {
+          <form class="fin-form" (ngSubmit)="sendElsewhere()">
+            <label>{{ t('tkBoard') }}
+              <select name="targetBoard" [ngModel]="targetBoard" (ngModelChange)="pickBoard($event)">
+                <option [ngValue]="0">{{ t('tkPickBoard') }}</option>
+                @for (b of targets(); track b.id) { <option [ngValue]="b.id">{{ b.name }}</option> }
+              </select>
+            </label>
+            <label>{{ t('tkLists') }}
+              <select name="targetList" [(ngModel)]="targetList" [disabled]="!targetLists().length">
+                @for (l of targetLists(); track l.id) { <option [ngValue]="l.id">{{ l.name }}</option> }
+              </select>
+            </label>
+            @if (elsewhere() === 'copy') {
+              <label class="wide">{{ t('tkCardTitle') }}<input name="copyTitle" maxlength="200" [(ngModel)]="copyTitle" /></label>
+            }
+            <div class="fin-actions wide">
+              <button class="text" type="button" (click)="elsewhere.set('none')">{{ t('cancel') }}</button>
+              <button class="primary" type="submit" [disabled]="busy() || !targetBoard || !targetList">{{ elsewhere() === 'copy' ? t('tkCopy') : t('tkTransfer') }}</button>
+            </div>
+          </form>
+        }
+        <div class="tk-flow">
+          @if (c.archived_at) {
+            <button class="text" type="button" [disabled]="busy()" (click)="archive(false)">{{ t('tkRestore') }}</button>
+          } @else if (kind() !== 'finished' || isOwner()) {
+            <button class="quiet" type="button" [disabled]="busy()" (click)="archive(true)"><i class="fa-solid fa-box-archive" aria-hidden="true"></i> {{ t('tkArchiveCard') }}</button>
+          }
+        </div>
+      </section>
+    }
+
+    <!-- Activity -->
+    <section class="tk-sec">
+      <h3>{{ t('tkActivity') }}</h3>
+      <ol class="tk-activity">
+        @for (row of c.activity; track row.id) {
+          <li><strong>{{ row.user_name ?? '—' }}</strong> {{ activityLine(row) }} <span class="soft">· {{ stamp(row.created_at) }}</span></li>
+        }
+      </ol>
+    </section>
+  }
+</aside>

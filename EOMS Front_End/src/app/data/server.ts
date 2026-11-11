@@ -9,6 +9,8 @@ export interface NoticeItem {
   message: string | null;
   read_at: string | null;
   created_at: string | null;
+  /** The notification's context, e.g. `board_id` and `card_id` for task cards. */
+  data?: Record<string, unknown> | null;
 }
 
 export interface PayrollDay {

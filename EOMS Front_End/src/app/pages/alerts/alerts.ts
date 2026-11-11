@@ -1,10 +1,12 @@
 import { Component, inject, signal } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { serverMessage } from '../../core/api/api';
 import { Ui } from '../../core/ui';
 import { NoticeItem, Server } from '../../data/server';
 
 @Component({
   selector: 'app-alerts',
+  imports: [RouterLink],
   templateUrl: './alerts.html',
   styleUrl: './alerts.scss',
 })
@@ -34,6 +36,14 @@ export class Alerts extends Ui {
     } finally {
       this.busy.set(false);
     }
+  }
+
+  /** Task notifications carry the board and card they are about: link straight to the card. */
+  protected taskLink(item: NoticeItem): { board: number; card?: number } | null {
+    const board = Number(item.data?.['board_id'] ?? 0);
+    if (!board || !item.kind?.startsWith('tasks.')) return null;
+    const card = Number(item.data?.['card_id'] ?? 0);
+    return card ? { board, card } : { board };
   }
 
   protected async read(id: string): Promise<void> {

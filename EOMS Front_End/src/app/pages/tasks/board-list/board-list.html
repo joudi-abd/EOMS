@@ -1,0 +1,103 @@
+<div class="fin-toolbar">
+  @if (options(); as o) {
+    @if (o.types.length) {
+      <button class="primary" type="button" (click)="creating() ? creating.set(false) : startCreate()">
+        <i class="fa-solid fa-plus" aria-hidden="true"></i> {{ t('tkNewBoard') }}
+      </button>
+    }
+  }
+  <span class="fin-toolbar-end">
+    <button class="text" type="button" [attr.aria-pressed]="showArchived()" (click)="toggleArchived()">
+      <i class="fa-solid fa-box-archive" aria-hidden="true"></i> {{ showArchived() ? t('tkHideArchived') : t('tkShowArchived') }}
+    </button>
+  </span>
+</div>
+
+@if (creating() && options(); as o) {
+  <form class="fin-sheet narrow" (ngSubmit)="create()">
+    <header>
+      <h2>{{ t('tkNewBoard') }}</h2>
+      <button class="quiet-x" type="button" (click)="creating.set(false)" [attr.aria-label]="t('dismiss')"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+    </header>
+    <fieldset class="fin-form" [disabled]="busy()">
+      <label class="wide">{{ t('tkBoardType') }}
+        <select name="type" [(ngModel)]="form.type">
+          @for (type of o.types; track type) { <option [ngValue]="type">{{ typeLabel(type) }}</option> }
+        </select>
+      </label>
+      <p class="fin-hint wide">{{ typeHint(form.type) }}</p>
+      @if (form.type === 'department') {
+        <label class="wide">{{ t('tkDepartment') }}
+          <select name="department" required [(ngModel)]="form.department_id">
+            @for (d of o.departments; track d.id) { <option [ngValue]="d.id">{{ d.name }}</option> }
+          </select>
+        </label>
+      }
+      <label class="wide">{{ t('tkBoardName') }}<input name="name" required maxlength="150" [(ngModel)]="form.name" /></label>
+      <label class="wide">{{ t('tkBoardDescription') }}<textarea name="description" rows="2" maxlength="2000" [(ngModel)]="form.description"></textarea></label>
+      <div class="wide">
+        <span class="tk-label">{{ t('tkBoardColor') }}</span>
+        <div class="tk-swatches" role="radiogroup" [attr.aria-label]="t('tkBoardColor')">
+          @for (c of swatches; track c) {
+            <button type="button" role="radio" [attr.aria-checked]="form.color === c" [class.on]="form.color === c" [style.background]="c" [attr.aria-label]="c" (click)="form.color = c"></button>
+          }
+        </div>
+      </div>
+      @if (form.type !== 'personal' && form.type !== 'department') { <p class="fin-hint wide">{{ t('tkMembersHint') }}</p> }
+      <div class="fin-actions wide">
+        <button class="text" type="button" (click)="creating.set(false)">{{ t('cancel') }}</button>
+        <button class="primary" type="submit" [disabled]="!form.name.trim()">{{ t('tkCreate') }}</button>
+      </div>
+    </fieldset>
+  </form>
+}
+
+@if (loading()) {
+  <p class="empty">{{ t('loading') }}</p>
+} @else if (!boards().length) {
+  <p class="empty">{{ t('tkNoBoards') }}</p>
+} @else {
+  @for (group of groups(); track group.type) {
+    <section class="tk-group">
+      <h2>{{ typeLabel(group.type) }}</h2>
+      <ul class="tk-tiles">
+        @for (b of group.boards; track b.id) {
+          <li>
+            <a class="tk-tile" [routerLink]="[]" [queryParams]="{ board: b.id }" [style.--board]="b.color || 'var(--action)'">
+              <strong>{{ b.name }}</strong>
+              @if (b.description) { <span class="soft">{{ b.description }}</span> }
+              <span class="tk-tile-foot">
+                <span>{{ num(b.open_cards) }} {{ t('tkOpenCards') }}</span>
+                @if (b.overdue_cards) { <span class="late">{{ num(b.overdue_cards) }} {{ t('tkOverdueCards') }}</span> }
+                <span class="tk-role">{{ roleLabel(b.role) }}</span>
+              </span>
+            </a>
+          </li>
+        }
+      </ul>
+    </section>
+  }
+}
+
+@if (showArchived()) {
+  <section class="tk-group">
+    <h2>{{ t('tkArchivedBoards') }}</h2>
+    @if (!archivedBoards().length) {
+      <p class="empty">{{ t('tkNoBoards') }}</p>
+    } @else {
+      <ul class="fin-list">
+        @for (b of archivedBoards(); track b.id) {
+          <li>
+            <span><strong>{{ b.name }}</strong> <span class="soft">· {{ typeLabel(b.type) }}</span></span>
+            <span class="end">
+              <a class="text small" [routerLink]="[]" [queryParams]="{ board: b.id }">{{ t('tkShow') }}</a>
+              @if (b.role === 'owner') {
+                <button class="text small" type="button" [disabled]="busy()" (click)="restore(b)">{{ t('tkRestore') }}</button>
+              }
+            </span>
+          </li>
+        }
+      </ul>
+    }
+  </section>
+}

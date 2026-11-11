@@ -111,6 +111,9 @@ export const permissionIds = [
   'payroll.view',
   'payroll.manage',
   'payroll.approve',
+  'payroll.pay',
+  'tasks.view',
+  'tasks.manage',
   'finance.view',
   'finance.manage',
   'finance.approve',
@@ -135,10 +138,10 @@ export const permissionIds = [
 
 export type Permission = (typeof permissionIds)[number];
 
-/** Mirrors the seeder: the administrator holds all; the company manager every `.view` and `.approve`; the rest are listed. */
+/** Mirrors the seeder: the administrator holds all; the company manager every `.view` and `.approve` plus `tasks.manage`; the rest are listed. */
 export const rolePermissions: Record<Role, readonly Permission[]> = {
   system: permissionIds,
-  company: permissionIds.filter((name) => name.endsWith('.view') || name.endsWith('.approve')),
+  company: [...permissionIds.filter((name) => name.endsWith('.view') || name.endsWith('.approve')), 'tasks.manage'],
   hr: [
     'employees.view',
     'employees.manage',
@@ -150,16 +153,21 @@ export const rolePermissions: Record<Role, readonly Permission[]> = {
     'attendance.adjust',
     'attendance.approve',
     'leaves.view',
+    'leaves.manage',
     'leaves.approve',
+    'payroll.view',
+    'payroll.manage',
+    'tasks.view',
+    'tasks.manage',
     'documents.view',
     'documents.manage',
     'reports.view',
   ],
-  finance: ['payroll.view', 'payroll.manage', 'finance.view', 'finance.manage', 'purchases.view', 'purchases.approve', 'reports.view'],
-  project: ['projects.view', 'projects.manage', 'meetings.view', 'meetings.manage', 'employees.view', 'documents.view', 'documents.manage', 'reports.view'],
-  engineer: ['projects.view', 'meetings.view', 'documents.view'],
-  procurement: ['purchases.view', 'purchases.manage', 'assets.view'],
-  employee: [],
+  finance: ['payroll.view', 'payroll.approve', 'payroll.pay', 'tasks.view', 'tasks.manage', 'finance.view', 'finance.manage', 'purchases.view', 'purchases.approve', 'reports.view'],
+  project: ['projects.view', 'projects.manage', 'meetings.view', 'meetings.manage', 'employees.view', 'documents.view', 'documents.manage', 'reports.view', 'tasks.view', 'tasks.manage'],
+  engineer: ['projects.view', 'meetings.view', 'documents.view', 'tasks.view'],
+  procurement: ['purchases.view', 'purchases.manage', 'assets.view', 'tasks.view'],
+  employee: ['tasks.view'],
 };
 
 export function permissionsOf(roles: readonly Role[]): ReadonlySet<Permission> {
@@ -184,6 +192,7 @@ export const areaNeeds: Record<ModuleId, readonly Permission[] | 'open'> = {
   assets: ['assets.view'],
   meetings: ['meetings.view'],
   alerts: 'open',
+  tasks: ['tasks.view'],
 };
 
 /**
@@ -213,9 +222,9 @@ export const actionNeeds: Record<Action, readonly Permission[]> = {
   'account.toggle': ['users.manage'],
   'account.update': ['users.manage'],
   'payroll.prepare': ['payroll.manage'],
-  'payroll.review': ['payroll.manage'],
+  'payroll.review': ['payroll.approve'],
   'payroll.approve': ['payroll.approve'],
-  'payroll.pay': ['payroll.manage'],
+  'payroll.pay': ['payroll.pay'],
 };
 
 export function holds(roles: readonly Role[], needs: readonly Permission[]): boolean {

@@ -1,0 +1,93 @@
+/* Board tiles, grouped by board type, and the new-board form. */
+
+:host {
+  display: block;
+  margin-top: 16px;
+}
+
+.tk-group {
+  margin-top: 20px;
+}
+
+.tk-group h2 {
+  margin: 0 0 10px;
+  font-size: 1rem;
+  color: var(--muted);
+}
+
+.tk-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tk-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 108px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-inline-start: 5px solid var(--board);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.tk-tile:hover,
+.tk-tile:focus-visible {
+  background: var(--hover);
+}
+
+.tk-tile .soft {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  font-size: 0.85rem;
+}
+
+.tk-tile-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: auto;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.tk-role {
+  margin-inline-start: auto;
+}
+
+.tk-label {
+  display: block;
+  margin-bottom: 6px;
+}
+
+.tk-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tk-swatches button {
+  width: 28px;
+  height: 28px;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.tk-swatches button.on {
+  border-color: var(--ink);
+  box-shadow: 0 0 0 2px var(--surface) inset;
+}
+
+.fin-toolbar-end {
+  margin-inline-start: auto;
+}

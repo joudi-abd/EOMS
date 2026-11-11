@@ -22,6 +22,10 @@ deptrac:
       collectors:
         - type: classNameRegex
           value: '#^App\\Modules\\Payroll\\.+#'
+    - name: Tasks
+      collectors:
+        - type: classNameRegex
+          value: '#^App\\Modules\\Tasks\\.+#'
   ruleset:
     Identity: []
     Settings: []
@@ -35,3 +39,6 @@ deptrac:
       - HR
       - Identity
       - Settings
+    Tasks:
+      - HR
+      - Identity

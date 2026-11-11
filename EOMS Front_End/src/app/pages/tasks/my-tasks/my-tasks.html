@@ -1,0 +1,59 @@
+<div class="fin-toolbar">
+  <div class="seg" role="radiogroup" [attr.aria-label]="t('tkTabMine')">
+    <button type="button" role="radio" [class.on]="quick() === 'open'" [attr.aria-checked]="quick() === 'open'" (click)="pick('open')">{{ t('tkFilterOpen') }}</button>
+    <button type="button" role="radio" [class.on]="quick() === 'overdue'" [attr.aria-checked]="quick() === 'overdue'" (click)="pick('overdue')">{{ t('tkFilterOverdue') }}</button>
+    <button type="button" role="radio" [class.on]="quick() === 'soon'" [attr.aria-checked]="quick() === 'soon'" (click)="pick('soon')">{{ t('tkFilterSoon') }}</button>
+    <button type="button" role="radio" [class.on]="quick() === 'finished'" [attr.aria-checked]="quick() === 'finished'" (click)="pick('finished')">{{ t('tkFilterFinished') }}</button>
+  </div>
+  <label><span class="vh">{{ t('tkPriority') }}</span>
+    <select name="priority" [(ngModel)]="priority" (ngModelChange)="load()">
+      <option value="">{{ t('tkPriority') }}</option>
+      @for (p of priorities; track p) { <option [value]="p">{{ priorityLabel(p) }}</option> }
+    </select>
+  </label>
+  @if (boardsSeen().length > 1) {
+    <label><span class="vh">{{ t('tkBoard') }}</span>
+      <select name="board" [(ngModel)]="boardId">
+        <option [ngValue]="0">{{ t('tkAllBoards') }}</option>
+        @for (b of boardsSeen(); track b.id) { <option [ngValue]="b.id">{{ b.name }}</option> }
+      </select>
+    </label>
+  }
+</div>
+
+@if (loading()) {
+  <p class="empty">{{ t('loading') }}</p>
+} @else if (!shown().length) {
+  <p class="empty">{{ t('tkMineEmpty') }}</p>
+} @else {
+  <table class="sheet">
+    <thead>
+      <tr>
+        <th scope="col">{{ t('tkCardTitle') }}</th>
+        <th scope="col">{{ t('tkBoard') }}</th>
+        <th scope="col">{{ t('tkInList') }}</th>
+        <th scope="col">{{ t('tkPriority') }}</th>
+        <th scope="col">{{ t('tkDue') }}</th>
+        <th scope="col"><span class="vh">{{ t('tkOpenInBoard') }}</span></th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (c of shown(); track c.id) {
+        <tr>
+          <td>
+            <strong>{{ c.title }}</strong>
+            @if (c.checklist.total) { <span class="soft"> · {{ num(c.checklist.done) }}/{{ num(c.checklist.total) }}</span> }
+          </td>
+          <td><span class="tk-dot" [style.background]="c.board.color || 'var(--action)'" aria-hidden="true"></span> {{ c.board.name }}</td>
+          <td>
+            {{ c.list.name }}
+            @if (c.list.kind === 'done') { <span class="wait"> · {{ t('tkKindDone') }}</span> }
+          </td>
+          <td [class.late]="c.priority === 'urgent'" [class.wait]="c.priority === 'high'">{{ priorityLabel(c.priority) }}</td>
+          <td [class.late]="overdue(c)">{{ c.due_date ? short(c.due_date) : t('tkNoDue') }}</td>
+          <td class="end"><a class="text small" [routerLink]="[]" [queryParams]="{ view: null, board: c.board.id, card: c.id }">{{ t('tkOpenInBoard') }}</a></td>
+        </tr>
+      }
+    </tbody>
+  </table>
+}

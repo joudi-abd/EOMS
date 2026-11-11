@@ -14,6 +14,7 @@ class RolePermissionSeeder extends Seeder
         'attendance' => ['view', 'view_department', 'manage', 'adjust', 'approve'],
         'leaves' => ['view', 'view_department', 'manage', 'approve'],
         'payroll' => ['view', 'manage', 'approve', 'pay'],
+        'tasks' => ['view', 'manage'],
         'finance' => ['view', 'manage', 'approve'],
         'projects' => ['view', 'manage'],
         'purchases' => ['view', 'manage', 'approve'],
@@ -43,6 +44,7 @@ class RolePermissionSeeder extends Seeder
             'system_admin' => $all->all(),
             'company_manager' => $all
                 ->filter(fn ($p) => (str_ends_with($p, '.view') || str_ends_with($p, '.approve')))
+                ->push('tasks.manage')
                 ->values()->all(),
             'hr_manager' => [
                 'employees.view', 'employees.manage', 'employees.view_sensitive',
@@ -52,24 +54,28 @@ class RolePermissionSeeder extends Seeder
                 'documents.view', 'documents.manage', 'reports.view',
                 // HR prepares the pay run; finance approves and pays it.
                 'payroll.view', 'payroll.manage',
+                'tasks.view', 'tasks.manage',
             ],
             'finance_manager' => [
                 'payroll.view', 'payroll.approve', 'payroll.pay',
                 'finance.view', 'finance.manage',
                 'purchases.view', 'purchases.approve', 'reports.view',
+                'tasks.view', 'tasks.manage',
             ],
             'project_manager' => [
                 'projects.view', 'projects.manage',
                 'meetings.view', 'meetings.manage', 'employees.view',
                 'documents.view', 'documents.manage', 'reports.view',
+                'tasks.view', 'tasks.manage',
             ],
-            'engineer' => ['projects.view', 'meetings.view', 'documents.view'],
+            'engineer' => ['projects.view', 'meetings.view', 'documents.view', 'tasks.view'],
             'purchasing_officer' => [
-                'purchases.view', 'purchases.manage', 'assets.view',
+                'purchases.view', 'purchases.manage', 'assets.view', 'tasks.view',
             ],
             // Read-only, limited to the departments the user manages (hr_departments.manager_employee_id).
-            'department_manager' => ['attendance.view_department', 'leaves.view_department'],
-            'employee' => [],
+            'department_manager' => ['attendance.view_department', 'leaves.view_department', 'tasks.view', 'tasks.manage'],
+            // Every account works on its own tasks.
+            'employee' => ['tasks.view'],
         ];
 
         foreach ($roles as $name => $perms) {

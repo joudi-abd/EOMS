@@ -1,0 +1,60 @@
+<form class="fin-toolbar tk-filters" (ngSubmit)="load()">
+  <label>{{ t('tkFrom') }}<input name="from" type="date" required [(ngModel)]="from" /></label>
+  <label>{{ t('tkTo') }}<input name="to" type="date" required [min]="from" [(ngModel)]="to" /></label>
+  <label>{{ t('tkBoard') }}
+    <select name="board" [(ngModel)]="boardId">
+      <option [ngValue]="0">{{ t('tkAllBoards') }}</option>
+      @for (b of boards(); track b.id) { <option [ngValue]="b.id">{{ b.name }}</option> }
+    </select>
+  </label>
+  @if (departments().length) {
+    <label>{{ t('tkDepartment') }}
+      <select name="department" [(ngModel)]="departmentId">
+        <option [ngValue]="0">{{ t('tkAllDepartments') }}</option>
+        @for (d of departments(); track d.id) { <option [ngValue]="d.id">{{ d.name }}</option> }
+      </select>
+    </label>
+  }
+  <button class="primary" type="submit" [disabled]="busy()">{{ t('tkShow') }}</button>
+</form>
+
+@if (report(); as r) {
+  <div class="summary">
+    <p><span>{{ t('tkOpen') }}</span> <strong>{{ num(r.totals.open) }}</strong></p>
+    <p><span>{{ t('tkOverdue') }}</span> <strong [class.late]="r.totals.overdue > 0">{{ num(r.totals.overdue) }}</strong></p>
+    <p><span>{{ t('tkFinished') }}</span> <strong>{{ num(r.totals.finished) }}</strong></p>
+    <p><span>{{ t('tkOnTimeRate') }}</span> <strong>{{ rate(r.totals.finished ? r.totals.on_time / r.totals.finished : null) }}</strong></p>
+  </div>
+  @if (!r.people.length) {
+    <p class="empty">{{ t('tkReportEmpty') }}</p>
+  } @else {
+    <table class="sheet">
+      <thead>
+        <tr>
+          <th scope="col">{{ t('tkPerson') }}</th>
+          <th scope="col" class="end">{{ t('tkOpen') }}</th>
+          <th scope="col" class="end">{{ t('tkOverdue') }}</th>
+          <th scope="col" class="end">{{ t('tkAwaiting') }}</th>
+          <th scope="col" class="end">{{ t('tkFinished') }}</th>
+          <th scope="col" class="end">{{ t('tkOnTime') }}</th>
+          <th scope="col" class="end">{{ t('tkOnTimeRate') }}</th>
+          <th scope="col" class="end">{{ t('tkAvgDays') }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (p of r.people; track p.user_id) {
+          <tr>
+            <th scope="row">{{ p.name ?? '—' }}</th>
+            <td class="end">{{ num(p.open) }}</td>
+            <td class="end" [class.late]="p.overdue > 0">{{ num(p.overdue) }}</td>
+            <td class="end" [class.wait]="p.awaiting_review > 0">{{ num(p.awaiting_review) }}</td>
+            <td class="end">{{ num(p.finished) }}</td>
+            <td class="end">{{ num(p.on_time) }}</td>
+            <td class="end">{{ rate(p.on_time_rate) }}</td>
+            <td class="end">{{ p.avg_days === null ? '—' : num(p.avg_days) }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  }
+}

@@ -59,6 +59,7 @@ describe('Session', () => {
     expect(session.has('employees.view_financial')).toBe(false);
     expect(session.canAct('payroll.approve')).toBe(true);
     expect(session.canAct('payroll.pay')).toBe(false);
+    expect(session.has('tasks.manage')).toBe(true);
     expect(session.canAct('purchase.decide')).toBe(true);
     expect(session.canAct('purchase.add')).toBe(false);
     expect(session.canAct('attendance.correct')).toBe(false);
@@ -68,7 +69,10 @@ describe('Session', () => {
 
   it('keeps HR to what its backend role holds', () => {
     const session = signIn(['hr_manager']);
-    expect(session.can('payroll')).toBe(false);
+    // HR prepares the pay run; finance approves and pays it.
+    expect(session.can('payroll')).toBe(true);
+    expect(session.can('tasks')).toBe(true);
+    expect(session.has('tasks.manage')).toBe(true);
     expect(session.can('meetings')).toBe(false);
     expect(session.can('finance')).toBe(false);
     expect(session.can('documents')).toBe(true);
@@ -77,16 +81,19 @@ describe('Session', () => {
     expect(session.canAct('attendance.correct')).toBe(true);
     expect(session.canAct('hr.settings')).toBe(true);
     expect(session.canAct('hr.shift')).toBe(true);
-    expect(session.canAct('payroll.prepare')).toBe(false);
+    expect(session.canAct('payroll.prepare')).toBe(true);
+    expect(session.canAct('payroll.approve')).toBe(false);
+    expect(session.canAct('payroll.pay')).toBe(false);
   });
 
-  it('lets finance prepare and pay payroll but not add purchases', () => {
+  it('lets finance review, approve and pay payroll but not prepare it or add purchases', () => {
     const session = signIn(['finance_manager']);
     expect(session.can('payroll')).toBe(true);
     expect(session.can('employees')).toBe(false);
-    expect(session.canAct('payroll.prepare')).toBe(true);
+    expect(session.canAct('payroll.prepare')).toBe(false);
+    expect(session.canAct('payroll.review')).toBe(true);
     expect(session.canAct('payroll.pay')).toBe(true);
-    expect(session.canAct('payroll.approve')).toBe(false);
+    expect(session.canAct('payroll.approve')).toBe(true);
     expect(session.canAct('purchase.decide')).toBe(true);
     expect(session.canAct('purchase.add')).toBe(false);
   });
@@ -109,10 +116,12 @@ describe('Session', () => {
     expect(session.canAct('purchase.decide')).toBe(false);
   });
 
-  it('gives the plain employee only the open areas', () => {
+  it('gives the plain employee the open areas and their own task boards', () => {
     const session = signIn(['employee']);
-    expect(session.permissions().size).toBe(0);
+    expect([...session.permissions()]).toEqual(['tasks.view']);
     expect(session.can('alerts')).toBe(true);
+    expect(session.can('tasks')).toBe(true);
+    expect(session.has('tasks.manage')).toBe(false);
     expect(session.can('employees')).toBe(false);
     expect(session.can('payroll')).toBe(false);
   });

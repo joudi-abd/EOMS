@@ -1,0 +1,226 @@
+/* The open card: a drawer on the inline-end side over the board, full width on narrow screens. */
+
+.tk-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgb(0 0 0 / 0.18);
+}
+
+.tk-drawer {
+  position: fixed;
+  inset-block: 0;
+  inset-inline-end: 0;
+  z-index: 41;
+  width: min(560px, 100vw);
+  padding: 14px 18px 28px;
+  overflow-y: auto;
+  background: var(--surface);
+  box-shadow: var(--shadow-pop);
+}
+
+.tk-drawer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.tk-title-field textarea,
+.tk-title-text {
+  width: 100%;
+  margin: 8px 0 4px;
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.tk-title-field textarea {
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  border-radius: var(--r-control);
+  background: transparent;
+  color: var(--ink);
+  resize: vertical;
+  font-family: inherit;
+}
+
+.tk-title-field textarea:hover,
+.tk-title-field textarea:focus {
+  border-color: var(--line-strong);
+}
+
+.tk-note {
+  margin: 6px 0;
+}
+
+.tk-flow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 10px 0;
+}
+
+.tk-flow .on {
+  background: var(--action-tint);
+}
+
+.tk-sec {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.tk-sec h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  font-size: 0.95rem;
+}
+
+.tk-sec textarea,
+.tk-inline input {
+  width: 100%;
+}
+
+.tk-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tk-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px 3px 4px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-chip);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.tk-pill.on {
+  border-color: var(--action);
+  background: var(--action-tint);
+}
+
+.tk-avatar {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--mark-tint);
+  color: var(--mark-ink);
+  font-size: 0.68rem;
+  font-style: normal;
+}
+
+.tk-tag {
+  padding: 3px 10px;
+  border: 0;
+  border-radius: var(--r-chip);
+  color: #fff;
+  font: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+span.tk-tag {
+  cursor: default;
+}
+
+.tk-tag.off {
+  opacity: 0.35;
+}
+
+.tk-description {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.tk-checklist h4 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0 4px;
+  font-size: 0.9rem;
+}
+
+.tk-checklist ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tk-checklist li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 3px 0;
+}
+
+.tk-checklist li label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tk-checklist li.checked label {
+  text-decoration: line-through;
+  color: var(--muted);
+}
+
+.tk-inline {
+  margin-top: 6px;
+}
+
+.tk-upload {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.tk-comment-form .fin-actions {
+  justify-content: space-between;
+}
+
+.tk-comments,
+.tk-activity {
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tk-comments li {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.tk-comments header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.tk-comments header .end {
+  margin-inline-start: auto;
+}
+
+.tk-comments p {
+  margin: 6px 0 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.tk-activity li {
+  padding: 4px 0;
+  font-size: 0.85rem;
+}

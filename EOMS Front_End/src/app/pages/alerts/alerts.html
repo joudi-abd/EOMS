@@ -29,6 +29,9 @@
             <p class="message">{{ item.message || item.kind }}</p>
             <p class="when"><bdi>{{ stamp(item.created_at) }}</bdi></p>
           </div>
+          @if (taskLink(item); as link) {
+            <a class="text small" routerLink="/modules/tasks" [queryParams]="link" (click)="item.read_at || read(item.id)">{{ t('tkOpenInBoard') }}</a>
+          }
           @if (!item.read_at) {
             <button class="text small" type="button" [disabled]="busy()" (click)="read(item.id)">{{ t('markRead') }}</button>
           }

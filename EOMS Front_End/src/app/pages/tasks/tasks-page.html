@@ -1,0 +1,37 @@
+<main class="work" id="content">
+  @if (!session.can('tasks')) {
+    <h1>{{ t('tasks') }}</h1>
+    <p class="empty">{{ t('noAccess') }}</p>
+    <a class="primary" routerLink="/">{{ t('back') }}</a>
+  } @else {
+    <app-notice />
+    @if (view() === 'boards' && boardId()) {
+      <app-board-view [boardId]="boardId()" [cardId]="cardId()" />
+    } @else {
+      <header class="heading">
+        <div>
+          <h1>{{ t('tkTitle') }}</h1>
+          <p class="lede">{{ t('tkLede') }}</p>
+        </div>
+      </header>
+      <nav class="tabs" [attr.aria-label]="t('tasks')">
+        <a [routerLink]="[]" [queryParams]="{ view: null }" [class.active]="view() === 'boards'" [attr.aria-current]="view() === 'boards' ? 'page' : null">
+          {{ t('tkTabBoards') }}
+        </a>
+        <a [routerLink]="[]" [queryParams]="{ view: 'mine' }" [class.active]="view() === 'mine'" [attr.aria-current]="view() === 'mine' ? 'page' : null">
+          {{ t('tkTabMine') }}
+        </a>
+        @if (showReports()) {
+          <a [routerLink]="[]" [queryParams]="{ view: 'reports' }" [class.active]="view() === 'reports'" [attr.aria-current]="view() === 'reports' ? 'page' : null">
+            {{ t('tkTabReports') }}
+          </a>
+        }
+      </nav>
+      @switch (view()) {
+        @case ('mine') { <app-my-tasks /> }
+        @case ('reports') { <app-task-report /> }
+        @default { <app-board-list [options]="options()" /> }
+      }
+    }
+  }
+</main>

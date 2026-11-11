@@ -12,6 +12,7 @@ import { HrSettings } from './pages/hr-settings/hr-settings';
 import { Login } from './pages/login/login';
 import { Later } from './pages/later/later';
 import { PayrollPage } from './pages/payroll/payroll-page/payroll-page';
+import { TasksPage } from './pages/tasks/tasks-page';
 import { Shell } from './shell/shell';
 
 export const routes: Routes = [
@@ -28,6 +29,7 @@ export const routes: Routes = [
       { path: 'modules/attendance', component: Attendance },
       { path: 'modules/leave', component: LeavesPage },
       { path: 'modules/payroll', component: PayrollPage },
+      { path: 'modules/tasks', component: TasksPage },
       { path: 'modules/alerts', component: Alerts },
       { path: 'modules/finance', component: FinancePage },
       { path: 'modules/finance/rates', component: Rates },

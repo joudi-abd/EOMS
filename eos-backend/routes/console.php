@@ -32,3 +32,10 @@ Schedule::command('attendance:recalculate')
 
 // Uses each office policy date and is safe to retry.
 Schedule::command('leaves:process')->everyFiveMinutes()->withoutOverlapping();
+
+// Recurring task cards: created once the office day is about to start (an hour before the shift, office time);
+// hourly runs before that do nothing, and re-runs the same day do not duplicate.
+Schedule::command('tasks:recurring')->hourly()->withoutOverlapping();
+
+// Due-soon and overdue reminders; each is sent once per due date.
+Schedule::command('tasks:reminders')->hourly()->withoutOverlapping();

@@ -2,6 +2,7 @@ import { designCopy } from './copy-design';
 import { financeCopy } from './copy-finance';
 import { hrCopy } from './copy-hr';
 import { payrollCopy } from './copy-payroll';
+import { tasksCopy } from './copy-tasks';
 
 export type Lang = 'ar' | 'en';
 
@@ -591,13 +592,14 @@ const base = {
 } as const;
 
 export const copy = {
-  ar: { ...base.ar, ...hrCopy.ar, ...financeCopy.ar, ...payrollCopy.ar, ...designCopy.ar },
-  en: { ...base.en, ...hrCopy.en, ...financeCopy.en, ...payrollCopy.en, ...designCopy.en },
+  ar: { ...base.ar, ...hrCopy.ar, ...financeCopy.ar, ...payrollCopy.ar, ...tasksCopy.ar, ...designCopy.ar },
+  en: { ...base.en, ...hrCopy.en, ...financeCopy.en, ...payrollCopy.en, ...tasksCopy.en, ...designCopy.en },
 };
 
 export type CopyKey = keyof typeof copy.ar;
 
 export const moduleIds = [
+  'tasks',
   'access',
   'employees',
   'attendance',

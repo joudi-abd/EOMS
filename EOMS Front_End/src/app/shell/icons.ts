@@ -17,4 +17,5 @@ export const moduleIcon: Record<ModuleId | 'dashboard', string> = {
   assets: 'fa-solid fa-toolbox',
   meetings: 'fa-solid fa-comments',
   alerts: 'fa-solid fa-bell',
+  tasks: 'fa-solid fa-list-check',
 };

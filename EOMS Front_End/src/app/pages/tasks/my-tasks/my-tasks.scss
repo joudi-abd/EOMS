@@ -1,0 +1,23 @@
+/* "My tasks": filters and one table of assigned cards. */
+
+:host {
+  display: block;
+  margin-top: 16px;
+}
+
+.fin-toolbar {
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.sheet {
+  margin-top: 12px;
+}
+
+.tk-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  vertical-align: middle;
+}
