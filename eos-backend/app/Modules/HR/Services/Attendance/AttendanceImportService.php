@@ -79,7 +79,9 @@ class AttendanceImportService
             $device->update($update);
             $device = $device->refresh();
             // Bridge may advance coverage; record the same audit action as confirm-sync so payroll readiness is traceable.
-            if ($advanced) {
+            // A bridge pushing every few minutes would flood the log, so one record per office day reached is kept.
+            if ($advanced && ($previousMarker === null
+                || $marker->setTimezone($officeZone)->toDateString() !== $previousMarker->toImmutable()->setTimezone($officeZone)->toDateString())) {
                 $this->audit->log(
                     'attendance.device_sync_confirmed',
                     $device,

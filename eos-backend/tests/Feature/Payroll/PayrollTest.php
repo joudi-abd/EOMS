@@ -18,8 +18,10 @@ use App\Modules\Payroll\Models\PayRunLine;
 use App\Modules\Settings\Database\Seeders\CurrencySeeder;
 use App\Modules\Settings\Services\ExchangeRateService;
 use Carbon\CarbonImmutable;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Collection;
+use Illuminate\Validation\ValidationException;
 use Laravel\Sanctum\Sanctum;
 use Tests\Feature\HR\Concerns\LeaveAttendanceFixture;
 use Tests\TestCase;
@@ -685,6 +687,26 @@ class PayrollTest extends TestCase
         $this->assertSame(0, PayPayment::count());
     }
 
+    public function test_database_allows_one_active_payment_per_line(): void
+    {
+        $line = $this->approvedOctober();
+        $box = $this->box('SYP', 5_000_000);
+        Sanctum::actingAs($this->finance);
+        $this->postJson('/api/v1/payroll/lines/'.$line->id.'/payment', ['currency' => 'SYP', 'method' => 'cash', 'paid_at' => '2026-11-03', 'box_id' => $box->id])->assertCreated();
+        $payment = PayPayment::query()->sole();
+        // A path that skipped the application lock would still be stopped by the database.
+        try {
+            $payment->replicate(['active_line_id'])->save();
+            $this->fail('A second active payment for the line was stored.');
+        } catch (QueryException $e) {
+            $this->assertSame(1, PayPayment::query()->whereNull('voided_at')->count());
+        }
+        // Once voided, the line can be paid again.
+        $this->postJson('/api/v1/payroll/payments/'.$payment->id.'/void', ['date' => '2026-11-04', 'reason' => 'Wrong box'])->assertOk();
+        $this->postJson('/api/v1/payroll/lines/'.$line->id.'/payment', ['currency' => 'SYP', 'method' => 'cash', 'paid_at' => '2026-11-04', 'box_id' => $box->id])->assertCreated();
+        $this->assertSame([1, 1], [PayPayment::query()->whereNull('voided_at')->count(), PayPayment::query()->whereNotNull('voided_at')->count()]);
+    }
+
     public function test_individual_payment_is_blocked_while_line_is_in_an_open_sham_cash_file(): void
     {
         $line = $this->approvedOctober();
@@ -720,7 +742,7 @@ class PayrollTest extends TestCase
                 $this->employee, ['termination_date' => '2026-10-31', 'reason' => 'Resigned'], $this->hr
             );
             $this->fail('Expected termination to be blocked by the open Sham Cash file.');
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             $this->assertArrayHasKey('payroll', $e->errors());
         }
         $this->assertSame('active', $this->employee->fresh()->status);

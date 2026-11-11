@@ -18,6 +18,7 @@ use App\Modules\Identity\Models\User;
 use App\Modules\Identity\Services\AuditLogger;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Laravel\Sanctum\Sanctum;
 use Spatie\Permission\Models\Permission;
@@ -552,6 +553,9 @@ class AttendanceTest extends TestCase
             'action' => 'attendance.device_sync_confirmed',
             'auditable_id' => $device->id,
         ]);
+        // Further advances within the same office day are not logged again; the next day is.
+        $this->events($device, [], '2026-11-02T16:30:00+03:00');
+        $this->assertSame(1, DB::table('usr_audit_logs')->where('action', 'attendance.device_sync_confirmed')->where('auditable_id', $device->id)->count());
         $this->events($device, [], '2026-11-02T15:00:00+03:00');
         $this->assertSame(13, $device->fresh()->complete_through->hour);
         $this->expectException(ValidationException::class);

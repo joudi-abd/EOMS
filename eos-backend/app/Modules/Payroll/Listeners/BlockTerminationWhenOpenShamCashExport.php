@@ -26,7 +26,7 @@ class BlockTerminationWhenOpenShamCashExport
             return;
         }
         $held = PayRunLine::query()->where('employee_id', $event->employee->id)
-            ->whereIn('id', $openLineIds->all())->orderBy('id')->lockForUpdate()->exists();
+            ->whereIn('id', $openLineIds->all())->orderBy('id')->lockForUpdate()->first(['id']) !== null;
         if ($held) {
             throw ValidationException::withMessages([
                 'payroll' => ['الموظف مدرج في ملف شام كاش مفتوح؛ أكّد الملف أو ألغه قبل إنهاء الخدمة.'],
