@@ -60,7 +60,7 @@ class AdmsGateway
                 }];
         }
 
-        return DB::transaction(function () use ($device, $events, $raw, $lines) {
+        $outcome = DB::transaction(function () use ($device, $events, $raw, $lines) {
             $device = $this->lock($device);
             $hash = hash('sha256', $raw);
             $upload = DB::table('hr_adms_uploads')->where('device_id', $device->id)->where('body_hash', $hash)->first();
@@ -111,8 +111,16 @@ class AdmsGateway
             $result = $this->importer->import($device, $valid, null);
 
             return ['received' => count($lines), 'imported' => $result['inserted'],
-                'duplicates' => $known + $result['duplicates'], 'quarantined' => $quarantined];
+                'duplicates' => $known + $result['duplicates'], 'quarantined' => $quarantined,
+                '_recalc' => $result['_recalc'] ?? null];
         }, 3);
+
+        if ($outcome['_recalc'] !== null) {
+            $this->importer->recalculateAfterImport($outcome['_recalc']);
+        }
+
+        return ['received' => $outcome['received'], 'imported' => $outcome['imported'],
+            'duplicates' => $outcome['duplicates'], 'quarantined' => $outcome['quarantined']];
     }
 
     public function touch(AttendanceDevice $device): void

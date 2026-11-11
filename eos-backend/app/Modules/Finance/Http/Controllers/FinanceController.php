@@ -22,6 +22,7 @@ use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -254,11 +255,22 @@ class FinanceController extends Controller
         $data = $request->validate(['name' => ['sometimes', 'string', 'max:150'], 'phone' => ['sometimes', 'nullable', 'string', 'max:30'],
             'sham_cash_wallet' => ['sometimes', 'nullable', 'digits:16'], 'sham_cash_name' => ['sometimes', 'nullable', 'string', 'max:150'],
             'notes' => ['sometimes', 'nullable', 'string', 'max:1000'], 'active' => ['sometimes', 'boolean']]);
-        abort_if(($data['active'] ?? true) === false && Transaction::query()->where('status', 'pending')->where('party_id', $party->id)->exists(),
-            422, 'للطرف عمليات بانتظار الاعتماد.');
-        $party->update($data);
+        if (array_key_exists('active', $data)) {
+            $data['active'] = $request->boolean('active');
+        }
 
-        return ApiResponse::ok($party->refresh());
+        $party = DB::transaction(function () use ($party, $data) {
+            $party = Party::query()->lockForUpdate()->findOrFail($party->id);
+            if (($data['active'] ?? true) === false) {
+                abort_if(Transaction::query()->where('status', 'pending')->where('party_id', $party->id)->lockForUpdate()->exists(),
+                    422, 'للطرف عمليات بانتظار الاعتماد.');
+            }
+            $party->update($data);
+
+            return $party->refresh();
+        });
+
+        return ApiResponse::ok($party);
     }
 
     public function items(): JsonResponse

@@ -432,7 +432,8 @@ class LeaveWorkflowService
             if ($request->policy['annual_days'] !== null && $day->covered_units > 0) {
                 $this->entry($request, $day, $day->covered_units, $kind, $reason, $actor);
             }
-            $day->update(['active' => false]);
+            $day->update(['active' => false, 'inactive_reason' => $kind === 'refund' ? 'cancelled' : 'released',
+                'inactive_from_status' => $request->status]);
         }
     }
 
@@ -485,10 +486,12 @@ class LeaveWorkflowService
             Employee::lockForUpdate()->findOrFail($employeeId);
             foreach (LeaveRequestDay::where('employee_id', $employeeId)->where('date', $date)->where('active', true)->get() as $day) {
                 $request = LeaveRequest::findOrFail($day->leave_request_id);
+                $fromStatus = $request->status;
                 if ($request->policy['annual_days'] !== null && $day->covered_units > 0) {
                     $this->entry($request, $day, $day->covered_units, 'holiday_refund', 'استثناء عطلة رسمية من الإجازة', (int) auth()->id());
                 }
-                $day->update(['active' => false]);
+                // Reason/status are stored on the day so restore does not depend on balance-entry kinds.
+                $day->update(['active' => false, 'inactive_reason' => 'holiday', 'inactive_from_status' => $fromStatus]);
                 $request->version++;
                 if (! $request->days()->where('active', true)->exists()) {
                     $request->status = 'cancelled';
@@ -504,14 +507,13 @@ class LeaveWorkflowService
     }
 
     /**
-     * Undo holidayAdded: reactivate days marked by holiday_refund and re-apply reserve/debit.
-     * Skips anyone who already has another active leave on that date.
+     * Undo holidayAdded for days marked inactive_reason=holiday. Re-applies reserve/debit only when
+     * balance is still available; otherwise the day stays inactive (refund already consumed elsewhere).
      */
     public function holidayRemoved(string $date): void
     {
         $days = LeaveRequestDay::query()->where('date', $date)->where('active', false)
-            ->whereIn('id', LeaveBalanceEntry::query()->where('kind', 'holiday_refund')->select('leave_request_day_id'))
-            ->orderBy('employee_id')->orderBy('id')->get();
+            ->where('inactive_reason', 'holiday')->orderBy('employee_id')->orderBy('id')->get();
         foreach ($days->groupBy('employee_id') as $employeeId => $employeeDays) {
             Employee::lockForUpdate()->findOrFail($employeeId);
             if (LeaveRequestDay::query()->where('employee_id', $employeeId)->where('date', $date)->where('active', true)->exists()) {
@@ -522,14 +524,24 @@ class LeaveWorkflowService
                 if (! in_array($request->status, ['cancelled', 'approved', 'pending'], true)) {
                     continue;
                 }
-                $wasApproved = LeaveBalanceEntry::query()->where('leave_request_day_id', $day->id)->where('kind', 'debit')->exists();
+                $restoreAs = $day->inactive_from_status ?: 'approved';
                 if ($request->policy['annual_days'] !== null && $day->covered_units > 0) {
-                    $kind = $wasApproved ? 'debit' : 'reserve';
+                    $available = $this->balances->available(
+                        (int) $request->service_period_id, (int) $request->leave_type_id, (string) $day->cycle_start
+                    );
+                    if ($available < $day->covered_units) {
+                        $this->audit->log('leave.holiday_restore_skipped', $request, null, [
+                            'date' => $date, 'needed' => $day->covered_units, 'available' => $available,
+                        ]);
+
+                        continue;
+                    }
+                    $kind = $restoreAs === 'approved' ? 'debit' : 'reserve';
                     $this->entry($request, $day, -$day->covered_units, $kind, 'إعادة احتساب إجازة بعد حذف العطلة', (int) auth()->id());
                 }
-                $day->update(['active' => true]);
+                $day->update(['active' => true, 'inactive_reason' => null, 'inactive_from_status' => null]);
                 if ($request->status === 'cancelled') {
-                    $request->status = $wasApproved ? 'approved' : 'pending';
+                    $request->status = in_array($restoreAs, ['approved', 'pending'], true) ? $restoreAs : 'approved';
                 }
                 if ($request->status === 'pending') {
                     $request->expires_on = $request->days()->where('active', true)->min('cycle_end');

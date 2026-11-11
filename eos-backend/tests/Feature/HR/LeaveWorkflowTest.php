@@ -265,10 +265,16 @@ class LeaveWorkflowTest extends TestCase
         $holiday = $this->postJson('/api/v1/leave-settings/holidays', ['date' => '2026-11-09', 'name' => 'Office closed'])->assertCreated()->json('data');
         $this->assertSame(2000000, $this->balance());
         $this->assertDatabaseHas('hr_leave_balance_entries', ['kind' => 'holiday_refund', 'day_units' => 1000000]);
-        $this->assertDatabaseHas('hr_leave_request_days', ['leave_request_id' => $row['id'], 'active' => false]);
+        $this->assertDatabaseHas('hr_leave_request_days', [
+            'leave_request_id' => $row['id'], 'active' => false,
+            'inactive_reason' => 'holiday', 'inactive_from_status' => 'approved',
+        ]);
         // Deleting the holiday restores the leave day and re-debits the balance.
         $this->deleteJson('/api/v1/leave-settings/holidays/'.$holiday['id'])->assertOk();
-        $this->assertDatabaseHas('hr_leave_request_days', ['leave_request_id' => $row['id'], 'date' => '2026-11-09', 'active' => true]);
+        $this->assertDatabaseHas('hr_leave_request_days', [
+            'leave_request_id' => $row['id'], 'date' => '2026-11-09', 'active' => true,
+            'inactive_reason' => null, 'inactive_from_status' => null,
+        ]);
         $this->assertSame(1000000, $this->balance());
         $this->assertSame('approved', \App\Modules\HR\Models\LeaveRequest::find($row['id'])->status);
     }

@@ -31,7 +31,8 @@ class AdmsQuarantineService
         // A deliberate time correction must still satisfy normal attendance validation.
         $at = $data['action'] === 'release' ? AttendanceClock::utc($data['corrected_occurred_at']) : null;
 
-        return DB::transaction(function () use ($id, $data, $actor, $at) {
+        $recalc = null;
+        $reviewed = DB::transaction(function () use ($id, $data, $actor, $at, &$recalc) {
             $source = DB::table('hr_adms_quarantined_punches')->find($id);
             abort_unless($source, 404);
             $device = AttendanceDevice::query()->lockForUpdate()->findOrFail($source->device_id);
@@ -40,10 +41,11 @@ class AdmsQuarantineService
             $punchId = null;
             if ($at) {
                 abort_unless($device->is_active && $device->connection_mode === 'adms', 409, 'Device must be active in ADMS mode.');
-                $this->importer->import($device, [[
+                $imported = $this->importer->import($device, [[
                     'external_id' => $source->external_id, 'device_user_id' => $source->device_user_id,
                     'occurred_at' => $at->toIso8601String(), 'direction' => $source->direction,
                 ]], null);
+                $recalc = $imported['_recalc'] ?? null;
                 $punchId = DB::table('hr_attendance_punches')->where('device_id', $device->id)
                     ->where('external_id', $source->external_id)->value('id');
             }
@@ -61,6 +63,12 @@ class AdmsQuarantineService
 
             return $this->format(DB::table('hr_adms_quarantined_punches')->find($id));
         }, 3);
+
+        if ($recalc !== null) {
+            $this->importer->recalculateAfterImport($recalc);
+        }
+
+        return $reviewed;
     }
 
     private function format(object $row): object

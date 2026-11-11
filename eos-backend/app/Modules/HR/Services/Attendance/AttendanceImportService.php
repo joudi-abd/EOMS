@@ -22,6 +22,10 @@ class AttendanceImportService
 
     public function import(AttendanceDevice $device, array $events, ?string $completeThrough): array
     {
+        // When nested under AdmsGateway / quarantine review, defer day recalc until the outer txn commits
+        // so calculator locks never run while the device (and related) rows are still locked.
+        $deferRecalc = DB::transactionLevel() > 0;
+
         // Validate and parse the entire batch before changing any stored event.
         $parsed = array_map(fn ($event) => array_merge($event, ['utc' => AttendanceClock::utc($event['occurred_at'])]), $events);
         $marker = $completeThrough === null ? null : $this->parseMarker($completeThrough);
@@ -77,11 +81,39 @@ class AttendanceImportService
                 '_touched' => $touched, '_advanced' => $advanced, '_previous' => $previousMarker, '_marker' => $marker, '_device' => $device];
         }, 3);
 
-        $device = $result['_device'];
-        $touched = $result['_touched'];
+        $recalc = [
+            'device' => $result['_device'],
+            'touched' => $result['_touched'],
+            'advanced' => $result['_advanced'],
+            'previous' => $result['_previous'],
+            'marker' => $result['_marker'],
+        ];
+
+        $public = ['inserted' => $result['inserted'], 'duplicates' => $result['duplicates'], 'unmatched' => $result['unmatched'],
+            'complete_through' => $result['complete_through']];
+
+        if ($deferRecalc) {
+            return $public + ['_recalc' => $recalc];
+        }
+
+        $this->recalculateAfterImport($recalc);
+
+        return $public;
+    }
+
+    /**
+     * Refresh draft attendance days after punches were persisted. Call only after the outermost
+     * import-related transaction has committed (or when import ran as the outer transaction).
+     *
+     * @param  array{device: AttendanceDevice, touched: array<int, array<string, true>>, advanced: bool, previous: ?CarbonImmutable, marker: ?CarbonImmutable}  $recalc
+     */
+    public function recalculateAfterImport(array $recalc): void
+    {
+        $device = $recalc['device'];
+        $touched = $recalc['touched'];
         // Bridge/manual ingest: refresh draft days for new punches; if coverage advanced, same path as confirm-sync.
-        if ($result['_advanced'] && $result['_marker']) {
-            $this->refreshCoverageAfterSync($device, $result['_previous'], $result['_marker']);
+        if ($recalc['advanced'] && $recalc['marker']) {
+            $this->refreshCoverageAfterSync($device, $recalc['previous'], $recalc['marker']);
         } else {
             foreach ($touched as $employeeId => $dates) {
                 $employee = Employee::query()->find($employeeId);
@@ -97,9 +129,6 @@ class AttendanceImportService
                 }
             }
         }
-
-        return ['inserted' => $result['inserted'], 'duplicates' => $result['duplicates'], 'unmatched' => $result['unmatched'],
-            'complete_through' => $result['complete_through']];
     }
 
     /**

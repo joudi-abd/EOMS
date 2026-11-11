@@ -278,6 +278,10 @@ class FinanceTest extends TestCase
         $this->api('transactions/'.$pending['id'].'/decision', ['decision' => 'reject', 'note' => 'ok'], 200);
         Sanctum::actingAs($this->finance);
         $this->patchJson('/api/v1/finance/parties/'.$supplier['id'], ['active' => false])->assertOk();
+        // Form clients may send 0/1; boolean coercion must still deactivate.
+        $this->patchJson('/api/v1/finance/parties/'.$supplier['id'], ['active' => true])->assertOk();
+        $this->patchJson('/api/v1/finance/parties/'.$supplier['id'], ['active' => 0])->assertOk()
+            ->assertJsonPath('data.active', false);
     }
 
     public function test_stock_count_adjustments_post_to_the_chosen_account(): void

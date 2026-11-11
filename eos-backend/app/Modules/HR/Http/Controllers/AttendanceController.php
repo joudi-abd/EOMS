@@ -179,12 +179,11 @@ class AttendanceController extends Controller
         ]);
     }
 
-    /** Finance (payroll.view) and HR (attendance.view within scope) read the facts a payroll run will use; no money is computed. */
+    /** Finance (payroll.view) and HR (attendance.view) read the facts a payroll run will use; no money is computed. */
     public function payrollInputs(Request $request, Employee $employee, PayrollInputService $inputs): JsonResponse
     {
-        abort_unless($request->user()->can('payroll.view')
-            || (($request->user()->can('attendance.view') || $request->user()->can('attendance.view_department'))
-                && app(HrScope::class)->canSee($request->user(), $employee, 'attendance')), 403);
+        // Organisation-wide attendance.view only — department managers stay on attendance lists, not payroll inputs.
+        abort_unless($request->user()->can('payroll.view') || $request->user()->can('attendance.view'), 403);
         $data = $request->validate(['month' => ['required', 'date_format:Y-m', 'after_or_equal:1970-01']]);
 
         return ApiResponse::ok($inputs->month($employee, $data['month']));

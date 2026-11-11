@@ -153,10 +153,10 @@ class PayRunService
         return DB::transaction(function () use ($run, $actor) {
             $run = $this->lock($run, 'draft');
             abort_if($run->calculated_at === null, 409, 'احسب الكشف أولاً.');
-            // Same source recheck as approve: refuse a stale draft before finance starts reviewing it.
+            // Submit refuses stale fingerprints/adjustments, but not unfinished attendance — finance may review first.
             $this->lockApprovalSources($run);
             $lines = PayRunLine::query()->where('pay_run_id', $run->id)->orderBy('id')->lockForUpdate()->get();
-            $problems = $this->approvalSourceProblems($run, $lines);
+            $problems = $this->approvalSourceProblems($run, $lines, requireAttendanceReady: false);
             if ($problems !== []) {
                 throw ValidationException::withMessages(['run' => $problems]);
             }
@@ -431,12 +431,13 @@ class PayRunService
     }
 
     /**
-     * Roster, current-month fingerprints, and locked-month adjustment payloads must still match the submitted run.
+     * Roster, fingerprints, and locked-month adjustments must still match the run.
+     * Attendance readiness is required on approve; submit only rejects stale source hashes.
      *
      * @param  Collection<int, PayRunLine>  $lines
      * @return list<string>
      */
-    private function approvalSourceProblems(PayRun $run, Collection $lines): array
+    private function approvalSourceProblems(PayRun $run, Collection $lines, bool $requireAttendanceReady = true): array
     {
         $problems = [];
         $inService = $this->employeesFor($run->month);
@@ -464,9 +465,10 @@ class PayRunService
                     $problems[] = $name.': لا تسوية مستحقة بعد؛ أعد الكشف للمسودة وأعد الحساب.';
                 }
             } else {
-                if (! $fresh['attendance_ready']) {
+                if ($requireAttendanceReady && ! $fresh['attendance_ready']) {
                     $problems[] = $name.': حضور الشهر غير جاهز ('.$fresh['blocked_days'].' يوم).';
-                } elseif ($this->fingerprint($fresh) !== $line->source_hash) {
+                }
+                if ($this->fingerprint($fresh) !== $line->source_hash) {
                     $problems[] = $name.': تغيّرت بيانات الحضور أو العقد بعد الحساب؛ أعد الكشف للمسودة وأعد الحساب.';
                 }
                 foreach (collect($fresh['issues'])->where('blocking', true) as $issue) {
