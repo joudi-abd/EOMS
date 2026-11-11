@@ -15,6 +15,9 @@ use Illuminate\Validation\ValidationException;
 
 class AttendanceImportService
 {
+    /** Days refreshed in the request after a sync confirmation (two payroll months). */
+    private const MAX_EAGER_REFRESH_DAYS = 62;
+
     public function __construct(
         private AuditLogger $audit,
         private AttendanceCalculator $calculator,
@@ -205,6 +208,9 @@ class AttendanceImportService
         if ($from->greaterThan($to)) {
             $from = $to;
         }
+        // Eager refresh is a convenience: older draft days are recalculated whenever they are read
+        // (lists, reports, payroll inputs, approval), so a first attestation over years stays bounded.
+        $from = $from->max($to->subDays(self::MAX_EAGER_REFRESH_DAYS));
 
         $employeeIds = AttendanceBinding::query()
             ->where('device_id', $device->id)

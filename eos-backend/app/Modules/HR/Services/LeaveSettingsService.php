@@ -5,6 +5,8 @@ namespace App\Modules\HR\Services;
 use App\Modules\HR\Models\Employee;
 use App\Modules\HR\Models\LeaveBalanceEntry;
 use App\Modules\HR\Models\LeavePolicy;
+use App\Modules\HR\Models\LeaveRequest;
+use App\Modules\HR\Models\LeaveRequestDay;
 use App\Modules\HR\Models\LeaveType;
 use App\Modules\HR\Models\OfficeHoliday;
 use App\Modules\HR\Services\Attendance\AttendanceLeaveSync;
@@ -102,8 +104,8 @@ class LeaveSettingsService
             $date = $holiday->date->toDateString();
             // Only active leave days on this date block deletion — not the original request window
             // (holidayAdded already deactivated that day's leave and may have cancelled a single-day request).
-            if (\App\Modules\HR\Models\LeaveRequestDay::query()->where('date', $date)->where('active', true)
-                ->whereIn('leave_request_id', \App\Modules\HR\Models\LeaveRequest::query()
+            if (LeaveRequestDay::query()->where('date', $date)->where('active', true)
+                ->whereIn('leave_request_id', LeaveRequest::query()
                     ->whereIn('status', ['pending', 'approved'])->select('id'))->exists()) {
                 throw ValidationException::withMessages(['date' => 'توجد إجازة تتقاطع مع العطلة؛ راجع الإجازة قبل حذف العطلة.']);
             }

@@ -147,7 +147,7 @@ Headers: `Accept: application/json`, `Content-Type: application/json`, و`Author
 
 لأجهزة ADMS المباشر (أو أي دفعة بلا تعهد اكتمال)، يؤكد مسؤول الحضور المزامنة يدوياً:
 
-`POST /attendance/devices/{device}/confirm-sync` — صلاحية `attendance.manage` — جسم: `complete_through` (ISO 8601 مع منطقة، ≤ الآن) و`note` (5–500 حرف). لا يُستنتج من بصمة أو heartbeat. يُسجَّل تدقيق `attendance.device_sync_confirmed`.
+`POST /attendance/devices/{device}/confirm-sync` — صلاحية `attendance.manage` — جسم: `complete_through` (ISO 8601 مع منطقة، ≤ الآن) و`note` (5–500 حرف). لا يُستنتج من بصمة أو heartbeat. يُسجَّل تدقيق `attendance.device_sync_confirmed`. يُعاد حساب أيام الموظفين المربوطين بالجهاز فوراً لآخر 62 يوماً كحد أقصى؛ الأيام الأقدم تُحسب عند قراءتها.
 
 لا تستخدم واجهة الفرونت العادية لتخزين توكن الجهاز. المسؤول ينقله مرة واحدة إلى إعدادات الوسيط الآمنة. لا يتم حذف سجلات الجهاز تلقائياً.
 

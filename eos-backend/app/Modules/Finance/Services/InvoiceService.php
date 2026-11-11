@@ -109,8 +109,7 @@ class InvoiceService
 
     /**
      * Reverses the invoice's entries and stock; payments must be reversed first.
-     * A stock invoice (purchase or sale) cannot be cancelled once later stock moves touched its items
-     * (WAC would drift from the ledger); use a return document or a stock count adjustment instead.
+     * Refused when undoing a purchase would leave inventory value out of line with quantity × average.
      */
     public function cancel(Invoice $invoice, string $date, string $reason, User $actor): Invoice
     {
@@ -118,14 +117,13 @@ class InvoiceService
             $invoice = Invoice::query()->lockForUpdate()->findOrFail($invoice->id);
             abort_unless($invoice->status === 'posted', 409, 'تُلغى الفواتير المرحّلة فقط.');
             abort_if((float) $invoice->paid > 0, 409, 'اعكس دفعات الفاتورة أولاً.');
-            // Lock stock rows before the "latest layer" check so a concurrent post/adjust cannot slip in.
+            // Lock stock rows before the value check so a concurrent post/adjust cannot slip in.
             $itemIds = $invoice->lines()->whereNotNull('item_id')->pluck('item_id')->unique()->sort()->values();
             $items = [];
             foreach ($itemIds as $itemId) {
                 $items[$itemId] = Item::query()->lockForUpdate()->findOrFail($itemId);
             }
-            // Purchase or sale: later stock layers make undoing this invoice's unit cost diverge from WAC.
-            $this->assertStockInvoiceCancellable($invoice);
+            $this->assertStockInvoiceCancellable($invoice, $items);
             foreach (JournalEntry::query()->where('source_type', 'invoice')->where('source_id', $invoice->id)->whereNull('reverses_id')->get() as $entry) {
                 $this->ledger->reverse($entry, $date, $reason, $actor);
             }
@@ -214,22 +212,26 @@ class InvoiceService
     }
 
     /**
-     * Stock-invoice cancellation is safe only while this invoice is still the latest stock layer for each item.
-     * Later purchases, sales, or adjustments would make reversing the original unit cost diverge from qty × average.
+     * Undoing an invoice must keep the inventory account equal to quantity × average cost.
+     * A sale cancel returns the goods at the cost they left with, which always holds. A purchase cancel
+     * removes them at their own price, which holds unless later sales at a lower average left less value
+     * on hand than that price (it would go negative, or leave value with no quantity). Those need a stock count adjustment.
      */
-    private function assertStockInvoiceCancellable(Invoice $invoice): void
+    private function assertStockInvoiceCancellable(Invoice $invoice, array $items): void
     {
-        $label = $invoice->type === 'sale' ? 'البيع' : 'الشراء';
+        if ($invoice->type !== 'purchase') {
+            return;
+        }
         foreach ($invoice->lines()->whereNotNull('item_id')->get()->groupBy('item_id') as $itemId => $lines) {
-            $item = Item::query()->findOrFail($itemId);
-            $moveIds = StockMove::query()->where('item_id', $itemId)
-                ->where('source_type', 'invoice')->where('source_id', $invoice->id)->pluck('id');
-            if ($moveIds->isEmpty()) {
-                continue;
+            $item = $items[$itemId];
+            $quantityAfter = round((float) $item->quantity - (float) $lines->sum('quantity'), 3);
+            $valueAfter = round((float) $item->quantity * (float) $item->average_cost - (float) $lines->sum('amount'), 2);
+            if ($quantityAfter < -0.0005) {
+                continue; // move() reports the missing quantity
             }
-            if (StockMove::query()->where('item_id', $itemId)->where('id', '>', $moveIds->max())->exists()) {
+            if ($valueAfter < -0.005 || ($quantityAfter < 0.0005 && abs($valueAfter) >= 0.01)) {
                 throw ValidationException::withMessages([
-                    'invoice' => ['لا يمكن إلغاء فاتورة '.$label.' بعد حركات لاحقة على '.$item->name.'؛ سجّل مرتجعاً أو تسوية جرد بدل الإلغاء المباشر.'],
+                    'invoice' => ['لا يمكن إلغاء فاتورة الشراء: بيع جزء من '.$item->name.' بمتوسط تكلفة أقل من سعرها، فلا تكفي قيمة المخزون المتبقي لإلغائها. سجّل تسوية جرد بدل الإلغاء.'],
                 ]);
             }
         }
@@ -247,7 +249,7 @@ class InvoiceService
         if ($quantity > 0 && $after > 0) {
             $average = ($onHand * $average + $quantity * $unitCost) / $after;
         } elseif ($quantity < 0 && $sourceType === 'invoice_cancel' && $after > 0) {
-            // Cancelling a purchase (only when it is still the latest layer) removes value at its own unit price.
+            // Cancelling a purchase removes value at its own unit price (assertStockInvoiceCancellable keeps it ≥ 0).
             $average = ($onHand * $average + $quantity * $unitCost) / $after;
         } elseif ($after == 0.0) {
             $average = 0;

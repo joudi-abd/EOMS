@@ -153,12 +153,13 @@ class LedgerService
 
     /**
      * Counterpart for a stock count adjustment: postable, not a box, and not a system control account
-     * (inventory, receivables, payables, COGS, salaries, FX clearing, opening balances, entry differences).
+     * (inventory, receivables, payables, COGS, salaries, FX clearing, entry differences). Opening balances is
+     * allowed: the stock on hand when the company starts using the system is entered against it.
      */
     public function stockAdjustmentCounterpart(int $accountId, string $field = 'account_id'): Account
     {
         $account = $this->postable($accountId, $field);
-        if ($account->system_key !== null) {
+        if ($account->system_key !== null && $account->system_key !== 'opening_balances') {
             throw ValidationException::withMessages([$field => ['حساب المقابل لتسوية الجرد لا يكون حساب نظام؛ اختر مصروفاً أو إيراداً أو حقوق ملكية مناسباً.']]);
         }
         if (Box::query()->where('account_id', $account->id)->exists()) {

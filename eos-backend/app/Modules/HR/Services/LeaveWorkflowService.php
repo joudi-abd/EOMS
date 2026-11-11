@@ -14,6 +14,7 @@ use App\Modules\HR\Services\Attendance\AttendanceLeaveSync;
 use App\Modules\Identity\Models\User;
 use App\Modules\Identity\Services\AuditLogger;
 use Carbon\CarbonImmutable;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -48,6 +49,7 @@ class LeaveWorkflowService
     {
         $employee = Employee::where('user_id', $actor->id)->first();
         abort_unless($employee, 403, 'يلزم ربط الحساب بملف موظف.');
+
         return $employee;
     }
 
@@ -57,6 +59,7 @@ class LeaveWorkflowService
         $period = $employee->servicePeriods()->whereDate('start_date', '<=', $today)
             ->where(fn ($query) => $query->whereNull('end_date')->orWhereDate('end_date', '>=', $today))->first();
         abort_unless($period && $employee->status !== 'terminated', 422, 'لا توجد فترة خدمة سارية.');
+
         return $period;
     }
 
@@ -94,6 +97,7 @@ class LeaveWorkflowService
                 }
             }, 3);
         }
+
         return ['types' => $balances, 'can_submit' => $eligible,
             'can_review' => $actor->can('leaves.approve') && $actor->hasAnyRole(['hr_manager', 'company_manager']),
             'can_configure' => $actor->can('leaves.manage'), 'today' => $this->employment->today(),
@@ -103,6 +107,7 @@ class LeaveWorkflowService
     public function preview(User $actor, array $input, ?LeaveRequest $request = null): array
     {
         $employee = $request ? Employee::findOrFail($request->employee_id) : $this->subjectFor($actor, $input['employee_id'] ?? null);
+
         return DB::transaction(function () use ($actor, $employee, $input, $request) {
             DB::table('hr_leave_half_days')->lockForUpdate()->find(1);
             $employee = Employee::lockForUpdate()->findOrFail($employee->id);
@@ -120,6 +125,7 @@ class LeaveWorkflowService
                 abort_unless($policy, 422, 'لا توجد سياسة سارية.');
             }
             $days = $this->plan($employee, $period, $policy, $input, $request);
+
             return $this->quote($days, $policy);
         }, 3);
     }
@@ -211,12 +217,14 @@ class LeaveWorkflowService
                 'pay_percent' => $policy['pay_percent'], 'schedule' => $schedule->toArray()];
         }
         abort_if($result === [], 422, 'الفترة لا تتضمن ساعات دوام قابلة للإجازة.');
+
         return $result;
     }
 
     public function submit(User $actor, array $input, ?LeaveRequest $editing = null): LeaveRequest
     {
         $employee = $editing ? Employee::findOrFail($editing->employee_id) : $this->subjectFor($actor, $input['employee_id'] ?? null);
+
         return DB::transaction(function () use ($actor, $employee, $input, $editing) {
             DB::table('hr_leave_half_days')->lockForUpdate()->find(1);
             $employee = Employee::lockForUpdate()->findOrFail($employee->id);
@@ -227,6 +235,7 @@ class LeaveWorkflowService
                     abort_unless(in_array($actor->id, [$existing->submitted_by, $existing->entered_by], true), 409, 'مفتاح الطلب مستخدم.');
                     $submitted = array_intersect_key($input, array_flip(['start_date', 'end_date', 'unit', 'half', 'start_time', 'end_time', 'reason']));
                     abort_unless($existing->input == $submitted && $existing->leave_type_id === (int) $input['leave_type_id'], 409, 'هذا المفتاح يخص طلباً مختلفاً؛ حدّث القائمة قبل إرسال طلب جديد.');
+
                     return $existing->load('days');
                 }
             } else {
@@ -281,6 +290,7 @@ class LeaveWorkflowService
             } else {
                 app(HrNotifier::class)->leaveSubmitted($request, (bool) $editing);
             }
+
             // Database defaults (including nullable review fields) belong in the first API response too.
             return $request->refresh()->load('days');
         }, 3);
@@ -302,6 +312,7 @@ class LeaveWorkflowService
         $submitter = User::find($request->submitted_by);
         // Role changes cannot let HR approve another HR member's own request.
         $role = $request->approver_role === 'company_manager' || $submitter?->hasRole('hr_manager') ? 'company_manager' : 'hr_manager';
+
         return $actor->id !== $request->submitted_by && $actor->can('leaves.approve') && $actor->hasRole($role);
     }
 
@@ -383,6 +394,7 @@ class LeaveWorkflowService
             } else {
                 app(HrNotifier::class)->leaveDecided($request, $action);
             }
+
             return $request->load('days');
         }, 3);
     }
@@ -448,7 +460,6 @@ class LeaveWorkflowService
             app(HrNotifier::class)->leaveClosed($request, 'leave.expired', 'انتهى طلب إجازتك المعلّق بانتهاء سنة الرصيد.');
         }
     }
-
 
     /**
      * Leave cannot outlive the service period: days after the end date are released back to the period's ledger.
@@ -533,6 +544,17 @@ class LeaveWorkflowService
                 if (! in_array($request->status, ['cancelled', 'approved', 'pending'], true)) {
                     continue;
                 }
+                // The holiday must be the only thing that took this day away: a request the employee or HR
+                // cancelled, or shortened before this date, stays as they left it.
+                $withdrawn = $this->withdrawnDays($request, $day->id);
+                if (($request->status === 'cancelled' && $withdrawn->isNotEmpty())
+                    || $withdrawn->contains(fn (LeaveRequestDay $other) => substr((string) $other->date, 0, 10) <= $date)) {
+                    $this->audit->log('leave.holiday_restore_skipped', $request, null, [
+                        'date' => $date, 'reason' => 'request_cancelled_or_shortened',
+                    ]);
+
+                    continue;
+                }
                 $period = EmployeeServicePeriod::query()->find($request->service_period_id);
                 if ($period === null
                     || $date < $period->start_date->toDateString()
@@ -575,6 +597,24 @@ class LeaveWorkflowService
                 app(HrNotifier::class)->leaveClosed($request, 'leave.holiday_restored', 'حُذفت العطلة الرسمية يوم '.$date.' وأُعيدت إجازتك لذلك اليوم.', ['date' => $date]);
             }
         }
+    }
+
+    /**
+     * Inactive days of a request removed by a person (cancel, withdraw, shorten, reject, service end) rather than
+     * by a holiday. Rows from before inactive_reason existed count as holiday days only with a holiday_refund link.
+     *
+     * @return Collection<int, LeaveRequestDay>
+     */
+    private function withdrawnDays(LeaveRequest $request, int $exceptDayId): Collection
+    {
+        return LeaveRequestDay::query()->where('leave_request_id', $request->id)->where('active', false)
+            ->whereKeyNot($exceptDayId)
+            ->where(function ($query) {
+                $query->where(fn ($q) => $q->whereNotNull('inactive_reason')->where('inactive_reason', '!=', 'holiday'))
+                    ->orWhere(fn ($q) => $q->whereNull('inactive_reason')
+                        ->whereNotIn('id', LeaveBalanceEntry::query()->where('kind', 'holiday_refund')
+                            ->whereNotNull('leave_request_day_id')->select('leave_request_day_id')));
+            })->get();
     }
 
     public function maintain(Employee $employee): void

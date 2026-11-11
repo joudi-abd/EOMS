@@ -605,6 +605,26 @@ class AttendanceTest extends TestCase
             ->where('work_date', '2026-10-23')->value('coverage_complete'));
     }
 
+    public function test_first_confirm_sync_refreshes_a_bounded_window_and_older_days_on_read(): void
+    {
+        $this->actor();
+        $employee = $this->employee();
+        $device = $this->device($employee);
+        app(AttendanceImportService::class)->import($device, [
+            ['external_id' => 'ancient-in', 'device_user_id' => '105', 'occurred_at' => '2026-03-03T09:00:00+03:00', 'direction' => 'unknown'],
+        ], null);
+
+        $this->postJson('/api/v1/attendance/devices/'.$device->id.'/confirm-sync', [
+            'complete_through' => '2026-11-02T16:00:00+03:00',
+            'note' => 'تأكيد أول لجهاز فيه سجل قديم',
+        ])->assertOk();
+
+        // Only the last 62 days are stored eagerly; the March day is computed (and covered) when it is read.
+        $this->assertSame(63, AttendanceDay::query()->where('employee_id', $employee->id)->count());
+        $this->assertNull(AttendanceDay::query()->where('employee_id', $employee->id)->where('work_date', '2026-03-03')->first());
+        $this->assertTrue($this->calculate($employee, '2026-03-03')->coverage_complete);
+    }
+
     public function test_manual_sync_confirmation_rejects_future_marker_and_short_note(): void
     {
         $this->actor();

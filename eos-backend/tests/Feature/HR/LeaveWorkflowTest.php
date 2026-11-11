@@ -6,10 +6,12 @@ use App\Modules\HR\Models\Employee;
 use App\Modules\HR\Models\LeaveBalanceEntry;
 use App\Modules\HR\Models\LeavePolicy;
 use App\Modules\HR\Models\LeaveRequest;
+use App\Modules\HR\Models\LeaveRequestDay;
 use App\Modules\HR\Models\LeaveType;
 use App\Modules\HR\Services\LeaveWorkflowService;
 use App\Modules\Identity\Database\Seeders\RolePermissionSeeder;
 use App\Modules\Identity\Models\User;
+use App\Modules\Identity\Services\AuditLogger;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -21,10 +23,15 @@ class LeaveWorkflowTest extends TestCase
     use RefreshDatabase;
 
     private User $employeeUser;
+
     private User $hr;
+
     private User $director;
+
     private Employee $employee;
+
     private LeaveType $type;
+
     private LeavePolicy $policy;
 
     protected function setUp(): void
@@ -51,6 +58,7 @@ class LeaveWorkflowTest extends TestCase
     {
         $user = User::factory()->create();
         $user->assignRole($role);
+
         return $user;
     }
 
@@ -64,6 +72,7 @@ class LeaveWorkflowTest extends TestCase
     {
         $input = $this->input($extra);
         $quote = $this->postJson('/api/v1/leaves/preview', $input)->assertOk()->json('data');
+
         return $this->postJson('/api/v1/leaves', [...$input, 'quote_token' => $quote['quote_token'],
             'submission_key' => (string) Str::uuid(), 'unpaid_consent' => $consent])->assertCreated()->json('data');
     }
@@ -276,7 +285,7 @@ class LeaveWorkflowTest extends TestCase
             'inactive_reason' => null, 'inactive_from_status' => null,
         ]);
         $this->assertSame(1000000, $this->balance());
-        $this->assertSame('approved', \App\Modules\HR\Models\LeaveRequest::find($row['id'])->status);
+        $this->assertSame('approved', LeaveRequest::find($row['id'])->status);
     }
 
     public function test_holiday_restore_still_finds_days_deactivated_before_inactive_reason(): void
@@ -331,13 +340,14 @@ class LeaveWorkflowTest extends TestCase
     {
         $input = $this->input();
         $quote = $this->postJson('/api/v1/leaves/preview', $input)->assertOk()->json('data');
-        $this->mock(\App\Modules\Identity\Services\AuditLogger::class, function ($mock) {
+        $this->mock(AuditLogger::class, function ($mock) {
             $mock->shouldReceive('log')->andThrow(new \RuntimeException('Audit unavailable'));
         });
         $this->postJson('/api/v1/leaves', [...$input, 'quote_token' => $quote['quote_token'], 'submission_key' => (string) Str::uuid()])->assertStatus(500);
         $this->assertDatabaseCount('hr_leave_requests', 0);
         $this->assertSame(2000000, $this->balance());
     }
+
     public function test_untracked_type_needs_approval_but_does_not_reserve_numeric_balance(): void
     {
         $this->policy->update(['annual_days' => null, 'grant_method' => null, 'year_basis' => null, 'year_start' => null, 'pay_percent' => 0]);
@@ -413,4 +423,62 @@ class LeaveWorkflowTest extends TestCase
         }
     }
 
+    public function test_holiday_removal_does_not_revive_a_cancelled_request(): void
+    {
+        $row = $this->submit(['end_date' => '2026-11-10']);
+        Sanctum::actingAs($this->hr);
+        $row = $this->action($row, 'approve')->assertOk()->json('data');
+        $holiday = $this->postJson('/api/v1/leave-settings/holidays', ['date' => '2026-11-09', 'name' => 'Office closed'])->assertCreated()->json('data');
+        $row = $this->getJson('/api/v1/leaves/'.$row['id'])->json('data');
+        Sanctum::actingAs($this->employeeUser);
+        $row = $this->action($row, 'cancel')->assertOk()->json('data');
+        Sanctum::actingAs($this->hr);
+        $this->action($row, 'approve-change')->assertOk()->assertJsonPath('data.status', 'cancelled');
+        $this->assertSame(2000000, $this->balance());
+
+        $this->deleteJson('/api/v1/leave-settings/holidays/'.$holiday['id'])->assertOk();
+        $this->assertSame('cancelled', LeaveRequest::find($row['id'])->status);
+        $this->assertSame(2000000, $this->balance());
+        $this->assertDatabaseHas('hr_leave_request_days', ['leave_request_id' => $row['id'], 'date' => '2026-11-09', 'active' => false]);
+    }
+
+    public function test_holiday_removal_keeps_a_day_cut_by_a_shortening(): void
+    {
+        // Holiday on the 11th, leave shortened from the 10th: the 11th is past the new end and stays off.
+        $id = $this->shortenedAroundHoliday('2026-11-11', '2026-11-10');
+        $this->assertSame(['2026-11-09'], $this->activeDays($id));
+        $this->assertSame(4000000, $this->balance());
+    }
+
+    public function test_holiday_removal_restores_a_day_before_a_shortening(): void
+    {
+        // Holiday on the 9th, leave shortened from the 11th: the 9th is inside what remains and comes back.
+        $id = $this->shortenedAroundHoliday('2026-11-09', '2026-11-11');
+        $this->assertSame(['2026-11-09', '2026-11-10'], $this->activeDays($id));
+        $this->assertSame(3000000, $this->balance());
+    }
+
+    /** Approved 9–11 Nov leave (5-day policy), a holiday inside it, a shortening, then the holiday deleted. */
+    private function shortenedAroundHoliday(string $holidayDate, string $from): int
+    {
+        $this->policy->update(['annual_days' => 5]);
+        $row = $this->submit(['end_date' => '2026-11-11']);
+        Sanctum::actingAs($this->hr);
+        $this->action($row, 'approve')->assertOk();
+        $holiday = $this->postJson('/api/v1/leave-settings/holidays', ['date' => $holidayDate, 'name' => 'Office closed'])->assertCreated()->json('data');
+        $row = $this->getJson('/api/v1/leaves/'.$row['id'])->json('data');
+        Sanctum::actingAs($this->employeeUser);
+        $row = $this->action($row, 'shorten', ['from_date' => $from])->assertOk()->json('data');
+        Sanctum::actingAs($this->hr);
+        $this->action($row, 'approve-change')->assertOk()->assertJsonPath('data.status', 'approved');
+        $this->deleteJson('/api/v1/leave-settings/holidays/'.$holiday['id'])->assertOk();
+
+        return $row['id'];
+    }
+
+    private function activeDays(int $requestId): array
+    {
+        return LeaveRequestDay::query()->where('leave_request_id', $requestId)->where('active', true)->orderBy('date')
+            ->pluck('date')->map(fn ($date) => substr((string) $date, 0, 10))->all();
+    }
 }
