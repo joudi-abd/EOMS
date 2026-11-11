@@ -570,6 +570,31 @@ class PayrollTest extends TestCase
         $this->assertSame(['absence', 'earning', '100000.00'], [$adjustment->details['source_kind'], $adjustment->category, $adjustment->proposed_amount]);
     }
 
+    public function test_submit_rejects_when_former_employee_gained_adjustment_missing_from_run(): void
+    {
+        $this->approvedOctober();
+        $this->contract->update(['status' => 'terminated', 'terminated_at' => '2026-10-31']);
+        app(EmployeeTerminationService::class)->terminate($this->employee, ['termination_date' => '2026-10-31', 'reason' => 'Resigned'], $this->hr);
+
+        $this->travelTo(CarbonImmutable::parse('2026-12-02T10:00:00+03:00'));
+        Sanctum::actingAs($this->hr);
+        $november = $this->postJson('/api/v1/payroll/runs', ['month' => '2026-11'])->assertCreated()->json('data');
+        $this->assertSame(0, $november['employees']);
+
+        $checker = $this->actor('hr_manager');
+        $reviews = app(AttendanceReviewService::class);
+        $day = AttendanceDay::where('work_date', '2026-10-06')->firstOrFail();
+        $day = $reviews->reopen($day, $day->version, 'Device was offline', $this->hr);
+        $correction = $reviews->request($day, ['version' => $day->version, 'type' => 'times', 'first_in' => '2026-10-06T09:00:00+03:00',
+            'last_out' => '2026-10-06T16:00:00+03:00', 'reason' => 'Confirmed by site log'], $this->hr);
+        $reviews->review($correction, ['decision' => 'approve', 'reason' => 'Checked'], $checker);
+        $reviews->approve($day->refresh(), $day->refresh()->version, $checker);
+
+        // Draft was built before the adjustment existed; submit must refuse until recalculate.
+        Sanctum::actingAs($this->hr);
+        $this->postJson('/api/v1/payroll/runs/'.$november['id'].'/submit')->assertUnprocessable();
+    }
+
     public function test_sham_cash_file_is_filled_from_the_template_and_confirmed_as_payments(): void
     {
         $line = $this->approvedOctober();

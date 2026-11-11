@@ -507,13 +507,22 @@ class LeaveWorkflowService
     }
 
     /**
-     * Undo holidayAdded for days marked inactive_reason=holiday. Re-applies reserve/debit only when
-     * balance is still available; otherwise the day stays inactive (refund already consumed elsewhere).
+     * Undo holidayAdded for days marked inactive_reason=holiday (and pre-column days still linked by
+     * holiday_refund). Re-applies reserve/debit only when balance remains and the day is still inside
+     * the original service period; otherwise the day stays inactive.
      */
     public function holidayRemoved(string $date): void
     {
         $days = LeaveRequestDay::query()->where('date', $date)->where('active', false)
-            ->where('inactive_reason', 'holiday')->orderBy('employee_id')->orderBy('id')->get();
+            ->where(function ($query) {
+                $query->where('inactive_reason', 'holiday')
+                    ->orWhere(function ($legacy) {
+                        // Rows deactivated before inactive_reason existed keep the holiday_refund link.
+                        $legacy->whereNull('inactive_reason')
+                            ->whereIn('id', LeaveBalanceEntry::query()->where('kind', 'holiday_refund')->select('leave_request_day_id'));
+                    });
+            })
+            ->orderBy('employee_id')->orderBy('id')->get();
         foreach ($days->groupBy('employee_id') as $employeeId => $employeeDays) {
             Employee::lockForUpdate()->findOrFail($employeeId);
             if (LeaveRequestDay::query()->where('employee_id', $employeeId)->where('date', $date)->where('active', true)->exists()) {
@@ -524,7 +533,21 @@ class LeaveWorkflowService
                 if (! in_array($request->status, ['cancelled', 'approved', 'pending'], true)) {
                     continue;
                 }
-                $restoreAs = $day->inactive_from_status ?: 'approved';
+                $period = EmployeeServicePeriod::query()->find($request->service_period_id);
+                if ($period === null
+                    || $date < $period->start_date->toDateString()
+                    || ($period->end_date && $date > $period->end_date->toDateString())) {
+                    $this->audit->log('leave.holiday_restore_skipped', $request, null, [
+                        'date' => $date, 'reason' => 'outside_service_period',
+                    ]);
+
+                    continue;
+                }
+                $restoreAs = $day->inactive_from_status;
+                if ($restoreAs === null) {
+                    $restoreAs = LeaveBalanceEntry::query()->where('leave_request_day_id', $day->id)
+                        ->where('kind', 'debit')->exists() ? 'approved' : 'pending';
+                }
                 if ($request->policy['annual_days'] !== null && $day->covered_units > 0) {
                     $available = $this->balances->available(
                         (int) $request->service_period_id, (int) $request->leave_type_id, (string) $day->cycle_start

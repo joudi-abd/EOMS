@@ -118,6 +118,12 @@ class InvoiceService
             $invoice = Invoice::query()->lockForUpdate()->findOrFail($invoice->id);
             abort_unless($invoice->status === 'posted', 409, 'تُلغى الفواتير المرحّلة فقط.');
             abort_if((float) $invoice->paid > 0, 409, 'اعكس دفعات الفاتورة أولاً.');
+            // Lock stock rows before the "latest layer" check so a concurrent post/adjust cannot slip in.
+            $itemIds = $invoice->lines()->whereNotNull('item_id')->pluck('item_id')->unique()->sort()->values();
+            $items = [];
+            foreach ($itemIds as $itemId) {
+                $items[$itemId] = Item::query()->lockForUpdate()->findOrFail($itemId);
+            }
             // Purchase or sale: later stock layers make undoing this invoice's unit cost diverge from WAC.
             $this->assertStockInvoiceCancellable($invoice);
             foreach (JournalEntry::query()->where('source_type', 'invoice')->where('source_id', $invoice->id)->whereNull('reverses_id')->get() as $entry) {
@@ -126,7 +132,7 @@ class InvoiceService
             foreach ($invoice->lines()->whereNotNull('item_id')->get() as $line) {
                 $sign = $invoice->type === 'sale' ? 1 : -1;
                 $cost = $invoice->type === 'sale' ? (float) $line->cost_amount / (float) $line->quantity : (float) $line->unit_price;
-                $this->move(Item::query()->lockForUpdate()->findOrFail($line->item_id), $sign * (float) $line->quantity, $cost, $date,
+                $this->move($items[$line->item_id], $sign * (float) $line->quantity, $cost, $date,
                     'invoice_cancel', $invoice->id, $reason, $actor);
             }
             $invoice->update(['status' => 'cancelled', 'decision_note' => $reason, 'version' => $invoice->version + 1]);

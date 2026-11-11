@@ -450,6 +450,21 @@ class PayRunService
             }
         }
 
+        // Former employees are not required on every run — but a new locked-month adjustment must not be skipped.
+        foreach ($former as $employee) {
+            if ($lineByEmployee->has($employee->id)) {
+                continue;
+            }
+            $currency = $this->lastLockedLine($employee->id, $run->month)?->currency_code;
+            if ($currency === null) {
+                continue;
+            }
+            $expected = $this->computeAdjustments($employee, $run->month, $currency);
+            if ($expected['items'] !== []) {
+                $problems[] = $employee->full_name.': ظهرت تسوية مستحقة بعد تجهيز الكشف؛ أعد الكشف للمسودة وأعد الحساب.';
+            }
+        }
+
         foreach ($lines as $line) {
             $employee = Employee::query()->findOrFail($line->employee_id);
             $name = $employee->full_name;

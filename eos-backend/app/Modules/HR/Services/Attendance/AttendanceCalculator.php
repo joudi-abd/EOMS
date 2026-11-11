@@ -74,6 +74,10 @@ class AttendanceCalculator
                 // Recalculate old partial-leave drafts; approved snapshots require an explicit review.
                 $source[] = 'partial-leave-exempt-absence-v2';
             }
+            if ($working && $inService && ! $holiday && ! $fullLeave) {
+                // Recalculate drafts that still store pre-fix OT (end→out without clamping to arrival).
+                $source[] = 'schedule-end-extra-v2';
+            }
             $signature = hash('sha256', json_encode($source, JSON_THROW_ON_ERROR));
             if ($day->approved_at !== null) {
                 // Days approved before this rule were signed with the actual end date; if nothing else changed,

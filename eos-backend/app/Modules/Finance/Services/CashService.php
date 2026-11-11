@@ -241,7 +241,9 @@ class CashService
             throw ValidationException::withMessages(['party_id' => ['حدّد طرفاً (عميل/مورد) أو حساباً، وليس كليهما.']]);
         }
         if ($party !== null) {
-            abort_unless(Party::query()->whereKey($party)->where('kind', $kind)->where('active', true)->exists(), 422,
+            // Same row lock as party deactivate so a concurrent soft-delete cannot race a new payment/receipt.
+            $row = Party::query()->whereKey($party)->lockForUpdate()->first();
+            abort_unless($row && $row->kind === $kind && $row->active, 422,
                 $kind === 'customer' ? 'القبض من عميل فعّال.' : 'الصرف لمورد فعّال.');
         } else {
             $this->assertCashCounterpart((int) $account);
@@ -275,7 +277,8 @@ class CashService
         $box = $this->box($tx->box_id);
         if ($tx->party_id) {
             $kind = $tx->kind === 'receipt' ? 'customer' : 'supplier';
-            abort_unless(Party::query()->whereKey($tx->party_id)->where('kind', $kind)->where('active', true)->exists(), 422,
+            $row = Party::query()->whereKey($tx->party_id)->lockForUpdate()->first();
+            abort_unless($row && $row->kind === $kind && $row->active, 422,
                 $kind === 'customer' ? 'القبض من عميل فعّال.' : 'الصرف لمورد فعّال.');
         } elseif ($tx->account_id) {
             $this->assertCashCounterpart((int) $tx->account_id);

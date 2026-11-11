@@ -150,6 +150,9 @@ class AttendanceTest extends TestCase
         $this->assertSame('present', $lateArrival->status);
         $this->assertSame(60, $lateArrival->worked_minutes);
         $this->assertSame(60, $lateArrival->extra_minutes);
+        // A pre-fix draft with the old end→out value must recalculate once the signature version bumps.
+        $lateArrival->update(['extra_minutes' => 120, 'source_signature' => 'pre-schedule-end-extra-v2']);
+        $this->assertSame(60, $this->calculate($employee)->extra_minutes);
 
         $normal = $this->employee();
         $this->events($this->device($normal), ['09:00', '18:00'], '2026-11-02T18:00:00+03:00');
@@ -580,6 +583,26 @@ class AttendanceTest extends TestCase
             'complete_through' => '2026-11-02T15:00:00+03:00',
             'note' => 'محاولة إرجاع التأكيد إلى وقت أقدم',
         ])->assertUnprocessable();
+    }
+
+    public function test_first_confirm_sync_refreshes_coverage_older_than_seven_days(): void
+    {
+        $this->actor();
+        $employee = $this->employee();
+        $device = $this->device($employee);
+        app(AttendanceImportService::class)->import($device, [
+            ['external_id' => 'old-in', 'device_user_id' => '105', 'occurred_at' => '2026-10-23T09:00:00+03:00', 'direction' => 'unknown'],
+            ['external_id' => 'old-out', 'device_user_id' => '105', 'occurred_at' => '2026-10-23T16:00:00+03:00', 'direction' => 'unknown'],
+        ], null);
+        $this->assertFalse($this->calculate($employee, '2026-10-23')->coverage_complete);
+
+        $this->postJson('/api/v1/attendance/devices/'.$device->id.'/confirm-sync', [
+            'complete_through' => '2026-11-02T16:00:00+03:00',
+            'note' => 'تأكيد أول يغطي سجل الجهاز كاملاً',
+        ])->assertOk();
+
+        $this->assertTrue(AttendanceDay::query()->where('employee_id', $employee->id)
+            ->where('work_date', '2026-10-23')->value('coverage_complete'));
     }
 
     public function test_manual_sync_confirmation_rejects_future_marker_and_short_note(): void

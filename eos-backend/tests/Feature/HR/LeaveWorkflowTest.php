@@ -279,6 +279,36 @@ class LeaveWorkflowTest extends TestCase
         $this->assertSame('approved', \App\Modules\HR\Models\LeaveRequest::find($row['id'])->status);
     }
 
+    public function test_holiday_restore_still_finds_days_deactivated_before_inactive_reason(): void
+    {
+        $row = $this->submit();
+        Sanctum::actingAs($this->hr);
+        $this->action($row, 'approve')->assertOk();
+        $holiday = $this->postJson('/api/v1/leave-settings/holidays', ['date' => '2026-11-09', 'name' => 'Office closed'])->assertCreated()->json('data');
+        // Simulate a pre-migration row: holiday_refund exists, inactive_reason was never set.
+        DB::table('hr_leave_request_days')->where('leave_request_id', $row['id'])->where('date', '2026-11-09')
+            ->update(['inactive_reason' => null, 'inactive_from_status' => null]);
+        $this->deleteJson('/api/v1/leave-settings/holidays/'.$holiday['id'])->assertOk();
+        $this->assertDatabaseHas('hr_leave_request_days', [
+            'leave_request_id' => $row['id'], 'date' => '2026-11-09', 'active' => true,
+        ]);
+        $this->assertSame(1000000, $this->balance());
+    }
+
+    public function test_holiday_restore_skips_days_outside_the_service_period(): void
+    {
+        $row = $this->submit();
+        Sanctum::actingAs($this->hr);
+        $this->action($row, 'approve')->assertOk();
+        $holiday = $this->postJson('/api/v1/leave-settings/holidays', ['date' => '2026-11-09', 'name' => 'Office closed'])->assertCreated()->json('data');
+        $this->employee->servicePeriods()->first()->update(['end_date' => '2026-11-08']);
+        $this->deleteJson('/api/v1/leave-settings/holidays/'.$holiday['id'])->assertOk();
+        $this->assertDatabaseHas('hr_leave_request_days', [
+            'leave_request_id' => $row['id'], 'date' => '2026-11-09', 'active' => false, 'inactive_reason' => 'holiday',
+        ]);
+        $this->assertSame(2000000, $this->balance());
+    }
+
     public function test_rehire_does_not_inherit_old_balance_or_receive_an_automatic_opening(): void
     {
         app(LeaveWorkflowService::class)->maintain($this->employee);

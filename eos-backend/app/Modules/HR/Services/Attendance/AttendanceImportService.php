@@ -193,9 +193,15 @@ class AttendanceImportService
     ): void {
         $zone = AttendancePolicy::query()->orderBy('effective_from')->value('timezone') ?? 'UTC';
         $to = $marker->setTimezone($zone)->startOfDay();
-        $from = $previous !== null
-            ? $previous->setTimezone($zone)->startOfDay()
-            : $to->subDays(7);
+        if ($previous !== null) {
+            $from = $previous->setTimezone($zone)->startOfDay();
+        } else {
+            // First attestation: refresh from the earliest stored punch (not a fixed 7-day window).
+            $earliest = AttendancePunch::query()->where('device_id', $device->id)->min('occurred_at');
+            $from = $earliest
+                ? CarbonImmutable::parse($earliest, 'UTC')->setTimezone($zone)->startOfDay()
+                : $to->subDays(7);
+        }
         if ($from->greaterThan($to)) {
             $from = $to;
         }

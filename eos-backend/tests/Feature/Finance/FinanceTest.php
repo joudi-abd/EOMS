@@ -282,6 +282,9 @@ class FinanceTest extends TestCase
         $this->patchJson('/api/v1/finance/parties/'.$supplier['id'], ['active' => true])->assertOk();
         $this->patchJson('/api/v1/finance/parties/'.$supplier['id'], ['active' => 0])->assertOk()
             ->assertJsonPath('data.active', false);
+        // A deactivated party cannot receive a new payment (row lock shared with deactivate).
+        $this->api('transactions/payment', ['box_id' => $syp->id, 'amount' => 10, 'date' => '2026-11-05',
+            'description' => 'After deactivate', 'party_id' => $supplier['id']], 422);
     }
 
     public function test_stock_count_adjustments_post_to_the_chosen_account(): void
