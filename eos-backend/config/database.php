@@ -59,6 +59,9 @@ return [
             'prefix_indexes' => true,
             'strict' => true,
             'engine' => null,
+            // Every read after a row lock sees the latest committed data (balances, latest stock moves),
+            // and MariaDB's snapshot check (error 1020) does not apply. All invariants rely on row locks.
+            'isolation_level' => env('DB_ISOLATION_LEVEL', 'READ COMMITTED'),
             'options' => extension_loaded('pdo_mysql') ? array_filter([
                 Mysql::ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],
@@ -79,6 +82,9 @@ return [
             'prefix_indexes' => true,
             'strict' => true,
             'engine' => null,
+            // Every read after a row lock sees the latest committed data (balances, latest stock moves),
+            // and MariaDB's snapshot check (error 1020) does not apply. All invariants rely on row locks.
+            'isolation_level' => env('DB_ISOLATION_LEVEL', 'READ COMMITTED'),
             'options' => extension_loaded('pdo_mysql') ? array_filter([
                 Mysql::ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],

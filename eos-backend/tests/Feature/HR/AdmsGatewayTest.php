@@ -133,6 +133,28 @@ class AdmsGatewayTest extends TestCase
         $this->assertNull($this->device->fresh()->complete_through);
     }
 
+    public function test_manual_confirm_sync_after_attlog_sets_complete_through_without_heartbeat(): void
+    {
+        $this->binding();
+        $this->raw("00105\t2026-11-05 09:00:00\t0\t1\r\n00105\t2026-11-05 16:00:00\t1\t1\r\n")
+            ->assertOk()->assertContent("OK: 2\n");
+        $this->get('/iclock/getrequest?SN=IFACE_TEST')->assertOk();
+        $this->assertNull($this->device->fresh()->complete_through);
+
+        $actor = $this->actor();
+        $this->postJson('/api/v1/attendance/devices/'.$this->device->id.'/confirm-sync', [
+            'complete_through' => '2026-11-05T16:00:00+03:00',
+            'note' => 'رُوجع ATTLOG على الجهاز حتى نهاية الدوام',
+        ])->assertOk();
+
+        $this->assertSame('2026-11-05 13:00:00', $this->device->fresh()->complete_through->format('Y-m-d H:i:s'));
+        $this->assertSame(1, DB::table('usr_audit_logs')
+            ->where('action', 'attendance.device_sync_confirmed')
+            ->where('user_id', $actor->id)
+            ->where('auditable_id', $this->device->id)
+            ->count());
+    }
+
     public function test_retries_different_batches_and_line_endings_do_not_duplicate_punches(): void
     {
         $first = "00105\t2026-11-05 09:00:00\t0\t1";

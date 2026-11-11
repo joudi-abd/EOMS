@@ -18,6 +18,7 @@ use App\Modules\Identity\Models\User;
 use App\Modules\Identity\Services\AuditLogger;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Laravel\Sanctum\Sanctum;
 use Spatie\Permission\Models\Permission;
@@ -138,6 +139,56 @@ class AttendanceTest extends TestCase
         $this->assertSame(10, $day->late_minutes);
         $this->assertSame(15, $day->early_minutes);
         $this->assertSame(365, $day->worked_minutes);
+    }
+
+    public function test_overtime_starts_at_the_later_of_check_in_and_shift_end(): void
+    {
+        $employee = $this->employee();
+        $device = $this->device($employee);
+        // Arrived after the 16:00 end: only the hour actually worked is overtime, not end→out.
+        $this->events($device, ['17:00', '18:00'], '2026-11-02T18:00:00+03:00');
+        $lateArrival = $this->calculate($employee);
+        $this->assertSame('present', $lateArrival->status);
+        $this->assertSame(60, $lateArrival->worked_minutes);
+        $this->assertSame(60, $lateArrival->extra_minutes);
+        // A pre-fix draft with the old end→out value must recalculate once the signature version bumps.
+        $lateArrival->update(['extra_minutes' => 120, 'source_signature' => 'pre-schedule-end-extra-v2']);
+        $this->assertSame(60, $this->calculate($employee)->extra_minutes);
+
+        $normal = $this->employee();
+        $this->events($this->device($normal), ['09:00', '18:00'], '2026-11-02T18:00:00+03:00');
+        $this->assertSame(120, $this->calculate($normal)->extra_minutes);
+
+        $incomplete = $this->employee();
+        $this->events($this->device($incomplete), ['18:00'], '2026-11-02T18:00:00+03:00');
+        $day = $this->calculate($incomplete);
+        $this->assertSame('incomplete', $day->status);
+        $this->assertNull($day->extra_minutes);
+    }
+
+    public function test_rest_day_and_holiday_overtime_use_worked_span_not_schedule_end(): void
+    {
+        $employee = $this->employee();
+        $device = $this->device($employee);
+        // Friday is a rest day under the default policy.
+        app(AttendanceImportService::class)->import($device, [
+            ['external_id' => 'rest-in', 'device_user_id' => '105', 'occurred_at' => '2026-10-30T17:00:00+03:00', 'direction' => 'unknown'],
+            ['external_id' => 'rest-out', 'device_user_id' => '105', 'occurred_at' => '2026-10-30T18:00:00+03:00', 'direction' => 'unknown'],
+        ], '2026-10-30T18:00:00+03:00');
+        $rest = $this->calculate($employee, '2026-10-30');
+        $this->assertSame('day_off', $rest->status);
+        $this->assertSame(60, $rest->worked_minutes);
+        $this->assertNull($rest->extra_minutes);
+        $this->assertContains('work_on_day_off', $rest->flags);
+
+        Sanctum::actingAs($this->actor());
+        $this->postJson('/api/v1/leave-settings/holidays', ['date' => '2026-11-02', 'name' => 'Office holiday'])->assertCreated();
+        $holidayEmployee = $this->employee();
+        $this->events($this->device($holidayEmployee), ['17:00', '18:00'], '2026-11-02T18:00:00+03:00');
+        $holiday = $this->calculate($holidayEmployee);
+        $this->assertSame('holiday', $holiday->status);
+        $this->assertSame(60, $holiday->worked_minutes);
+        $this->assertNull($holiday->extra_minutes);
     }
 
     public function test_friday_is_day_off_and_saturday_is_working(): void
@@ -498,10 +549,103 @@ class AttendanceTest extends TestCase
     {
         $device = $this->device();
         $this->events($device, [], '2026-11-02T16:00:00+03:00');
+        $this->assertDatabaseHas('usr_audit_logs', [
+            'action' => 'attendance.device_sync_confirmed',
+            'auditable_id' => $device->id,
+        ]);
+        // Further advances within the same office day are not logged again; the next day is.
+        $this->events($device, [], '2026-11-02T16:30:00+03:00');
+        $this->assertSame(1, DB::table('usr_audit_logs')->where('action', 'attendance.device_sync_confirmed')->where('auditable_id', $device->id)->count());
         $this->events($device, [], '2026-11-02T15:00:00+03:00');
         $this->assertSame(13, $device->fresh()->complete_through->hour);
         $this->expectException(ValidationException::class);
         $this->events($device, [], '2026-11-02T18:01:00+03:00');
+    }
+
+    public function test_manual_sync_confirmation_unlocks_coverage_without_inferring_from_punches(): void
+    {
+        $actor = $this->actor();
+        $employee = $this->employee();
+        $device = $this->device($employee);
+        $this->events($device, ['09:00', '16:00']);
+        $this->assertNull($device->fresh()->complete_through);
+        $this->assertFalse($this->calculate($employee)->coverage_complete);
+
+        $response = $this->postJson('/api/v1/attendance/devices/'.$device->id.'/confirm-sync', [
+            'complete_through' => '2026-11-02T16:00:00+03:00',
+            'note' => 'رُوجع سجل الجهاز حتى نهاية الدوام',
+        ])->assertOk();
+        $this->assertStringContainsString('2026-11-02', (string) $response->json('data.complete_through'));
+
+        $this->assertNotNull($device->fresh()->complete_through);
+        $day = $this->calculate($employee);
+        $this->assertTrue($day->coverage_complete);
+        $this->assertSame('present', $day->status);
+        $this->assertDatabaseHas('usr_audit_logs', [
+            'action' => 'attendance.device_sync_confirmed',
+            'user_id' => $actor->id,
+            'auditable_id' => $device->id,
+        ]);
+
+        $this->postJson('/api/v1/attendance/devices/'.$device->id.'/confirm-sync', [
+            'complete_through' => '2026-11-02T15:00:00+03:00',
+            'note' => 'محاولة إرجاع التأكيد إلى وقت أقدم',
+        ])->assertUnprocessable();
+    }
+
+    public function test_first_confirm_sync_refreshes_coverage_older_than_seven_days(): void
+    {
+        $this->actor();
+        $employee = $this->employee();
+        $device = $this->device($employee);
+        app(AttendanceImportService::class)->import($device, [
+            ['external_id' => 'old-in', 'device_user_id' => '105', 'occurred_at' => '2026-10-23T09:00:00+03:00', 'direction' => 'unknown'],
+            ['external_id' => 'old-out', 'device_user_id' => '105', 'occurred_at' => '2026-10-23T16:00:00+03:00', 'direction' => 'unknown'],
+        ], null);
+        $this->assertFalse($this->calculate($employee, '2026-10-23')->coverage_complete);
+
+        $this->postJson('/api/v1/attendance/devices/'.$device->id.'/confirm-sync', [
+            'complete_through' => '2026-11-02T16:00:00+03:00',
+            'note' => 'تأكيد أول يغطي سجل الجهاز كاملاً',
+        ])->assertOk();
+
+        $this->assertTrue(AttendanceDay::query()->where('employee_id', $employee->id)
+            ->where('work_date', '2026-10-23')->value('coverage_complete'));
+    }
+
+    public function test_first_confirm_sync_refreshes_a_bounded_window_and_older_days_on_read(): void
+    {
+        $this->actor();
+        $employee = $this->employee();
+        $device = $this->device($employee);
+        app(AttendanceImportService::class)->import($device, [
+            ['external_id' => 'ancient-in', 'device_user_id' => '105', 'occurred_at' => '2026-03-03T09:00:00+03:00', 'direction' => 'unknown'],
+        ], null);
+
+        $this->postJson('/api/v1/attendance/devices/'.$device->id.'/confirm-sync', [
+            'complete_through' => '2026-11-02T16:00:00+03:00',
+            'note' => 'تأكيد أول لجهاز فيه سجل قديم',
+        ])->assertOk();
+
+        // Only the last 62 days are stored eagerly; the March day is computed (and covered) when it is read.
+        $this->assertSame(63, AttendanceDay::query()->where('employee_id', $employee->id)->count());
+        $this->assertNull(AttendanceDay::query()->where('employee_id', $employee->id)->where('work_date', '2026-03-03')->first());
+        $this->assertTrue($this->calculate($employee, '2026-03-03')->coverage_complete);
+    }
+
+    public function test_manual_sync_confirmation_rejects_future_marker_and_short_note(): void
+    {
+        $this->actor();
+        $device = $this->device();
+        $this->postJson('/api/v1/attendance/devices/'.$device->id.'/confirm-sync', [
+            'complete_through' => '2026-11-02T19:00:00+03:00',
+            'note' => 'مراجعة كاملة للسجل',
+        ])->assertUnprocessable();
+        $this->postJson('/api/v1/attendance/devices/'.$device->id.'/confirm-sync', [
+            'complete_through' => '2026-11-02T16:00:00+03:00',
+            'note' => 'قصير',
+        ])->assertUnprocessable();
+        $this->assertNull($device->fresh()->complete_through);
     }
 
     public function test_approved_present_day_does_not_gain_pending_changes_just_because_deadline_passes(): void

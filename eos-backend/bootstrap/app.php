@@ -1,6 +1,8 @@
 <?php
 
+use Illuminate\Contracts\Database\ConcurrencyErrorDetector;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -30,6 +32,14 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->render(function (ModelNotFoundException|NotFoundHttpException $e, Request $request) {
             if ($request->is('api/*')) {
                 return response()->json(['message' => 'المورد المطلوب غير موجود.'], 404);
+            }
+        });
+
+        // A conflict that outlived the transaction retries (deadlock, MariaDB 1020, serialization failure) is
+        // a busy moment, not a server fault: ask the user to repeat the action instead of a 500.
+        $exceptions->render(function (QueryException $e, Request $request) {
+            if ($request->is('api/*') && app(ConcurrencyErrorDetector::class)->causedByConcurrencyError($e)) {
+                return response()->json(['message' => 'تزامنت العملية مع عملية أخرى على البيانات نفسها؛ أعد المحاولة.'], 409);
             }
         });
     })->create();

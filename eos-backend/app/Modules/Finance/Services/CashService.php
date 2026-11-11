@@ -22,16 +22,22 @@ use Illuminate\Validation\ValidationException;
  */
 class CashService
 {
+    /** Whole-transaction retries on deadlocks and serialization conflicts (MariaDB 1020, PostgreSQL 40001/40P01). */
+    private const TX_ATTEMPTS = 3;
+
     public function __construct(private LedgerService $ledger, private AuditLogger $audit) {}
 
     public function createBox(array $data, User $actor): Box
     {
         return DB::transaction(function () use ($data, $actor) {
-            $account = Account::create(['code' => 'BOX-'.uniqid(), 'name' => 'صندوق: '.$data['name'], 'type' => 'asset',
-                'parent_id' => $data['parent_account_id'] ?? null]);
-            if ($account->parent_id) {
-                abort_unless(Account::find($account->parent_id)?->type === 'asset', 422, 'حساب الصندوق يُوضع تحت حساب أصول.');
+            $parentId = $data['parent_account_id'] ?? null;
+            // Same parent rules as chart accounts: lock, matching type, no postings, not a box/system leaf.
+            if ($parentId) {
+                $parent = Account::query()->lockForUpdate()->findOrFail($parentId);
+                $this->ledger->checkParent($parent, 'asset');
             }
+            $account = Account::create(['code' => 'BOX-'.uniqid(), 'name' => 'صندوق: '.$data['name'], 'type' => 'asset',
+                'parent_id' => $parentId]);
             $box = Box::create(['name' => $data['name'], 'kind' => $data['kind'], 'currency_code' => strtoupper($data['currency_code']),
                 'account_id' => $account->id]);
             $account->update(['code' => 'BOX-'.$box->id]);
@@ -47,7 +53,7 @@ class CashService
             }
 
             return $box;
-        });
+        }, self::TX_ATTEMPTS);
     }
 
     public function balance(Box $box): float
@@ -81,7 +87,7 @@ class CashService
             $this->postTransaction($tx, $actor);
 
             return $tx->refresh();
-        });
+        }, self::TX_ATTEMPTS);
     }
 
     /** Payment out of a box, to a supplier (optionally against a purchase invoice) or debited to an account. */
@@ -100,36 +106,34 @@ class CashService
             }
 
             return $tx->refresh();
-        });
+        }, self::TX_ATTEMPTS);
     }
 
     public function transfer(array $data, User $actor): Transaction
     {
         return DB::transaction(function () use ($data, $actor) {
-            $from = $this->box($data['box_id']);
-            $to = $this->box($data['counter_box_id']);
+            [$from, $to] = $this->boxPair($data['box_id'], $data['counter_box_id']);
             abort_if($from->id === $to->id, 422, 'اختر صندوقين مختلفين.');
             abort_unless($from->currency_code === $to->currency_code, 422, 'التحويل بين صندوقين بنفس العملة؛ استخدم صرف العملة لغير ذلك.');
             $tx = $this->make('transfer', [...$data, 'counter_amount' => $data['amount']], $from, $actor, 'posted');
             $this->postTransaction($tx, $actor);
 
             return $tx->refresh();
-        });
+        }, self::TX_ATTEMPTS);
     }
 
     /** Sell `amount` from one box for `counter_amount` into a box of another currency; one entry per currency. */
     public function exchange(array $data, User $actor): Transaction
     {
         return DB::transaction(function () use ($data, $actor) {
-            $from = $this->box($data['box_id']);
-            $to = $this->box($data['counter_box_id']);
+            [$from, $to] = $this->boxPair($data['box_id'], $data['counter_box_id']);
             abort_if($from->currency_code === $to->currency_code, 422, 'صرف العملة بين عملتين مختلفتين؛ استخدم التحويل لنفس العملة.');
             $data['rate'] = round((float) $data['counter_amount'] / (float) $data['amount'], 6);
             $tx = $this->make('exchange', $data, $from, $actor, 'posted');
             $this->postTransaction($tx, $actor);
 
             return $tx->refresh();
-        });
+        }, self::TX_ATTEMPTS);
     }
 
     /** Called by the payroll module inside its payment transaction: salary paid out of the chosen box. */
@@ -152,16 +156,20 @@ class CashService
             $tx = Transaction::query()->lockForUpdate()->findOrFail($tx->id);
             abort_unless($tx->status === 'pending', 409, 'العملية ليست بانتظار الاعتماد.');
             abort_if($tx->created_by === $actor->id, 403, 'لا يعتمد أحد عملية سجّلها بنفسه.');
-            $tx->update(['status' => $approve ? 'posted' : 'rejected', 'approved_by' => $actor->id, 'decision_note' => $note]);
             if ($approve) {
+                // Re-check live box/party/account state; create-time validation may be stale.
+                $this->assertPostablePending($tx);
+                $tx->update(['status' => 'posted', 'approved_by' => $actor->id, 'decision_note' => $note]);
                 $this->postTransaction($tx, $actor);
+            } else {
+                $tx->update(['status' => 'rejected', 'approved_by' => $actor->id, 'decision_note' => $note]);
             }
             $this->audit->log($approve ? 'finance.payment_approved' : 'finance.payment_rejected', $tx, null, null, $actor->id);
             app(FinanceNotifier::class)->toUser($tx->created_by, $approve ? 'finance.payment_approved' : 'finance.payment_rejected',
                 ($approve ? 'اعتُمد الصرف: ' : 'رُفض الصرف: ').$tx->description.($note ? ' — '.$note : ''), ['transaction_id' => $tx->id]);
 
             return $tx->refresh();
-        });
+        }, self::TX_ATTEMPTS);
     }
 
     /** Reverses every entry of a posted operation and restores the paid amount of a linked invoice. */
@@ -182,7 +190,7 @@ class CashService
             $this->audit->log('finance.transaction_reversed', $tx, null, ['reason' => $reason], $actor->id);
 
             return $tx->refresh();
-        });
+        }, self::TX_ATTEMPTS);
     }
 
     private function postTransaction(Transaction $tx, User $actor): void
@@ -234,21 +242,60 @@ class CashService
             throw ValidationException::withMessages(['party_id' => ['حدّد طرفاً (عميل/مورد) أو حساباً، وليس كليهما.']]);
         }
         if ($party !== null) {
-            abort_unless(Party::query()->whereKey($party)->where('kind', $kind)->where('active', true)->exists(), 422,
+            // Same row lock as party deactivate so a concurrent soft-delete cannot race a new payment/receipt.
+            $row = Party::query()->whereKey($party)->lockForUpdate()->first();
+            abort_unless($row && $row->kind === $kind && $row->active, 422,
                 $kind === 'customer' ? 'القبض من عميل فعّال.' : 'الصرف لمورد فعّال.');
         } else {
-            $this->ledger->postable((int) $account);
-            abort_if(Box::query()->where('account_id', $account)->exists(), 422, 'استخدم التحويل بين الصناديق.');
+            $this->assertCashCounterpart((int) $account);
         }
         if (! empty($data['invoice_id'])) {
             $invoice = Invoice::query()->findOrFail($data['invoice_id']);
+            abort_unless($invoice->status === 'posted', 422, 'الفاتورة غير مرحّلة.');
             abort_unless($invoice->party_id === (int) $party && $invoice->currency_code === $box->currency_code
                 && $invoice->type === ($kind === 'customer' ? 'sale' : 'purchase'), 422, 'الفاتورة لا تخص هذا الطرف أو العملة.');
         }
     }
 
+    /**
+     * Manual cash counterpart: postable, not a box, and not a protected system account.
+     * opening_balances remains allowed so a new box can be funded from equity at creation.
+     */
+    private function assertCashCounterpart(int $accountId, string $field = 'account_id'): Account
+    {
+        $counter = $this->ledger->postable($accountId, $field);
+        abort_if(Box::query()->where('account_id', $accountId)->exists(), 422, 'استخدم التحويل بين الصناديق.');
+        if ($counter->system_key !== null && $counter->system_key !== 'opening_balances') {
+            throw ValidationException::withMessages([$field => ['لا تستخدم حساب نظام كمقابل لصرف أو قبض يدوي؛ الرواتب والمخزون والتكلفة عبر مساراتها.']]);
+        }
+
+        return $counter;
+    }
+
+    /** Live checks before posting a pending payment/receipt that was validated at create time. */
+    private function assertPostablePending(Transaction $tx): void
+    {
+        $box = $this->box($tx->box_id);
+        if ($tx->party_id) {
+            $kind = $tx->kind === 'receipt' ? 'customer' : 'supplier';
+            $row = Party::query()->whereKey($tx->party_id)->lockForUpdate()->first();
+            abort_unless($row && $row->kind === $kind && $row->active, 422,
+                $kind === 'customer' ? 'القبض من عميل فعّال.' : 'الصرف لمورد فعّال.');
+        } elseif ($tx->account_id) {
+            $this->assertCashCounterpart((int) $tx->account_id);
+        }
+        if ($tx->invoice_id) {
+            $invoice = Invoice::query()->findOrFail($tx->invoice_id);
+            abort_unless($invoice->status === 'posted', 422, 'الفاتورة غير مرحّلة.');
+            abort_unless($invoice->party_id === (int) $tx->party_id && $invoice->currency_code === $box->currency_code, 422, 'الفاتورة لا تخص هذا الطرف أو العملة.');
+        }
+    }
+
     private function make(string $kind, array $data, Box $box, User $actor, string $status): Transaction
     {
+        // Lock the period before inserting (including pending payments that do not post yet).
+        $this->ledger->ensureOpen($data['date']);
+
         return Transaction::create([
             'kind' => $kind, 'date' => $data['date'], 'box_id' => $box->id, 'amount' => round((float) $data['amount'], 2),
             'counter_box_id' => $data['counter_box_id'] ?? null,
@@ -259,9 +306,26 @@ class CashService
         ]);
     }
 
+    /** Two boxes locked in id order, so opposite transfers between the same boxes cannot deadlock. */
+    private function boxPair(int|string $fromId, int|string $toId): array
+    {
+        $ids = [(int) $fromId, (int) $toId];
+        $locked = [];
+        foreach (array_unique([min($ids), max($ids)]) as $id) {
+            $locked[$id] = $this->box($id);
+        }
+
+        return [$locked[$ids[0]], $locked[$ids[1]]];
+    }
+
+    /**
+     * Every write path takes the box row lock before inserting the operation. The insert's foreign key
+     * otherwise takes a shared lock first, and two concurrent payments from one box deadlock when both
+     * then ask for the exclusive lock (reproduced on PostgreSQL; InnoDB behaves the same).
+     */
     private function box(int|string $id): Box
     {
-        $box = Box::query()->find($id);
+        $box = Box::query()->lockForUpdate()->find($id);
         abort_unless($box && $box->active, 422, 'الصندوق غير موجود أو غير فعّال.');
 
         return $box;

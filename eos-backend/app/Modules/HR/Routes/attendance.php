@@ -48,6 +48,7 @@ Route::prefix('api/v1')->middleware(['api', 'auth:sanctum'])->group(function () 
         Route::post('attendance/devices', [AttendanceSettingsController::class, 'storeDevice']);
         Route::patch('attendance/devices/{device}', [AttendanceSettingsController::class, 'updateDevice']);
         Route::post('attendance/devices/{device}/rotate-token', [AttendanceSettingsController::class, 'rotateToken']);
+        Route::post('attendance/devices/{device}/confirm-sync', [AttendanceSettingsController::class, 'confirmSync']);
         Route::get('attendance/devices/{device}/bindings', [AttendanceSettingsController::class, 'bindings']);
         Route::post('attendance/devices/{device}/bindings', [AttendanceSettingsController::class, 'storeBinding']);
         Route::post('attendance/bindings/{binding}/close', [AttendanceSettingsController::class, 'closeBinding']);

@@ -8,6 +8,7 @@ use App\Modules\Finance\Models\Invoice;
 use App\Modules\Finance\Models\Item;
 use App\Modules\Finance\Models\JournalEntry;
 use App\Modules\Finance\Models\JournalLine;
+use App\Modules\Finance\Models\StockMove;
 use App\Modules\Finance\Models\Transaction;
 use App\Modules\Finance\Services\CashService;
 use App\Modules\Identity\Database\Seeders\RolePermissionSeeder;
@@ -209,19 +210,130 @@ class FinanceTest extends TestCase
         $this->assertSame(6_000_000, (int) $statement['closing_balance']);
         $this->assertSame(6_000_000, (int) $statement['overdue_total']);
 
-        // Supplier payment, then cancellation needs the payment reversed first; cancelling returns the stock effect.
+        // Supplier payment blocks cancel until reversed; after a sale, purchase cancel stays blocked (later stock moves).
         $pay = $this->api('transactions/payment', ['box_id' => $usd->id, 'amount' => 1_000, 'date' => '2026-11-07', 'description' => 'Pay',
             'party_id' => $supplier['id'], 'invoice_id' => $first['id']]);
         $this->api('invoices/'.$first['id'].'/cancel', ['date' => '2026-11-08', 'reason' => 'Returned'], 409);
         $this->api('transactions/'.$pay['id'].'/reverse', ['date' => '2026-11-08', 'reason' => 'Refunded'], 200);
-        $this->api('invoices/'.$first['id'].'/cancel', ['date' => '2026-11-08', 'reason' => 'Returned'], 200);
+        $this->postJson('/api/v1/finance/invoices/'.$first['id'].'/cancel', ['date' => '2026-11-08', 'reason' => 'Returned'])
+            ->assertUnprocessable()->assertJsonValidationErrors('invoice');
         $cement->refresh();
-        $this->assertSame('5.000', $cement->quantity);
-        // Weighted average: 15 bags worth 1,725 minus the cancelled 1,000 leaves 725 for 5 bags.
-        $this->assertSame('145.000000', $cement->average_cost);
+        $this->assertSame(['15.000', '115.000000'], [$cement->quantity, $cement->average_cost]);
         $inventory = Account::where('system_key', 'inventory')->value('id');
         $ledger = $this->getJson('/api/v1/finance/reports/ledger?account_id='.$inventory.'&currency=USD&from=2026-11-01&to=2026-11-30')->json('data');
-        $this->assertEquals(725, $ledger['closing_balance'], 'The inventory account always equals quantity × average cost');
+        $this->assertEquals(1725, $ledger['closing_balance'], 'The inventory account always equals quantity × average cost');
+    }
+
+    public function test_pending_sale_rechecks_stock_under_item_locks_at_approval(): void
+    {
+        $this->limits();
+        $supplier = $this->api('parties', ['kind' => 'supplier', 'name' => 'Stock Co.']);
+        $customer = $this->api('parties', ['kind' => 'customer', 'name' => 'Buyer']);
+        $item = Item::find($this->api('items', ['name' => 'Panel', 'unit' => 'pcs', 'currency_code' => 'USD', 'revenue_account_id' => $this->sales->id])['id']);
+        $buy = $this->api('invoices', ['type' => 'purchase', 'party_id' => $supplier['id'], 'date' => '2026-11-02', 'currency_code' => 'USD',
+            'lines' => [['item_id' => $item->id, 'quantity' => 5, 'unit_price' => 100]]]);
+        $this->api('invoices/'.$buy['id'].'/submit', [], 200);
+        // Above the USD approval limit → pending; stock is not reserved until post.
+        $pending = $this->api('invoices', ['type' => 'sale', 'party_id' => $customer['id'], 'date' => '2026-11-03', 'currency_code' => 'USD',
+            'lines' => [['item_id' => $item->id, 'quantity' => 5, 'unit_price' => 500]]]);
+        $this->assertSame('pending', $this->api('invoices/'.$pending['id'].'/submit', [], 200)['status']);
+        // Another sale within the limit takes the stock first.
+        $posted = $this->api('invoices', ['type' => 'sale', 'party_id' => $customer['id'], 'date' => '2026-11-03', 'currency_code' => 'USD',
+            'lines' => [['item_id' => $item->id, 'quantity' => 5, 'unit_price' => 150]]]);
+        $this->api('invoices/'.$posted['id'].'/submit', [], 200);
+        $this->assertSame('0.000', $item->refresh()->quantity);
+        Sanctum::actingAs($this->director);
+        $this->postJson('/api/v1/finance/invoices/'.$pending['id'].'/decision', ['decision' => 'approve'])
+            ->assertUnprocessable()->assertJsonValidationErrors('quantity');
+        $this->assertSame('pending', Invoice::find($pending['id'])->status);
+    }
+
+    public function test_purchase_cancel_only_as_the_latest_stock_move_and_never_to_a_negative_cost(): void
+    {
+        $this->limits();
+        $supplier = $this->api('parties', ['kind' => 'supplier', 'name' => 'Steel Co.']);
+        $customer = $this->api('parties', ['kind' => 'customer', 'name' => 'Buyer']);
+        $inventory = Account::where('system_key', 'inventory')->value('id');
+        $ledger = fn () => (float) $this->getJson('/api/v1/finance/reports/ledger?account_id='.$inventory.'&currency=USD&from=2026-11-01&to=2026-11-30')->json('data.closing_balance');
+        $newItem = fn (string $name) => Item::find($this->api('items', ['name' => $name, 'unit' => 'pcs', 'currency_code' => 'USD', 'revenue_account_id' => $this->sales->id])['id']);
+        $post = function (string $type, Item $item, float $qty, float $price, string $date) use ($supplier, $customer) {
+            $invoice = $this->api('invoices', ['type' => $type, 'party_id' => ($type === 'sale' ? $customer : $supplier)['id'], 'date' => $date,
+                'currency_code' => 'USD', 'lines' => [['item_id' => $item->id, 'quantity' => $qty, 'unit_price' => $price]]]);
+
+            return $this->api('invoices/'.$invoice['id'].'/submit', [], 200);
+        };
+        $cancel = fn (array $invoice) => $this->postJson('/api/v1/finance/invoices/'.$invoice['id'].'/cancel', ['date' => '2026-11-09', 'reason' => 'Entered by mistake']);
+
+        // Only the latest purchase can be cancelled.
+        $beam = $newItem('Beam');
+        $first = $post('purchase', $beam, 10, 100, '2026-11-02');
+        $second = $post('purchase', $beam, 10, 130, '2026-11-03');
+        $cancel($first)->assertUnprocessable()->assertJsonValidationErrors('invoice');
+        $cancel($second)->assertOk();
+        $this->assertSame(['10.000', '100.000000'], [$beam->refresh()->quantity, $beam->average_cost]);
+        $this->assertEquals(1000, $ledger());
+
+        // A sale can be cancelled after a restock: the goods come back at the cost they left with.
+        $sale = $post('sale', $beam, 4, 200, '2026-11-04');
+        $post('purchase', $beam, 2, 140, '2026-11-05');
+        $cancel($first)->assertUnprocessable()->assertJsonValidationErrors('invoice');
+        $cancel($sale)->assertOk();
+        $this->assertSame('12.000', $beam->refresh()->quantity);
+        $this->assertEquals(1280, $ledger());
+        $this->assertEqualsWithDelta(1280, (float) $beam->quantity * (float) $beam->average_cost, 0.01);
+
+        // Zero-cost stock plus a purchase whose average rounds down: cancelling it never stores a negative cost.
+        $bolt = $newItem('Bolt');
+        $this->api('items/'.$bolt->id.'/adjust', ['date' => '2026-11-02', 'quantity' => 1.936, 'unit_cost' => 0,
+            'account_id' => Account::where('system_key', 'opening_balances')->value('id'), 'reason' => 'Opening count']);
+        $odd = $post('purchase', $bolt, 1, 0.92, '2026-11-03');
+        $this->assertSame('0.313351', $bolt->refresh()->average_cost);
+        $cancel($odd)->assertOk();
+        $this->assertSame(['1.936', '0.000000'], [$bolt->refresh()->quantity, $bolt->average_cost]);
+        $this->assertGreaterThanOrEqual(0, (float) StockMove::query()->where('item_id', $bolt->id)->min('average_cost_after'));
+    }
+
+    public function test_sale_cancel_restores_the_exact_cost_it_took_out(): void
+    {
+        $this->limits();
+        $customer = $this->api('parties', ['kind' => 'customer', 'name' => 'Buyer']);
+        $inventory = Account::where('system_key', 'inventory')->value('id');
+        $item = Item::find($this->api('items', ['name' => 'Washer', 'unit' => 'pcs', 'currency_code' => 'USD', 'revenue_account_id' => $this->sales->id])['id']);
+        $this->api('items/'.$item->id.'/adjust', ['date' => '2026-11-02', 'quantity' => 1, 'unit_cost' => 0.01,
+            'account_id' => Account::where('system_key', 'opening_balances')->value('id'), 'reason' => 'Opening count']);
+        // 0.4 × 0.01 = 0.004 leaves the stock but rounds to a 0.00 cost entry; twice over.
+        foreach ([1, 2] as $round) {
+            $sale = $this->api('invoices', ['type' => 'sale', 'party_id' => $customer['id'], 'date' => '2026-11-03', 'currency_code' => 'USD',
+                'lines' => [['item_id' => $item->id, 'quantity' => 0.4, 'unit_price' => 1]]]);
+            $this->api('invoices/'.$sale['id'].'/submit', [], 200);
+            $this->api('invoices/'.$sale['id'].'/cancel', ['date' => '2026-11-04', 'reason' => 'Entered twice'], 200);
+            $this->assertSame(['1.000', '0.010000'], [$item->refresh()->quantity, $item->average_cost], "round $round");
+        }
+        $this->assertEquals(0.01, $this->getJson('/api/v1/finance/reports/ledger?account_id='.$inventory.'&currency=USD&from=2026-11-01&to=2026-11-30')->json('data.closing_balance'));
+    }
+
+    public function test_cash_counterpart_rejects_system_accounts_except_opening_balances(): void
+    {
+        $syp = $this->box('SYP', 1_000_000);
+        $salaries = Account::where('system_key', 'salaries')->firstOrFail();
+        $this->api('transactions/payment', ['box_id' => $syp->id, 'amount' => 10, 'date' => '2026-11-05',
+            'description' => 'Bad', 'account_id' => $salaries->id], 422);
+        $supplier = $this->api('parties', ['kind' => 'supplier', 'name' => 'Temp Co.']);
+        $pending = $this->api('transactions/payment', ['box_id' => $syp->id, 'amount' => 50, 'date' => '2026-11-05',
+            'description' => 'Pending pay', 'party_id' => $supplier['id']]);
+        $this->assertSame('pending', $pending['status']);
+        $this->patchJson('/api/v1/finance/parties/'.$supplier['id'], ['active' => false])->assertStatus(422);
+        Sanctum::actingAs($this->director);
+        $this->api('transactions/'.$pending['id'].'/decision', ['decision' => 'reject', 'note' => 'ok'], 200);
+        Sanctum::actingAs($this->finance);
+        $this->patchJson('/api/v1/finance/parties/'.$supplier['id'], ['active' => false])->assertOk();
+        // Form clients may send 0/1; boolean coercion must still deactivate.
+        $this->patchJson('/api/v1/finance/parties/'.$supplier['id'], ['active' => true])->assertOk();
+        $this->patchJson('/api/v1/finance/parties/'.$supplier['id'], ['active' => 0])->assertOk()
+            ->assertJsonPath('data.active', false);
+        // A deactivated party cannot receive a new payment (row lock shared with deactivate).
+        $this->api('transactions/payment', ['box_id' => $syp->id, 'amount' => 10, 'date' => '2026-11-05',
+            'description' => 'After deactivate', 'party_id' => $supplier['id']], 422);
     }
 
     public function test_stock_count_adjustments_post_to_the_chosen_account(): void
@@ -237,6 +349,48 @@ class FinanceTest extends TestCase
         $this->assertEquals(500, $pl['total_expenses']);
     }
 
+    public function test_inventory_account_moves_only_with_stock_documents(): void
+    {
+        $box = $this->box('USD', 1_000);
+        $inventory = (int) Account::where('system_key', 'inventory')->value('id');
+        $receivables = (int) Account::where('system_key', 'receivables')->value('id');
+        $item = Item::find($this->api('items', ['name' => 'Pipe', 'unit' => 'm', 'currency_code' => 'USD'])['id']);
+
+        $this->postJson('/api/v1/finance/transactions/receipt', [
+            'box_id' => $box->id, 'amount' => 50, 'date' => '2026-11-02', 'description' => 'Fake stock cash',
+            'account_id' => $inventory,
+        ])->assertUnprocessable()->assertJsonValidationErrors('account_id');
+        $this->postJson('/api/v1/finance/transactions/payment', [
+            'box_id' => $box->id, 'amount' => 50, 'date' => '2026-11-02', 'description' => 'Fake stock pay',
+            'account_id' => $inventory,
+        ])->assertUnprocessable()->assertJsonValidationErrors('account_id');
+
+        $this->postJson('/api/v1/finance/items/'.$item->id.'/adjust', [
+            'date' => '2026-11-02', 'quantity' => 1, 'unit_cost' => 10, 'account_id' => $inventory, 'reason' => 'Self offset',
+        ])->assertUnprocessable()->assertJsonValidationErrors('account_id');
+        $this->postJson('/api/v1/finance/items/'.$item->id.'/adjust', [
+            'date' => '2026-11-02', 'quantity' => 1, 'unit_cost' => 10, 'account_id' => $receivables, 'reason' => 'Receivable',
+        ])->assertUnprocessable()->assertJsonValidationErrors('account_id');
+        $this->postJson('/api/v1/finance/items/'.$item->id.'/adjust', [
+            'date' => '2026-11-02', 'quantity' => 1, 'unit_cost' => 10, 'account_id' => $box->account_id, 'reason' => 'Cash box',
+        ])->assertUnprocessable()->assertJsonValidationErrors('account_id');
+
+        $supplier = $this->api('parties', ['kind' => 'supplier', 'name' => 'Vendor']);
+        $this->postJson('/api/v1/finance/invoices', [
+            'type' => 'purchase', 'party_id' => $supplier['id'], 'date' => '2026-11-02', 'currency_code' => 'USD',
+            'lines' => [['description' => 'Free text stock', 'quantity' => 1, 'unit_price' => 10, 'account_id' => $inventory]],
+        ])->assertUnprocessable()->assertJsonValidationErrors('lines.0.account_id');
+
+        // Legitimate stock document still posts inventory; the opening count goes against opening balances.
+        $this->api('items/'.$item->id.'/adjust', [
+            'date' => '2026-11-02', 'quantity' => 2, 'unit_cost' => 25,
+            'account_id' => Account::where('system_key', 'opening_balances')->value('id'), 'reason' => 'Opening count',
+        ]);
+        $this->assertSame('2.000', $item->refresh()->quantity);
+        $ledger = $this->getJson('/api/v1/finance/reports/ledger?account_id='.$inventory.'&currency=USD&from=2026-11-01&to=2026-11-30')->json('data');
+        $this->assertEquals(50, $ledger['closing_balance']);
+    }
+
     public function test_month_close_needs_manager_approval_and_blocks_postings(): void
     {
         $box = $this->box('SYP', 1_000_000);
@@ -249,12 +403,22 @@ class FinanceTest extends TestCase
         Sanctum::actingAs($this->finance);
         $this->api('periods/close-request', ['month' => '2026-11'], 200);
         $this->api('periods/2026-11/decision', ['decision' => 'approve'], 403);
+        // A new unsettled payment after the request must block final approval.
+        $late = $this->api('transactions/payment', ['box_id' => $box->id, 'amount' => 10, 'date' => '2026-11-21', 'description' => 'Late pending', 'account_id' => $this->rent->id]);
         Sanctum::actingAs($this->director);
+        $this->api('periods/2026-11/decision', ['decision' => 'approve'], 409);
+        $this->api('transactions/'.$late['id'].'/decision', ['decision' => 'reject', 'note' => 'Clear close'], 200);
         $this->api('periods/2026-11/decision', ['decision' => 'approve'], 200);
 
         Sanctum::actingAs($this->finance);
         $this->api('transactions/receipt', ['box_id' => $box->id, 'amount' => 1, 'date' => '2026-11-30', 'description' => 'Late', 'account_id' => $this->capital->id], 422);
         $this->api('transactions/receipt', ['box_id' => $box->id, 'amount' => 1, 'date' => '2026-12-01', 'description' => 'Ok', 'account_id' => $this->capital->id]);
+        // A zero-value stock count posts no entry but still changes quantity: the closed month refuses it too.
+        $item = Item::find($this->api('items', ['name' => 'Gift sample', 'unit' => 'pcs', 'currency_code' => 'USD'])['id']);
+        $this->postJson('/api/v1/finance/items/'.$item->id.'/adjust', ['date' => '2026-11-15', 'quantity' => 3, 'unit_cost' => 0,
+            'account_id' => $this->capital->id, 'reason' => 'Free samples'])->assertUnprocessable()->assertJsonValidationErrors('date');
+        $this->assertSame('0.000', $item->refresh()->quantity);
+        $this->assertSame(0, StockMove::count());
         Sanctum::actingAs($this->director);
         $this->api('periods/2026-11/reopen', ['reason' => 'Missing invoice'], 200);
         Sanctum::actingAs($this->finance);
@@ -367,6 +531,25 @@ class FinanceTest extends TestCase
         $this->assertFalse(Box::where('name', 'Bad')->exists());
         // Without an amount the box starts empty, as before.
         $this->assertEquals(0, $this->api('boxes', ['name' => 'Empty', 'kind' => 'sham_cash', 'currency_code' => 'USD'])['balance']);
+    }
+
+    public function test_box_parent_uses_the_same_rules_as_chart_accounts(): void
+    {
+        $cash = $this->api('accounts', ['code' => '1100', 'name' => 'النقد وما في حكمه', 'type' => 'asset']);
+        $ok = $this->api('boxes', ['name' => 'Main till', 'kind' => 'cash', 'currency_code' => 'SYP', 'parent_account_id' => $cash['id']]);
+        $this->assertSame($cash['id'], Account::find(Box::find($ok['id'])->account_id)->parent_id);
+
+        // Wrong type, system account, another box, or a parent that already has postings.
+        $this->api('boxes', ['name' => 'Under equity', 'kind' => 'cash', 'currency_code' => 'SYP', 'parent_account_id' => $this->capital->id], 422);
+        $receivables = Account::where('system_key', 'receivables')->firstOrFail();
+        $this->api('boxes', ['name' => 'Under system', 'kind' => 'cash', 'currency_code' => 'SYP', 'parent_account_id' => $receivables->id], 422);
+        $this->api('boxes', ['name' => 'Under box', 'kind' => 'cash', 'currency_code' => 'SYP', 'parent_account_id' => Box::find($ok['id'])->account_id], 422);
+
+        $posted = $this->api('accounts', ['code' => '1110', 'name' => 'نقد مرحّل', 'type' => 'asset', 'parent_id' => $cash['id']]);
+        $this->api('entries', ['date' => '2026-11-02', 'currency_code' => 'SYP', 'description' => 'Seed',
+            'lines' => [['account_id' => $posted['id'], 'debit' => 10], ['account_id' => $this->capital->id, 'credit' => 10]]]);
+        $this->api('boxes', ['name' => 'Under posted', 'kind' => 'cash', 'currency_code' => 'SYP', 'parent_account_id' => $posted['id']], 422);
+        $this->assertFalse(Box::where('name', 'Under posted')->exists());
     }
 
     public function test_parties_carry_a_sham_cash_wallet(): void

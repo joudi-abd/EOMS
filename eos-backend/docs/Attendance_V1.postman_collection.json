@@ -451,6 +451,33 @@
         ],
         "url": "{{base_url}}/attendance/devices/{{device_id}}/rotate-token"
       }
+    },
+    {
+      "name": "20 Confirm device sync completeness",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/attendance/devices/{{device_id}}/confirm-sync",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"complete_through\": \"{{work_date}}T16:00:00+03:00\",\n  \"note\": \"Device ATTLOG reviewed through end of shift; no pending records\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "description": "Manual attestation for ADMS (or incomplete bridge batches). Never inferred from a punch or heartbeat. Audits attendance.device_sync_confirmed."
+      }
     }
   ]
 }

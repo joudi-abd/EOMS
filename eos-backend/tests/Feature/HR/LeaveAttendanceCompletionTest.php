@@ -174,6 +174,15 @@ class LeaveAttendanceCompletionTest extends TestCase
         $this->assertSame(1, $this->employeeUser->notifications()->get()->where('data.kind', 'attendance.correction_approved')->count());
     }
 
+    public function test_calendar_and_export_live_under_leaves_not_leave_settings(): void
+    {
+        Sanctum::actingAs($this->hr);
+        $this->getJson('/api/v1/leave-settings/calendar?from=2026-11-01&to=2026-11-30')->assertNotFound();
+        $this->get('/api/v1/leave-settings/export')->assertNotFound();
+        $this->getJson('/api/v1/leaves/calendar?from=2026-11-01&to=2026-11-30')->assertOk();
+        $this->get('/api/v1/leaves/export')->assertOk();
+    }
+
     public function test_exports_are_scoped_excel_friendly_and_neutralise_formulas(): void
     {
         $this->approvedLeave(['start_date' => '2026-11-03', 'reason' => '=HYPERLINK("http://x")']);

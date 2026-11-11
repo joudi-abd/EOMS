@@ -7,26 +7,39 @@ use App\Modules\HR\Models\AttendanceDay;
 use App\Modules\HR\Models\AttendanceDevice;
 use App\Modules\HR\Models\AttendancePolicy;
 use App\Modules\HR\Models\AttendancePunch;
+use App\Modules\HR\Models\Employee;
+use App\Modules\Identity\Services\AuditLogger;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class AttendanceImportService
 {
+    /** Days refreshed in the request after a sync confirmation (two payroll months). */
+    private const MAX_EAGER_REFRESH_DAYS = 62;
+
+    public function __construct(
+        private AuditLogger $audit,
+        private AttendanceCalculator $calculator,
+    ) {}
+
     public function import(AttendanceDevice $device, array $events, ?string $completeThrough): array
     {
+        // When nested under AdmsGateway / quarantine review, defer day recalc until the outer txn commits
+        // so calculator locks never run while the device (and related) rows are still locked.
+        $deferRecalc = DB::transactionLevel() > 0;
+
         // Validate and parse the entire batch before changing any stored event.
         $parsed = array_map(fn ($event) => array_merge($event, ['utc' => AttendanceClock::utc($event['occurred_at'])]), $events);
-        $marker = $completeThrough === null ? null : AttendanceClock::utc($completeThrough);
-        if ($marker?->greaterThan(CarbonImmutable::now('UTC'))) {
-            throw ValidationException::withMessages(['complete_through' => ['لا يمكن تأكيد مزامنة وقت في المستقبل.']]);
-        }
+        $marker = $completeThrough === null ? null : $this->parseMarker($completeThrough);
 
-        return DB::transaction(function () use ($device, $parsed, $marker) {
+        $result = DB::transaction(function () use ($device, $parsed, $marker) {
             $device = AttendanceDevice::query()->lockForUpdate()->findOrFail($device->getKey());
             abort_unless($device->is_active, 403, 'الجهاز معطل.');
             $officeZone = AttendancePolicy::query()->orderBy('effective_from')->value('timezone');
             $inserted = $duplicates = $unmatched = 0;
+            $touched = []; // employee_id => [date => true]
+            $previousMarker = $device->complete_through;
             foreach ($parsed as $event) {
                 $at = $event['utc'];
                 $direction = $event['direction'] ?? 'unknown';
@@ -52,19 +65,186 @@ class AttendanceImportService
                 if ($binding) {
                     AttendanceDay::query()->where('employee_id', $binding->employee_id)
                         ->where('work_date', $date)->whereNotNull('approved_at')->update(['pending_changes' => true]);
+                    $touched[$binding->employee_id][$date] = true;
                 } else {
                     $unmatched++;
                 }
                 $inserted++;
             }
             $update = ['last_seen_at' => CarbonImmutable::now('UTC')];
-            if ($marker && ($device->complete_through === null || $marker->greaterThan($device->complete_through))) {
+            $advanced = $marker && ($device->complete_through === null || $marker->greaterThan($device->complete_through));
+            if ($advanced) {
                 $update['complete_through'] = $marker;
             }
             $device->update($update);
+            $device = $device->refresh();
+            // Bridge may advance coverage; record the same audit action as confirm-sync so payroll readiness is traceable.
+            // A bridge pushing every few minutes would flood the log, so one record per office day reached is kept.
+            if ($advanced && ($previousMarker === null
+                || $marker->setTimezone($officeZone)->toDateString() !== $previousMarker->toImmutable()->setTimezone($officeZone)->toDateString())) {
+                $this->audit->log(
+                    'attendance.device_sync_confirmed',
+                    $device,
+                    ['complete_through' => $previousMarker?->toIso8601String()],
+                    [
+                        'complete_through' => $device->complete_through?->toIso8601String(),
+                        'note' => 'تأكيد تغطية من دفعة استيراد الوسيط',
+                        'source' => 'bridge_ingest',
+                    ],
+                );
+            }
 
             return ['inserted' => $inserted, 'duplicates' => $duplicates, 'unmatched' => $unmatched,
-                'complete_through' => $device->refresh()->complete_through?->toIso8601String()];
+                'complete_through' => $device->complete_through?->toIso8601String(),
+                '_touched' => $touched, '_advanced' => $advanced, '_previous' => $previousMarker, '_marker' => $marker, '_device' => $device];
         }, 3);
+
+        $recalc = [
+            'device' => $result['_device'],
+            'touched' => $result['_touched'],
+            'advanced' => $result['_advanced'],
+            'previous' => $result['_previous'],
+            'marker' => $result['_marker'],
+        ];
+
+        $public = ['inserted' => $result['inserted'], 'duplicates' => $result['duplicates'], 'unmatched' => $result['unmatched'],
+            'complete_through' => $result['complete_through']];
+
+        if ($deferRecalc) {
+            return $public + ['_recalc' => $recalc];
+        }
+
+        $this->recalculateAfterImport($recalc);
+
+        return $public;
+    }
+
+    /**
+     * Refresh draft attendance days after punches were persisted. Call only after the outermost
+     * import-related transaction has committed (or when import ran as the outer transaction).
+     *
+     * @param  array{device: AttendanceDevice, touched: array<int, array<string, true>>, advanced: bool, previous: ?CarbonImmutable, marker: ?CarbonImmutable}  $recalc
+     */
+    public function recalculateAfterImport(array $recalc): void
+    {
+        $device = $recalc['device'];
+        $touched = $recalc['touched'];
+        // Bridge/manual ingest: refresh draft days for new punches; if coverage advanced, same path as confirm-sync.
+        if ($recalc['advanced'] && $recalc['marker']) {
+            $this->refreshCoverageAfterSync($device, $recalc['previous'], $recalc['marker']);
+        } else {
+            foreach ($touched as $employeeId => $dates) {
+                $employee = Employee::query()->find($employeeId);
+                if ($employee === null) {
+                    continue;
+                }
+                foreach (array_keys($dates) as $date) {
+                    try {
+                        $this->calculator->calculate($employee, $date);
+                    } catch (\Throwable $e) {
+                        report($e);
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Explicit administrative attestation that every punch up to $completeThrough has been received.
+     * ADMS heartbeats and ATTLOG batches never call this: the protocol does not prove full sync.
+     */
+    public function confirmSync(AttendanceDevice $device, string $completeThrough, string $note, int $actorId): AttendanceDevice
+    {
+        $marker = $this->parseMarker($completeThrough);
+        $note = trim($note);
+        if (mb_strlen($note) < 5) {
+            throw ValidationException::withMessages(['note' => ['أدخل ملاحظة توضح أساس تأكيد المزامنة (5 أحرف على الأقل).']]);
+        }
+
+        $previous = null;
+        $device = DB::transaction(function () use ($device, $marker, $note, $actorId, &$previous) {
+            $device = AttendanceDevice::query()->lockForUpdate()->findOrFail($device->getKey());
+            abort_unless($device->is_active, 403, 'الجهاز معطل.');
+            $previous = $device->complete_through;
+            if ($previous !== null && $marker->lessThan($previous)) {
+                throw ValidationException::withMessages([
+                    'complete_through' => ['لا يمكن إرجاع تأكيد المزامنة إلى وقت أقدم من آخر تأكيد.'],
+                ]);
+            }
+            if ($previous === null || $marker->greaterThan($previous)) {
+                $device->update(['complete_through' => $marker]);
+            }
+            $this->audit->log(
+                'attendance.device_sync_confirmed',
+                $device,
+                ['complete_through' => $previous?->toIso8601String()],
+                [
+                    'complete_through' => $device->refresh()->complete_through?->toIso8601String(),
+                    'note' => $note,
+                    'source' => 'manual_attestation',
+                ],
+                $actorId,
+            );
+
+            return $device->refresh();
+        }, 3);
+
+        $this->refreshCoverageAfterSync($device, $previous, $marker);
+
+        return $device;
+    }
+
+    private function parseMarker(string $completeThrough): CarbonImmutable
+    {
+        $marker = AttendanceClock::utc($completeThrough);
+        if ($marker->greaterThan(CarbonImmutable::now('UTC'))) {
+            throw ValidationException::withMessages(['complete_through' => ['لا يمكن تأكيد مزامنة وقت في المستقبل.']]);
+        }
+
+        return $marker;
+    }
+
+    private function refreshCoverageAfterSync(
+        AttendanceDevice $device,
+        ?CarbonImmutable $previous,
+        CarbonImmutable $marker,
+    ): void {
+        $zone = AttendancePolicy::query()->orderBy('effective_from')->value('timezone') ?? 'UTC';
+        $to = $marker->setTimezone($zone)->startOfDay();
+        if ($previous !== null) {
+            $from = $previous->setTimezone($zone)->startOfDay();
+        } else {
+            // First attestation: refresh from the earliest stored punch (not a fixed 7-day window).
+            $earliest = AttendancePunch::query()->where('device_id', $device->id)->min('occurred_at');
+            $from = $earliest
+                ? CarbonImmutable::parse($earliest, 'UTC')->setTimezone($zone)->startOfDay()
+                : $to->subDays(7);
+        }
+        if ($from->greaterThan($to)) {
+            $from = $to;
+        }
+        // Eager refresh is a convenience: older draft days are recalculated whenever they are read
+        // (lists, reports, payroll inputs, approval), so a first attestation over years stays bounded.
+        $from = $from->max($to->subDays(self::MAX_EAGER_REFRESH_DAYS));
+
+        $employeeIds = AttendanceBinding::query()
+            ->where('device_id', $device->id)
+            ->pluck('employee_id')
+            ->unique()
+            ->filter();
+
+        foreach ($employeeIds as $employeeId) {
+            $employee = Employee::query()->find($employeeId);
+            if ($employee === null) {
+                continue;
+            }
+            for ($date = $from; $date->lessThanOrEqualTo($to); $date = $date->addDay()) {
+                try {
+                    $this->calculator->calculate($employee, $date->toDateString());
+                } catch (\Throwable $e) {
+                    report($e);
+                }
+            }
+        }
     }
 }

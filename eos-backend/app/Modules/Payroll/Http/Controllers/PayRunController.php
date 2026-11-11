@@ -142,6 +142,20 @@ class PayRunController extends Controller
             $data['reason'] ?? 'اعتماد الخصم المقترح', $request->user()));
     }
 
+    /** Approve or waive every item still awaiting a decision, optionally only some kinds (late, absence, bonus...). */
+    public function reviewRemaining(PayRun $run, Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'decision' => ['required', Rule::in(['approve', 'waive'])],
+            'kinds' => ['nullable', 'array'], 'kinds.*' => ['string', Rule::in(['late', 'early_exit', 'absence', 'bonus', 'manual_deduction'])],
+            'reason' => [Rule::requiredIf($request->input('decision') === 'waive'), 'nullable', 'string', 'min:3', 'max:1000'],
+        ]);
+        $count = $this->runs->reviewRemaining($run, $data['decision'], $data['kinds'] ?? null,
+            $data['reason'] ?? 'اعتماد البنود المقترحة', $request->user());
+
+        return ApiResponse::ok(['decided' => $count, 'run' => $this->runSummary($run->refresh())]);
+    }
+
     public function submit(PayRun $run, Request $request): JsonResponse
     {
         return ApiResponse::ok($this->runSummary($this->runs->submit($run, $request->user())));
@@ -166,6 +180,7 @@ class PayRunController extends Controller
             'box_id' => ['required', 'integer', 'exists:fin_boxes,id'],
             'paid_at' => ['required', 'date_format:Y-m-d', 'before_or_equal:today'],
             'reference' => ['required_if:method,sham_cash', 'nullable', 'string', 'max:100'],
+            'expected_amount' => ['nullable', 'numeric', 'min:0'],
             'note' => ['nullable', 'string', 'max:500'],
         ]);
 
@@ -213,6 +228,8 @@ class PayRunController extends Controller
             'employees' => $lines->count(),
             'not_ready' => $lines->where('attendance_ready', false)->count(),
             'blocking_issues' => $lines->filter(fn ($l) => collect($l->issues)->contains('blocking', true))->count(),
+            // Items still waiting for a finance decision (counted as zero); approval needs this at 0.
+            'undecided_items' => PayRunItem::query()->whereIn('pay_run_line_id', $lines->pluck('id'))->where('status', 'proposed')->count(),
             'paid' => $lines->where('payment_count', '>', 0)->count(),
             'payable' => $lines->filter(fn ($l) => (float) $l->net > 0)->count(),
             'totals' => $lines->groupBy('currency_code')->map(fn ($group) => [

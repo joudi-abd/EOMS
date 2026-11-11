@@ -2,6 +2,7 @@
 
 namespace App\Modules\HR\Services;
 
+use App\Modules\HR\Events\EmployeeTerminating;
 use App\Modules\HR\Models\AttendanceBinding;
 use App\Modules\HR\Models\Employee;
 use App\Modules\HR\Models\EmployeeJobHistory;
@@ -42,6 +43,8 @@ class EmployeeTerminationService
                     'contracts' => ['يجب إنهاء العقود الفعالة قبل إنهاء خدمة الموظف.'],
                 ]);
             }
+            // Cross-module guards (e.g. open Sham Cash reservation) listen and may abort.
+            event(new EmployeeTerminating($employee));
 
             app(EmploymentPeriodService::class)->close($employee, $data['termination_date']);
             app(LeaveWorkflowService::class)->serviceEnded($employee, $data['termination_date'], $actor->id);

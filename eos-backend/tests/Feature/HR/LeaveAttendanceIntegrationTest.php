@@ -3,6 +3,7 @@
 namespace Tests\Feature\HR;
 
 use App\Modules\HR\Models\AttendanceDay;
+use App\Modules\HR\Models\AttendancePolicy;
 use App\Modules\HR\Models\AttendancePunch;
 use App\Modules\HR\Models\LeaveRequest;
 use App\Modules\HR\Models\LeaveRequestDay;
@@ -55,6 +56,39 @@ class LeaveAttendanceIntegrationTest extends TestCase
             ->assertJsonPath('summary.total', 1)->assertJsonPath('data.0.status', 'on_leave');
         $this->getJson('/api/v1/attendance/days?date=2026-11-03&flag=work_on_holiday')->assertOk()
             ->assertJsonPath('summary.total', 0);
+    }
+
+    public function test_full_day_leave_stays_full_after_shift_hours_change(): void
+    {
+        $this->approvedLeave(['start_date' => '2026-11-03']);
+        $leaveDay = LeaveRequestDay::where('employee_id', $this->employee->id)->where('date', '2026-11-03')->sole();
+        $this->assertSame(1_000_000, (int) $leaveDay->day_units);
+        $this->assertSame(['09:00', '16:00'], [$leaveDay->start_time, $leaveDay->end_time]);
+
+        $base = AttendancePolicy::query()->orderBy('effective_from')->firstOrFail();
+        AttendancePolicy::create([
+            'effective_from' => '2026-11-02', 'timezone' => $base->timezone, 'working_days' => $base->working_days,
+            'start_time' => '09:00', 'end_time' => '17:00', 'grace_minutes' => $base->grace_minutes,
+            'grace_mode' => $base->grace_mode, 'late_block_minutes' => $base->late_block_minutes,
+            'overtime_multiplier' => $base->overtime_multiplier, 'pairing_mode' => $base->pairing_mode,
+            'duplicate_seconds' => $base->duplicate_seconds, 'finalize_after_minutes' => $base->finalize_after_minutes,
+        ]);
+
+        $day = $this->calculate('2026-11-03');
+        $this->assertSame('on_leave', $day->status);
+        $this->assertSame(480, $day->leave_minutes);
+        $this->assertSame(0, $day->required_minutes);
+        $this->assertNotContains('partial_leave', $day->flags);
+
+        // Hourly leave keeps its wall-clock window and stays partial under the longer day.
+        $this->approvedLeave(['start_date' => '2026-11-02', 'unit' => 'hours', 'start_time' => '11:00', 'end_time' => '13:00']);
+        $this->punches('2026-11-02', ['09:00', '17:00'], '2026-11-02T17:00:00');
+        $partial = $this->calculate('2026-11-02');
+        $this->assertSame('present', $partial->status);
+        $this->assertContains('partial_leave', $partial->flags);
+        $this->assertSame(120, $partial->leave_minutes);
+        $this->assertSame(360, $partial->required_minutes);
+        $this->assertSame(360, $partial->worked_minutes);
     }
 
     public function test_mid_day_hourly_leave_is_removed_from_required_and_worked_time(): void

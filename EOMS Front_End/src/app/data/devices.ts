@@ -78,6 +78,16 @@ export class Devices {
     return this.change('connectionSaved', () => this.api.patch(`/attendance/devices/${device.id}/connection`, body));
   }
 
+  /** Attests full device sync through an instant. ADMS never sets this automatically. */
+  async confirmSync(device: ApiDevice, completeThrough: string, note: string): Promise<DeviceOutcome> {
+    return this.change('syncConfirmed', () =>
+      this.api.post(`/attendance/devices/${device.id}/confirm-sync`, {
+        complete_through: completeThrough,
+        note: note.trim(),
+      }),
+    );
+  }
+
   async bind(deviceId: number, entry: { employeeId: string; pin: string; from: string; to: string }): Promise<DeviceOutcome> {
     const body: Record<string, unknown> = { employee_id: Number(entry.employeeId), device_user_id: entry.pin.trim(), valid_from: entry.from };
     if (entry.to) body['valid_to'] = entry.to;

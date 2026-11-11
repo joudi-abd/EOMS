@@ -22,12 +22,16 @@ use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class FinanceController extends Controller
 {
+    /** Whole-transaction retries on deadlocks and serialization conflicts (MariaDB 1020, PostgreSQL 40001/40P01). */
+    private const TX_ATTEMPTS = 3;
+
     public function __construct(private LedgerService $ledger, private CashService $cash, private InvoiceService $invoices, private ReportService $reports,
         private AuditLogger $audit) {}
 
@@ -251,11 +255,25 @@ class FinanceController extends Controller
 
     public function updateParty(Request $request, Party $party): JsonResponse
     {
-        $party->update($request->validate(['name' => ['sometimes', 'string', 'max:150'], 'phone' => ['sometimes', 'nullable', 'string', 'max:30'],
+        $data = $request->validate(['name' => ['sometimes', 'string', 'max:150'], 'phone' => ['sometimes', 'nullable', 'string', 'max:30'],
             'sham_cash_wallet' => ['sometimes', 'nullable', 'digits:16'], 'sham_cash_name' => ['sometimes', 'nullable', 'string', 'max:150'],
-            'notes' => ['sometimes', 'nullable', 'string', 'max:1000'], 'active' => ['sometimes', 'boolean']]));
+            'notes' => ['sometimes', 'nullable', 'string', 'max:1000'], 'active' => ['sometimes', 'boolean']]);
+        if (array_key_exists('active', $data)) {
+            $data['active'] = $request->boolean('active');
+        }
 
-        return ApiResponse::ok($party->refresh());
+        $party = DB::transaction(function () use ($party, $data) {
+            $party = Party::query()->lockForUpdate()->findOrFail($party->id);
+            if (($data['active'] ?? true) === false) {
+                abort_if(Transaction::query()->where('status', 'pending')->where('party_id', $party->id)->lockForUpdate()->first(['id']) !== null,
+                    422, 'للطرف عمليات بانتظار الاعتماد.');
+            }
+            $party->update($data);
+
+            return $party->refresh();
+        }, self::TX_ATTEMPTS);
+
+        return ApiResponse::ok($party);
     }
 
     public function items(): JsonResponse

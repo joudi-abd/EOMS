@@ -4,7 +4,7 @@ import { Session } from '../../../core/access/session';
 import { ApiBinding, ApiDevice } from '../../../core/api/types';
 import { Ui } from '../../../core/ui';
 import { dayIn } from '../../../data/attendance';
-import { clockOf, dateOf } from '../../../data/attendance-book';
+import { clockOf, dateOf, zonedIso } from '../../../data/attendance-book';
 import { Devices } from '../../../data/devices';
 import { Office } from '../../../data/office';
 
@@ -150,6 +150,35 @@ export class SettingsDevices extends Ui {
     const outcome = await this.devices.configure(device, this.mode(), String(data.get('ip') ?? ''));
     this.working.set(false);
     this.problem.set(outcome.ok ? '' : (outcome.error ?? ''));
+  }
+
+  /** Default wall time for the confirm-sync field (device zone). */
+  protected syncDefault(device: ApiDevice): string {
+    if (device.complete_through) {
+      const day = dateOf(device.complete_through, device.timezone);
+      const clock = clockOf(device.complete_through, device.timezone);
+      if (day && clock) return `${day}T${clock}`;
+    }
+    return `${this.today(device)}T16:00`;
+  }
+
+  /** Attests full sync through a chosen local instant in the device timezone. */
+  protected async confirmSync(event: Event, device: ApiDevice): Promise<void> {
+    event.preventDefault();
+    if (!confirm(this.t('syncConfirmWarn'))) return;
+    const data = new FormData(event.target as HTMLFormElement);
+    const stamp = String(data.get('through') ?? '').trim();
+    const note = String(data.get('note') ?? '');
+    const [day, time] = stamp.split('T');
+    if (!day || !time) {
+      this.problem.set(this.t('syncConfirmThrough'));
+      return;
+    }
+    this.working.set(true);
+    const outcome = await this.devices.confirmSync(device, zonedIso(day, time.slice(0, 5), device.timezone), note);
+    this.working.set(false);
+    this.problem.set(outcome.ok ? '' : (outcome.error ?? ''));
+    if (outcome.ok) (event.target as HTMLFormElement).reset();
   }
 
   protected async bind(event: Event, device: ApiDevice): Promise<void> {

@@ -60,7 +60,7 @@ class AdmsGateway
                 }];
         }
 
-        return DB::transaction(function () use ($device, $events, $raw, $lines) {
+        $outcome = DB::transaction(function () use ($device, $events, $raw, $lines) {
             $device = $this->lock($device);
             $hash = hash('sha256', $raw);
             $upload = DB::table('hr_adms_uploads')->where('device_id', $device->id)->where('body_hash', $hash)->first();
@@ -106,16 +106,26 @@ class AdmsGateway
                 }
                 $valid[] = $event;
             }
-            // Original body + held events + valid punches all commit before OK: N.
+            // ATTLOG and heartbeats never assert complete_through: ADMS does not prove the device
+            // has finished sending every historical record. Operators confirm sync explicitly.
             $result = $this->importer->import($device, $valid, null);
 
             return ['received' => count($lines), 'imported' => $result['inserted'],
-                'duplicates' => $known + $result['duplicates'], 'quarantined' => $quarantined];
+                'duplicates' => $known + $result['duplicates'], 'quarantined' => $quarantined,
+                '_recalc' => $result['_recalc'] ?? null];
         }, 3);
+
+        if ($outcome['_recalc'] !== null) {
+            $this->importer->recalculateAfterImport($outcome['_recalc']);
+        }
+
+        return ['received' => $outcome['received'], 'imported' => $outcome['imported'],
+            'duplicates' => $outcome['duplicates'], 'quarantined' => $outcome['quarantined']];
     }
 
     public function touch(AttendanceDevice $device): void
     {
+        // last_seen_at only; never raise complete_through from a heartbeat.
         DB::transaction(function () use ($device) {
             $this->lock($device)->update(['last_seen_at' => CarbonImmutable::now('UTC')]);
         }, 3);
