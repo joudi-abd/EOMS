@@ -42,6 +42,15 @@ class EmployeeTerminationService
                     'contracts' => ['يجب إنهاء العقود الفعالة قبل إنهاء خدمة الموظف.'],
                 ]);
             }
+            // An open Sham Cash file still reserves this employee's unpaid line — cancel or confirm it first.
+            $openLineIds = \App\Modules\Payroll\Models\PayExport::query()
+                ->whereNull('cancelled_at')->whereNull('confirmed_at')->pluck('line_ids')->flatten()->map(fn ($id) => (int) $id);
+            if ($openLineIds->isNotEmpty()
+                && \App\Modules\Payroll\Models\PayRunLine::query()->where('employee_id', $employee->id)->whereIn('id', $openLineIds->all())->exists()) {
+                throw ValidationException::withMessages([
+                    'payroll' => ['الموظف مدرج في ملف شام كاش مفتوح؛ أكّد الملف أو ألغه قبل إنهاء الخدمة.'],
+                ]);
+            }
 
             app(EmploymentPeriodService::class)->close($employee, $data['termination_date']);
             app(LeaveWorkflowService::class)->serviceEnded($employee, $data['termination_date'], $actor->id);

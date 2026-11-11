@@ -153,6 +153,13 @@ class PayRunService
         return DB::transaction(function () use ($run, $actor) {
             $run = $this->lock($run, 'draft');
             abort_if($run->calculated_at === null, 409, 'احسب الكشف أولاً.');
+            // Same source recheck as approve: refuse a stale draft before finance starts reviewing it.
+            $this->lockApprovalSources($run);
+            $lines = PayRunLine::query()->where('pay_run_id', $run->id)->orderBy('id')->lockForUpdate()->get();
+            $problems = $this->approvalSourceProblems($run, $lines);
+            if ($problems !== []) {
+                throw ValidationException::withMessages(['run' => $problems]);
+            }
             $run->update(['status' => 'submitted', 'submitted_at' => now(), 'return_note' => null, 'version' => $run->version + 1]);
             $this->audit->log('payroll.run_submitted', $run, null, null, $actor->id);
             $this->notify('payroll.approve', 'payroll.run_submitted', 'كشف رواتب '.$run->month.' مرفوع من الموارد البشرية بانتظار اعتماد المالية.', $run);

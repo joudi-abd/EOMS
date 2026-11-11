@@ -262,10 +262,15 @@ class LeaveWorkflowTest extends TestCase
         $row = $this->submit();
         Sanctum::actingAs($this->hr);
         $this->action($row, 'approve')->assertOk();
-        $this->postJson('/api/v1/leave-settings/holidays', ['date' => '2026-11-09', 'name' => 'Office closed'])->assertCreated();
+        $holiday = $this->postJson('/api/v1/leave-settings/holidays', ['date' => '2026-11-09', 'name' => 'Office closed'])->assertCreated()->json('data');
         $this->assertSame(2000000, $this->balance());
         $this->assertDatabaseHas('hr_leave_balance_entries', ['kind' => 'holiday_refund', 'day_units' => 1000000]);
         $this->assertDatabaseHas('hr_leave_request_days', ['leave_request_id' => $row['id'], 'active' => false]);
+        // Deleting the holiday restores the leave day and re-debits the balance.
+        $this->deleteJson('/api/v1/leave-settings/holidays/'.$holiday['id'])->assertOk();
+        $this->assertDatabaseHas('hr_leave_request_days', ['leave_request_id' => $row['id'], 'date' => '2026-11-09', 'active' => true]);
+        $this->assertSame(1000000, $this->balance());
+        $this->assertSame('approved', \App\Modules\HR\Models\LeaveRequest::find($row['id'])->status);
     }
 
     public function test_rehire_does_not_inherit_old_balance_or_receive_an_automatic_opening(): void

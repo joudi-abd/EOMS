@@ -109,8 +109,8 @@ class InvoiceService
 
     /**
      * Reverses the invoice's entries and stock; payments must be reversed first.
-     * A purchase cannot be cancelled once later stock moves touched its items (WAC would drift from the ledger);
-     * use a return document or a stock count adjustment instead.
+     * A stock invoice (purchase or sale) cannot be cancelled once later stock moves touched its items
+     * (WAC would drift from the ledger); use a return document or a stock count adjustment instead.
      */
     public function cancel(Invoice $invoice, string $date, string $reason, User $actor): Invoice
     {
@@ -118,9 +118,8 @@ class InvoiceService
             $invoice = Invoice::query()->lockForUpdate()->findOrFail($invoice->id);
             abort_unless($invoice->status === 'posted', 409, 'تُلغى الفواتير المرحّلة فقط.');
             abort_if((float) $invoice->paid > 0, 409, 'اعكس دفعات الفاتورة أولاً.');
-            if ($invoice->type === 'purchase') {
-                $this->assertPurchaseCancellable($invoice);
-            }
+            // Purchase or sale: later stock layers make undoing this invoice's unit cost diverge from WAC.
+            $this->assertStockInvoiceCancellable($invoice);
             foreach (JournalEntry::query()->where('source_type', 'invoice')->where('source_id', $invoice->id)->whereNull('reverses_id')->get() as $entry) {
                 $this->ledger->reverse($entry, $date, $reason, $actor);
             }
@@ -209,11 +208,12 @@ class InvoiceService
     }
 
     /**
-     * Purchase cancellation is safe only while this invoice is still the latest stock layer for each item.
+     * Stock-invoice cancellation is safe only while this invoice is still the latest stock layer for each item.
      * Later purchases, sales, or adjustments would make reversing the original unit cost diverge from qty × average.
      */
-    private function assertPurchaseCancellable(Invoice $invoice): void
+    private function assertStockInvoiceCancellable(Invoice $invoice): void
     {
+        $label = $invoice->type === 'sale' ? 'البيع' : 'الشراء';
         foreach ($invoice->lines()->whereNotNull('item_id')->get()->groupBy('item_id') as $itemId => $lines) {
             $item = Item::query()->findOrFail($itemId);
             $moveIds = StockMove::query()->where('item_id', $itemId)
@@ -223,7 +223,7 @@ class InvoiceService
             }
             if (StockMove::query()->where('item_id', $itemId)->where('id', '>', $moveIds->max())->exists()) {
                 throw ValidationException::withMessages([
-                    'invoice' => ['لا يمكن إلغاء فاتورة الشراء بعد حركات لاحقة على '.$item->name.'؛ سجّل مرتجعاً أو تسوية جرد بدل الإلغاء المباشر.'],
+                    'invoice' => ['لا يمكن إلغاء فاتورة '.$label.' بعد حركات لاحقة على '.$item->name.'؛ سجّل مرتجعاً أو تسوية جرد بدل الإلغاء المباشر.'],
                 ]);
             }
         }

@@ -255,6 +255,29 @@ class FinanceTest extends TestCase
             ->assertUnprocessable()->assertJsonValidationErrors('invoice');
         $this->assertSame('6.000', $item->refresh()->quantity);
         $this->assertEquals(600, $this->getJson('/api/v1/finance/reports/ledger?account_id='.$inventory.'&currency=USD&from=2026-11-01&to=2026-11-30')->json('data.closing_balance'));
+
+        // Sale cancel is also blocked once a later stock layer exists.
+        $third = $buy(2, 140, '2026-11-07');
+        $this->api('invoices/'.$third['id'].'/submit', [], 200);
+        $this->postJson('/api/v1/finance/invoices/'.$sale['id'].'/cancel', ['date' => '2026-11-08', 'reason' => 'After restock'])
+            ->assertUnprocessable()->assertJsonValidationErrors('invoice');
+    }
+
+    public function test_cash_counterpart_rejects_system_accounts_except_opening_balances(): void
+    {
+        $syp = $this->box('SYP', 1_000_000);
+        $salaries = Account::where('system_key', 'salaries')->firstOrFail();
+        $this->api('transactions/payment', ['box_id' => $syp->id, 'amount' => 10, 'date' => '2026-11-05',
+            'description' => 'Bad', 'account_id' => $salaries->id], 422);
+        $supplier = $this->api('parties', ['kind' => 'supplier', 'name' => 'Temp Co.']);
+        $pending = $this->api('transactions/payment', ['box_id' => $syp->id, 'amount' => 50, 'date' => '2026-11-05',
+            'description' => 'Pending pay', 'party_id' => $supplier['id']]);
+        $this->assertSame('pending', $pending['status']);
+        $this->patchJson('/api/v1/finance/parties/'.$supplier['id'], ['active' => false])->assertStatus(422);
+        Sanctum::actingAs($this->director);
+        $this->api('transactions/'.$pending['id'].'/decision', ['decision' => 'reject', 'note' => 'ok'], 200);
+        Sanctum::actingAs($this->finance);
+        $this->patchJson('/api/v1/finance/parties/'.$supplier['id'], ['active' => false])->assertOk();
     }
 
     public function test_stock_count_adjustments_post_to_the_chosen_account(): void

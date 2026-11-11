@@ -75,7 +75,8 @@ class AttendanceController extends Controller
         $data = $request->validate([
             'from' => ['required', 'date_format:Y-m-d', 'after_or_equal:1970-01-01'],
             'to' => ['required', 'date_format:Y-m-d', 'after_or_equal:from'],
-            'employee_id' => ['nullable', 'integer'], 'department_id' => ['nullable', 'integer'],
+            'employee_id' => ['nullable', 'integer', 'exists:hr_employees,id'],
+            'department_id' => ['nullable', 'integer', 'exists:hr_departments,id'],
         ]);
         $from = CarbonImmutable::parse($data['from'], 'UTC');
         $to = CarbonImmutable::parse($data['to'], 'UTC');
@@ -178,10 +179,12 @@ class AttendanceController extends Controller
         ]);
     }
 
-    /** Finance (payroll.view) and HR (attendance.view) read the facts a payroll run will use; no money is computed. */
+    /** Finance (payroll.view) and HR (attendance.view within scope) read the facts a payroll run will use; no money is computed. */
     public function payrollInputs(Request $request, Employee $employee, PayrollInputService $inputs): JsonResponse
     {
-        abort_unless($request->user()->can('payroll.view') || $request->user()->can('attendance.view'), 403);
+        abort_unless($request->user()->can('payroll.view')
+            || (($request->user()->can('attendance.view') || $request->user()->can('attendance.view_department'))
+                && app(HrScope::class)->canSee($request->user(), $employee, 'attendance')), 403);
         $data = $request->validate(['month' => ['required', 'date_format:Y-m', 'after_or_equal:1970-01']]);
 
         return ApiResponse::ok($inputs->month($employee, $data['month']));
@@ -204,6 +207,8 @@ class AttendanceController extends Controller
 
     public function reviewCorrection(Request $request, AttendanceCorrection $correction, AttendanceReviewService $reviews): JsonResponse
     {
+        $day = AttendanceDay::query()->findOrFail($correction->day_id);
+        abort_unless(app(HrScope::class)->canSee($request->user(), Employee::findOrFail($day->employee_id), 'attendance'), 403);
         $data = $request->validate(['decision' => ['required', Rule::in(['approve', 'reject'])], 'reason' => ['required', 'string', 'min:5', 'max:1000']]);
 
         return ApiResponse::ok($reviews->review($correction, $data, $request->user()));
@@ -211,6 +216,7 @@ class AttendanceController extends Controller
 
     public function approve(Request $request, AttendanceDay $day, AttendanceReviewService $reviews): JsonResponse
     {
+        abort_unless(app(HrScope::class)->canSee($request->user(), Employee::findOrFail($day->employee_id), 'attendance'), 403);
         $data = $request->validate(['version' => ['required', 'integer', 'min:1']]);
 
         return ApiResponse::ok(new AttendanceDayResource($reviews->approve($day, $data['version'], $request->user())));
@@ -228,8 +234,11 @@ class AttendanceController extends Controller
         $from = CarbonImmutable::parse($data['from'], 'UTC');
         $to = CarbonImmutable::parse($data['to'], 'UTC');
         abort_if($from->diffInDays($to) > 30, 422, 'الحد الأقصى 31 يوماً.');
+        abort_unless(app(HrScope::class)->hasAnyScope($request->user(), 'attendance'), 403);
+        $visible = app(HrScope::class)->employeeIds($request->user(), 'attendance');
         // Employees whose service may overlap the range; the calculator decides each day exactly.
         $employees = Employee::query()
+            ->when($visible !== null, fn ($q) => $q->whereKey($visible->all()))
             ->when($data['employee_ids'] ?? null, fn ($q, $ids) => $q->whereKey($ids))
             ->when($data['department_id'] ?? null, fn ($q, $id) => $q->where('department_id', $id))
             ->where(fn ($q) => $q->whereNull('termination_date')->orWhereDate('termination_date', '>=', $data['from']))
@@ -240,6 +249,7 @@ class AttendanceController extends Controller
 
     public function reopen(Request $request, AttendanceDay $day, AttendanceReviewService $reviews): JsonResponse
     {
+        abort_unless(app(HrScope::class)->canSee($request->user(), Employee::findOrFail($day->employee_id), 'attendance'), 403);
         $data = $request->validate(['version' => ['required', 'integer', 'min:1'], 'reason' => ['required', 'string', 'min:5', 'max:1000']]);
 
         return ApiResponse::ok(new AttendanceDayResource($reviews->reopen($day, $data['version'], $data['reason'], $request->user())));

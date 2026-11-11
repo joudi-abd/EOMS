@@ -99,14 +99,17 @@ class LeaveSettingsService
         DB::transaction(function () use ($holiday) {
             DB::table('hr_leave_half_days')->lockForUpdate()->find(1);
             $holiday = OfficeHoliday::query()->lockForUpdate()->findOrFail($holiday->getKey());
-            foreach (\App\Modules\HR\Models\LeaveRequest::whereIn('status', ['pending', 'approved'])->cursor() as $request) {
-                if ($request->input['start_date'] <= $holiday->date->toDateString() && $request->input['end_date'] >= $holiday->date->toDateString()) {
-                    throw ValidationException::withMessages(['date' => 'توجد إجازة تتقاطع مع العطلة؛ راجع الإجازة قبل حذف العطلة.']);
-                }
+            $date = $holiday->date->toDateString();
+            // Only active leave days on this date block deletion — not the original request window
+            // (holidayAdded already deactivated that day's leave and may have cancelled a single-day request).
+            if (\App\Modules\HR\Models\LeaveRequestDay::query()->where('date', $date)->where('active', true)
+                ->whereIn('leave_request_id', \App\Modules\HR\Models\LeaveRequest::query()
+                    ->whereIn('status', ['pending', 'approved'])->select('id'))->exists()) {
+                throw ValidationException::withMessages(['date' => 'توجد إجازة تتقاطع مع العطلة؛ راجع الإجازة قبل حذف العطلة.']);
             }
             $this->audit->log('leave.holiday_removed', $holiday, $holiday->getAttributes());
-            $date = $holiday->date->toDateString();
             $holiday->delete();
+            app(LeaveWorkflowService::class)->holidayRemoved($date);
             app(AttendanceLeaveSync::class)->date($date);
         }, 3);
     }

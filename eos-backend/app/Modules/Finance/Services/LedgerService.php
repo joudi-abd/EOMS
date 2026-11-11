@@ -188,7 +188,7 @@ class LedgerService
         return DB::transaction(function () use ($account, $data, $actor) {
             $account = Account::query()->lockForUpdate()->findOrFail($account->id);
             if (array_key_exists('parent_id', $data) && $data['parent_id'] !== null) {
-                $parent = Account::query()->findOrFail($data['parent_id']);
+                $parent = Account::query()->lockForUpdate()->findOrFail($data['parent_id']);
                 $this->checkParent($parent, $account->type);
                 for ($walk = $parent; $walk; $walk = $walk->parent_id ? Account::find($walk->parent_id) : null) {
                     abort_if($walk->id === $account->id, 422, 'لا يمكن نقل الحساب تحت أحد فروعه.');

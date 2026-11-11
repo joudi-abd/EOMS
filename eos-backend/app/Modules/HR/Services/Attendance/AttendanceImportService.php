@@ -26,11 +26,13 @@ class AttendanceImportService
         $parsed = array_map(fn ($event) => array_merge($event, ['utc' => AttendanceClock::utc($event['occurred_at'])]), $events);
         $marker = $completeThrough === null ? null : $this->parseMarker($completeThrough);
 
-        return DB::transaction(function () use ($device, $parsed, $marker) {
+        $result = DB::transaction(function () use ($device, $parsed, $marker) {
             $device = AttendanceDevice::query()->lockForUpdate()->findOrFail($device->getKey());
             abort_unless($device->is_active, 403, 'الجهاز معطل.');
             $officeZone = AttendancePolicy::query()->orderBy('effective_from')->value('timezone');
             $inserted = $duplicates = $unmatched = 0;
+            $touched = []; // employee_id => [date => true]
+            $previousMarker = $device->complete_through;
             foreach ($parsed as $event) {
                 $at = $event['utc'];
                 $direction = $event['direction'] ?? 'unknown';
@@ -56,20 +58,48 @@ class AttendanceImportService
                 if ($binding) {
                     AttendanceDay::query()->where('employee_id', $binding->employee_id)
                         ->where('work_date', $date)->whereNotNull('approved_at')->update(['pending_changes' => true]);
+                    $touched[$binding->employee_id][$date] = true;
                 } else {
                     $unmatched++;
                 }
                 $inserted++;
             }
             $update = ['last_seen_at' => CarbonImmutable::now('UTC')];
-            if ($marker && ($device->complete_through === null || $marker->greaterThan($device->complete_through))) {
+            $advanced = $marker && ($device->complete_through === null || $marker->greaterThan($device->complete_through));
+            if ($advanced) {
                 $update['complete_through'] = $marker;
             }
             $device->update($update);
+            $device = $device->refresh();
 
             return ['inserted' => $inserted, 'duplicates' => $duplicates, 'unmatched' => $unmatched,
-                'complete_through' => $device->refresh()->complete_through?->toIso8601String()];
+                'complete_through' => $device->complete_through?->toIso8601String(),
+                '_touched' => $touched, '_advanced' => $advanced, '_previous' => $previousMarker, '_marker' => $marker, '_device' => $device];
         }, 3);
+
+        $device = $result['_device'];
+        $touched = $result['_touched'];
+        // Bridge/manual ingest: refresh draft days for new punches; if coverage advanced, same path as confirm-sync.
+        if ($result['_advanced'] && $result['_marker']) {
+            $this->refreshCoverageAfterSync($device, $result['_previous'], $result['_marker']);
+        } else {
+            foreach ($touched as $employeeId => $dates) {
+                $employee = Employee::query()->find($employeeId);
+                if ($employee === null) {
+                    continue;
+                }
+                foreach (array_keys($dates) as $date) {
+                    try {
+                        $this->calculator->calculate($employee, $date);
+                    } catch (\Throwable $e) {
+                        report($e);
+                    }
+                }
+            }
+        }
+
+        return ['inserted' => $result['inserted'], 'duplicates' => $result['duplicates'], 'unmatched' => $result['unmatched'],
+            'complete_through' => $result['complete_through']];
     }
 
     /**

@@ -395,8 +395,9 @@ class LeaveWorkflowService
             abort_unless($request->days()->where('active', true)->where('date', '<', $from)->exists(), 422, 'لتقصير الإجازة يجب الإبقاء على يوم واحد على الأقل.');
         }
         foreach ($days as $day) {
-            $start = CarbonImmutable::parse($day->date.' '.$day->start_time, $day->schedule['timezone']);
-            abort_if($start->lessThanOrEqualTo(CarbonImmutable::now()), 422, 'بدأت الفترة المطلوبة؛ اختر أياماً لم تبدأ بعد.');
+            $tz = $day->schedule['timezone'] ?? 'UTC';
+            $start = CarbonImmutable::parse($day->date.' '.substr((string) $day->start_time, 0, 5), $tz);
+            abort_if($start->lessThanOrEqualTo(CarbonImmutable::now($tz)), 422, 'بدأت الفترة المطلوبة؛ اختر أياماً لم تبدأ بعد.');
         }
     }
 
@@ -498,6 +499,45 @@ class LeaveWorkflowService
                 $request->save();
                 $this->audit->log('leave.holiday_refunded', $request, null, ['date' => $date, 'day_units' => $day->covered_units]);
                 app(HrNotifier::class)->leaveClosed($request, 'leave.holiday_refunded', 'أُضيفت عطلة رسمية يوم '.$date.' ضمن إجازتك، وأُعيد رصيدها.', ['date' => $date]);
+            }
+        }
+    }
+
+    /**
+     * Undo holidayAdded: reactivate days marked by holiday_refund and re-apply reserve/debit.
+     * Skips anyone who already has another active leave on that date.
+     */
+    public function holidayRemoved(string $date): void
+    {
+        $days = LeaveRequestDay::query()->where('date', $date)->where('active', false)
+            ->whereIn('id', LeaveBalanceEntry::query()->where('kind', 'holiday_refund')->select('leave_request_day_id'))
+            ->orderBy('employee_id')->orderBy('id')->get();
+        foreach ($days->groupBy('employee_id') as $employeeId => $employeeDays) {
+            Employee::lockForUpdate()->findOrFail($employeeId);
+            if (LeaveRequestDay::query()->where('employee_id', $employeeId)->where('date', $date)->where('active', true)->exists()) {
+                continue;
+            }
+            foreach ($employeeDays as $day) {
+                $request = LeaveRequest::query()->lockForUpdate()->findOrFail($day->leave_request_id);
+                if (! in_array($request->status, ['cancelled', 'approved', 'pending'], true)) {
+                    continue;
+                }
+                $wasApproved = LeaveBalanceEntry::query()->where('leave_request_day_id', $day->id)->where('kind', 'debit')->exists();
+                if ($request->policy['annual_days'] !== null && $day->covered_units > 0) {
+                    $kind = $wasApproved ? 'debit' : 'reserve';
+                    $this->entry($request, $day, -$day->covered_units, $kind, 'إعادة احتساب إجازة بعد حذف العطلة', (int) auth()->id());
+                }
+                $day->update(['active' => true]);
+                if ($request->status === 'cancelled') {
+                    $request->status = $wasApproved ? 'approved' : 'pending';
+                }
+                if ($request->status === 'pending') {
+                    $request->expires_on = $request->days()->where('active', true)->min('cycle_end');
+                }
+                $request->version++;
+                $request->save();
+                $this->audit->log('leave.holiday_restored', $request, null, ['date' => $date, 'day_units' => $day->covered_units]);
+                app(HrNotifier::class)->leaveClosed($request, 'leave.holiday_restored', 'حُذفت العطلة الرسمية يوم '.$date.' وأُعيدت إجازتك لذلك اليوم.', ['date' => $date]);
             }
         }
     }

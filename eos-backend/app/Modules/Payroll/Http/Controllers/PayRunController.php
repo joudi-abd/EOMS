@@ -166,6 +166,7 @@ class PayRunController extends Controller
             'box_id' => ['required', 'integer', 'exists:fin_boxes,id'],
             'paid_at' => ['required', 'date_format:Y-m-d', 'before_or_equal:today'],
             'reference' => ['required_if:method,sham_cash', 'nullable', 'string', 'max:100'],
+            'expected_amount' => ['nullable', 'numeric', 'min:0'],
             'note' => ['nullable', 'string', 'max:500'],
         ]);
 

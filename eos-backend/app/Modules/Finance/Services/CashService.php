@@ -155,9 +155,13 @@ class CashService
             $tx = Transaction::query()->lockForUpdate()->findOrFail($tx->id);
             abort_unless($tx->status === 'pending', 409, 'العملية ليست بانتظار الاعتماد.');
             abort_if($tx->created_by === $actor->id, 403, 'لا يعتمد أحد عملية سجّلها بنفسه.');
-            $tx->update(['status' => $approve ? 'posted' : 'rejected', 'approved_by' => $actor->id, 'decision_note' => $note]);
             if ($approve) {
+                // Re-check live box/party/account state; create-time validation may be stale.
+                $this->assertPostablePending($tx);
+                $tx->update(['status' => 'posted', 'approved_by' => $actor->id, 'decision_note' => $note]);
                 $this->postTransaction($tx, $actor);
+            } else {
+                $tx->update(['status' => 'rejected', 'approved_by' => $actor->id, 'decision_note' => $note]);
             }
             $this->audit->log($approve ? 'finance.payment_approved' : 'finance.payment_rejected', $tx, null, null, $actor->id);
             app(FinanceNotifier::class)->toUser($tx->created_by, $approve ? 'finance.payment_approved' : 'finance.payment_rejected',
@@ -240,16 +244,46 @@ class CashService
             abort_unless(Party::query()->whereKey($party)->where('kind', $kind)->where('active', true)->exists(), 422,
                 $kind === 'customer' ? 'القبض من عميل فعّال.' : 'الصرف لمورد فعّال.');
         } else {
-            $counter = $this->ledger->postable((int) $account);
-            abort_if(Box::query()->where('account_id', $account)->exists(), 422, 'استخدم التحويل بين الصناديق.');
-            if ($counter->system_key === 'inventory') {
-                throw ValidationException::withMessages(['account_id' => ['حساب المخزون يتحرك مع المواد فقط عبر فاتورة أو تسوية جرد.']]);
-            }
+            $this->assertCashCounterpart((int) $account);
         }
         if (! empty($data['invoice_id'])) {
             $invoice = Invoice::query()->findOrFail($data['invoice_id']);
+            abort_unless($invoice->status === 'posted', 422, 'الفاتورة غير مرحّلة.');
             abort_unless($invoice->party_id === (int) $party && $invoice->currency_code === $box->currency_code
                 && $invoice->type === ($kind === 'customer' ? 'sale' : 'purchase'), 422, 'الفاتورة لا تخص هذا الطرف أو العملة.');
+        }
+    }
+
+    /**
+     * Manual cash counterpart: postable, not a box, and not a protected system account.
+     * opening_balances remains allowed so a new box can be funded from equity at creation.
+     */
+    private function assertCashCounterpart(int $accountId, string $field = 'account_id'): Account
+    {
+        $counter = $this->ledger->postable($accountId, $field);
+        abort_if(Box::query()->where('account_id', $accountId)->exists(), 422, 'استخدم التحويل بين الصناديق.');
+        if ($counter->system_key !== null && $counter->system_key !== 'opening_balances') {
+            throw ValidationException::withMessages([$field => ['لا تستخدم حساب نظام كمقابل لصرف أو قبض يدوي؛ الرواتب والمخزون والتكلفة عبر مساراتها.']]);
+        }
+
+        return $counter;
+    }
+
+    /** Live checks before posting a pending payment/receipt that was validated at create time. */
+    private function assertPostablePending(Transaction $tx): void
+    {
+        $box = $this->box($tx->box_id);
+        if ($tx->party_id) {
+            $kind = $tx->kind === 'receipt' ? 'customer' : 'supplier';
+            abort_unless(Party::query()->whereKey($tx->party_id)->where('kind', $kind)->where('active', true)->exists(), 422,
+                $kind === 'customer' ? 'القبض من عميل فعّال.' : 'الصرف لمورد فعّال.');
+        } elseif ($tx->account_id) {
+            $this->assertCashCounterpart((int) $tx->account_id);
+        }
+        if ($tx->invoice_id) {
+            $invoice = Invoice::query()->findOrFail($tx->invoice_id);
+            abort_unless($invoice->status === 'posted', 422, 'الفاتورة غير مرحّلة.');
+            abort_unless($invoice->party_id === (int) $tx->party_id && $invoice->currency_code === $box->currency_code, 422, 'الفاتورة لا تخص هذا الطرف أو العملة.');
         }
     }
 

@@ -251,9 +251,12 @@ class FinanceController extends Controller
 
     public function updateParty(Request $request, Party $party): JsonResponse
     {
-        $party->update($request->validate(['name' => ['sometimes', 'string', 'max:150'], 'phone' => ['sometimes', 'nullable', 'string', 'max:30'],
+        $data = $request->validate(['name' => ['sometimes', 'string', 'max:150'], 'phone' => ['sometimes', 'nullable', 'string', 'max:30'],
             'sham_cash_wallet' => ['sometimes', 'nullable', 'digits:16'], 'sham_cash_name' => ['sometimes', 'nullable', 'string', 'max:150'],
-            'notes' => ['sometimes', 'nullable', 'string', 'max:1000'], 'active' => ['sometimes', 'boolean']]));
+            'notes' => ['sometimes', 'nullable', 'string', 'max:1000'], 'active' => ['sometimes', 'boolean']]);
+        abort_if(($data['active'] ?? true) === false && Transaction::query()->where('status', 'pending')->where('party_id', $party->id)->exists(),
+            422, 'للطرف عمليات بانتظار الاعتماد.');
+        $party->update($data);
 
         return ApiResponse::ok($party->refresh());
     }
