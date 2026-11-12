@@ -93,11 +93,7 @@ class UserController extends Controller
     {
         $this->ensureCan($request);
 
-        abort_unless(
-            $request->user()->can('assignRoles', $user),
-            403,
-            'فقط مدير النظام يستطيع تغيير الأدوار.'
-        );
+        abort_unless($request->user()->can('roles.manage'), 403, 'تغيير الأدوار يتطلب صلاحية إدارة الأدوار.');
 
         $data = $request->validate([
             'roles' => ['required', 'array'],

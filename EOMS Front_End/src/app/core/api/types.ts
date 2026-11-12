@@ -9,6 +9,8 @@ export interface ApiUser {
   roles: string[];
   employee_id?: number | null;
   employee?: ApiEmployee | null;
+  /** Signed-in account only (`/auth/me`, login): effective permission → widest scope. */
+  permissions?: Record<string, 'own' | 'department' | 'all'>;
   last_login_at: string | null;
   created_at: string | null;
 }

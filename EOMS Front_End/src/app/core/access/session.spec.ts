@@ -3,11 +3,13 @@ import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { Auth } from '../api/auth';
 import { ApiUser } from '../api/types';
-import { moduleIds } from '../copy';
 import { Office } from '../../data/office';
 import { Session } from './session';
 
-function signIn(roles: string[]): Session {
+type Grants = NonNullable<ApiUser['permissions']>;
+
+/** Signs in with the permissions the server reports on `/auth/me` — the interface never derives them from roles. */
+function signIn(roles: string[], permissions: Grants = {}): Session {
   TestBed.configureTestingModule({ providers: [provideHttpClient(), provideHttpClientTesting()] });
   const user: ApiUser = {
     id: 1,
@@ -16,6 +18,7 @@ function signIn(roles: string[]): Session {
     phone: null,
     status: 'active',
     roles,
+    permissions,
     last_login_at: null,
     created_at: null,
   };
@@ -24,124 +27,67 @@ function signIn(roles: string[]): Session {
 }
 
 describe('Session', () => {
-  it('gives the system administrator every module and action', () => {
-    const session = signIn(['system_admin']);
-    for (const id of moduleIds) {
-      expect(session.can(id)).toBe(true);
-    }
-    expect(session.canAct('employee.add')).toBe(true);
-    expect(session.canAct('account.add')).toBe(true);
-  });
+  afterEach(() => TestBed.resetTestingModule());
 
-  it('keeps the company manager to viewing and approving', () => {
-    const session = signIn(['company_manager']);
+  it('reads permissions from the server, whatever the role is called', () => {
+    const session = signIn(['site_supervisor'], { 'employees.view': 'all', 'tasks.view': 'own' });
     expect(session.can('employees')).toBe(true);
-    expect(session.can('access')).toBe(false);
-    expect(session.canAct('leave.decide')).toBe(true);
-    expect(session.canAct('employee.add')).toBe(false);
-    expect(session.canAct('account.add')).toBe(false);
-  });
-
-  it('maps the HR manager role onto the HR areas', () => {
-    const session = signIn(['hr_manager']);
-    expect(session.can('employees')).toBe(true);
-    expect(session.can('hrSettings')).toBe(true);
-    expect(session.can('access')).toBe(false);
-    expect(session.canAct('employee.add')).toBe(true);
-    expect(session.roleLine()).toBe('مسؤول الموارد البشرية');
-  });
-
-  it('follows the backend seeder for the company manager', () => {
-    const session = signIn(['company_manager']);
-    expect(session.has('employees.documents.view')).toBe(true);
-    expect(session.has('settings.view')).toBe(true);
-    expect(session.has('employees.view_sensitive')).toBe(false);
-    expect(session.has('employees.view_financial')).toBe(false);
-    expect(session.canAct('payroll.approve')).toBe(true);
-    expect(session.canAct('payroll.pay')).toBe(false);
-    expect(session.has('tasks.manage')).toBe(true);
-    expect(session.canAct('purchase.decide')).toBe(true);
-    expect(session.canAct('purchase.add')).toBe(false);
-    expect(session.canAct('attendance.correct')).toBe(false);
-    expect(session.canAct('hr.shift')).toBe(false);
-    expect(session.canAct('document.view')).toBe(true);
-  });
-
-  it('keeps HR to what its backend role holds', () => {
-    const session = signIn(['hr_manager']);
-    // HR prepares the pay run; finance approves and pays it.
-    expect(session.can('payroll')).toBe(true);
     expect(session.can('tasks')).toBe(true);
-    expect(session.has('tasks.manage')).toBe(true);
-    expect(session.can('meetings')).toBe(false);
-    expect(session.can('finCash')).toBe(false);
-    expect(session.can('finSettings')).toBe(false);
-    expect(session.can('documents')).toBe(true);
-    expect(session.has('employees.view_financial')).toBe(false);
-    expect(session.canAct('attendance.link')).toBe(true);
-    expect(session.canAct('attendance.correct')).toBe(true);
-    expect(session.canAct('hr.settings')).toBe(true);
-    expect(session.canAct('hr.shift')).toBe(true);
-    expect(session.canAct('payroll.prepare')).toBe(true);
-    expect(session.canAct('payroll.approve')).toBe(false);
-    expect(session.canAct('payroll.pay')).toBe(false);
+    expect(session.can('payroll')).toBe(false);
+    expect(session.has('employees.view')).toBe(true);
   });
 
-  it('lets finance review, approve and pay payroll but not prepare it or add purchases', () => {
-    const session = signIn(['finance_manager']);
-    expect(session.can('payroll')).toBe(true);
+  it('treats a department reach as not company-wide', () => {
+    const session = signIn(['employee'], { 'attendance.view': 'department', 'leaves.view': 'department', 'tasks.view': 'department' });
+    expect(session.has('attendance.view')).toBe(false);
+    expect(session.reach('attendance.view')).toBe('department');
+    // Company-wide screens stay closed; tasks open at any reach.
+    expect(session.can('hrSettings')).toBe(false);
+    expect(session.can('tasks')).toBe(true);
+  });
+
+  it('opens actions from the permissions they need', () => {
+    const session = signIn(['finance_manager'], { 'payroll.view': 'all', 'payroll.approve': 'all', 'payroll.pay': 'all' });
+    expect(session.canAct('payroll.review')).toBe(true);
+    expect(session.canAct('payroll.pay')).toBe(true);
+    expect(session.canAct('payroll.prepare')).toBe(false);
+    expect(session.can('finCash')).toBe(false);
+  });
+
+  it('opens the finance areas with company-wide finance.view', () => {
+    const session = signIn(['finance_manager'], { 'finance.view': 'all', 'finance.manage': 'all' });
     expect(session.can('finCash')).toBe(true);
     expect(session.can('finSettings')).toBe(true);
     expect(session.can('employees')).toBe(false);
-    expect(session.canAct('payroll.prepare')).toBe(false);
-    expect(session.canAct('payroll.review')).toBe(true);
-    expect(session.canAct('payroll.pay')).toBe(true);
-    expect(session.canAct('payroll.approve')).toBe(true);
-    expect(session.canAct('purchase.decide')).toBe(true);
-    expect(session.canAct('purchase.add')).toBe(false);
   });
 
-  it('lets the project manager read employees without editing them', () => {
-    const session = signIn(['project_manager']);
-    expect(session.can('employees')).toBe(true);
-    expect(session.can('projects')).toBe(true);
-    expect(session.can('meetings')).toBe(true);
-    expect(session.can('attendance')).toBe(false);
-    expect(session.canAct('employee.add')).toBe(false);
-    expect(session.canAct('document.view')).toBe(false);
+  it('lets either leave-approval level decide leave', () => {
+    expect(signIn(['company_manager'], { 'leaves.approve_reviewers': 'all' }).canAct('leave.decide')).toBe(true);
+    TestBed.resetTestingModule();
+    expect(signIn(['hr_manager'], { 'leaves.approve': 'all' }).canAct('leave.decide')).toBe(true);
   });
 
-  it('lets the purchasing officer add purchases but not decide them', () => {
-    const session = signIn(['purchasing_officer']);
-    expect(session.can('procurement')).toBe(true);
-    expect(session.can('assets')).toBe(true);
-    expect(session.canAct('purchase.add')).toBe(true);
-    expect(session.canAct('purchase.decide')).toBe(false);
+  it('opens the accounts area for account or role editors', () => {
+    expect(signIn(['x'], { 'roles.manage': 'all' }).can('access')).toBe(true);
+    TestBed.resetTestingModule();
+    expect(signIn(['x'], { 'users.manage': 'all' }).can('access')).toBe(true);
   });
 
-  it('gives the plain employee the open areas and their own task boards', () => {
-    const session = signIn(['employee']);
-    expect([...session.permissions()]).toEqual(['tasks.view']);
+  it('keeps modules that are not built yet closed for everyone, the administrator included', () => {
+    const session = signIn(['system_admin'], { 'users.manage': 'all', 'roles.manage': 'all', 'employees.view': 'all' });
+    expect(session.isAdmin()).toBe(true);
+    expect(session.can('projects')).toBe(false);
+    expect(session.can('procurement')).toBe(false);
     expect(session.can('alerts')).toBe(true);
-    expect(session.can('tasks')).toBe(true);
-    expect(session.has('tasks.manage')).toBe(false);
-    expect(session.can('employees')).toBe(false);
-    expect(session.can('payroll')).toBe(false);
   });
 
-  it('unions the permissions of two roles', () => {
-    const session = signIn(['engineer', 'purchasing_officer']);
-    expect(session.can('projects')).toBe(true);
-    expect(session.can('procurement')).toBe(true);
-  });
-
-  it('ignores roles this interface does not know', () => {
-    const session = signIn(['auditor']);
-    expect(session.account().roles).toEqual([]);
+  it('gives an account with no role nothing', () => {
+    const session = signIn([], {});
     expect(session.modules().length).toBe(0);
   });
+
   it('lets an employee reach own attendance using auth employee identity without loading the directory', async () => {
-    const session = signIn(['employee']);
+    const session = signIn(['employee'], { 'tasks.view': 'own' });
     TestBed.inject(Auth).user.update((user) => ({
       ...user!,
       employee_id: 7,

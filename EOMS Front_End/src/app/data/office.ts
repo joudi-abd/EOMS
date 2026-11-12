@@ -1,5 +1,5 @@
 import { computed, effect, inject, Injectable, signal, untracked, WritableSignal } from '@angular/core';
-import { Account, Action, AuditEntry, AuditKind, grants, holds, isTop, Permission, Role, roleFrom, roleIds, roleName } from '../core/access/accounts';
+import { Account, Action, adminRole, AuditEntry, AuditKind, grants, holds, isTop, Permission, Role } from '../core/access/accounts';
 import { Api, serverMessage, statusOf } from '../core/api/api';
 import { Auth } from '../core/api/auth';
 import { ApiDepartment, ApiEmployee, ApiItem, ApiJobTitle, ApiPolicy, ApiUser } from '../core/api/types';
@@ -157,7 +157,7 @@ function accountFrom(user: ApiUser, employeeId: string | undefined): Account {
     employeeId: linked ?? null,
     userId: user.id,
     name: plain(user.name),
-    roles: user.roles.map(roleFrom).filter((role): role is Role => role !== null),
+    roles: [...user.roles],
     enabled: user.status === 'active',
     email: user.email,
     phone: user.phone ?? '',
@@ -328,9 +328,9 @@ export class Office {
     this.loading.set(true);
     const own = this.auth.user()?.employee;
     if (own) this.records.set([employeeFrom(own)]);
-    // Ask only for what the roles allow, so a forbidden list is never requested.
-    const roles = this.self()?.roles ?? [];
-    const may = (permission: Permission) => holds(roles, [permission]);
+    // Ask only for what the account may read, so a forbidden list is never requested.
+    const granted = this.auth.user()?.permissions ?? {};
+    const may = (permission: Permission) => holds(granted, [permission]);
     await Promise.all([
       may('employees.view') ? this.loadDepartments() : undefined,
       may('employees.view') ? this.loadTitles() : undefined,
@@ -438,13 +438,14 @@ export class Office {
     return this.employees().filter((item) => item.managerId === managerId && item.status !== 'ended');
   }
 
+  /** Only the signed-in account's permissions are known here (from `/auth/me`); other accounts act on their own screens. */
   actorCan(actorId: string, action: Action): boolean {
     const actor = this.accounts().find((item) => item.id === actorId && item.enabled);
-    if (!actor) {
+    if (!actor || actor.userId !== this.auth.userId()) {
       return false;
     }
     const hasFile = this.employees().some((item) => item.id === actorId && item.status !== 'ended');
-    return grants(actor.roles, action, hasFile);
+    return grants(this.auth.user()?.permissions ?? {}, action, hasFile);
   }
 
   /** The system administrator and the company manager stand above every other role. */
@@ -488,7 +489,7 @@ export class Office {
         email: entry.email.trim(),
         phone: entry.phone.trim() || null,
         password: entry.password,
-        roles: entry.roles.map((role) => roleName[role]),
+        roles: entry.roles,
       });
       await this.loadUsers();
       this.record('added', actorId, plain(entry.name.trim()));
@@ -527,10 +528,9 @@ export class Office {
     if (!this.keepsAdmin(next)) {
       return { ok: false, error: this.language.t('keepCompany') };
     }
-    const body: Record<string, unknown> = {
-      email: entry.email.trim(),
-      roles: entry.roles.map((role) => roleName[role]),
-    };
+    const body: Record<string, unknown> = { email: entry.email.trim() };
+    // Roles travel only when they change: giving roles needs roles.manage, editing an account does not.
+    if ([...entry.roles].sort().join() !== [...current.roles].sort().join()) body['roles'] = entry.roles;
     // Linked profile fields belong to the employee record, even when a full form is submitted.
     if (!current.employeeId) {
       body['name'] = entry.name.trim();
@@ -1396,12 +1396,12 @@ export class Office {
   }
 
   private validRoles(roles: Role[]): boolean {
-    return (roles.length === 1 || roles.length === 2) && new Set(roles).size === roles.length && roles.every((role) => (roleIds as readonly string[]).includes(role));
+    return roles.length > 0 && new Set(roles).size === roles.length;
   }
 
   /** The backend refuses to lose its last active system administrator. */
   private keepsAdmin(list: Account[]): boolean {
-    return list.some((item) => item.enabled && item.roles.includes('system'));
+    return list.some((item) => item.enabled && item.roles.includes(adminRole));
   }
 
   private record(kind: AuditKind, actorId: string, targetName: Text): void {

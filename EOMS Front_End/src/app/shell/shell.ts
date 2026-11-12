@@ -7,6 +7,7 @@ import { Language } from '../core/language';
 import { AccountSwitch } from './account-switch/account-switch';
 import { Api } from '../core/api/api';
 import { ApiPage } from '../core/api/types';
+import { Roles } from '../data/roles';
 import { Server } from '../data/server';
 import { Chrome } from './chrome';
 import { moduleIcon } from './icons';
@@ -33,6 +34,7 @@ export class Shell {
   protected readonly icons = moduleIcon;
   private readonly router = inject(Router);
   private readonly api = inject(Api);
+  private readonly roles = inject(Roles);
   /** Items waiting for this account's decision, shown as a count beside the module in the rail. */
   protected readonly waiting = signal<Partial<Record<ModuleId, number>>>({});
   private readonly route = inject(ActivatedRoute);
@@ -46,6 +48,8 @@ export class Shell {
   constructor() {
     void this.notes.notifications(1).catch(() => undefined);
     void this.notes.publicCompany().then((name) => this.company.set(name)).catch(() => undefined);
+    // Role labels and the permission catalogue, for every screen that names a role.
+    void this.roles.ensure().catch(() => undefined);
     // The account loads after the shell; count waiting items once per signed-in account.
     let countedFor = '';
     effect(() => {
@@ -77,10 +81,8 @@ export class Shell {
     };
     const counts: Partial<Record<ModuleId, number>> = {};
     const jobs: Promise<void>[] = [];
-    // The review queue belongs to HR and the company manager only; the server refuses it to anyone else (403),
-    // even a system administrator who holds leaves.approve.
-    const roles = this.session.account().roles;
-    if (this.session.has('leaves.approve') && (roles.includes('hr') || roles.includes('company'))) {
+    // Leave reviewers: staff requests (leaves.approve) or the approvers' own requests (leaves.approve_reviewers).
+    if (this.session.has('leaves.approve') || this.session.has('leaves.approve_reviewers')) {
       jobs.push(total('/leaves', { scope: 'review', status: 'pending' }).then((value) => void (counts.leave = value)));
     }
     if (this.session.has('payroll.approve')) {

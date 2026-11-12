@@ -1,0 +1,105 @@
+<p class="lede rl-lede">{{ t('rlLede') }}</p>
+@if (!editor()) { <p class="fin-hint">{{ t('rlReadOnly') }}</p> }
+
+<div class="rl">
+  <nav class="rl-list" [attr.aria-label]="t('accessTabRoles')">
+    <ul>
+      @for (r of catalog.roles(); track r.name) {
+        <li>
+          <button type="button" [class.on]="picked() === r.name && !creating()" [attr.aria-current]="picked() === r.name && !creating() ? 'true' : null" (click)="pick(r)">
+            <strong>{{ text({ ar: r.label_ar, en: r.label_en }) }}</strong>
+            <span class="rl-meta">
+              <span class="rl-kind" [class.top]="r.kind === 'admin'" [class.auto]="r.kind === 'department'">{{ kindLabel(r) }}</span>
+              @if (r.holders !== undefined && r.kind !== 'department') { <span>{{ num(r.holders) }} {{ t('rlHolders') }}</span> }
+            </span>
+          </button>
+        </li>
+      }
+    </ul>
+    @if (editor()) {
+      <button class="text rl-new" type="button" (click)="startCreate()"><i class="fa-solid fa-plus" aria-hidden="true"></i> {{ t('rlNew') }}</button>
+    }
+  </nav>
+
+  <section class="rl-body">
+    @if (creating()) {
+      <form class="fin-sheet" (ngSubmit)="create()">
+        <header><h2>{{ t('rlNew') }}</h2></header>
+        <fieldset class="fin-form" [disabled]="busy()">
+          <label>{{ t('rlName') }}<input name="name" dir="ltr" required maxlength="60" pattern="[a-z][a-z0-9_]*" [(ngModel)]="newRole.name" /></label>
+          <p class="fin-hint">{{ t('rlNameHint') }}</p>
+          <label>{{ t('rlLabelAr') }}<input name="labelAr" required maxlength="80" [(ngModel)]="newRole.label_ar" /></label>
+          <label>{{ t('rlLabelEn') }}<input name="labelEn" dir="ltr" maxlength="80" [(ngModel)]="newRole.label_en" /></label>
+          <label class="wide">{{ t('rlCopyOf') }}
+            <select name="copy" [(ngModel)]="newRole.copy">
+              <option value="">{{ t('rlCopyNone') }}</option>
+              @for (r of catalog.roles(); track r.name) { @if (r.kind === 'standard') { <option [value]="r.name">{{ text({ ar: r.label_ar, en: r.label_en }) }}</option> } }
+            </select>
+          </label>
+          <div class="fin-actions wide">
+            <button class="text" type="button" (click)="creating.set(false)">{{ t('cancel') }}</button>
+            <button class="primary" type="submit" [disabled]="!newRole.name || !newRole.label_ar.trim()">{{ t('rlCreate') }}</button>
+          </div>
+        </fieldset>
+      </form>
+    } @else if (role(); as r) {
+      <header class="rl-head">
+        <h2>{{ text({ ar: r.label_ar, en: r.label_en }) }} <bdi class="soft" dir="ltr">{{ r.name }}</bdi></h2>
+        <span class="soft">{{ num(count()) }} {{ t('rlPermissions') }}</span>
+      </header>
+      @if (r.kind === 'admin') { <p class="fin-hint">{{ t('rlAdminNote') }}</p> }
+      @if (r.kind === 'department') { <p class="fin-hint">{{ t('rlDepartmentNote') }}</p> }
+      @if (r.is_default && r.kind !== 'admin') { <p class="fin-hint">{{ t('rlDefaultNote') }}</p> }
+      @if (editable()) { <p class="fin-hint">{{ t('rlReachNote') }}</p> }
+
+      @if (editable()) {
+        <fieldset class="fin-form rl-labels" [disabled]="busy()">
+          <label>{{ t('rlLabelAr') }}<input name="labelAr" required maxlength="80" [(ngModel)]="form.label_ar" /></label>
+          <label>{{ t('rlLabelEn') }}<input name="labelEn" dir="ltr" maxlength="80" [(ngModel)]="form.label_en" /></label>
+          <label>{{ t('rlHintAr') }}<input name="hintAr" maxlength="300" [(ngModel)]="form.hint_ar" /></label>
+          <label>{{ t('rlHintEn') }}<input name="hintEn" dir="ltr" maxlength="300" [(ngModel)]="form.hint_en" /></label>
+        </fieldset>
+      }
+
+      @for (m of catalog.modules(); track m.key) {
+        <section class="rl-module">
+          <h3>{{ text({ ar: m.label_ar, en: m.label_en }) }}</h3>
+          <ul>
+            @for (p of m.permissions; track p.name) {
+              <li [class.held]="!!draft()[p.name]">
+                <div class="rl-perm">
+                  <strong>{{ text({ ar: p.label_ar, en: p.label_en }) }}</strong>
+                  @if (p.sensitive) { <span class="rl-flag">{{ t('rlSensitive') }}</span> }
+                  <small>{{ text({ ar: p.hint_ar, en: p.hint_en }) }}</small>
+                </div>
+                <div class="seg rl-seg" role="radiogroup" [attr.aria-label]="text({ ar: p.label_ar, en: p.label_en })">
+                  <button type="button" role="radio" [class.on]="!draft()[p.name]" [attr.aria-checked]="!draft()[p.name]"
+                          [disabled]="busy() || !editable() || !removable(p.name)" (click)="set(p.name, null)">{{ t('scopeNone') }}</button>
+                  @for (s of scopes(p); track s) {
+                    <button type="button" role="radio" [class.on]="draft()[p.name] === s" [attr.aria-checked]="draft()[p.name] === s"
+                            [disabled]="busy() || !reachable(p.name, s)" (click)="set(p.name, s)">{{ scopeLabel(s) }}</button>
+                  }
+                </div>
+              </li>
+            }
+          </ul>
+        </section>
+      }
+
+      @if (editable()) {
+        <div class="fin-actions rl-actions">
+          @if (!r.is_default) {
+            <button class="quiet" type="button" [disabled]="busy() || (r.holders ?? 0) > 0" [attr.title]="(r.holders ?? 0) > 0 ? t('rlDeleteBlocked') : null" (click)="remove()">
+              <i class="fa-solid fa-trash-can" aria-hidden="true"></i> {{ t('rlDelete') }}
+            </button>
+          } @else {
+            <button class="quiet" type="button" [disabled]="busy()" (click)="restore()"><i class="fa-solid fa-rotate-left" aria-hidden="true"></i> {{ t('rlRestore') }}</button>
+          }
+          <button class="primary" type="button" [disabled]="busy() || !form.label_ar.trim()" (click)="save()">{{ t('rlSave') }}</button>
+        </div>
+      }
+    } @else {
+      <p class="empty">{{ t('rlPick') }}</p>
+    }
+  </section>
+</div>

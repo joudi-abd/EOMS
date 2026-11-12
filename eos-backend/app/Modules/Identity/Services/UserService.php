@@ -2,6 +2,9 @@
 
 namespace App\Modules\Identity\Services;
 
+use App\Modules\Identity\Access\Access;
+use App\Modules\Identity\Access\DefaultRoles;
+use App\Modules\Identity\Access\RoleService;
 use App\Modules\Identity\Contracts\EmployeeDirectory;
 use App\Modules\Identity\Events\UserProfileUpdating;
 use App\Modules\Identity\Models\User;
@@ -13,13 +16,34 @@ use Illuminate\Validation\ValidationException;
 
 class UserService
 {
-    public function __construct(private AuditLogger $audit, private EmployeeDirectory $employees) {}
+    public function __construct(
+        private AuditLogger $audit,
+        private EmployeeDirectory $employees,
+        private Access $access,
+        private RoleService $roles,
+    ) {}
 
-    private function ensureRoleAdministrator(): void
+    /** Giving roles needs `roles.manage`, and every new role must sit within the actor's own permissions. */
+    private function ensureMayAssign(array $roles, array $current = []): void
     {
-        if (! auth()->user()?->hasRole('system_admin')) {
-            throw new AuthorizationException('فقط مدير النظام يستطيع تعيين الأدوار.');
+        $actor = auth()->user();
+        if (! $actor instanceof User || ! $this->access->allows($actor, 'roles.manage')) {
+            throw new AuthorizationException('تعيين الأدوار يتطلب صلاحية إدارة الأدوار.');
         }
+        $this->roles->ensureAssignable($actor, $roles, $current);
+    }
+
+    private function ensureAdministrator(): void
+    {
+        $actor = auth()->user();
+        if (! $actor instanceof User || ! $this->access->isAdmin($actor)) {
+            throw new AuthorizationException('فقط مدير النظام يستطيع تعديل حساب مدير نظام.');
+        }
+    }
+
+    private function forget(User $user): void
+    {
+        DB::afterCommit(fn () => $this->access->flush($user->id));
     }
 
     public function create(array $data): User
@@ -30,7 +54,7 @@ class UserService
 
             // Keep existing role-authority policy for account creation.
             if ($roles !== null) {
-                $this->ensureRoleAdministrator();
+                $this->ensureMayAssign($roles);
             }
 
             if ($employeeId !== null) {
@@ -39,9 +63,8 @@ class UserService
                 $data['name'] = $profile['name'];
                 $data['phone'] = $profile['phone'];
                 $data['status'] = 'active';
-                // No explicit roles: provision regular employee account.
-                // Authorized system_admin may explicitly select other roles.
-                $roles ??= ['employee'];
+                // No explicit roles: a regular employee account. Other roles need roles.manage (checked above).
+                $roles ??= [DefaultRoles::EMPLOYEE];
             }
 
             $user = User::create($data);
@@ -69,9 +92,6 @@ class UserService
             $roles = Arr::pull($data, 'roles');
 
             if ($roles !== null) {
-                $this->ensureRoleAdministrator();
-            }
-            if ($roles !== null) {
                 $this->lockSystemAdminRole();
             }
 
@@ -79,18 +99,10 @@ class UserService
                 ->lockForUpdate()
                 ->findOrFail($user->id);
 
-            // $oldRoles = $user->getRoleNames()->all();
-            // if ($roles !== null) {
-            //     $this->ensureLastActiveAdminIsPreserved($user, $oldRoles, $roles);
-            // }
-            // event(new UserProfileUpdating($user, $data));
-            // $user->fill($data);
-
-            // $changed = Arr::except($user->getDirty(), ['password']);
-            // $old = Arr::only($user->getRawOriginal(), array_keys($changed));
-            // $user->save();
             $oldRoles = $user->getRoleNames()->all();
             if ($roles !== null) {
+                $this->ensureMayAssign($roles, $oldRoles);
+                $this->ensureMayTouch($user);
                 $this->ensureLastActiveAdminIsPreserved($user, $oldRoles, $roles);
             }
             // Notify other modules before updating the user.
@@ -107,6 +119,7 @@ class UserService
             $user->save();
             if ($roles !== null) {
                 $user->syncRoles($roles);
+                $this->forget($user);
             }
 
             if ($user->wasChanged() || ($roles !== null && $oldRoles !== $user->getRoleNames()->all())) {
@@ -141,11 +154,11 @@ class UserService
                 ]);
             }
 
-            if ($user->hasRole('system_admin')) {
-                $this->ensureRoleAdministrator();
+            if ($user->hasRole(DefaultRoles::ADMIN)) {
+                $this->ensureAdministrator();
 
                 if ($status === 'disabled' && $user->status === 'active') {
-                    $otherActiveAdmins = User::role('system_admin')
+                    $otherActiveAdmins = User::role(DefaultRoles::ADMIN)
                         ->where('status', 'active')
                         ->whereKeyNot($user->id)
                         ->count();
@@ -181,8 +194,6 @@ class UserService
 
     public function assignRoles(User $target, array $roles): User
     {
-        $this->ensureRoleAdministrator();
-
         return DB::transaction(function () use ($target, $roles) {
             $this->lockSystemAdminRole();
 
@@ -191,6 +202,8 @@ class UserService
                 ->findOrFail($target->id);
 
             $old = $target->getRoleNames()->all();
+            $this->ensureMayAssign($roles, $old);
+            $this->ensureMayTouch($target);
 
             $this->ensureLastActiveAdminIsPreserved(
                 $target,
@@ -199,6 +212,7 @@ class UserService
             );
 
             $target->syncRoles($roles);
+            $this->forget($target);
 
             $this->audit->log(
                 'user.roles_changed',
@@ -213,13 +227,13 @@ class UserService
 
     private function ensureLastActiveAdminIsPreserved(User $target, array $old, array $roles): void
     {
-        if (! in_array('system_admin', $old, true)
-            || in_array('system_admin', $roles, true)
+        if (! in_array(DefaultRoles::ADMIN, $old, true)
+            || in_array(DefaultRoles::ADMIN, $roles, true)
             || $target->status !== 'active') {
             return;
         }
 
-        $otherActiveAdmins = User::role('system_admin')
+        $otherActiveAdmins = User::role(DefaultRoles::ADMIN)
             ->where('status', 'active')
             ->where('id', '!=', $target->id)
             ->count();
@@ -228,6 +242,14 @@ class UserService
             throw ValidationException::withMessages([
                 'roles' => ['لا يمكن إزالة دور مدير النظام من آخر مدير نشط.'],
             ]);
+        }
+    }
+
+    /** Only an administrator changes an administrator's roles. */
+    private function ensureMayTouch(User $target): void
+    {
+        if ($target->hasRole(DefaultRoles::ADMIN)) {
+            $this->ensureAdministrator();
         }
     }
 
@@ -248,7 +270,7 @@ class UserService
     private function lockSystemAdminRole(): void
     {
         $role = DB::table('usr_roles')
-            ->where('name', 'system_admin')
+            ->where('name', DefaultRoles::ADMIN)
             ->where('guard_name', 'web')
             ->lockForUpdate()
             ->first();

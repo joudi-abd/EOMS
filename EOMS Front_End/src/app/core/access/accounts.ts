@@ -1,9 +1,29 @@
-import { CopyKey, ModuleId } from '../copy';
+import { ModuleId } from '../copy';
 import { Text } from '../../data/text';
 
-export const roleIds = ['company', 'system', 'hr', 'finance', 'project', 'engineer', 'procurement', 'employee'] as const;
+/**
+ * A backend role name (`usr_roles.name`). Roles are records edited on the roles screen; their labels and grants
+ * come from `/access/roles` (see data/roles.ts). The interface never decides what a role grants.
+ */
+export type Role = string;
 
-export type Role = (typeof roleIds)[number];
+/** The shipped administrator role: holds every permission and is the only role that hands itself out. */
+export const adminRole = 'system_admin';
+
+/** The shipped company-manager role. With the administrator, it stands above the others in the account screens. */
+export const companyRole = 'company_manager';
+
+/** How far a granted permission reaches. */
+export type Scope = 'own' | 'department' | 'all';
+
+export const scopeOrder: readonly Scope[] = ['own', 'department', 'all'];
+
+/** Effective permissions of the signed-in account, as `/auth/me` reports them: permission → widest scope. */
+export type Grants = Readonly<Partial<Record<string, Scope>>>;
+
+export function covers(held: Scope | undefined, needed: Scope): boolean {
+  return held !== undefined && scopeOrder.indexOf(held) >= scopeOrder.indexOf(needed);
+}
 
 export type Action =
   | 'leave.decide'
@@ -48,25 +68,9 @@ export interface Account {
   lastLogin: string;
 }
 
-/** Backend role names (`usr_roles.name`) against the roles this interface knows. */
-export const roleName: Record<Role, string> = {
-  company: 'company_manager',
-  system: 'system_admin',
-  hr: 'hr_manager',
-  finance: 'finance_manager',
-  project: 'project_manager',
-  engineer: 'engineer',
-  procurement: 'purchasing_officer',
-  employee: 'employee',
-};
-
-export function roleFrom(name: string): Role | null {
-  return roleIds.find((role) => roleName[role] === name) ?? null;
-}
-
-/** The system administrator and the company manager stand above the other roles. */
+/** The administrator and the company manager stand above the other roles in the account screens. */
 export function isTop(roles: readonly Role[]): boolean {
-  return roles.includes('system') || roles.includes('company');
+  return roles.includes(adminRole) || roles.includes(companyRole);
 }
 
 export type AuditKind = 'added' | 'enabled' | 'disabled' | 'updated';
@@ -79,20 +83,9 @@ export interface AuditEntry {
   targetName: Text;
 }
 
-export const roleLabel: Record<Role, CopyKey> = {
-  company: 'companyRole',
-  system: 'systemRole',
-  hr: 'hrRole',
-  finance: 'financeRole',
-  project: 'projectRole',
-  engineer: 'engineerRole',
-  procurement: 'procurementRole',
-  employee: 'employeeRole',
-};
-
 /**
- * The backend permissions (`usr_permissions.name`, Spatie, guard `web`), as `RolePermissionSeeder` creates them.
- * `/auth/me` returns role names only, so the interface rebuilds a user's permissions from the roles it holds.
+ * The permission names the interface checks, from the backend catalogue (`PermissionCatalog`). Typed so a check
+ * cannot name a permission that does not exist; labels and scopes come from `/access/catalog`.
  */
 export const permissionIds = [
   'employees.view',
@@ -108,96 +101,53 @@ export const permissionIds = [
   'leaves.view',
   'leaves.manage',
   'leaves.approve',
+  'leaves.approve_reviewers',
   'payroll.view',
   'payroll.manage',
   'payroll.approve',
   'payroll.pay',
-  'tasks.view',
-  'tasks.manage',
   'finance.view',
   'finance.manage',
   'finance.approve',
-  'projects.view',
-  'projects.manage',
-  'purchases.view',
-  'purchases.manage',
-  'purchases.approve',
-  'assets.view',
-  'assets.manage',
-  'documents.view',
-  'documents.manage',
-  'meetings.view',
-  'meetings.manage',
-  'reports.view',
-  'audit.view',
+  'tasks.view',
+  'tasks.manage',
   'settings.view',
   'settings.manage',
   'users.manage',
-  'roles.assign',
+  'roles.manage',
 ] as const;
 
 export type Permission = (typeof permissionIds)[number];
 
-/** Mirrors the seeder: the administrator holds all; the company manager every `.view` and `.approve` plus `tasks.manage`; the rest are listed. */
-export const rolePermissions: Record<Role, readonly Permission[]> = {
-  system: permissionIds,
-  company: [...permissionIds.filter((name) => name.endsWith('.view') || name.endsWith('.approve')), 'tasks.manage'],
-  hr: [
-    'employees.view',
-    'employees.manage',
-    'employees.view_sensitive',
-    'employees.documents.view',
-    'employees.documents.manage',
-    'attendance.view',
-    'attendance.manage',
-    'attendance.adjust',
-    'attendance.approve',
-    'leaves.view',
-    'leaves.manage',
-    'leaves.approve',
-    'payroll.view',
-    'payroll.manage',
-    'tasks.view',
-    'tasks.manage',
-    'documents.view',
-    'documents.manage',
-    'reports.view',
-  ],
-  finance: ['payroll.view', 'payroll.approve', 'payroll.pay', 'tasks.view', 'tasks.manage', 'finance.view', 'finance.manage', 'purchases.view', 'purchases.approve', 'reports.view'],
-  project: ['projects.view', 'projects.manage', 'meetings.view', 'meetings.manage', 'employees.view', 'documents.view', 'documents.manage', 'reports.view', 'tasks.view', 'tasks.manage'],
-  engineer: ['projects.view', 'meetings.view', 'documents.view', 'tasks.view'],
-  procurement: ['purchases.view', 'purchases.manage', 'assets.view', 'tasks.view'],
-  employee: ['tasks.view'],
-};
-
-export function permissionsOf(roles: readonly Role[]): ReadonlySet<Permission> {
-  return new Set(roles.flatMap((role) => rolePermissions[role]));
-}
-
 /** An area opens with any one of these permissions; `open` areas belong to every account that holds a role. */
 export const areaNeeds: Record<ModuleId, readonly Permission[] | 'open'> = {
-  access: ['users.manage'],
+  access: ['users.manage', 'roles.manage'],
   employees: ['employees.view'],
   attendance: ['attendance.view'],
   leave: ['leaves.view'],
   requests: ['leaves.view'],
   payroll: ['payroll.view'],
   hrSettings: ['attendance.view'],
-  projects: ['projects.view'],
-  // The backend has no client permission yet; clients follow the projects and finance they belong to.
-  clients: ['projects.view', 'finance.view'],
+  // Modules not built yet open for nobody; they get their permissions when they are built.
+  projects: [],
+  clients: [],
   finCash: ['finance.view'],
   finInvoices: ['finance.view'],
   finItems: ['finance.view'],
   finLedger: ['finance.view'],
   finReports: ['finance.view'],
   finSettings: ['finance.view'],
-  procurement: ['purchases.view'],
-  documents: ['documents.view'],
-  assets: ['assets.view'],
-  meetings: ['meetings.view'],
+  procurement: [],
+  documents: [],
+  assets: [],
+  meetings: [],
   alerts: 'open',
   tasks: ['tasks.view'],
+};
+
+/** Areas that open with a narrower reach than company-wide (an area not listed needs company-wide). */
+export const areaReach: Partial<Record<ModuleId, Scope>> = {
+  tasks: 'own',
 };
 
 /**
@@ -205,10 +155,10 @@ export const areaNeeds: Record<ModuleId, readonly Permission[] | 'open'> = {
  * (leave, payroll steps, evaluation, missions) follow the permission of the module they belong to.
  */
 export const actionNeeds: Record<Action, readonly Permission[]> = {
-  'leave.decide': ['leaves.approve'],
+  'leave.decide': ['leaves.approve', 'leaves.approve_reviewers'],
   'leave.request': [],
-  'purchase.add': ['purchases.manage'],
-  'purchase.decide': ['purchases.approve'],
+  'purchase.add': [],
+  'purchase.decide': [],
   'employee.add': ['employees.manage'],
   'employee.edit': ['employees.manage'],
   'employee.evaluate': ['employees.manage'],
@@ -232,14 +182,14 @@ export const actionNeeds: Record<Action, readonly Permission[]> = {
   'payroll.pay': ['payroll.pay'],
 };
 
-export function holds(roles: readonly Role[], needs: readonly Permission[]): boolean {
-  const held = permissionsOf(roles);
-  return needs.some((name) => held.has(name));
+/** Any one of `needs`, held at `scope` or wider. Company-wide by default: department and own reach are opted into. */
+export function holds(granted: Grants, needs: readonly Permission[], scope: Scope = 'all'): boolean {
+  return needs.some((name) => covers(granted[name], scope));
 }
 
-export function grants(roles: readonly Role[], action: Action, hasFile: boolean): boolean {
+export function grants(granted: Grants, action: Action, hasFile: boolean): boolean {
   if (hasFile && selfActions.includes(action)) {
     return true;
   }
-  return holds(roles, actionNeeds[action]);
+  return holds(granted, actionNeeds[action]);
 }

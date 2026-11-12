@@ -23,7 +23,8 @@ class StoreUserRequest extends FormRequest
             'roles' => [
                 'sometimes',
                 'array',
-                Rule::prohibitedIf(fn () => ! $this->user()?->hasRole('system_admin')),
+                // Giving roles needs roles.manage; UserService also keeps each role within the actor's own permissions.
+                Rule::prohibitedIf(fn () => ! $this->user()?->can('roles.manage')),
             ],
             'roles.*' => ['string', 'distinct', 'exists:usr_roles,name'],
         ];

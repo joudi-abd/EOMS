@@ -23,4 +23,9 @@ class NullEmployeeDirectory implements EmployeeDirectory
     {
         return null;
     }
+
+    public function departmentManagerUserIds(): array
+    {
+        return [];
+    }
 }

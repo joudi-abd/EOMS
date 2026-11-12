@@ -12,7 +12,7 @@ class AttendanceAccess
 
     public function employee(Request $request, Employee $employee): void
     {
-        // attendance.view is organisation-wide; attendance.view_department is limited to managed departments.
+        // attendance.view at company scope sees everyone; at department scope, the departments the user manages.
         abort_unless((int) $employee->user_id === (int) $request->user()->id
             || $this->scope->canSee($request->user(), $employee, 'attendance'), 403);
     }

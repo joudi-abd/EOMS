@@ -86,7 +86,7 @@ class LeaveAttendanceCompletionTest extends TestCase
         $engineering = Department::create(['name' => 'Engineering', 'code' => 'ENG']);
         $site = Department::create(['name' => 'Site team', 'code' => 'ENG-S', 'parent_id' => $engineering->id]);
         $finance = Department::create(['name' => 'Finance', 'code' => 'FIN']);
-        [$managerUser, $manager] = $this->person('DM-1', 'department_manager', $engineering->id);
+        [$managerUser, $manager] = $this->person('DM-1', 'employee', $engineering->id); // the department data makes them a manager
         Sanctum::actingAs($this->hr);
         $this->putJson('/api/v1/departments/'.$engineering->id, ['manager_employee_id' => $manager->id])->assertOk();
         $this->employee->update(['department_id' => $site->id]); // sub-department: in scope

@@ -6,7 +6,8 @@ import { ApiUser } from '../core/api/types';
 import { Office } from './office';
 
 async function setup(employeeId: number | null) {
-  const admin: ApiUser = {id: 1, name: 'Admin', email: 'admin@example.com', phone: null, roles: ['system_admin'], status: 'active', employee_id: null, last_login_at: null, created_at: null};
+  const admin: ApiUser = {id: 1, name: 'Admin', email: 'admin@example.com', phone: null, roles: ['system_admin'], status: 'active', employee_id: null, last_login_at: null, created_at: null,
+    permissions: {'users.manage': 'all', 'roles.manage': 'all'}};
   const target: ApiUser = {...admin, id: 2, name: 'Employee', roles: ['employee'], employee_id: employeeId};
   const user = signal(admin);
   const api = {
@@ -30,10 +31,15 @@ describe('Linked employee account editing', () => {
     expect(office.employees()).toHaveLength(0);
     expect(office.accounts().find(account => account.userId === 2)?.employeeId).toBe('42');
   });
-  it('updates login fields without submitting HR-owned name or phone', async () => {
+  it('updates login fields without submitting HR-owned name or phone, nor unchanged roles', async () => {
     const {office, api} = await setup(42);
     expect((await office.updateAccount('42', {...entry, roles: [...entry.roles]}, 'u1')).ok).toBe(true);
-    expect(api.put).toHaveBeenCalledWith('/users/2', {email: 'login@example.com', password: 'NewPassword123', roles: ['employee']});
+    expect(api.put).toHaveBeenCalledWith('/users/2', {email: 'login@example.com', password: 'NewPassword123'});
+  });
+  it('sends roles only when they change', async () => {
+    const {office, api} = await setup(42);
+    expect((await office.updateAccount('42', {...entry, roles: ['employee', 'engineer']}, 'u1')).ok).toBe(true);
+    expect(api.put).toHaveBeenCalledWith('/users/2', expect.objectContaining({roles: ['employee', 'engineer']}));
   });
   it('still permits profile editing on a standalone account', async () => {
     const {office, api} = await setup(null);

@@ -13,6 +13,8 @@ use App\Modules\HR\Services\Attendance\AttendanceCalculator;
 use App\Modules\HR\Services\Attendance\AttendanceReviewService;
 use App\Modules\HR\Services\Attendance\PayrollInputService;
 use App\Modules\HR\Services\HrScope;
+use App\Modules\Identity\Access\Access;
+use App\Modules\Identity\Access\Scope;
 use App\Support\ApiResponse;
 use App\Support\CsvResponse;
 use Carbon\CarbonImmutable;
@@ -183,7 +185,7 @@ class AttendanceController extends Controller
     public function payrollInputs(Request $request, Employee $employee, PayrollInputService $inputs): JsonResponse
     {
         // Organisation-wide attendance.view only — department managers stay on attendance lists, not payroll inputs.
-        abort_unless($request->user()->can('payroll.view') || $request->user()->can('attendance.view'), 403);
+        abort_unless($request->user()->can('payroll.view') || app(Access::class)->covers($request->user(), 'attendance.view', Scope::ALL), 403);
         $data = $request->validate(['month' => ['required', 'date_format:Y-m', 'after_or_equal:1970-01']]);
 
         return ApiResponse::ok($inputs->month($employee, $data['month']));

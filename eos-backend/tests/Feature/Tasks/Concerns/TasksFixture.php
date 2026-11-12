@@ -41,7 +41,8 @@ trait TasksFixture
         $this->travelTo(now()->setDate(2026, 11, 8)->setTime(8, 0, 0));
         $this->engineering = Department::create(['name' => 'Engineering', 'code' => 'ENG']);
         $this->finance = Department::create(['name' => 'Finance', 'code' => 'FIN']);
-        $this->mona = $this->person('Mona', $this->engineering, ['employee', 'department_manager']);
+        // Mona is a plain employee: naming her the department's manager is what gives her the manager's reach.
+        $this->mona = $this->person('Mona', $this->engineering);
         $this->engineering->update(['manager_employee_id' => $this->employees[$this->mona->id]->id]);
         $this->ali = $this->person('Ali', $this->engineering);
         $this->sara = $this->person('Sara', $this->engineering);

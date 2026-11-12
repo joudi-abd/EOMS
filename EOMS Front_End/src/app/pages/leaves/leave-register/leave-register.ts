@@ -82,7 +82,8 @@ export class LeaveRegister extends Ui {
   }
 
   protected approver(row: LeaveRecord): string {
-    return row.approver_role === 'company_manager' ? this.l('مدير الشركة', 'Company manager') : this.l('الموارد البشرية', 'HR');
+    // Routed by permission: staff requests go to leave approvers, the approvers' own to the level above them.
+    return row.approval_level === 'reviewers' ? this.l('المستوى الأعلى', 'Senior approver') : this.l('معتمِد الإجازات', 'Leave approver');
   }
 
   /** Two initials for the avatar; the Arabic article is not a name's first letter. */

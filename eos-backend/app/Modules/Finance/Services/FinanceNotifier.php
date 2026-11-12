@@ -2,6 +2,7 @@
 
 namespace App\Modules\Finance\Services;
 
+use App\Modules\Identity\Access\Access;
 use App\Modules\Identity\Models\User;
 use App\Modules\Identity\Notifications\SystemNotification;
 use Illuminate\Support\Facades\DB;
@@ -12,7 +13,7 @@ class FinanceNotifier
 {
     public function toApprovers(string $kind, string $message, array $context, ?int $except = null): void
     {
-        $users = User::permission('finance.approve')->where('status', 'active')->get()->reject(fn (User $u) => $u->id === $except);
+        $users = app(Access::class)->usersWith('finance.approve')->reject(fn (User $u) => $u->id === $except);
         $this->send($users, $kind, $message, $context);
     }
 

@@ -32,7 +32,7 @@ class BoardController extends Controller
 
     /**
      * What the user may create: board types, and the departments a department board may be opened for
-     * (every department for the company manager, else the ones they manage), with names for the picker.
+     * (any department with company-wide tasks.manage, else the ones they manage), with names for the picker.
      */
     public function options(Request $request): JsonResponse
     {
@@ -41,23 +41,23 @@ class BoardController extends Controller
 
         return ApiResponse::ok([
             'types' => array_values(array_filter(['personal', 'team', 'department'], fn ($type) => match ($type) {
-                'department' => $ctx['top'] || $ctx['manages'] !== [],
+                'department' => $ctx['createAny'] || ($ctx['createDepartment'] && $ctx['manages'] !== []),
                 default => $this->access->mayCreate($user, $type, null),
             })),
-            'departments' => Department::query()->when(! $ctx['top'], fn ($q) => $q->whereIn('id', $ctx['manages']))
+            'departments' => Department::query()->when(! $ctx['createAny'], fn ($q) => $q->whereIn('id', $ctx['createDepartment'] ? $ctx['manages'] : []))
                 ->orderBy('name')->get(['id', 'name']),
         ]);
     }
 
     /**
      * Active colleagues to invite to a board: name and department only. For people who can run boards
-     * (tasks.manage or a department manager); board members are already listed in the board snapshot.
+     * (tasks.manage at any scope — department managers get it with their department); board members are already listed in the board snapshot.
      * Department names come along so the picker reads without the HR permission.
      */
     public function people(Request $request): JsonResponse
     {
         $user = $request->user();
-        abort_unless($user->can('tasks.manage') || $this->access->context($user)['manages'] !== [], 403);
+        abort_unless($user->can('tasks.manage'), 403);
         $q = trim((string) $request->query('q', ''));
         $rows = User::query()->where('usr_users.status', 'active')
             ->leftJoin('hr_employees as e', fn ($j) => $j->on('e.user_id', '=', 'usr_users.id')->where('e.status', '!=', 'terminated'))

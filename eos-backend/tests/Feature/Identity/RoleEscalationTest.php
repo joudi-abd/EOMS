@@ -6,6 +6,7 @@ use App\Modules\Identity\Database\Seeders\RolePermissionSeeder;
 use App\Modules\Identity\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
+use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class RoleEscalationTest extends TestCase
@@ -20,8 +21,9 @@ class RoleEscalationTest extends TestCase
 
     private function limitedManager(): User
     {
+        Role::create(['name' => 'accounts_clerk', 'guard_name' => 'web'])->givePermissionTo('users.manage');
         $user = User::factory()->create();
-        $user->givePermissionTo('users.manage');
+        $user->assignRole('accounts_clerk');
         Sanctum::actingAs($user, ['*']);
 
         return $user;

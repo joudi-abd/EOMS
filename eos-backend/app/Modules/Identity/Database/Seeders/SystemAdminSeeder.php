@@ -2,6 +2,7 @@
 
 namespace App\Modules\Identity\Database\Seeders;
 
+use App\Modules\Identity\Access\DefaultRoles;
 use App\Modules\Identity\Models\User;
 use Illuminate\Database\Seeder;
 
@@ -27,6 +28,6 @@ class SystemAdminSeeder extends Seeder
             ]
         );
 
-        $user->syncRoles(['system_admin']);
+        $user->syncRoles([DefaultRoles::ADMIN]);
     }
 }

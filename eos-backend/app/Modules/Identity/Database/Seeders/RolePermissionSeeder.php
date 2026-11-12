@@ -2,87 +2,17 @@
 
 namespace App\Modules\Identity\Database\Seeders;
 
+use App\Modules\Identity\Access\AccessSync;
 use Illuminate\Database\Seeder;
-use Spatie\Permission\Models\Permission;
-use Spatie\Permission\Models\Role;
-use Spatie\Permission\PermissionRegistrar;
 
+/**
+ * Kept for `db:seed` and the tests: the catalogue and the shipped roles live in code
+ * (PermissionCatalog, DefaultRoles) and `permissions:sync` writes them.
+ */
 class RolePermissionSeeder extends Seeder
 {
-    private const MODULES = [
-        'employees' => ['view', 'manage', 'view_sensitive', 'view_financial', 'documents.view', 'documents.manage'],
-        'attendance' => ['view', 'view_department', 'manage', 'adjust', 'approve'],
-        'leaves' => ['view', 'view_department', 'manage', 'approve'],
-        'payroll' => ['view', 'manage', 'approve', 'pay'],
-        'tasks' => ['view', 'manage'],
-        'finance' => ['view', 'manage', 'approve'],
-        'projects' => ['view', 'manage'],
-        'purchases' => ['view', 'manage', 'approve'],
-        'assets' => ['view', 'manage'],
-        'documents' => ['view', 'manage'],
-        'meetings' => ['view', 'manage'],
-        'reports' => ['view'],
-        'audit' => ['view'],
-        'settings' => ['view', 'manage'],
-        'users' => ['manage'],
-        'roles' => ['assign'],
-    ];
-
     public function run(): void
     {
-        app(PermissionRegistrar::class)->forgetCachedPermissions();
-
-        $all = collect(self::MODULES)
-            ->flatMap(fn ($actions, $module) => collect($actions)->map(fn ($a) => "{$module}.{$a}"))
-            ->values();
-
-        foreach ($all as $name) {
-            Permission::firstOrCreate(['name' => $name, 'guard_name' => 'web']);
-        }
-
-        $roles = [
-            'system_admin' => $all->all(),
-            'company_manager' => $all
-                ->filter(fn ($p) => (str_ends_with($p, '.view') || str_ends_with($p, '.approve')))
-                ->push('tasks.manage')
-                ->values()->all(),
-            'hr_manager' => [
-                'employees.view', 'employees.manage', 'employees.view_sensitive',
-                'employees.documents.view', 'employees.documents.manage',
-                'attendance.view', 'attendance.manage', 'attendance.adjust', 'attendance.approve',
-                'leaves.view', 'leaves.manage', 'leaves.approve',
-                'documents.view', 'documents.manage', 'reports.view',
-                // HR prepares the pay run; finance approves and pays it.
-                'payroll.view', 'payroll.manage',
-                'tasks.view', 'tasks.manage',
-            ],
-            'finance_manager' => [
-                'payroll.view', 'payroll.approve', 'payroll.pay',
-                'finance.view', 'finance.manage',
-                'purchases.view', 'purchases.approve', 'reports.view',
-                'tasks.view', 'tasks.manage',
-            ],
-            'project_manager' => [
-                'projects.view', 'projects.manage',
-                'meetings.view', 'meetings.manage', 'employees.view',
-                'documents.view', 'documents.manage', 'reports.view',
-                'tasks.view', 'tasks.manage',
-            ],
-            'engineer' => ['projects.view', 'meetings.view', 'documents.view', 'tasks.view'],
-            'purchasing_officer' => [
-                'purchases.view', 'purchases.manage', 'assets.view', 'tasks.view',
-            ],
-            // Read-only, limited to the departments the user manages (hr_departments.manager_employee_id).
-            'department_manager' => ['attendance.view_department', 'leaves.view_department', 'tasks.view', 'tasks.manage'],
-            // Every account works on its own tasks.
-            'employee' => ['tasks.view'],
-        ];
-
-        foreach ($roles as $name => $perms) {
-            $role = Role::firstOrCreate(['name' => $name, 'guard_name' => 'web']);
-            $role->syncPermissions($perms);
-        }
-
-        app(PermissionRegistrar::class)->forgetCachedPermissions();
+        app(AccessSync::class)->run();
     }
 }

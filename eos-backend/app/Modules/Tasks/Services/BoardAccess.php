@@ -4,6 +4,8 @@ namespace App\Modules\Tasks\Services;
 
 use App\Modules\HR\Models\Department;
 use App\Modules\HR\Models\Employee;
+use App\Modules\Identity\Access\Access;
+use App\Modules\Identity\Access\Scope;
 use App\Modules\Identity\Models\User;
 use App\Modules\Tasks\Models\Board;
 use App\Modules\Tasks\Models\BoardMember;
@@ -15,17 +17,21 @@ use Illuminate\Database\Eloquent\Builder;
  * - explicit membership rows give their role.
  * - department boards: the department's current manager is an owner and its active employees are members,
  *   without rows, so joining or leaving the department needs no bookkeeping.
- * - read-only: the company manager / system admin on every non-personal board, and a department manager on
- *   non-personal boards that include an active employee of a department they manage.
+ * - read-only, from the reach of tasks.view: company-wide reads every non-personal board; department scope
+ *   reads non-personal boards that include an active employee of a department the user manages.
+ * - creating boards, from the reach of tasks.manage: own = team boards; department = also boards for the
+ *   departments the user manages; company-wide = a board for any department.
  */
 class BoardAccess
 {
     public const RANK = ['viewer' => 1, 'member' => 2, 'owner' => 3];
 
-    /** @var array<string, array{employee: ?int, department: ?int, manages: list<int>, top: bool}> */
+    /** @var array<string, array{employee: ?int, department: ?int, manages: list<int>, readAll: bool, readDepartments: bool, createAny: bool, createDepartment: bool}> */
     private array $context = [];
 
-    /** @return array{employee: ?int, department: ?int, manages: list<int>, top: bool} */
+    public function __construct(private Access $access) {}
+
+    /** @return array{employee: ?int, department: ?int, manages: list<int>, readAll: bool, readDepartments: bool, createAny: bool, createDepartment: bool} */
     public function context(User $user): array
     {
         // Memoised per HTTP request (controllers can be reused between requests, e.g. in tests or Octane).
@@ -38,7 +44,10 @@ class BoardAccess
                 'employee' => $employee?->id,
                 'department' => $employee?->department_id,
                 'manages' => $employee ? Department::query()->where('manager_employee_id', $employee->id)->pluck('id')->all() : [],
-                'top' => $user->hasRole(['company_manager', 'system_admin']),
+                'readAll' => $this->access->covers($user, 'tasks.view', Scope::ALL),
+                'readDepartments' => $this->access->covers($user, 'tasks.view', Scope::DEPARTMENT),
+                'createAny' => $this->access->covers($user, 'tasks.manage', Scope::ALL),
+                'createDepartment' => $this->access->covers($user, 'tasks.manage', Scope::DEPARTMENT),
             ];
         })();
     }
@@ -67,7 +76,7 @@ class BoardAccess
                 $roles[] = 'member';
             }
         }
-        if ($roles === [] && ($ctx['top'] || $this->managesAMember($ctx['manages'], $board))) {
+        if ($roles === [] && ($ctx['readAll'] || ($ctx['readDepartments'] && $this->managesAMember($ctx['manages'], $board)))) {
             $roles[] = 'viewer';
         }
 
@@ -103,7 +112,7 @@ class BoardAccess
             $q->where(fn ($p) => $p->where('type', 'personal')->where('created_by', $user->id))
                 ->orWhere(function (Builder $shared) use ($user, $ctx) {
                     $shared->where('type', '!=', 'personal')->where(function (Builder $any) use ($user, $ctx) {
-                        if ($ctx['top']) {
+                        if ($ctx['readAll']) {
                             $any->whereRaw('1 = 1');
 
                             return;
@@ -113,7 +122,7 @@ class BoardAccess
                         if ($departments !== []) {
                             $any->orWhere(fn ($d) => $d->where('type', 'department')->whereIn('department_id', $departments));
                         }
-                        if ($ctx['manages'] !== []) {
+                        if ($ctx['readDepartments'] && $ctx['manages'] !== []) {
                             $any->orWhereIn('id', BoardMember::query()->whereIn('user_id', $this->activeUsersOf($ctx['manages']))->select('board_id'));
                         }
                     });
@@ -181,7 +190,8 @@ class BoardAccess
 
         return match ($type) {
             'personal' => $user->can('tasks.view'),
-            'department' => $departmentId !== null && ($ctx['top'] || in_array($departmentId, $ctx['manages'], true)),
+            'department' => $departmentId !== null
+                && ($ctx['createAny'] || ($ctx['createDepartment'] && in_array($departmentId, $ctx['manages'], true))),
             'team' => $user->can('tasks.manage'),
             default => false,
         };

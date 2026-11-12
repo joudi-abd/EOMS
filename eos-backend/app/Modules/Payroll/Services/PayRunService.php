@@ -8,6 +8,7 @@ use App\Modules\HR\Models\Employee;
 use App\Modules\HR\Models\EmployeeServicePeriod;
 use App\Modules\HR\Notifications\HrNotification;
 use App\Modules\HR\Services\EmploymentPeriodService;
+use App\Modules\Identity\Access\Access;
 use App\Modules\Identity\Models\User;
 use App\Modules\Identity\Services\AuditLogger;
 use App\Modules\Payroll\Models\PayExport;
@@ -684,7 +685,7 @@ class PayRunService
 
     private function notify(string $permission, string $kind, string $message, PayRun $run): void
     {
-        $users = User::permission($permission)->where('status', 'active')->get();
+        $users = app(Access::class)->usersWith($permission);
         if ($users->isNotEmpty()) {
             DB::afterCommit(fn () => Notification::send($users, new HrNotification($kind, $message, ['pay_run_id' => $run->id, 'month' => $run->month])));
         }

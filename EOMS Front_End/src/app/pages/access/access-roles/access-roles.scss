@@ -1,0 +1,154 @@
+/* The roles screen: the role list beside the picked role's permissions, each with a reach. */
+
+:host {
+  display: block;
+  margin-top: 16px;
+}
+
+.rl-lede {
+  margin-top: 0;
+}
+
+.rl {
+  display: grid;
+  grid-template-columns: minmax(200px, 260px) minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+@media (max-width: 760px) {
+  .rl {
+    grid-template-columns: 1fr;
+  }
+}
+
+.rl-list ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.rl-list li + li {
+  border-top: 1px solid var(--line);
+}
+
+.rl-list li button {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.rl-list li button:hover,
+.rl-list li button.on {
+  background: var(--action-tint);
+}
+
+.rl-meta {
+  display: flex;
+  gap: 8px;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.rl-kind.top {
+  color: var(--action);
+}
+
+.rl-kind.auto {
+  color: var(--wait);
+}
+
+.rl-new {
+  margin-top: 8px;
+}
+
+.rl-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.rl-head h2 {
+  margin: 0;
+}
+
+.rl-head bdi {
+  font-size: 0.8rem;
+  font-weight: 400;
+}
+
+.rl-labels {
+  margin: 12px 0;
+}
+
+.rl-module {
+  margin-top: 16px;
+}
+
+.rl-module h3 {
+  margin: 0 0 6px;
+  font-size: 0.95rem;
+}
+
+.rl-module ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rl-module li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.rl-module li:not(.held) .rl-perm strong {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.rl-perm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 8px;
+  max-width: 560px;
+}
+
+.rl-perm small {
+  flex-basis: 100%;
+  color: var(--muted);
+}
+
+.rl-flag {
+  padding: 0 6px;
+  border-radius: var(--r-chip);
+  background: var(--late-tint, var(--row));
+  color: var(--late);
+  font-size: 0.72rem;
+}
+
+.rl-seg button:disabled {
+  opacity: 0.45;
+}
+
+.rl-actions {
+  margin-top: 18px;
+}

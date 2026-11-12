@@ -22,7 +22,7 @@
               </a>
             } @else {
               <span class="plain">{{ text(account.name) }}</span>
-              @if (account.roles.includes('company') && !session.isDirector()) {
+              @if (account.roles.includes(companyRole) && !session.isDirector()) {
                 <i class="fa-solid fa-lock lock" [attr.title]="t('directorOnly')" aria-hidden="true"></i>
               }
             }
@@ -30,7 +30,7 @@
           <td class="mail"><bdi>{{ account.email }}</bdi></td>
           <td>
             @for (role of account.roles; track role) {
-              <span class="role" [class.top]="isTop(role)">{{ t(roleLabel[role]) }}</span>
+              <span class="role" [class.top]="isTop(role)">{{ roleName(role) }}</span>
             } @empty {
               —
             }

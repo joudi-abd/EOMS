@@ -7,7 +7,7 @@
   } @else {
     <app-notice />
 
-    @if (user()) {
+    @if (user() && accountsTab()) {
       <app-access-file />
     } @else {
       <header class="heading">
@@ -15,13 +15,23 @@
           <h1>{{ t('access') }}</h1>
           <p class="lede">{{ t('ledeAccess') }}</p>
         </div>
-        @if (session.canAct('account.add')) {
+        @if (tab() === 'accounts' && session.canAct('account.add')) {
           <button class="primary" type="button" (click)="openNew()">
             <i class="fa-solid fa-user-plus" aria-hidden="true"></i>
             {{ t('addAccount') }}
           </button>
         }
       </header>
+      <nav class="tabs" [attr.aria-label]="t('access')">
+        @if (accountsTab()) {
+          <a [routerLink]="[]" [queryParams]="{ tab: null }" [class.active]="tab() === 'accounts'" [attr.aria-current]="tab() === 'accounts' ? 'page' : null">{{ t('accessTabAccounts') }}</a>
+        }
+        <a [routerLink]="[]" [queryParams]="{ tab: 'roles' }" [class.active]="tab() === 'roles'" [attr.aria-current]="tab() === 'roles' ? 'page' : null">{{ t('accessTabRoles') }}</a>
+      </nav>
+
+      @if (tab() === 'roles') {
+        <app-access-roles />
+      } @else {
       <p class="note">{{ t('rolesHint') }}</p>
 
       <div class="summary">
@@ -42,6 +52,7 @@
         <button class="text" type="button" (click)="clearSearch()">{{ t('clearAccounts') }}</button>
       } @else {
         <app-access-table [rows]="rows()" />
+      }
       }
     }
   }

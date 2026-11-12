@@ -3,6 +3,7 @@ import { financeCopy } from './copy-finance';
 import { hrCopy } from './copy-hr';
 import { payrollCopy } from './copy-payroll';
 import { tasksCopy } from './copy-tasks';
+import { rolesCopy } from './copy-roles';
 
 export type Lang = 'ar' | 'en';
 
@@ -106,7 +107,7 @@ const base = {
     disableAccount: 'تعطيل',
     enableAccount: 'تفعيل',
     accountRoles: 'الأدوار',
-    rolesHint: 'حتى دورين. الحساب الجديد يبدأ بدور الموظف.',
+    rolesHint: 'الحساب الجديد يبدأ بدور الموظف. مدير القسم يأخذ صلاحياته من إدارة القسم، لا من دور يُسند.',
     addedAccount: 'أُضيف الحساب.',
     enabledAccount: 'فُعّل الحساب.',
     disabledAccount: 'عُطّل الحساب.',
@@ -122,7 +123,7 @@ const base = {
     auditUpdated: 'عدّل الحساب',
     roleLimit: 'يمكن اختيار دورين كحد أقصى.',
     grantedTitle: 'ما تتيحه هذه الأدوار',
-    grantedHint: 'الصلاحيات كما يعرّفها الخادم. يجمع الحساب صلاحيات كل أدواره.',
+    grantedHint: 'كما تعرّفها شاشة الأدوار. يجمع الحساب صلاحيات كل أدواره بأوسع نطاق بينها.',
     grantedNone: 'لا صلاحيات إضافية. يصل الموظف إلى حضوره وإجازاته وطلباته فقط.',
     grantedCount: 'صلاحية',
     keepCompany: 'يجب أن يبقى مدير نظام واحد مفعّلاً.',
@@ -397,7 +398,7 @@ const base = {
     disableAccount: 'Disable',
     enableAccount: 'Enable',
     accountRoles: 'Roles',
-    rolesHint: 'Up to two roles. A new account starts as an employee.',
+    rolesHint: 'A new account starts as an employee. A department manager gets their reach from managing the department, not from a role.',
     addedAccount: 'Account added.',
     enabledAccount: 'Account enabled.',
     disabledAccount: 'Account disabled.',
@@ -413,7 +414,7 @@ const base = {
     auditUpdated: 'updated the account',
     roleLimit: 'Choose two roles at most.',
     grantedTitle: 'What these roles allow',
-    grantedHint: 'Permissions as the server defines them. An account holds the permissions of all its roles.',
+    grantedHint: 'As the roles screen defines them. An account holds every permission of its roles, at the widest reach among them.',
     grantedNone: 'No extra permissions. An employee reaches their own attendance, leave and requests only.',
     grantedCount: 'permissions',
     keepCompany: 'One enabled system administrator has to remain.',
@@ -592,8 +593,8 @@ const base = {
 } as const;
 
 export const copy = {
-  ar: { ...base.ar, ...hrCopy.ar, ...financeCopy.ar, ...payrollCopy.ar, ...tasksCopy.ar, ...designCopy.ar },
-  en: { ...base.en, ...hrCopy.en, ...financeCopy.en, ...payrollCopy.en, ...tasksCopy.en, ...designCopy.en },
+  ar: { ...base.ar, ...hrCopy.ar, ...financeCopy.ar, ...payrollCopy.ar, ...tasksCopy.ar, ...rolesCopy.ar, ...designCopy.ar },
+  en: { ...base.en, ...hrCopy.en, ...financeCopy.en, ...payrollCopy.en, ...tasksCopy.en, ...rolesCopy.en, ...designCopy.en },
 };
 
 export type CopyKey = keyof typeof copy.ar;

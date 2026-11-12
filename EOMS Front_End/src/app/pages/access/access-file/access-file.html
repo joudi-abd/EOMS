@@ -56,27 +56,26 @@
       </label>
       <fieldset class="wide roles">
         <legend>{{ t('accountRoles') }}</legend>
-        @for (role of roles; track role) {
-          <label class="role" [class.on]="picked().includes(role)" [class.locked]="lockedRole(role)">
+        @for (role of roles(); track role.name) {
+          <label class="role" [class.on]="picked().includes(role.name)" [class.locked]="lockedRole(role)">
             <input
               type="checkbox"
               name="role"
-              [value]="role"
-              [checked]="picked().includes(role)"
+              [value]="role.name"
+              [checked]="picked().includes(role.name)"
               [disabled]="lockedRole(role)"
-              (change)="toggle(role, $event)"
+              (change)="toggle(role.name, $event)"
             />
             <span class="role-body">
-              <strong>{{ t(roleLabel[role]) }}</strong>
-              <small>{{ language.text(roleSummary[role]) }}</small>
+              <strong>{{ roleText(role) }}</strong>
+              <small>{{ roleHint(role) }}</small>
             </span>
-            <span class="role-count">{{ rolePermissions[role].length }}</span>
+            @if (role.kind !== 'admin') {
+              <span class="role-count">{{ grantCount(role) }}</span>
+            }
           </label>
         }
       </fieldset>
-      @if (limit()) {
-        <p class="wide warn">{{ t('roleLimit') }}</p>
-      }
       @if (problem()) {
         <p class="wide warn" role="alert">{{ problem() }}</p>
       }
@@ -92,12 +91,12 @@
           <p class="none">{{ t('grantedNone') }}</p>
         } @else {
           <dl>
-            @for (group of granted(); track group.module) {
+            @for (group of granted(); track group.key) {
               <div>
                 <dt>{{ language.text(group.label) }}</dt>
                 <dd>
-                  @for (item of group.items; track item.id) {
-                    <span class="chip">{{ language.text(item.label) }}</span>
+                  @for (item of group.items; track item.name) {
+                    <span class="chip">{{ language.text(item.label) }}@if (item.scope !== 'all') { <small> · {{ scopeText(item.scope) }}</small> }</span>
                   }
                 </dd>
               </div>

@@ -45,7 +45,7 @@ export interface LeaveRecord {
   review_note: string | null;
   change_request: { kind: string; from_date: string; reason: string } | null;
   /** Who decides: HR, or the company manager for an HR member's own request. */
-  approver_role?: string;
+  approval_level?: 'staff' | 'reviewers';
   /** A pending request lapses after this day. */
   expires_on?: string;
   created_at?: string;

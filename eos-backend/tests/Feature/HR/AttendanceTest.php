@@ -2,7 +2,6 @@
 
 namespace Tests\Feature\HR;
 
-use App\Modules\HR\Database\Seeders\AttendancePermissionSeeder;
 use App\Modules\HR\Models\AttendanceBinding;
 use App\Modules\HR\Models\AttendanceDay;
 use App\Modules\HR\Models\AttendanceDevice;
@@ -21,8 +20,6 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Laravel\Sanctum\Sanctum;
-use Spatie\Permission\Models\Permission;
-use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class AttendanceTest extends TestCase
@@ -701,18 +698,6 @@ class AttendanceTest extends TestCase
         $devices->bind($device, ['employee_id' => $second->id, 'device_user_id' => '105', 'valid_from' => '2026-11-03']);
         $this->assertSame($first->id, (int) AttendancePunch::firstOrFail()->employee_id);
         $this->assertDatabaseCount('hr_attendance_bindings', 2);
-    }
-
-    public function test_permission_seeder_is_additive_and_repeatable(): void
-    {
-        $custom = Permission::firstOrCreate(['name' => 'custom.extra', 'guard_name' => 'web']);
-        $role = Role::findByName('hr_manager', 'web');
-        $role->givePermissionTo($custom);
-        $this->seed(AttendancePermissionSeeder::class);
-        $this->seed(AttendancePermissionSeeder::class);
-        $this->assertTrue($role->fresh()->hasPermissionTo('custom.extra'));
-        $this->assertTrue($role->fresh()->hasPermissionTo('attendance.approve'));
-        $this->assertSame(1, Permission::where('name', 'attendance.approve')->count());
     }
 
     public function test_insecure_machine_request_is_rejected_in_production(): void

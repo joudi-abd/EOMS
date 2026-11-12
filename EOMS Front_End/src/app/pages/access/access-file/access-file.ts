@@ -1,13 +1,13 @@
 import { Component, computed, effect, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { isTop, Role, roleIds, roleLabel, rolePermissions, permissionsOf } from '../../../core/access/accounts';
-import { permissionGroups, roleSummary } from '../../../core/access/permission-copy';
+import { Role, Scope } from '../../../core/access/accounts';
 import { Session } from '../../../core/access/session';
 import { CopyKey } from '../../../core/copy';
 import { Language } from '../../../core/language';
 import { loginMail, loginUserRejected } from '../../../core/login-mail';
 import { Office } from '../../../data/office';
+import { RoleRow, Roles } from '../../../data/roles';
 
 @Component({
   selector: 'app-access-file',
@@ -19,13 +19,10 @@ export class AccessFile {
   protected readonly language = inject(Language);
   protected readonly office = inject(Office);
   protected readonly session = inject(Session);
-  protected readonly roles = roleIds;
-  protected readonly roleLabel = roleLabel;
-  protected readonly roleSummary = roleSummary;
-  protected readonly rolePermissions = rolePermissions;
+  protected readonly catalog = inject(Roles);
+  protected readonly roles = this.catalog.assignable;
   protected readonly picked = signal<Role[]>(['employee']);
   protected readonly draftName = signal('');
-  protected readonly limit = signal(false);
   protected readonly problem = signal('');
   protected readonly mailNote = signal('');
   protected readonly draftMail = signal('');
@@ -34,7 +31,7 @@ export class AccessFile {
   private readonly router = inject(Router);
   private readonly params = toSignal(inject(ActivatedRoute).queryParamMap);
 
-  protected readonly granted = computed(() => permissionGroups(permissionsOf(this.picked())));
+  protected readonly granted = computed(() => this.catalog.groups(this.catalog.merged(this.picked())));
   protected readonly grantedTotal = computed(() => this.granted().reduce((sum, group) => sum + group.items.length, 0));
 
   protected readonly user = computed(() => this.params()?.get('user') ?? '');
@@ -54,7 +51,6 @@ export class AccessFile {
         return;
       }
       this.loaded = key;
-      this.limit.set(false);
       this.problem.set('');
       this.mailNote.set('');
       if (key === 'new') {
@@ -73,9 +69,32 @@ export class AccessFile {
     return this.language.t(key);
   }
 
-  /** Only a top account hands out a top role. */
-  protected lockedRole(role: Role): boolean {
-    return isTop([role]) && !this.session.isDirector();
+  /**
+   * Mirrors the server: the administrator role is handed out by an administrator only, and no role may carry more
+   * than the signed-in account holds. A role the account already has stays ticked either way.
+   */
+  protected lockedRole(role: RoleRow): boolean {
+    if (this.person()?.roles.includes(role.name)) return false;
+    if (!this.session.has('roles.manage')) return true;
+    if (role.kind === 'admin') return !this.session.isAdmin();
+    return !this.catalog.within(role.grants ?? {}, this.session.grants());
+  }
+
+  protected roleText(role: RoleRow): string {
+    return this.language.text({ ar: role.label_ar, en: role.label_en });
+  }
+
+  protected roleHint(role: RoleRow): string {
+    const hint = this.catalog.summary(role.name);
+    return hint ? this.language.text(hint) : '';
+  }
+
+  protected grantCount(role: RoleRow): number {
+    return Object.keys(role.grants ?? {}).length;
+  }
+
+  protected scopeText(scope: Scope): string {
+    return this.t(scope === 'all' ? 'scopeAll' : scope === 'department' ? 'scopeDepartment' : 'scopeOwn');
   }
 
   protected onName(event: Event): void {
@@ -90,18 +109,7 @@ export class AccessFile {
   protected toggle(role: Role, event: Event): void {
     const input = event.target as HTMLInputElement;
     const current = this.picked();
-    if (input.checked) {
-      if (current.length >= 2) {
-        input.checked = false;
-        this.limit.set(true);
-        return;
-      }
-      this.limit.set(false);
-      this.picked.set([...current, role]);
-      return;
-    }
-    this.limit.set(false);
-    this.picked.set(current.filter((item) => item !== role));
+    this.picked.set(input.checked ? [...current, role] : current.filter((item) => item !== role));
   }
 
   protected back(): void {

@@ -1,13 +1,15 @@
 import { Component, computed, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { AuditKind, roleLabel } from '../../core/access/accounts';
+import { AuditKind } from '../../core/access/accounts';
 import { Session } from '../../core/access/session';
 import { CopyKey } from '../../core/copy';
 import { Language } from '../../core/language';
 import { Office } from '../../data/office';
+import { Roles } from '../../data/roles';
 import { Notice } from '../../shared/notice/notice';
 import { AccessFile } from './access-file/access-file';
+import { AccessRoles } from './access-roles/access-roles';
 import { AccessTable } from './access-table/access-table';
 
 const auditKey: Record<AuditKind, CopyKey> = {
@@ -19,7 +21,7 @@ const auditKey: Record<AuditKind, CopyKey> = {
 
 @Component({
   selector: 'app-access',
-  imports: [Notice, RouterLink, AccessTable, AccessFile],
+  imports: [Notice, RouterLink, AccessTable, AccessFile, AccessRoles],
   templateUrl: './access.html',
   styleUrl: './access.scss',
 })
@@ -27,10 +29,17 @@ export class Access {
   protected readonly language = inject(Language);
   protected readonly office = inject(Office);
   protected readonly session = inject(Session);
+  protected readonly catalog = inject(Roles);
   private readonly router = inject(Router);
   private readonly params = toSignal(inject(ActivatedRoute).queryParamMap);
 
   protected readonly user = computed(() => this.params()?.get('user') ?? '');
+
+  /** Accounts need users.manage; the roles tab opens with either permission (read-only without roles.manage). */
+  protected readonly accountsTab = computed(() => this.session.has('users.manage'));
+  protected readonly tab = computed<'accounts' | 'roles'>(() =>
+    this.params()?.get('tab') === 'roles' || !this.accountsTab() ? 'roles' : 'accounts',
+  );
   protected readonly query = computed(() => this.params()?.get('q') ?? '');
 
   /** Account counts for the summary row: all accounts, active, disabled, and how many have an employee file. */
@@ -48,7 +57,7 @@ export class Access {
     const query = this.query().trim().toLowerCase();
     return this.office.accounts().filter((account) => {
       if (!query) return true;
-      const roles = account.roles.map((role) => this.language.t(roleLabel[role])).join(' ');
+      const roles = account.roles.map((role) => this.language.text(this.catalog.label(role))).join(' ');
       return `${account.name.ar} ${account.name.en} ${account.email} ${account.phone} ${roles}`.toLowerCase().includes(query);
     });
   });

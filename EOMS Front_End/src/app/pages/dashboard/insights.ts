@@ -1,5 +1,4 @@
 import { computed, effect, inject, Injectable, signal, untracked } from '@angular/core';
-import { roleIds, roleLabel } from '../../core/access/accounts';
 import { Session } from '../../core/access/session';
 import { Api, serverMessage } from '../../core/api/api';
 import { ApiAttendanceDay, ApiAttendanceReport, ApiItem } from '../../core/api/types';
@@ -9,6 +8,7 @@ import { Language } from '../../core/language';
 import { DayMark, isWorkday, minutesOf } from '../../data/attendance';
 import { isoDay, monthBounds, parseDay } from '../../data/hr';
 import { Office } from '../../data/office';
+import { Roles } from '../../data/roles';
 import { ChartDatum, ChartRow, ChartSlice, tone } from '../../shared/charts/chart';
 import { markFill as markTone, markKey } from '../attendance/marks';
 
@@ -19,6 +19,7 @@ export class Insights {
   private readonly session = inject(Session);
   private readonly language = inject(Language);
   private readonly api = inject(Api);
+  private readonly roles = inject(Roles);
   private readonly serverDays = signal<Record<string, ApiAttendanceDay[]>>({});
   private readonly ownDays = signal<ApiAttendanceDay[]>([]);
   readonly attendanceLoading = signal(false);
@@ -301,9 +302,9 @@ export class Insights {
   });
 
   readonly accountsByRole = computed<ChartRow[]>(() =>
-    roleIds
+    [...new Set(this.office.accounts().flatMap((item) => item.roles))]
       .map((role) => ({
-        label: this.t(roleLabel[role]),
+        label: this.language.text(this.roles.label(role)),
         value: this.office.accounts().filter((item) => item.enabled && item.roles.includes(role))
           .length,
       }))

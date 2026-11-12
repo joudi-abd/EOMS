@@ -7,6 +7,7 @@ use App\Modules\HR\Models\AttendanceDay;
 use App\Modules\HR\Models\Employee;
 use App\Modules\HR\Models\LeaveRequest;
 use App\Modules\HR\Notifications\HrNotification;
+use App\Modules\Identity\Access\Access;
 use App\Modules\Identity\Models\User;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -54,7 +55,7 @@ class HrNotifier
 
     public function correctionRequested(AttendanceCorrection $correction, AttendanceDay $day): void
     {
-        $approvers = User::permission('attendance.approve')->where('status', 'active')->get()
+        $approvers = app(Access::class)->usersWith('attendance.approve')
             ->reject(fn (User $user) => $user->id === $correction->requested_by);
         $this->send($approvers, 'attendance.correction_requested',
             'طلب تصحيح حضور ليوم '.$day->work_date->format('Y-m-d'), $this->dayContext($day) + ['correction_id' => $correction->id]);
@@ -69,24 +70,23 @@ class HrNotifier
 
     public function attendanceConflict(AttendanceDay $day, string $flag): void
     {
-        $this->send(User::permission('attendance.approve')->where('status', 'active')->get(), 'attendance.'.$flag,
+        $this->send(app(Access::class)->usersWith('attendance.approve'), 'attendance.'.$flag,
             'تعارض حضور: بصمة في يوم إجازة معتمدة ('.$day->work_date->format('Y-m-d').')', $this->dayContext($day));
     }
 
     public function openingBalanceNeeded(Employee $employee): void
     {
-        $this->send(User::permission('leaves.manage')->where('status', 'active')->get(), 'leave.opening_balance_needed',
+        $this->send(app(Access::class)->usersWith('leaves.manage'), 'leave.opening_balance_needed',
             'عاد الموظف '.$employee->full_name.' للخدمة؛ سجّل رصيده الافتتاحي للإجازات.', ['employee_id' => $employee->id]);
     }
 
-    /** Same routing as LeaveWorkflowService::mayReview: HR reviews staff, the company manager reviews HR. */
+    /** Same routing as LeaveWorkflowService::mayReview. */
     public function leaveReviewers(LeaveRequest $request): Collection
     {
-        $submitter = User::find($request->submitted_by);
-        $role = $request->approver_role === 'company_manager' || $submitter?->hasRole('hr_manager') ? 'company_manager' : 'hr_manager';
+        $level = app(LeaveWorkflowService::class)->levelOf($request);
 
-        return User::role($role)->where('status', 'active')->get()
-            ->filter(fn (User $user) => $user->id !== $request->submitted_by && $user->can('leaves.approve'));
+        return app(Access::class)->usersWith(LeaveWorkflowService::permissionFor($level))
+            ->reject(fn (User $user) => $user->id === $request->submitted_by)->values();
     }
 
     private function send(Collection $users, string $kind, string $message, array $context): void

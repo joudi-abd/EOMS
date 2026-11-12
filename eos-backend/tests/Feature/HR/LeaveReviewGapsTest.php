@@ -12,6 +12,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
 use Laravel\Sanctum\Sanctum;
+use Spatie\Permission\Models\Role;
 use Tests\Feature\HR\Concerns\LeaveAttendanceFixture;
 use Tests\TestCase;
 
@@ -94,8 +95,8 @@ class LeaveReviewGapsTest extends TestCase
 
     public function test_leave_settings_need_leaves_manage_not_employees_manage(): void
     {
-        $clerk = $this->actor('employee');
-        $clerk->givePermissionTo('employees.manage');
+        Role::create(['name' => 'records_clerk', 'guard_name' => 'web'])->givePermissionTo('employees.manage');
+        $clerk = $this->actor('records_clerk');
         Sanctum::actingAs($clerk);
         $this->getJson('/api/v1/leave-settings')->assertForbidden();
         $this->getJson('/api/v1/leaves/options')->assertOk()->assertJsonPath('data.can_configure', false);
@@ -110,7 +111,7 @@ class LeaveReviewGapsTest extends TestCase
         $this->assertSame('pending', $row['status']);
         $this->assertSame($this->employeeUser->id, $row['submitted_by']);
         $this->assertSame($this->hr->id, $row['entered_by']);
-        $this->assertSame('hr_manager', $row['approver_role']);
+        $this->assertSame('staff', $row['approval_level']);
         $this->assertSame('leave.entered_for_you', $this->employeeUser->notifications()->first()?->data['kind']);
         // The HR user who entered it is not asked to review it again.
         $this->assertSame(0, $this->hr->notifications()->get()->where('data.kind', 'leave.submitted')->count());
@@ -146,7 +147,7 @@ class LeaveReviewGapsTest extends TestCase
         $this->employeeUser->assignRole('hr_manager');
         $this->onBehalf(['start_date' => '2026-11-03'], ['approve_now' => true], 403);
         $row = LeaveRequest::query()->latest('id')->firstOrFail();
-        $this->assertSame('company_manager', $row->approver_role);
+        $this->assertSame('reviewers', $row->approval_level);
         $this->assertSame('pending', $row->status);
     }
 }

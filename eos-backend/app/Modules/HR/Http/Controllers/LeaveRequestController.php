@@ -11,6 +11,8 @@ use App\Modules\HR\Models\LeaveType;
 use App\Modules\HR\Models\OfficeHoliday;
 use App\Modules\HR\Services\HrScope;
 use App\Modules\HR\Services\LeaveWorkflowService;
+use App\Modules\Identity\Access\Access;
+use App\Modules\Identity\Access\Scope;
 use App\Modules\Identity\Models\User;
 use App\Modules\Identity\Services\AuditLogger;
 use App\Support\CsvResponse;
@@ -58,12 +60,15 @@ class LeaveRequestController extends Controller
         $query = LeaveRequest::query();
         $scope = $data['scope'] ?? 'mine';
         if ($scope === 'review') {
-            abort_unless($actor->can('leaves.approve') && $actor->hasAnyRole(['company_manager', 'hr_manager']), 403);
-            $hrIds = User::role('hr_manager')->select('usr_users.id');
-            if (! $actor->hasRole('company_manager')) {
-                $query->where('approver_role', 'hr_manager')->whereNotIn('submitted_by', $hrIds);
-            } elseif (! $actor->hasRole('hr_manager')) {
-                $query->where(fn ($q) => $q->where('approver_role', 'company_manager')->orWhereIn('submitted_by', $hrIds));
+            $staff = $actor->can('leaves.approve');
+            $reviewers = $actor->can('leaves.approve_reviewers');
+            abort_unless($staff || $reviewers, 403);
+            if ($staff !== $reviewers) {
+                // Requesters who approve leave themselves move up a level (see LeaveWorkflowService::levelOf).
+                $approvers = app(Access::class)->usersWith('leaves.approve')->merge(app(Access::class)->usersWith('leaves.approve_reviewers'))->pluck('id')->all();
+                $staff
+                    ? $query->where('approval_level', LeaveWorkflowService::LEVEL_STAFF)->whereNotIn('submitted_by', $approvers)
+                    : $query->where(fn ($q) => $q->where('approval_level', LeaveWorkflowService::LEVEL_REVIEWERS)->orWhereIn('submitted_by', $approvers));
             }
             $query->where('submitted_by', '!=', $actor->id);
         } elseif ($scope === 'all') {
@@ -104,7 +109,8 @@ class LeaveRequestController extends Controller
 
     public function mayReadReason(User $actor, LeaveRequest $row): bool
     {
-        return $row->submitted_by === $actor->id || $actor->can('leaves.view') || $this->service->mayReview($actor, $row);
+        // Reasons: the requester, company-wide leave readers and the deciding reviewer — not department scope.
+        return $row->submitted_by === $actor->id || app(Access::class)->covers($actor, 'leaves.view', Scope::ALL) || $this->service->mayReview($actor, $row);
     }
 
     public function show(Request $request, LeaveRequest $leaveRequest)

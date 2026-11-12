@@ -28,10 +28,10 @@ Route::prefix('api/v1')->middleware(['api', 'auth:sanctum'])->group(function () 
     Route::get('attendance/days/{day}', [AttendanceController::class, 'show'])->whereNumber('day');
     Route::post('attendance/days/{day}/corrections', [AttendanceController::class, 'requestCorrection']);
 
-    // Scoped in the controller: organisation-wide (attendance.view) or managed departments (attendance.view_department).
+    // Scoped in the controller by the reach of attendance.view: company-wide or the departments the user manages.
     Route::get('attendance/days', [AttendanceController::class, 'index']);
     Route::get('attendance/days/export', [AttendanceController::class, 'export']);
-    Route::middleware('perm:attendance.view')->group(function () {
+    Route::middleware('perm:attendance.view,all')->group(function () {
         Route::get('attendance/policies', [AttendanceSettingsController::class, 'policies']);
     });
     Route::middleware('perm:attendance.manage')->group(function () {

@@ -99,7 +99,7 @@ class LeaveWorkflowService
         }
 
         return ['types' => $balances, 'can_submit' => $eligible,
-            'can_review' => $actor->can('leaves.approve') && $actor->hasAnyRole(['hr_manager', 'company_manager']),
+            'can_review' => $actor->can('leaves.approve') || $actor->can('leaves.approve_reviewers'),
             'can_configure' => $actor->can('leaves.manage'), 'today' => $this->employment->today(),
             'half_days' => DB::table('hr_leave_half_days')->find(1)];
     }
@@ -272,7 +272,7 @@ class LeaveWorkflowService
                     'leave_type_id' => $policy['leave_type_id'], 'leave_policy_id' => $policy['id'],
                     'policy' => $policy, 'submitted_by' => $owner->id, 'submission_key' => $input['submission_key'],
                     'entered_by' => $owner->id === $actor->id ? null : $actor->id,
-                    'approver_role' => $owner->hasRole('hr_manager') ? 'company_manager' : 'hr_manager']);
+                    'approval_level' => $this->levelFor($owner)]);
             }
             foreach ($days as $data) {
                 $day = $request->days()->create($data);
@@ -284,8 +284,8 @@ class LeaveWorkflowService
             if (! $editing && $this->selfApproves($owner)) {
                 // The company manager has no approver above them: the leave is recorded as approved immediately.
                 $this->consume($request, $actor->id);
-                $request->update(['status' => 'approved', 'approver_role' => 'company_manager', 'reviewed_by' => $actor->id,
-                    'review_note' => 'اعتماد مباشر: إجازة مدير الشركة', 'version' => $request->version + 1]);
+                $request->update(['status' => 'approved', 'approval_level' => self::LEVEL_REVIEWERS, 'reviewed_by' => $actor->id,
+                    'review_note' => 'اعتماد مباشر: لا يوجد مستوى اعتماد أعلى', 'version' => $request->version + 1]);
                 $this->audit->log('leave.auto_approved', $request, null, $request->getAttributes(), $actor->id);
                 $this->attendance->employeeDates($employee->id, $request->days()->pluck('date'));
             } else {
@@ -302,19 +302,43 @@ class LeaveWorkflowService
         abort_unless($request->version === (int) $data['version'], 409, 'تغيّر الطلب؛ حدّث الصفحة قبل المتابعة.');
     }
 
-    /** The company manager's own leave needs no review, whoever records it. */
+    /**
+     * Who decides a request, by permission:
+     * - staff requests: holders of leaves.approve;
+     * - requests from someone who approves leave themselves: holders of leaves.approve_reviewers;
+     * - a holder of leaves.approve_reviewers has nobody above them, so their own leave is approved directly.
+     */
+    public const LEVEL_STAFF = 'staff';
+
+    public const LEVEL_REVIEWERS = 'reviewers';
+
+    public function levelFor(User $owner): string
+    {
+        return $owner->can('leaves.approve') || $owner->can('leaves.approve_reviewers') ? self::LEVEL_REVIEWERS : self::LEVEL_STAFF;
+    }
+
     public function selfApproves(User $owner): bool
     {
-        return $owner->hasRole('company_manager');
+        return $owner->can('leaves.approve_reviewers');
+    }
+
+    /** The level a request needs now: a requester who gained approval rights since filing moves up, never down. */
+    public function levelOf(LeaveRequest $request): string
+    {
+        $submitter = User::find($request->submitted_by);
+
+        return $request->approval_level === self::LEVEL_REVIEWERS || ($submitter !== null && $this->levelFor($submitter) === self::LEVEL_REVIEWERS)
+            ? self::LEVEL_REVIEWERS : self::LEVEL_STAFF;
+    }
+
+    public static function permissionFor(string $level): string
+    {
+        return $level === self::LEVEL_REVIEWERS ? 'leaves.approve_reviewers' : 'leaves.approve';
     }
 
     public function mayReview(User $actor, LeaveRequest $request): bool
     {
-        $submitter = User::find($request->submitted_by);
-        // Role changes cannot let HR approve another HR member's own request.
-        $role = $request->approver_role === 'company_manager' || $submitter?->hasRole('hr_manager') ? 'company_manager' : 'hr_manager';
-
-        return $actor->id !== $request->submitted_by && $actor->can('leaves.approve') && $actor->hasRole($role);
+        return $actor->id !== $request->submitted_by && $actor->can(self::permissionFor($this->levelOf($request)));
     }
 
     public function action(User $actor, LeaveRequest $request, string $action, array $data): LeaveRequest

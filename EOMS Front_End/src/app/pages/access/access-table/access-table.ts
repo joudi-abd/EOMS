@@ -1,9 +1,10 @@
 import { Component, inject, input, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { Account, isTop, Role, roleLabel } from '../../../core/access/accounts';
+import { Account, companyRole, Role } from '../../../core/access/accounts';
 import { Session } from '../../../core/access/session';
 import { Ui } from '../../../core/ui';
 import { Office } from '../../../data/office';
+import { Roles } from '../../../data/roles';
 
 @Component({
   selector: 'app-access-table',
@@ -16,10 +17,15 @@ export class AccessTable extends Ui {
   protected readonly session = inject(Session);
   private readonly office = inject(Office);
 
-  protected readonly roleLabel = roleLabel;
+  private readonly catalog = inject(Roles);
+  protected readonly companyRole = companyRole;
 
   protected isTop(role: Role): boolean {
-    return isTop([role]);
+    return this.catalog.role(role)?.kind === 'admin' || role === companyRole;
+  }
+
+  protected roleName(role: Role): string {
+    return this.text(this.catalog.label(role));
   }
 
   /** Nobody disables themselves, nobody below a director touches a director, and one director always stays enabled. */

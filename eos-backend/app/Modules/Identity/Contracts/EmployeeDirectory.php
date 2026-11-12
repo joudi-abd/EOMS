@@ -23,4 +23,12 @@ interface EmployeeDirectory
 
     /** The signed-in user's own employee profile, already shaped for the API, or null. */
     public function profileForUser(int $userId): mixed;
+
+    /**
+     * Accounts that manage at least one department today (an active employee named as the department's manager).
+     * Department managers get the department-manager role's grants from this, not from a role assignment.
+     *
+     * @return list<int>
+     */
+    public function departmentManagerUserIds(): array;
 }

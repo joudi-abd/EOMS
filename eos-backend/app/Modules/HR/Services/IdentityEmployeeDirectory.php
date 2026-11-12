@@ -3,6 +3,7 @@
 namespace App\Modules\HR\Services;
 
 use App\Modules\HR\Http\Resources\EmployeeResource;
+use App\Modules\HR\Models\Department;
 use App\Modules\HR\Models\Employee;
 use App\Modules\Identity\Contracts\EmployeeDirectory;
 use App\Modules\Identity\Models\User;
@@ -51,5 +52,13 @@ class IdentityEmployeeDirectory implements EmployeeDirectory
         $employee = Employee::query()->where('user_id', $userId)->with(['department:id,name', 'jobTitle:id,name'])->first();
 
         return $employee ? new EmployeeResource($employee) : null;
+    }
+
+    public function departmentManagerUserIds(): array
+    {
+        return Department::query()
+            ->join('hr_employees as e', 'e.id', '=', 'hr_departments.manager_employee_id')
+            ->where('e.status', '!=', 'terminated')->whereNotNull('e.user_id')
+            ->distinct()->pluck('e.user_id')->map(fn ($id) => (int) $id)->values()->all();
     }
 }
