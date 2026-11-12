@@ -37,9 +37,6 @@
         }
       }
     </nav>
-    <div class="foot">
-      <app-account-switch />
-    </div>
   </aside>
   @if (chrome.menuOpen()) {
     <button class="scrim" type="button" tabindex="-1" [attr.aria-label]="t('closeMenu')" (click)="chrome.close()"></button>
@@ -65,7 +62,6 @@
       <div class="top-end">
         <button class="lang" type="button" (click)="toggleLanguage()" [attr.aria-label]="t('switchLabel')">
           <i class="fa-solid fa-language" aria-hidden="true"></i>
-          <span>{{ t('switchTo') }}</span>
         </button>
         @if (session.can('alerts')) {
           <a class="bell" routerLink="/modules/alerts" [attr.aria-label]="t('alerts') + (notes.unread() > 0 ? ' · ' + notes.unread() : '')">
@@ -79,6 +75,9 @@
             <span class="me-name">{{ language.text(session.account().name) }}</span>
             <span class="me-role">{{ session.roleLine() }}</span>
           </span>
+          <button class="out" type="button" [disabled]="leaving()" (click)="signOut()" [attr.aria-label]="t('signOut')">
+            <i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i>
+          </button>
         </div>
       </div>
     </header>

@@ -18,7 +18,7 @@
   border: 1px solid var(--notice-line);
   background: var(--notice);
   color: var(--action-ink);
-  font-size: 14px;
+  font-size: 16px;
 }
 
 /* Run stages: done steps are filled indigo, the current one carries the indigo ring on a tint. */
@@ -36,7 +36,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 14px;
+  font-size: 16px;
   color: var(--soft);
 }
 
@@ -48,7 +48,7 @@
   display: grid;
   place-items: center;
   font-style: normal;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 600;
   background: var(--surface);
 }
@@ -104,7 +104,7 @@
 
 .pr-box h3 {
   margin: 0;
-  font-size: 15px;
+  font-size: 17px;
 }
 
 .fin-form label.pr-skip {
@@ -124,6 +124,6 @@
   padding-inline-start: 20px;
   display: grid;
   gap: 8px;
-  font-size: 14px;
+  font-size: 16px;
   color: var(--muted);
 }

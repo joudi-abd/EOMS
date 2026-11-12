@@ -25,11 +25,11 @@
 
   .block-line {
     display: block;
-    font-size: 12px;
+    font-size: 14px;
   }
 
   .sm {
-    font-size: 13px;
+    font-size: 15px;
   }
 
   .summary,
@@ -56,7 +56,7 @@
 
   .fin-toolbar .wait {
     margin-inline-start: auto;
-    font-size: 14px;
+    font-size: 16px;
   }
 
   .fin-grid {
@@ -103,7 +103,7 @@
 
   .fin-sheet h2 {
     margin: 0;
-    font-size: 18px;
+    font-size: 20px;
   }
 
   .fin-sheet fieldset {
@@ -145,7 +145,7 @@
   .fin-field {
     display: grid;
     gap: 6px;
-    font-size: 13px;
+    font-size: 15px;
     color: var(--muted);
   }
 
@@ -164,7 +164,7 @@
 
   .fin-hint {
     margin: 0;
-    font-size: 13px;
+    font-size: 15px;
     color: var(--muted);
   }
 
@@ -175,7 +175,7 @@
     border: 1px solid var(--wait-line);
     background: var(--wait-tint);
     color: var(--wait);
-    font-size: 14px;
+    font-size: 16px;
     display: flex;
     gap: 8px;
     align-items: center;
@@ -207,7 +207,7 @@
     min-height: 34px;
     padding: 6px 16px;
     font: inherit;
-    font-size: 14px;
+    font-size: 16px;
     cursor: pointer;
     transition:
       background-color 140ms ease-out,
@@ -249,7 +249,7 @@
 
   tr.sub td {
     background: var(--raised);
-    font-size: 13px;
+    font-size: 15px;
     padding-block: 8px;
   }
 
@@ -263,7 +263,7 @@
   .primary.small {
     min-height: 32px;
     padding: 4px 12px;
-    font-size: 14px;
+    font-size: 16px;
     border-radius: 8px;
   }
 
@@ -286,7 +286,7 @@
     gap: 12px;
     padding: 11px 0;
     border-bottom: 1px solid var(--line);
-    font-size: 14px;
+    font-size: 16px;
   }
 
   .fin-list li:last-child {
@@ -302,7 +302,7 @@
     grid-template-columns: max-content 1fr;
     gap: 8px 18px;
     margin: 0;
-    font-size: 14px;
+    font-size: 16px;
   }
 
   .fin-kv dt {
@@ -345,7 +345,7 @@
   .fin-totals {
     display: grid;
     gap: 6px;
-    font-size: 14px;
+    font-size: 16px;
     font-variant-numeric: tabular-nums;
   }
 
@@ -356,7 +356,7 @@
 
   .fin-totals .grand {
     font-weight: 600;
-    font-size: 16px;
+    font-size: 18px;
     border-top: 1px solid var(--mark-soft);
     padding-top: 8px;
   }

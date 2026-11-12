@@ -6,7 +6,7 @@
 .none {
   margin: 0;
   color: var(--muted);
-  font-size: 14px;
+  font-size: 16px;
 }
 
 .rank {
@@ -23,7 +23,7 @@
   grid-template-areas: 'title track value' '. note note';
   align-items: center;
   gap: 2px 12px;
-  font-size: 14px;
+  font-size: 16px;
 }
 
 .title {
@@ -61,14 +61,14 @@ b {
 .unit {
   margin-inline-start: 4px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 400;
 }
 
 small {
   grid-area: note;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 14px;
 }
 
 @media (prefers-reduced-motion: reduce) {

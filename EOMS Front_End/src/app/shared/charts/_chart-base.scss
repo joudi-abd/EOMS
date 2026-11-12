@@ -38,7 +38,7 @@ svg {
 
 .axis {
   fill: var(--muted);
-  font-size: 12px;
+  font-size: 14px;
   font-variant-numeric: tabular-nums;
 }
 
@@ -60,7 +60,7 @@ svg {
   background: var(--ink);
   color: #fff;
   border-radius: var(--r-control);
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.5;
   pointer-events: none;
   display: grid;
@@ -103,7 +103,7 @@ svg {
   gap: 6px 16px;
   margin-top: 10px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .legend span {

@@ -27,13 +27,13 @@
 
 .top h2 {
   margin: 0;
-  font-size: 18px;
+  font-size: 20px;
 }
 
 .who {
   margin: 4px 0 0;
   color: var(--muted);
-  font-size: 14px;
+  font-size: 16px;
 }
 
 .x {
@@ -128,7 +128,7 @@
 }
 
 .print {
-  font-size: 64px;
+  font-size: 66px;
   color: var(--tone);
   transition: color 240ms ease-out;
 }
@@ -158,7 +158,7 @@
   border: 3px solid var(--surface);
   border-radius: 50%;
   color: #fff;
-  font-size: 13px;
+  font-size: 15px;
 }
 
 .badge.ok {
@@ -171,7 +171,7 @@
 
 .headline {
   margin: 16px 0 0;
-  font-size: 17px;
+  font-size: 19px;
   font-weight: 600;
 }
 
@@ -180,7 +180,7 @@
   max-width: 40ch;
   min-height: 1.5em;
   color: var(--muted);
-  font-size: 14px;
+  font-size: 16px;
 }
 
 /* Stages */
@@ -229,7 +229,7 @@
   border-radius: 50%;
   background: var(--surface);
   color: var(--soft);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
@@ -253,7 +253,7 @@
 
 .label {
   color: var(--muted);
-  font-size: 14px;
+  font-size: 16px;
 }
 
 .step.current .label,
@@ -310,7 +310,7 @@
 
 .facts dt {
   color: var(--soft);
-  font-size: 13px;
+  font-size: 15px;
 }
 
 .facts dd {
@@ -321,7 +321,7 @@
 .warn {
   margin: 12px 22px 0;
   color: var(--late);
-  font-size: 14px;
+  font-size: 16px;
 }
 
 .setup {
@@ -335,7 +335,7 @@
   flex-direction: column;
   gap: 4px;
   color: var(--muted);
-  font-size: 14px;
+  font-size: 16px;
   min-width: 0;
 }
 

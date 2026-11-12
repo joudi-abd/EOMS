@@ -40,54 +40,54 @@ colors:
 typography:
   headline:
     fontFamily: "Readex Pro Variable, sans-serif"
-    fontSize: "26px"
+    fontSize: "28px"
     fontWeight: 600
     lineHeight: 1.35
   title:
     fontFamily: "Readex Pro Variable, sans-serif"
-    fontSize: "18px"
+    fontSize: "20px"
     fontWeight: 600
     lineHeight: 1.45
   panel-title:
     fontFamily: "Readex Pro Variable, sans-serif"
-    fontSize: "16px"
+    fontSize: "18px"
     fontWeight: 600
   metric:
     fontFamily: "Readex Pro Variable, sans-serif"
-    fontSize: "38px"
+    fontSize: "40px"
     fontWeight: 600
     lineHeight: 1.1
     letterSpacing: "-0.03em"
   figure:
     fontFamily: "Readex Pro Variable, sans-serif"
-    fontSize: "28px"
+    fontSize: "30px"
     fontWeight: 600
     lineHeight: 1.2
     letterSpacing: "-0.02em"
   body:
     fontFamily: "Readex Pro Variable, sans-serif"
-    fontSize: "16px"
+    fontSize: "18px"
     fontWeight: 400
     lineHeight: 1.5
   table:
     fontFamily: "Readex Pro Variable, sans-serif"
-    fontSize: "15px"
+    fontSize: "17px"
     fontWeight: 400
   label:
     fontFamily: "Readex Pro Variable, sans-serif"
-    fontSize: "14px"
+    fontSize: "16px"
     fontWeight: 400
   caption:
     fontFamily: "Readex Pro Variable, sans-serif"
-    fontSize: "13px"
+    fontSize: "15px"
     fontWeight: 400
   axis:
     fontFamily: "Readex Pro Variable, sans-serif"
-    fontSize: "12px"
+    fontSize: "14px"
     fontWeight: 400
   sign-in:
     fontFamily: "Readex Pro Variable, sans-serif"
-    fontSize: "34px"
+    fontSize: "36px"
     fontWeight: 600
     lineHeight: 1.4
 rounded:
@@ -269,15 +269,15 @@ Attendance marks map to the same fill across the dashboard, the report, and the 
 
 ### Hierarchy
 
-- **Sign-in title** (600, 34px, 1.4; 28px under 480px): The sign-in heading and the company line on the scene.
-- **Headline** (600, 26px, 1.35): The page title, and the greeting on the dashboard.
-- **Title** (600, 18px, 1.45): A section title on the ground, and the title of a working sheet.
-- **Panel title** (600, 16px): The title in a panel head, with a 13px Quiet Ink caption under it.
-- **Metric** (600, 38px, 1.1, -0.03em; 28px on a phone): The dashboard's headline figures.
-- **Figure** (600, 28px, 1.2, -0.02em; 22px on a phone): The number in a module's figure strip.
-- **Body** (400, 16px, 1.5): Reading text and buttons. Notes and ledes are 14px Quiet Ink up to 72ch.
-- **Table** (400, 15px): Table cells and tabs. Table headers are 13px at 500 in Quiet Ink.
-- **Label / Caption / Axis** (14px / 13px / 12px): Rail links and form labels; filter labels, strip captions and fact labels; axis labels, legends, group labels and role lines.
+- **Sign-in title** (600, 36px, 1.4; 30px under 480px): The sign-in heading and the company line on the scene.
+- **Headline** (600, 28px, 1.35): The page title, and the greeting on the dashboard.
+- **Title** (600, 20px, 1.45): A section title on the ground, and the title of a working sheet.
+- **Panel title** (600, 18px): The title in a panel head, with a 15px Quiet Ink caption under it.
+- **Metric** (600, 40px, 1.1, -0.03em; 30px on a phone): The dashboard's headline figures.
+- **Figure** (600, 30px, 1.2, -0.02em; 24px on a phone): The number in a module's figure strip.
+- **Body** (400, 18px, 1.5): Reading text and buttons. Notes and ledes are 16px Quiet Ink up to 72ch.
+- **Table** (400, 17px): Table cells and tabs. Table headers are 15px at 500 in Quiet Ink.
+- **Label / Caption / Axis** (16px / 15px / 14px): Rail links and form labels; filter labels, strip captions and fact labels; axis labels, legends, group labels and role lines.
 
 ### Named Rules
 
@@ -323,15 +323,15 @@ Edges are a 1px hairline everywhere. The joined strip is the one clipped form: a
 
 ### Rail
 
-A quiet white column, sticky and full height, edged by a hairline. It opens with the UFUQ logo (108px wide) and the localized company line in 12px Quiet Ink over a hairline. Links are grouped under 12px Soft Ink labels; each is 40px tall with an 8px corner, an icon in Soft Ink and its name at 14px in Quiet Ink. Hover is Hover Wash with Desk Ink. The link you are on is Indigo Tint with Indigo Ink at 600 and an indigo icon. A solid indigo pill at the inline end counts what waits for the signed-in account. The foot holds the account card (a tinted initials avatar, the name, the role line) and a bordered sign-out button.
+A quiet white column, sticky and full height, edged by a hairline. It opens with the UFUQ logo (108px wide) and the localized company line in 14px Quiet Ink over a hairline. Links are grouped under 14px Soft Ink labels; each is 40px tall with an 8px corner, an icon in Soft Ink and its name at 16px in Quiet Ink. Hover is Hover Wash with Desk Ink. The link you are on is Indigo Tint with Indigo Ink at 600 and an indigo icon. A solid indigo pill at the inline end counts what waits for the signed-in account. The account and sign-out live in the top bar, not in the rail.
 
 ### Top bar
 
-White, sticky, 64px, edged below by a hairline. From the inline start: the menu button (under 900px only), the employee search (a borderless slate field that turns white with an indigo border and a tint ring on focus), then at the inline end the language button, the bell with an indigo unread dot, and the account's tinted avatar with name and role.
+White, sticky, 64px, edged below by a hairline. From the inline start: the menu button (under 900px only), the employee search (a borderless slate field that turns white with an indigo border and a tint ring on focus), then at the inline end a 40px language icon, the bell with an indigo unread dot, the account's tinted avatar with name and role, and a 40px sign-out icon on the far side of the name. Under 900px the name and role collapse and the avatar stays.
 
 ### Page heading and the datum
 
-The title (and its lede or sub-line in 14px Quiet Ink) at the inline start, the actions at the inline end, all standing on the datum. Nothing sits above the title: no breadcrumb and no eyebrow line. The datum's indigo segment is removed in print.
+The title (and its lede or sub-line in 16px Quiet Ink) at the inline start, the actions at the inline end, all standing on the datum. Nothing sits above the title: no breadcrumb and no eyebrow line. The datum's indigo segment is removed in print.
 
 ### Buttons
 
@@ -340,7 +340,7 @@ Indigo acts, a bordered button offers, a quiet red one refuses. All are 40px tal
 - **Primary**: Acting Indigo fill and border, white label at 600. Indigo Ink on hover, Deep Indigo when pressed. Disabled is Hairline with Soft Ink.
 - **Bordered** (`.text`, `.ghost`): White with a Strong Line border, Desk Ink at 500. Hover Wash on hover, Indigo Tint when pressed. Exports, approve, undo, open.
 - **Quiet** (`.quiet`): Transparent with a Late Red label at 500; Late Tint with a Late Line border on hover. Refuse and remove only.
-- **Small** (inside the ledger kit): 32px tall, 14px, for row actions.
+- **Small** (inside the ledger kit): 32px tall, 16px, for row actions.
 
 ### Fields
 
@@ -348,11 +348,11 @@ White, a Strong Line border, 8px corner, 40px tall, 12px inline padding. The bor
 
 ### Filter bar
 
-A white surface (hairline, 12px corner, 16px by 18px padding) that scopes the sheet under it. Filters sit in an auto-fit grid with a 170px minimum, each label stacked above its field in 13px Quiet Ink. Its own actions take a row to themselves at the inline end.
+A white surface (hairline, 12px corner, 16px by 18px padding) that scopes the sheet under it. Filters sit in an auto-fit grid with a 170px minimum, each label stacked above its field in 15px Quiet Ink. Its own actions take a row to themselves at the inline end.
 
 ### Figure strip
 
-Figures are one joined strip, not a row of cards, so a row of numbers reads as one statement. A white surface with a hairline and a 12px corner holds cells of 16px by 18px, each ringed by a hairline: a 13px Quiet Ink caption, the 28px figure, and an optional 12px note. The strip never leaves one cell alone: cells auto-fit at a 136px minimum, counts of five to eight rebalance into rows of three or four with the last cell spanning, and under 560px the strip is two columns with an odd last cell taking the full row. A figure may take a status colour when the number itself is a warning. The dashboard's strip is the larger form: a 168px minimum, 20px by 22px cells, a 14px label, the 38px metric, and a 13px sub-line that takes a status colour when it reports a condition.
+Figures are one joined strip, not a row of cards, so a row of numbers reads as one statement. A white surface with a hairline and a 12px corner holds cells of 16px by 18px, each ringed by a hairline: a 15px Quiet Ink caption, the 30px figure, and an optional 14px note. The strip never leaves one cell alone: cells auto-fit at a 136px minimum, counts of five to eight rebalance into rows of three or four with the last cell spanning, and under 560px the strip is two columns with an odd last cell taking the full row. A figure may take a status colour when the number itself is a warning. The dashboard's strip is the larger form: a 168px minimum, 20px by 22px cells, a 16px label, the 40px metric, and a 15px sub-line that takes a status colour when it reports a condition.
 
 ### Panel
 
@@ -360,23 +360,23 @@ White, 1px Hairline, 12px corner, 20px 22px 22px padding. The panel head places 
 
 ### Sheet
 
-Forms and fact lists sit on a white sheet: 22px by 24px padding, a hairline, a 12px corner. Facts run two to a row, the label in 13px Soft Ink over its value. The ledger kit's working sheet is the dialog-in-place variant for a form or decision above a list: a Strong Line border, a 16px corner, a header row over a hairline with a square close button, and its actions at the inline end.
+Forms and fact lists sit on a white sheet: 22px by 24px padding, a hairline, a 12px corner. Facts run two to a row, the label in 15px Soft Ink over its value. The ledger kit's working sheet is the dialog-in-place variant for a form or decision above a list: a Strong Line border, a 16px corner, a header row over a hairline with a square close button, and its actions at the inline end.
 
 ### Record sheet
 
-A table inside a white bordered surface with a 12px corner that scrolls horizontally on a narrow column. The header row is Raised over a Strong Line rule, 13px at 500 in Quiet Ink. Cells are 15px with 12px by 14px padding (18px at the sheet's edges) and a Hairline rule; rows take Row Wash on hover. Names are links in Indigo Ink at 600. Numbers use tabular figures and never wrap. Status cells are the status word with its dot. In the ledger kit a row that needs attention sits on Waiting Tint, a picked row on Indigo Tint, and a sub-row on Raised.
+A table inside a white bordered surface with a 12px corner that scrolls horizontally on a narrow column. The header row is Raised over a Strong Line rule, 15px at 500 in Quiet Ink. Cells are 17px with 12px by 14px padding (18px at the sheet's edges) and a Hairline rule; rows take Row Wash on hover. Names are links in Indigo Ink at 600. Numbers use tabular figures and never wrap. Status cells are the status word with its dot. In the ledger kit a row that needs attention sits on Waiting Tint, a picked row on Indigo Tint, and a sub-row on Raised.
 
 ### Tabs
 
-First-level navigation inside a screen: a row of text links on the datum's hairline, 44px tall, 15px, Quiet Ink, with no icons. Hover is Desk Ink on Hover Wash. The tab you are on is Desk Ink at 600 over a 3px indigo underline. The row scrolls sideways on a narrow column. Used for the employee file, attendance views, finance, payroll and settings.
+First-level navigation inside a screen: a row of text links on the datum's hairline, 44px tall, 17px, Quiet Ink, with no icons. Hover is Desk Ink on Hover Wash. The tab you are on is Desk Ink at 600 over a 3px indigo underline. The row scrolls sideways on a narrow column. Used for the employee file, attendance views, finance, payroll and settings.
 
 ### Segmented choice
 
-The second level under tabs, and any one-of-a-few choice, so two rows never read as one. A Hover Wash trough with an 8px corner and 3px padding holds 14px Quiet Ink items; the chosen item is a white chip in Indigo Ink at 600, ringed by a Strong Line. Used for whose requests to show, the sections of leave settings, and choices inside finance forms.
+The second level under tabs, and any one-of-a-few choice, so two rows never read as one. A Hover Wash trough with an 8px corner and 3px padding holds 16px Quiet Ink items; the chosen item is a white chip in Indigo Ink at 600, ringed by a Strong Line. Used for whose requests to show, the sections of leave settings, and choices inside finance forms.
 
 ### Status chips and pay-run stages
 
-A status chip is a full-round pill, 24px tall, 13px at 500: the status tint behind the status word, or Hover Wash with Quiet Ink when neutral. A pay run shows its four stages as white bordered cells; a finished stage carries a green check, and the current stage is Indigo Tint with an indigo border.
+A status chip is a full-round pill, 24px tall, 15px at 500: the status tint behind the status word, or Hover Wash with Quiet Ink when neutral. A pay run shows its four stages as white bordered cells; a finished stage carries a green check, and the current stage is Indigo Tint with an indigo border.
 
 ### Notice
 
@@ -414,7 +414,7 @@ A native modal dialog, 540px, 16px corner, hairline edge, over a dimmed ground. 
 
 ### Sign-in
 
-A full-height split, and the one scene where the indigo goes deep. The sign-in column is white: the language button at the top, then the 34px title standing on the same datum as every page, a lede, 54px fields on Raised with a 12px corner and a leading icon (the password field carries a show and hide eye at the inline end), and a full-width 54px indigo button. The other column is Deep Indigo: the UFUQ logo on a white plaque with a 16px corner, the company line at 34px in Scene Ink, and the office's building elevations drawn as lavender line work over a 3px ground line. Under 960px the scene hides and the logo moves into the column's top bar.
+A full-height split, and the one scene where the indigo goes deep. The sign-in column is white: the language button at the top, then the 36px title standing on the same datum as every page, a lede, 54px fields on Raised with a 12px corner and a leading icon (the password field carries a show and hide eye at the inline end), and a full-width 54px indigo button. The other column is Deep Indigo: the UFUQ logo on a white plaque with a 16px corner, the company line at 36px in Scene Ink, and the office's building elevations drawn as lavender line work over a 3px ground line. Under 960px the scene hides and the logo moves into the column's top bar.
 
 ## Permissions in the interface
 

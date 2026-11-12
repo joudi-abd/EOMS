@@ -43,7 +43,7 @@
   border: 1px solid var(--line-strong);
   border-radius: var(--r-control);
   color: var(--muted);
-  font-size: 14px;
+  font-size: 16px;
   cursor: pointer;
   transition:
     background-color 140ms ease-out,
@@ -67,7 +67,7 @@
 /* The same datum as every page heading: the title stands on a hairline with an indigo segment. */
 h1 {
   position: relative;
-  font-size: 34px;
+  font-size: 36px;
   line-height: 1.4;
   padding-bottom: 18px;
   border-bottom: 1px solid var(--line);
@@ -86,7 +86,7 @@ h1::after {
 .lede {
   margin: 18px 0 0;
   color: var(--muted);
-  font-size: 16px;
+  font-size: 18px;
   line-height: 1.7;
 }
 
@@ -103,7 +103,7 @@ h1::after {
 
 .label {
   color: var(--ink);
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 500;
 }
 
@@ -123,7 +123,7 @@ h1::after {
   border-radius: var(--radius);
   background: var(--raised);
   color: var(--ink);
-  font-size: 16px;
+  font-size: 18px;
 }
 
 .control input:hover {
@@ -145,7 +145,7 @@ h1::after {
   position: absolute;
   inset-inline-start: 18px;
   color: var(--soft);
-  font-size: 16px;
+  font-size: 18px;
   pointer-events: none;
   transition: color 140ms ease-out;
 }
@@ -173,7 +173,7 @@ h1::after {
 }
 
 .eye i {
-  font-size: 17px;
+  font-size: 19px;
 }
 
 .eye:hover,
@@ -192,7 +192,7 @@ h1::after {
   border-radius: var(--r-control);
   background: var(--late-tint);
   color: var(--late);
-  font-size: 14px;
+  font-size: 16px;
   line-height: 1.5;
 }
 
@@ -212,7 +212,7 @@ h1::after {
   border-radius: var(--radius);
   background: var(--action);
   color: #fff;
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 600;
   cursor: pointer;
   transition: background-color 140ms ease-out;
@@ -232,7 +232,7 @@ h1::after {
 }
 
 .submit i {
-  font-size: 15px;
+  font-size: 17px;
 }
 
 :host-context([dir='ltr']) .forward {
@@ -254,7 +254,7 @@ h1::after {
   flex-wrap: wrap;
   gap: 4px 10px;
   color: var(--soft);
-  font-size: 13px;
+  font-size: 15px;
 }
 
 /* Brand scene: the one place the indigo goes deep, with the office's elevations drawn on the horizon. */
@@ -290,7 +290,7 @@ h1::after {
 
 .scene-title {
   margin: 40px 0 0;
-  font-size: 34px;
+  font-size: 36px;
   font-weight: 600;
   line-height: 1.5;
   text-wrap: balance;
@@ -359,7 +359,7 @@ h1::after {
   }
 
   h1 {
-    font-size: 28px;
+    font-size: 30px;
   }
 }
 

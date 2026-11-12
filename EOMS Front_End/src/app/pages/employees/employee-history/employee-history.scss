@@ -57,7 +57,7 @@ h2 {
 
 dt {
   color: var(--muted);
-  font-size: 14px;
+  font-size: 16px;
 }
 
 dd {
@@ -73,7 +73,7 @@ dd {
 .flip {
   margin: 0 8px;
   color: var(--soft);
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .reason {
@@ -83,7 +83,7 @@ dd {
   background: var(--raised);
   border: 1px solid var(--line);
   color: var(--muted);
-  font-size: 14px;
+  font-size: 16px;
 }
 
 .log {
@@ -103,7 +103,7 @@ dd {
 .when,
 .by {
   color: var(--muted);
-  font-size: 14px;
+  font-size: 16px;
   font-variant-numeric: tabular-nums;
 }
 
@@ -123,7 +123,7 @@ dd {
   gap: 4px;
   width: 100%;
   color: var(--muted);
-  font-size: 14px;
+  font-size: 16px;
 }
 
 .stack textarea {

@@ -9,7 +9,7 @@
   border: 1px solid var(--late-line);
   background: var(--late-tint);
   color: var(--late);
-  font-size: 14px;
+  font-size: 16px;
 }
 
 .duo {
@@ -46,7 +46,7 @@
   background: var(--action-tint);
   color: var(--action-ink);
   font-weight: 600;
-  font-size: 13px;
+  font-size: 15px;
   flex: none;
 }
 
@@ -57,11 +57,11 @@
 
 .grow small {
   color: var(--muted);
-  font-size: 13px;
+  font-size: 15px;
 }
 
 .chip {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 500;
   padding: 2px 8px;
   border-radius: 999px;
@@ -83,7 +83,7 @@ label {
   display: grid;
   gap: 6px;
   min-width: 140px;
-  font-size: 13px;
+  font-size: 15px;
   color: var(--muted);
 }
 
@@ -103,7 +103,7 @@ label {
 
 .big {
   margin: 18px 0 0;
-  font-size: 30px;
+  font-size: 32px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.01em;
@@ -112,7 +112,7 @@ label {
 .soft-line {
   margin: 4px 0 0;
   color: var(--soft);
-  font-size: 13px;
+  font-size: 15px;
 }
 
 .sheet-form {
@@ -134,7 +134,7 @@ label {
 
 .sheet-form h2 {
   margin: 0;
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 600;
 }
 
@@ -145,7 +145,7 @@ label {
   border: 1px solid var(--notice-line);
   background: var(--notice);
   color: var(--action-ink);
-  font-size: 14px;
+  font-size: 16px;
 }
 
 .panel {
@@ -161,7 +161,7 @@ label {
 }
 
 .key {
-  font-size: 13px;
+  font-size: 15px;
   color: var(--muted);
 }
 

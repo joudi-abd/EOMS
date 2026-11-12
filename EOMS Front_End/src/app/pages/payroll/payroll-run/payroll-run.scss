@@ -29,7 +29,7 @@
 
 .stages li small {
   grid-column: 2;
-  font-size: 13px;
+  font-size: 15px;
 }
 
 .stages li.done {
@@ -50,7 +50,7 @@
 }
 
 .stages .fa-circle {
-  font-size: 8px;
+  font-size: 10px;
   width: 14px;
   text-align: center;
 }
@@ -75,7 +75,7 @@
   flex-direction: column;
   gap: 4px;
   color: var(--muted);
-  font-size: 14px;
+  font-size: 16px;
   min-width: 160px;
 }
 

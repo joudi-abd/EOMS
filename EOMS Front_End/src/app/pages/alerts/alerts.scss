@@ -61,14 +61,14 @@
 .when {
   margin: 2px 0 0;
   color: var(--soft);
-  font-size: 13px;
+  font-size: 15px;
   font-variant-numeric: tabular-nums;
 }
 
 .small {
   min-height: 34px;
   padding: 4px 12px;
-  font-size: 14px;
+  font-size: 16px;
 }
 
 .problem {
@@ -82,7 +82,7 @@
   border-radius: var(--r-control);
   background: var(--late-tint);
   color: var(--late);
-  font-size: 14px;
+  font-size: 16px;
 }
 
 .pager {

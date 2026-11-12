@@ -23,7 +23,7 @@
   border: 0;
   border-radius: 6px;
   white-space: nowrap;
-  font-size: 14px;
+  font-size: 16px;
   cursor: pointer;
   transition:
     background-color 140ms ease-out,
@@ -52,7 +52,7 @@
   padding: 0;
   list-style: none;
   color: var(--muted);
-  font-size: 13px;
+  font-size: 15px;
 }
 
 .decide {
@@ -102,7 +102,7 @@
 
 .block {
   display: block;
-  font-size: 12px;
+  font-size: 14px;
 }
 
 tr.picked td {
@@ -118,7 +118,7 @@ tr.picked td {
 .who small {
   display: block;
   color: var(--soft);
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .av {
@@ -129,7 +129,7 @@ tr.picked td {
   color: var(--action-ink);
   display: grid;
   place-items: center;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
   flex: none;
 }
@@ -166,7 +166,7 @@ tr.picked td {
 }
 
 .detail.placeholder i {
-  font-size: 28px;
+  font-size: 30px;
   color: var(--soft);
 }
 
@@ -183,13 +183,13 @@ tr.picked td {
 
 .detail-head h2 {
   margin: 0;
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 600;
 }
 
 .detail-head p {
   margin: 2px 0 0;
-  font-size: 13px;
+  font-size: 15px;
 }
 
 .soft {
@@ -220,7 +220,7 @@ tr.picked td {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 14px;
+  font-size: 16px;
   color: var(--soft);
 }
 
@@ -232,7 +232,7 @@ tr.picked td {
   display: grid;
   place-items: center;
   font-style: normal;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 600;
   background: var(--surface);
 }
@@ -275,7 +275,7 @@ tr.picked td {
   grid-template-columns: max-content 1fr;
   gap: 6px 16px;
   margin: 0;
-  font-size: 14px;
+  font-size: 16px;
 }
 
 .facts dt {
@@ -296,12 +296,12 @@ tr.picked td {
 .day-sheet td,
 .day-sheet th {
   padding: 8px 12px;
-  font-size: 13px;
+  font-size: 15px;
 }
 
 .balance {
   margin: 0;
-  font-size: 14px;
+  font-size: 16px;
 }
 
 .note-box {
@@ -310,7 +310,7 @@ tr.picked td {
   border: 1px solid var(--line);
   border-radius: var(--r-control);
   background: var(--raised);
-  font-size: 14px;
+  font-size: 16px;
 }
 
 .wait-box {
@@ -325,7 +325,7 @@ tr.picked td {
 
 .decide-form h3 {
   margin: 0 0 10px;
-  font-size: 15px;
+  font-size: 17px;
 }
 
 .decide-form fieldset {
@@ -339,7 +339,7 @@ tr.picked td {
 .decide-form label {
   display: grid;
   gap: 6px;
-  font-size: 13px;
+  font-size: 15px;
   color: var(--muted);
 }
 

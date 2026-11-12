@@ -4,7 +4,6 @@ import { ActivatedRoute, Router, RouterLink, RouterLinkActive, RouterOutlet } fr
 import { Session } from '../core/access/session';
 import { CopyKey, ModuleId } from '../core/copy';
 import { Language } from '../core/language';
-import { AccountSwitch } from './account-switch/account-switch';
 import { Api } from '../core/api/api';
 import { ApiPage } from '../core/api/types';
 import { Roles } from '../data/roles';
@@ -21,7 +20,7 @@ const navGroups: { label: CopyKey; ids: ModuleId[] }[] = [
 
 @Component({
   selector: 'app-shell',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, AccountSwitch],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive],
   templateUrl: './shell.html',
   styleUrl: './shell.scss',
 })
@@ -31,6 +30,7 @@ export class Shell {
   protected readonly session = inject(Session);
   protected readonly notes = inject(Server);
   protected readonly company = signal('');
+  protected readonly leaving = signal(false);
   protected readonly icons = moduleIcon;
   private readonly router = inject(Router);
   private readonly api = inject(Api);
@@ -120,6 +120,14 @@ export class Shell {
     void this.router.navigate(['/modules/employees'], { queryParams: q ? { q } : {} });
     if (input) input.value = '';
     this.chrome.close();
+  }
+
+  protected async signOut(): Promise<void> {
+    this.leaving.set(true);
+    this.chrome.close();
+    await this.session.logout();
+    this.leaving.set(false);
+    await this.router.navigate(['/login']);
   }
 
   protected toggleLanguage(): void {

@@ -39,13 +39,14 @@
   margin: 10px 0 0;
   max-width: 190px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.6;
   text-wrap: balance;
 }
 
 .nav {
   display: flex;
+  flex: 1;
   flex-direction: column;
   gap: 2px;
   overflow: auto;
@@ -58,14 +59,14 @@
 .group {
   margin: 16px 12px 6px;
   color: var(--soft);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 500;
 }
 
 .nav a {
   color: var(--muted);
   text-decoration: none;
-  font-size: 14px;
+  font-size: 16px;
   padding: 8px 12px;
   border-radius: var(--r-control);
   min-height: 40px;
@@ -81,7 +82,7 @@
   width: 18px;
   text-align: center;
   color: var(--soft);
-  font-size: 14px;
+  font-size: 16px;
   transition: color 140ms ease-out;
 }
 
@@ -109,17 +110,11 @@
   border-radius: 999px;
   background: var(--action);
   color: #fff;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
   display: inline-grid;
   place-items: center;
   font-variant-numeric: tabular-nums;
-}
-
-.foot {
-  margin-top: auto;
-  padding: 14px 4px 0;
-  border-top: 1px solid var(--line);
 }
 
 .stage {
@@ -203,7 +198,7 @@
   outline: 0;
   background: transparent;
   font: inherit;
-  font-size: 14px;
+  font-size: 16px;
   color: var(--ink);
   padding: 0;
   min-height: 0;
@@ -219,41 +214,39 @@
 }
 
 .lang,
-.bell {
+.bell,
+.out {
+  width: 40px;
   height: 40px;
   border-radius: var(--r-control);
   border: 1px solid var(--line);
   background: var(--surface);
   color: var(--muted);
   cursor: pointer;
+  display: grid;
+  place-items: center;
   transition:
     background-color 140ms ease-out,
     border-color 140ms ease-out,
     color 140ms ease-out;
 }
 
-.lang {
-  padding: 0 12px;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  white-space: nowrap;
-}
-
 .bell {
   position: relative;
-  width: 40px;
-  display: grid;
-  place-items: center;
   text-decoration: none;
 }
 
 .lang:hover,
-.bell:hover {
+.bell:hover,
+.out:hover {
   background: var(--hover);
   border-color: var(--line-strong);
   color: var(--ink);
+}
+
+.out:disabled {
+  color: var(--soft);
+  cursor: progress;
 }
 
 .bell .dot {
@@ -276,6 +269,10 @@
   border-inline-start: 1px solid var(--line);
 }
 
+.me .out {
+  margin-inline-start: 2px;
+}
+
 .avatar {
   width: 38px;
   height: 38px;
@@ -285,7 +282,7 @@
   display: grid;
   place-items: center;
   font-weight: 600;
-  font-size: 13px;
+  font-size: 15px;
   flex: none;
 }
 
@@ -295,12 +292,12 @@
 }
 
 .me-name {
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 600;
 }
 
 .me-role {
-  font-size: 12px;
+  font-size: 14px;
   color: var(--muted);
 }
 
@@ -352,19 +349,6 @@
   }
 
   .me-text {
-    display: none;
-  }
-}
-
-/* On a phone the language button keeps its icon and its accessible name, and gives its width to search. */
-@media (max-width: 480px) {
-  .lang {
-    width: 40px;
-    padding: 0;
-    justify-content: center;
-  }
-
-  .lang span {
     display: none;
   }
 }

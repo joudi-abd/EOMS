@@ -18,13 +18,13 @@
 
 .panel-head h2 {
   margin: 0;
-  font-size: 16px;
+  font-size: 18px;
 }
 
 .panel-head p {
   margin: 4px 0 0;
   color: var(--muted);
-  font-size: 13px;
+  font-size: 15px;
 }
 
 .panel .flush {
@@ -116,13 +116,13 @@
 .summary span,
 .stats .stat span {
   color: var(--muted);
-  font-size: 13px;
+  font-size: 15px;
 }
 
 .summary strong,
 .stats .stat strong {
   display: block;
-  font-size: 28px;
+  font-size: 30px;
   font-weight: 600;
   line-height: 1.2;
   letter-spacing: -0.02em;
@@ -133,7 +133,7 @@
 .summary small,
 .stats .stat small {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 14px;
 }
 
 /* Two columns on a phone: an odd last cell takes the full row instead of sitting alone. */
@@ -155,6 +155,6 @@
 
   .summary strong,
   .stats .stat strong {
-    font-size: 22px;
+    font-size: 24px;
   }
 }

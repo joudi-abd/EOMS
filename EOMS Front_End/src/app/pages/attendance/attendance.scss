@@ -15,7 +15,7 @@ h2 {
   border: 1px solid var(--line);
   border-radius: var(--radius);
   color: var(--muted);
-  font-size: 13px;
+  font-size: 15px;
 }
 
 .facts p {
@@ -31,7 +31,7 @@ h2 {
   width: 16px;
   text-align: center;
   color: var(--soft);
-  font-size: 13px;
+  font-size: 15px;
 }
 
 .filters {
@@ -47,7 +47,7 @@ h2 {
   flex-direction: column;
   gap: 4px;
   color: var(--muted);
-  font-size: 14px;
+  font-size: 16px;
   min-width: 0;
 }
 
@@ -145,7 +145,7 @@ h2 {
   align-items: center;
   gap: 8px;
   margin: 0;
-  font-size: 16px;
+  font-size: 18px;
 }
 
 .side-panel h2 i {
