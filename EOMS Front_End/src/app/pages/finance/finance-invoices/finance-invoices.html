@@ -37,6 +37,7 @@
                 <th>{{ t('finItem') }}</th>
                 <th>{{ t('finAccount') }}</th>
                 <th>{{ t('finDescription') }}</th>
+                <th>{{ t('finUnit') }}</th>
                 <th class="end">{{ t('finQuantity') }}</th>
                 <th class="end">{{ t('finUnitPrice') }}</th>
                 <th class="end">{{ t('finAmount') }}</th>
@@ -63,6 +64,16 @@
                     }
                   </td>
                   <td><input [name]="'desc' + i" maxlength="300" [(ngModel)]="line.description" [attr.aria-label]="t('finDescription')" /></td>
+                  <td>
+                    @if (line.item_id) {
+                      <input [name]="'unit' + i" [ngModel]="itemUnit(line)" disabled [attr.aria-label]="t('finUnit')" />
+                    } @else {
+                      <select [name]="'unit' + i" [(ngModel)]="line.unit" [attr.aria-label]="t('finUnit')">
+                        <option value="">—</option>
+                        @for (unit of unitsFor(line.unit); track unit) { <option [value]="unit">{{ unit }}</option> }
+                      </select>
+                    }
+                  </td>
                   <td><input [name]="'qty' + i" type="number" min="0.001" step="any" [(ngModel)]="line.quantity" [attr.aria-label]="t('finQuantity')" /></td>
                   <td><input [name]="'price' + i" type="number" min="0" step="any" [(ngModel)]="line.unit_price" [attr.aria-label]="t('finUnitPrice')" /></td>
                   <td class="num end">{{ money(lineAmount(line)) }}</td>
@@ -78,6 +89,11 @@
           <div class="grand"><span>{{ t('finTotal') }}</span><bdi class="num">{{ money(total()) }} {{ currency }}</bdi></div>
         </div>
         <label class="fin-field">{{ t('finNotes') }}<textarea name="notes" rows="2" maxlength="1000" [(ngModel)]="notes"></textarea></label>
+        @if (editingId && current(); as inv) {
+          <ng-container [ngTemplateOutlet]="attachments" [ngTemplateOutletContext]="{ $implicit: inv }" />
+        } @else if (!editingId) {
+          <p class="fin-hint">{{ t('finAttachLater') }}</p>
+        }
         @if (aboveLimit()) {
           <p class="fin-warn"><i class="fa-solid fa-circle-info" aria-hidden="true"></i> {{ t('finAboveLimit') }}</p>
         }
@@ -107,11 +123,12 @@
         </dl>
         <div class="fin-lines">
           <table>
-            <thead><tr><th>{{ t('finDescription') }}</th><th class="end">{{ t('finQuantity') }}</th><th class="end">{{ t('finUnitPrice') }}</th><th class="end">{{ t('finAmount') }}</th></tr></thead>
+            <thead><tr><th>{{ t('finDescription') }}</th><th>{{ t('finUnit') }}</th><th class="end">{{ t('finQuantity') }}</th><th class="end">{{ t('finUnitPrice') }}</th><th class="end">{{ t('finAmount') }}</th></tr></thead>
             <tbody>
               @for (line of inv.lines ?? []; track $index) {
                 <tr>
                   <td>{{ lineLabel(line) }}<small class="soft block-line">{{ line.item_id ? t('finItem') : finance.accountName(line.account_id) }}</small></td>
+                  <td>{{ line.unit || '—' }}</td>
                   <td class="num end">{{ qty(line.quantity) }}</td>
                   <td class="num end">{{ money(line.unit_price) }}</td>
                   <td class="num end">{{ money(line.amount) }}</td>
@@ -125,6 +142,7 @@
           <div><span>{{ t('finRemaining') }}</span><bdi class="num">{{ money(inv.remaining) }}</bdi></div>
           <div class="grand"><span>{{ t('finTotal') }}</span><bdi class="num">{{ money(inv.total) }} {{ inv.currency_code }}</bdi></div>
         </div>
+        <ng-container [ngTemplateOutlet]="attachments" [ngTemplateOutletContext]="{ $implicit: inv }" />
         @if (inv.payments?.length) {
           <h3 class="strong">{{ t('finPayments') }}</h3>
           <ul class="fin-list">
@@ -185,7 +203,11 @@
       <ul class="fin-list">
         @for (p of partiesListed(); track p.id) {
           <li [class.soft]="!p.active">
-            <span><span class="strong">{{ p.name }}</span>@if (p.phone) { <small class="soft"> · <bdi>{{ p.phone }}</bdi></small> }</span>
+            <span>
+              <span class="strong">{{ p.name }}</span>
+              @if (p.phone) { <small class="soft"> · <bdi>{{ p.phone }}</bdi></small> }
+              @if (p.sham_cash_wallet) { <small class="soft block-line"><bdi dir="ltr">{{ p.sham_cash_wallet }}</bdi>@if (p.sham_cash_name) { · {{ p.sham_cash_name }} }</small> }
+            </span>
             @if (canManage) {
               <span class="end">
                 <button class="text small" type="button" (click)="editParty(p)">{{ t('finEdit') }}</button>
@@ -202,6 +224,9 @@
           <fieldset class="fin-form" [disabled]="busy()">
             <label>{{ t('finName') }}<input name="partyName" maxlength="150" required [(ngModel)]="partyName" /></label>
             <label>{{ t('finPhone') }}<input name="partyPhone" maxlength="30" dir="ltr" [(ngModel)]="partyPhone" /></label>
+            <label>{{ t('finWallet') }}<input name="partyWallet" inputmode="numeric" maxlength="16" dir="ltr" [(ngModel)]="partyWallet" /></label>
+            <label>{{ t('finWalletName') }}<input name="partyWalletName" maxlength="150" [(ngModel)]="partyWalletName" /></label>
+            <p class="fin-hint wide">{{ t('finWalletHint') }}</p>
             <label class="wide">{{ t('finNotes') }}<input name="partyNotes" maxlength="1000" [(ngModel)]="partyNotes" /></label>
             <div class="fin-actions wide">
               <button class="primary" type="submit">{{ partyEditing ? t('save') : (partyView() === 'customer' ? t('finAddCustomer') : t('finAddSupplier')) }}</button>
@@ -212,6 +237,38 @@
     </section>
   }
 }
+
+<ng-template #attachments let-inv>
+  <h3 class="strong">{{ t('finAttachments') }}</h3>
+  <p class="fin-hint">{{ t('finAttachHint') }}</p>
+  <ul class="fin-list">
+    @for (file of inv.attachments ?? []; track file.id) {
+      <li>
+        @if (preview(file.id); as src) {
+          <img class="fin-shot" [src]="src" [alt]="file.original_name" />
+        }
+        <span>
+          <span class="strong">{{ file.original_name }}</span>
+          <small class="soft block-line"><bdi>{{ fileSize(file.size) }}</bdi></small>
+        </span>
+        <span class="end">
+          <button class="text small" type="button" [disabled]="busy()" (click)="downloadAttachment(file)">{{ t('finDownload') }}</button>
+          @if (canManage && inv.status === 'draft') {
+            <button class="text small remove" type="button" [disabled]="busy()" (click)="deleteAttachment(file)" [attr.aria-label]="t('finRemoveLine')"><i class="fa-solid fa-trash" aria-hidden="true"></i></button>
+          }
+        </span>
+      </li>
+    } @empty {
+      <li class="soft">{{ t('finNoAttachments') }}</li>
+    }
+  </ul>
+  @if (canManage && inv.status !== 'cancelled' && (inv.attachments?.length ?? 0) < 10) {
+    <label class="text">
+      <input class="vh" type="file" accept="image/jpeg,image/png,image/webp,application/pdf,.jpg,.jpeg,.png,.webp,.pdf" (change)="onAttachment($event)" />
+      <i class="fa-solid fa-image" aria-hidden="true"></i> {{ t('finAttach') }}
+    </label>
+  }
+</ng-template>
 
 <form class="filters" (ngSubmit)="load(1)">
   <label><span>{{ t('finType') }}</span>

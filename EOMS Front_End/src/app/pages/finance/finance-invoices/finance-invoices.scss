@@ -28,6 +28,20 @@
   color: var(--muted);
 }
 
+label.text {
+  width: fit-content;
+}
+
+.fin-shot {
+  width: 72px;
+  height: 72px;
+  object-fit: cover;
+  border: 1px solid var(--line);
+  border-radius: var(--r-control);
+  flex: none;
+  background: var(--ground);
+}
+
 .fin-actions.split {
   justify-content: space-between;
 }

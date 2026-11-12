@@ -49,6 +49,9 @@ export class FinanceCash extends FinanceTab {
   protected boxName = '';
   protected boxKind: BoxKind = 'cash';
   protected boxCurrency = 'SYP';
+  protected openingAmount: number | null = null;
+  protected openingDate = today();
+  protected openingAccount = 0;
 
   // Reverse
   protected reversing: FinTransaction | null = null;
@@ -61,6 +64,7 @@ export class FinanceCash extends FinanceTab {
 
   protected readonly pendingCount = computed(() => this.rows().filter((row) => row.status === 'pending').length);
   protected readonly activeBoxes = computed(() => this.finance.boxes().filter((box) => box.active));
+  protected readonly equityAccounts = computed(() => this.finance.postable('equity'));
 
   constructor() {
     super();
@@ -91,7 +95,13 @@ export class FinanceCash extends FinanceTab {
   }
 
   protected open(panel: Panel): void {
-    this.panel.set(this.panel() === panel ? 'none' : panel);
+    const opening = this.panel() !== panel;
+    this.panel.set(opening ? panel : 'none');
+    if (opening && panel === 'box') {
+      this.openingAmount = null;
+      this.openingDate = today();
+      this.openingAccount = 0;
+    }
   }
 
   protected boxCurrencyOf(id: number): string {
@@ -200,12 +210,23 @@ export class FinanceCash extends FinanceTab {
 
   protected async saveBox(): Promise<void> {
     if (!this.boxName.trim()) return;
+    const opening = amount(this.openingAmount);
     const done = await this.act(
-      () => this.finance.createBox({ name: this.boxName.trim(), kind: this.boxKind, currency_code: this.boxCurrency, parent_account_id: null }),
+      () =>
+        this.finance.createBox({
+          name: this.boxName.trim(),
+          kind: this.boxKind,
+          currency_code: this.boxCurrency,
+          parent_account_id: null,
+          ...(opening > 0
+            ? { opening_amount: opening, opening_date: this.openingDate || today(), ...(this.openingAccount ? { opening_account_id: this.openingAccount } : {}) }
+            : {}),
+        }),
       'finSavedBox',
     );
     if (!done) return;
     this.boxName = '';
+    this.openingAmount = null;
     this.panel.set('none');
     await Promise.all([this.finance.loadBoxes(), this.finance.loadAccounts()]);
   }

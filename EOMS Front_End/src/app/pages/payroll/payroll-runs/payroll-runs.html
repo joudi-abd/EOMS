@@ -90,6 +90,64 @@
     </form>
   }
 
+  @if (r.status === 'approved' && mayPay) {
+    <section class="panel">
+      <div class="panel-head"><div><h2>{{ t('prShamTitle') }}</h2><p>{{ t('prShamHint') }}</p></div></div>
+      <form (ngSubmit)="issueSham()">
+        <fieldset class="fin-form" [disabled]="busy()">
+          <label>{{ t('finCurrency') }}
+            <select name="shamCurrency" [(ngModel)]="shamCurrency">
+              <option value="SYP">SYP</option>
+              <option value="USD">USD</option>
+            </select>
+          </label>
+          <label>{{ t('finDate') }}<input name="shamDate" type="date" required [(ngModel)]="shamDate" /></label>
+          <label class="wide pr-skip"><input name="shamSkip" type="checkbox" [(ngModel)]="shamSkip" /> {{ t('prShamSkip') }}</label>
+          <div class="fin-actions wide">
+            <button class="primary" type="submit"><i class="fa-solid fa-file-excel" aria-hidden="true"></i> {{ t('prShamIssue') }}</button>
+          </div>
+        </fieldset>
+      </form>
+      <ul class="fin-list">
+        @for (file of sham(); track file.id) {
+          <li>
+            <span>
+              <span class="strong"><bdi dir="ltr">{{ file.doc_id }}</bdi></span>
+              <small class="soft block-line">
+                <span [class]="shamTone(file.status)">{{ shamLabel(file.status) }}</span>
+                · {{ file.currency_code }} · {{ date(file.pay_date) }} · {{ num(file.count) }} · <bdi>{{ money(file.total) }}</bdi>
+              </small>
+            </span>
+            <span class="end">
+              <button class="text small" type="button" [disabled]="busy()" (click)="downloadSham(file)">{{ t('prShamFile') }}</button>
+              @if (file.status === 'open') {
+                <button class="quiet" type="button" [disabled]="busy()" (click)="cancelSham(file)">{{ t('prShamCancel') }}</button>
+              }
+            </span>
+          </li>
+          @if (file.status === 'open') {
+            <li>
+              <form (ngSubmit)="confirmSham(file)">
+                <fieldset class="fin-form" [disabled]="busy()">
+                  <label>{{ t('finBox') }}
+                    <select [name]="'shamBox' + file.id" required [(ngModel)]="shamBox[file.id]">
+                      <option [ngValue]="0">—</option>
+                      @for (box of shamBoxes(file.currency_code); track box.id) { <option [ngValue]="box.id">{{ box.name }}</option> }
+                    </select>
+                  </label>
+                  @if (!shamBoxes(file.currency_code).length) { <p class="fin-hint wide">{{ t('prNoBox') }}</p> }
+                  <div class="fin-actions"><button class="primary" type="submit">{{ t('prShamConfirm') }}</button></div>
+                </fieldset>
+              </form>
+            </li>
+          }
+        } @empty {
+          <li class="soft">{{ t('prShamEmpty') }}</li>
+        }
+      </ul>
+    </section>
+  }
+
   <div class="fin-grid">
     <div class="fin-stack">
       <div class="seg" role="radiogroup" [attr.aria-label]="t('prFilter')">
@@ -254,7 +312,7 @@
                 @if (positive(pay.rounding_difference) || negative(pay.rounding_difference)) { <dt>{{ t('prRounding') }}</dt><dd><bdi>{{ money(pay.rounding_difference) }}</bdi></dd> }
                 @if (pay.reference) { <dt>{{ t('prReference') }}</dt><dd><bdi>{{ pay.reference }}</bdi></dd> }
               </dl>
-              @if (mayManage) {
+              @if (mayPay) {
                 <form (ngSubmit)="voidPayment()">
                   <fieldset class="fin-form" [disabled]="busy()">
                     <label>{{ t('finDate') }}<input name="voidDate" type="date" required [(ngModel)]="voidDate" /></label>

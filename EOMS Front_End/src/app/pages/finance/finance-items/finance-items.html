@@ -23,7 +23,12 @@
       <fieldset [disabled]="busy()">
         <div class="fin-form">
           <label class="wide">{{ t('finName') }}<input name="itemName" maxlength="150" required [(ngModel)]="itemName" /></label>
-          <label>{{ t('finUnit') }}<input name="itemUnit" maxlength="20" required [(ngModel)]="itemUnit" /></label>
+          <label>{{ t('finUnit') }}
+            <select name="itemUnit" required [(ngModel)]="itemUnit">
+              <option value="">—</option>
+              @for (unit of unitsFor(itemUnit); track unit) { <option [value]="unit">{{ unit }}</option> }
+            </select>
+          </label>
           <label>{{ t('finValuationCurrency') }}
             <select name="itemCurrency" [(ngModel)]="itemCurrency" [disabled]="!!editing">
               @for (c of records.currencies(); track c.code) { <option [value]="c.code">{{ c.code }}</option> }

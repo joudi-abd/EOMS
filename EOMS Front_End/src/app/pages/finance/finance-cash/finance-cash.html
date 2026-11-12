@@ -118,8 +118,16 @@
               @for (c of records.currencies(); track c.code) { <option [value]="c.code">{{ c.code }} · {{ c.name }}</option> }
             </select>
           </label>
+          <label>{{ t('finOpeningAmount') }}<input name="openingAmount" type="number" min="0" step="any" [(ngModel)]="openingAmount" /></label>
+          <label>{{ t('finOpeningDate') }}<input name="openingDate" type="date" [required]="(openingAmount ?? 0) > 0" [(ngModel)]="openingDate" /></label>
+          <label class="wide">{{ t('finOpeningAccount') }}
+            <select name="openingAccount" [(ngModel)]="openingAccount">
+              <option [ngValue]="0">{{ t('finOpeningDefault') }}</option>
+              @for (acc of equityAccounts(); track acc.id) { <option [ngValue]="acc.id">{{ acc.code }} · {{ acc.name }}</option> }
+            </select>
+          </label>
         </div>
-        <p class="fin-hint">{{ t('finBoxHint') }}</p>
+        <p class="fin-hint">{{ t('finBoxHint') }} {{ t('finOpeningHint') }}</p>
         <div class="fin-actions">
           <button class="text" type="button" (click)="open('none')">{{ t('cancel') }}</button>
           <button class="primary" type="submit">{{ t('save') }}</button>

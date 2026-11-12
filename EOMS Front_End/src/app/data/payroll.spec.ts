@@ -6,12 +6,14 @@ describe('Payroll store', () => {
   const get = vi.fn();
   const post = vi.fn();
   const del = vi.fn();
+  const filePost = vi.fn();
 
   beforeEach(() => {
     get.mockReset();
     post.mockReset().mockResolvedValue({ data: {} });
     del.mockReset().mockResolvedValue({});
-    TestBed.configureTestingModule({ providers: [{ provide: Api, useValue: { get, post, delete: del, blob: vi.fn() } }] });
+    filePost.mockReset().mockResolvedValue({ blob: new Blob(['x']), docId: '12345678' });
+    TestBed.configureTestingModule({ providers: [{ provide: Api, useValue: { get, post, delete: del, blob: vi.fn(), filePost } }] });
   });
 
   const summary = (totals: PayRunSummary['totals']): PayRunSummary => ({
@@ -40,5 +42,12 @@ describe('Payroll store', () => {
     const payroll = TestBed.inject(Payroll);
     await payroll.pay(3, { currency: 'SYP', method: 'cash', box_id: 2, paid_at: '2026-11-09', reference: null, note: null });
     expect(post).toHaveBeenCalledWith('/payroll/lines/3/payment', expect.objectContaining({ box_id: 2, method: 'cash' }));
+  });
+
+  it('issues a Sham Cash file for one currency', async () => {
+    const payroll = TestBed.inject(Payroll);
+    const file = await payroll.shamCash(4, { currency: 'SYP', date: '2026-11-11', skip_missing: true });
+    expect(filePost).toHaveBeenCalledWith('/payroll/runs/4/shamcash', { currency: 'SYP', date: '2026-11-11', skip_missing: true });
+    expect(file.docId).toBe('12345678');
   });
 });

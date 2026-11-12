@@ -1,29 +1,18 @@
 <main class="work" id="content">
-  @if (!session.can('finance')) {
-    <h1>{{ t('finance') }}</h1>
+  @if (!session.has('finance.view')) {
+    <h1>{{ t(title) }}</h1>
     <p class="empty">{{ t('noAccess') }}</p>
     <a class="primary" routerLink="/">{{ t('back') }}</a>
   } @else {
     <app-notice />
     <header class="heading">
       <div>
-        <h1>{{ t('finance') }}</h1>
-        <p class="lede">{{ t('finLede') }}</p>
-      </div>
-      <div class="actions">
-        <a class="text" routerLink="/modules/finance/rates"><i class="fa-solid fa-coins" aria-hidden="true"></i> {{ t('setTitle') }}</a>
+        <h1>{{ t(title) }}</h1>
+        <p class="lede">{{ t(lede) }}</p>
       </div>
     </header>
 
-    <nav class="tabs" [attr.aria-label]="t('finance')">
-      @for (item of views; track item.id) {
-        <a [routerLink]="[]" [queryParams]="{ view: item.id === 'cash' ? null : item.id }" [class.active]="view() === item.id" [attr.aria-current]="view() === item.id ? 'page' : null">
-          {{ t(item.label) }}
-        </a>
-      }
-    </nav>
-
-    @switch (view()) {
+    @switch (view) {
       @case ('cash') { <app-finance-cash /> }
       @case ('invoices') { <app-finance-invoices /> }
       @case ('items') { <app-finance-items /> }

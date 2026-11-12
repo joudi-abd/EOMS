@@ -14,6 +14,8 @@ import {
   PayRunSummary,
   Payroll,
   RunStatus,
+  ShamExport,
+  ShamStatus,
   totalsList,
 } from '../../../data/payroll';
 import { FinanceTab } from '../../finance/finance-tab';
@@ -58,8 +60,8 @@ function thisMonth(): string {
 }
 
 /**
- * Monthly pay runs on `/payroll`: finance prepares a draft from attendance and contracts, the company manager reviews
- * proposed deductions and approves, then finance records each payment (which posts a finance transaction).
+ * Monthly pay runs on `/payroll`: HR prepares a draft and sends it to finance, finance reviews and approves,
+ * then finance pays each line or confirms a Sham Cash file.
  */
 @Component({
   selector: 'app-payroll-runs',
@@ -78,6 +80,7 @@ export class PayrollRuns extends FinanceTab {
   protected readonly panel = signal<Panel>('none');
   protected readonly loading = signal(false);
   protected readonly filter = signal<LineFilter>('all');
+  protected readonly sham = signal<ShamExport[]>([]);
 
   protected newMonth = thisMonth();
   protected returnNote = '';
@@ -102,12 +105,22 @@ export class PayrollRuns extends FinanceTab {
   protected voidDate = today();
   protected voidReason = '';
 
+  // Sham Cash file, after the run is approved.
+  protected shamCurrency: 'SYP' | 'USD' = 'SYP';
+  protected shamDate = today();
+  protected shamSkip = false;
+  protected shamBox: Record<number, number> = {};
+
   protected get mayManage(): boolean {
     return this.session.has('payroll.manage');
   }
 
   protected get mayApprove(): boolean {
     return this.session.has('payroll.approve');
+  }
+
+  protected get mayPay(): boolean {
+    return this.session.has('payroll.pay');
   }
 
   protected readonly lines = computed(() => {
@@ -152,9 +165,11 @@ export class PayrollRuns extends FinanceTab {
 
   protected async open(id: number): Promise<void> {
     await this.quiet(async () => {
-      this.run.set(await this.payroll.run(id));
+      const detail = await this.payroll.run(id);
+      this.run.set(detail);
       this.line.set(null);
       if (this.panel() === 'line') this.panel.set('none');
+      await this.loadSham(detail);
     });
   }
 
@@ -168,7 +183,83 @@ export class PayrollRuns extends FinanceTab {
       this.runs.update((rows) => rows.map((row) => (row.id === detail.id ? detail : row)));
       const open = this.line();
       if (open && this.panel() === 'line') this.line.set(await this.payroll.line(detail.id, open.id));
+      await this.loadSham(detail);
     });
+  }
+
+  private async loadSham(run: PayRunDetail): Promise<void> {
+    if (!this.mayPay || run.status !== 'approved') {
+      this.sham.set([]);
+      return;
+    }
+    try {
+      const rows = await this.payroll.shamExports(run.id);
+      this.sham.set(rows);
+      for (const row of rows) if (this.shamBox[row.id] == null) this.shamBox[row.id] = 0;
+    } catch {
+      this.sham.set([]);
+    }
+  }
+
+  protected shamBoxes(currency: string) {
+    return this.finance.boxes().filter((box) => box.active && box.kind === 'sham_cash' && box.currency_code === currency);
+  }
+
+  protected shamLabel(status: ShamStatus): string {
+    const key: Record<ShamStatus, CopyKey> = { open: 'prShamOpen', confirmed: 'prShamConfirmed', cancelled: 'prShamCancelled' };
+    return this.t(key[status]);
+  }
+
+  protected shamTone(status: ShamStatus): string {
+    if (status === 'confirmed') return 'ok';
+    if (status === 'open') return 'wait';
+    return 'mute';
+  }
+
+  protected async issueSham(): Promise<void> {
+    const run = this.run();
+    if (!run) return;
+    this.busy.set(true);
+    try {
+      const file = await this.payroll.shamCash(run.id, { currency: this.shamCurrency, date: this.shamDate, skip_missing: this.shamSkip });
+      saveFile(file.blob, `shamcash_${file.docId ?? run.month}.xlsx`);
+      this.office.done('prShamIssued');
+      await this.loadSham(run);
+    } catch (error) {
+      this.office.fail(error);
+    } finally {
+      this.busy.set(false);
+    }
+  }
+
+  protected async downloadSham(file: ShamExport): Promise<void> {
+    this.busy.set(true);
+    try {
+      saveFile(await this.payroll.shamFile(file.id), `shamcash_${file.doc_id}.xlsx`);
+    } catch (error) {
+      this.office.fail(await revealed(error));
+    } finally {
+      this.busy.set(false);
+    }
+  }
+
+  protected async confirmSham(file: ShamExport): Promise<void> {
+    const box = this.shamBox[file.id] ?? 0;
+    if (!box) {
+      this.warn('prPayIncomplete');
+      return;
+    }
+    const run = this.run();
+    const ok = await this.act(() => this.payroll.confirmSham(file.id, box), 'prShamConfirmedDone');
+    if (ok && run) {
+      await this.refresh();
+    }
+  }
+
+  protected async cancelSham(file: ShamExport): Promise<void> {
+    const run = this.run();
+    const ok = await this.act(() => this.payroll.cancelSham(file.id), 'prShamCancelledDone');
+    if (ok && run) await this.loadSham(run);
   }
 
   protected runLabel(status: RunStatus): string {
@@ -373,11 +464,11 @@ export class PayrollRuns extends FinanceTab {
   }
 
   protected canDecideAdjustment(item: PayRunItem): boolean {
-    return item.origin === 'adjustment' && item.status === 'proposed' && this.run()?.status === 'draft' && this.mayManage;
+    return item.origin === 'adjustment' && item.status === 'proposed' && this.run()?.status === 'submitted' && this.mayApprove;
   }
 
   protected canReview(item: PayRunItem): boolean {
-    return item.origin === 'proposed' && this.run()?.status === 'submitted' && this.mayApprove;
+    return (item.origin === 'proposed' || item.origin === 'manual') && item.status === 'proposed' && this.run()?.status === 'submitted' && this.mayApprove;
   }
 
   protected hasPendingAdjustment(line: PayLineDetail): boolean {
@@ -389,7 +480,7 @@ export class PayrollRuns extends FinanceTab {
   }
 
   protected canPay(line: PayLineDetail): boolean {
-    return this.run()?.status === 'approved' && this.mayManage && !line.payment && amount(line.net) > 0;
+    return this.run()?.status === 'approved' && this.mayPay && !line.payment && amount(line.net) > 0;
   }
 
   protected async pay(): Promise<void> {

@@ -1,16 +1,15 @@
 <main class="work" id="content">
-  @if (!session.can('finance')) {
-    <h1>{{ t('finance') }}</h1>
+  @if (!session.has('finance.view')) {
+    <h1>{{ t('finSettings') }}</h1>
     <p class="empty">{{ t('noAccess') }}</p>
     <a class="primary" routerLink="/">{{ t('back') }}</a>
   } @else {
     <app-notice />
     <header class="heading">
       <div>
-        <h1>{{ t('setTitle') }}</h1>
-        <p class="lede">{{ t('setLede') }}</p>
+        <h1>{{ t('finSettings') }}</h1>
+        <p class="lede">{{ t('ledeFinSettings') }}</p>
       </div>
-      <div class="actions"><a class="text" routerLink="/modules/finance">{{ t('finBackToFinance') }}</a></div>
     </header>
 
     @if (error()) { <p class="warn" role="alert"><i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i> {{ error() }}</p> }

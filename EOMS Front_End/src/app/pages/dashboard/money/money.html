@@ -3,7 +3,7 @@
     <section class="panel" data-print>
       <header class="panel-head">
         <div><h2>{{ t('dashMoneyTitle') }}</h2><p>{{ t('dashMoneyLede') }}</p></div>
-        <a class="text" routerLink="/modules/finance">{{ t('dashOpen') }}</a>
+        <a class="text" routerLink="/modules/finCash">{{ t('dashOpen') }}</a>
       </header>
       @if (boxes() === null) {
         <p class="empty">{{ t('loading') }}</p>
@@ -19,13 +19,13 @@
           }
         </ul>
         <div class="facts">
-          <a routerLink="/modules/finance" [queryParams]="{}" [class.wait]="pendingTransactions() > 0">
+          <a routerLink="/modules/finCash" [class.wait]="pendingTransactions() > 0">
             <strong>{{ num(pendingTransactions()) }}</strong><span>{{ t('dashPendingTransactions') }}</span>
           </a>
-          <a routerLink="/modules/finance" [queryParams]="{ view: 'invoices' }" [class.wait]="pendingInvoices() > 0">
+          <a routerLink="/modules/finInvoices" [class.wait]="pendingInvoices() > 0">
             <strong>{{ num(pendingInvoices()) }}</strong><span>{{ t('dashPendingInvoices') }}</span>
           </a>
-          <a routerLink="/modules/finance" [queryParams]="{ view: 'invoices' }" [class.late]="overdueInvoices() > 0">
+          <a routerLink="/modules/finInvoices" [class.late]="overdueInvoices() > 0">
             <strong>{{ num(overdueInvoices()) }}</strong><span>{{ t('dashOverdueInvoices') }}</span>
           </a>
         </div>

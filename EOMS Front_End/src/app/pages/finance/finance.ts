@@ -1,5 +1,4 @@
-import { Component, computed, inject } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
+import { Component, inject } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { Session } from '../../core/access/session';
 import { CopyKey } from '../../core/copy';
@@ -16,37 +15,37 @@ import { FinanceReports } from './finance-reports/finance-reports';
 
 type View = 'cash' | 'invoices' | 'items' | 'ledger' | 'reports';
 
-const views: { id: View; label: CopyKey }[] = [
-  { id: 'cash', label: 'finTabCash' },
-  { id: 'invoices', label: 'finTabInvoices' },
-  { id: 'items', label: 'finTabItems' },
-  { id: 'ledger', label: 'finTabLedger' },
-  { id: 'reports', label: 'finTabReports' },
+const views: { id: View; label: CopyKey; lede: CopyKey }[] = [
+  { id: 'cash', label: 'finCash', lede: 'ledeFinCash' },
+  { id: 'invoices', label: 'finInvoices', lede: 'ledeFinInvoices' },
+  { id: 'items', label: 'finItems', lede: 'ledeFinItems' },
+  { id: 'ledger', label: 'finLedger', lede: 'ledeFinLedger' },
+  { id: 'reports', label: 'finReports', lede: 'ledeFinReports' },
 ];
 
-/** The finance area: one heading, a row of views, and the chosen view. The view lives in `?view=` so a link opens it. */
+/** One finance screen. The sidebar chooses it; the route data names which view this page shows. */
 @Component({
   selector: 'app-finance',
   imports: [RouterLink, Notice, FinanceCash, FinanceInvoices, FinanceItems, FinanceLedger, FinanceReports],
   templateUrl: './finance.html',
-  styleUrl: './finance.scss',
 })
 export class FinancePage extends Ui {
   protected readonly session = inject(Session);
   private readonly finance = inject(Finance);
   private readonly office = inject(Office);
   private readonly records = inject(Records);
-  private readonly params = toSignal(inject(ActivatedRoute).queryParamMap);
-  protected readonly views = views;
-
-  protected readonly view = computed<View>(() => {
-    const chosen = this.params()?.get('view');
-    return views.some((item) => item.id === chosen) ? (chosen as View) : 'cash';
-  });
+  protected readonly view: View;
+  protected readonly title: CopyKey;
+  protected readonly lede: CopyKey;
 
   constructor() {
     super();
-    if (this.session.can('finance')) void this.loadLookups();
+    const chosen = inject(ActivatedRoute).snapshot.data['section'] as View | undefined;
+    const section = views.find((item) => item.id === chosen) ?? views[0];
+    this.view = section.id;
+    this.title = section.label;
+    this.lede = section.lede;
+    if (this.session.has('finance.view')) void this.loadLookups();
   }
 
   /** Every view reads the same accounts, boxes, parties and items, so they load once here. */

@@ -1,12 +1,15 @@
-import { Component, computed, signal } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
+import { Component, computed, DestroyRef, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { amount, cleanQuery, FinInvoice, FinParty, InvoiceInput, InvoiceStatus, InvoiceType, PartyKind, today } from '../../../data/finance';
+import { revealed, saveFile } from '../../../core/api/api';
+import { amount, cleanQuery, FinAttachment, FinInvoice, FinParty, InvoiceInput, InvoiceStatus, InvoiceType, PartyKind, today, unitsFor } from '../../../data/finance';
 import { FinanceTab } from '../finance-tab';
 
 interface DraftLine {
   item_id: number;
   account_id: number;
   description: string;
+  unit: string;
   quantity: number | null;
   unit_price: number | null;
 }
@@ -14,7 +17,7 @@ interface DraftLine {
 type Panel = 'none' | 'editor' | 'view' | 'cancel' | 'party';
 
 function blankLine(): DraftLine {
-  return { item_id: 0, account_id: 0, description: '', quantity: 1, unit_price: null };
+  return { item_id: 0, account_id: 0, description: '', unit: '', quantity: 1, unit_price: null };
 }
 
 function plusDays(iso: string, days: number): string {
@@ -26,12 +29,13 @@ function plusDays(iso: string, days: number): string {
 /** Sale and purchase invoices, their approval, payments and cancellation, plus the customers and suppliers they name. */
 @Component({
   selector: 'app-finance-invoices',
-  imports: [FormsModule],
+  imports: [FormsModule, NgTemplateOutlet],
   templateUrl: './finance-invoices.html',
   styleUrl: './finance-invoices.scss',
   host: { class: 'ledger' },
 })
 export class FinanceInvoices extends FinanceTab {
+  protected readonly unitsFor = unitsFor;
   protected readonly statuses: InvoiceStatus[] = ['draft', 'pending', 'posted', 'cancelled'];
   protected readonly rows = signal<FinInvoice[]>([]);
   protected readonly page = signal(1);
@@ -67,6 +71,16 @@ export class FinanceInvoices extends FinanceTab {
   protected partyName = '';
   protected partyPhone = '';
   protected partyNotes = '';
+  protected partyWallet = '';
+  protected partyWalletName = '';
+  private readonly previews = signal<Record<number, string>>({});
+  private previewTicket = 0;
+
+  constructor() {
+    super();
+    inject(DestroyRef).onDestroy(() => this.clearPreviews());
+    void this.load(1);
+  }
 
   protected readonly partiesOfType = computed(() => {
     const kind: PartyKind = this.type() === 'sale' ? 'customer' : 'supplier';
@@ -74,11 +88,6 @@ export class FinanceInvoices extends FinanceTab {
   });
 
   protected readonly partiesListed = computed(() => this.finance.parties().filter((item) => item.kind === this.partyView()));
-
-  constructor() {
-    super();
-    void this.load(1);
-  }
 
   protected async load(page: number): Promise<void> {
     this.loading.set(true);
@@ -103,6 +112,7 @@ export class FinanceInvoices extends FinanceTab {
   }
 
   protected close(): void {
+    this.clearPreviews();
     this.panel.set('none');
   }
 
@@ -126,9 +136,11 @@ export class FinanceInvoices extends FinanceTab {
 
   protected async show(row: FinInvoice): Promise<void> {
     await this.quiet(async () => {
-      this.current.set(await this.finance.invoice(row.id));
+      const invoice = await this.finance.invoice(row.id);
+      this.current.set(invoice);
       this.decisionNote = '';
       this.panel.set('view');
+      await this.loadPreviews(invoice);
     });
   }
 
@@ -150,10 +162,12 @@ export class FinanceInvoices extends FinanceTab {
     this.currency = this.records.currencies()[0]?.code ?? 'SYP';
     this.notes = '';
     this.lines.set([blankLine()]);
+    this.current.set(null);
+    this.clearPreviews();
     this.panel.set('editor');
   }
 
-  protected startEdit(invoice: FinInvoice): void {
+  protected async startEdit(invoice: FinInvoice): Promise<void> {
     this.editingId = invoice.id;
     this.editingVersion = invoice.version;
     this.type.set(invoice.type);
@@ -167,12 +181,19 @@ export class FinanceInvoices extends FinanceTab {
         item_id: line.item_id ?? 0,
         account_id: line.account_id ?? 0,
         description: line.description ?? '',
+        unit: line.unit ?? '',
         quantity: amount(line.quantity),
         unit_price: amount(line.unit_price),
       })),
     );
     if (!this.lines().length) this.lines.set([blankLine()]);
     this.panel.set('editor');
+    await this.quiet(async () => {
+      const full = await this.finance.invoice(invoice.id);
+      this.current.set(full);
+      this.editingVersion = full.version;
+      await this.loadPreviews(full);
+    });
   }
 
   protected addLine(): void {
@@ -194,11 +215,17 @@ export class FinanceInvoices extends FinanceTab {
   }
 
   protected itemPicked(line: DraftLine): void {
-    if (line.item_id) {
+    const item = this.finance.items().find((row) => row.id === line.item_id);
+    if (item) {
       if (this.type() === 'purchase') line.account_id = 0;
-      if (!line.description) line.description = this.finance.items().find((item) => item.id === line.item_id)?.name ?? '';
+      if (!line.description) line.description = item.name;
+      line.unit = item.unit;
     }
     this.lines.update((rows) => [...rows]);
+  }
+
+  protected itemUnit(line: DraftLine): string {
+    return this.finance.items().find((row) => row.id === line.item_id)?.unit ?? line.unit;
   }
 
   protected lineAmount(line: DraftLine): number {
@@ -221,6 +248,7 @@ export class FinanceInvoices extends FinanceTab {
         item_id: line.item_id || null,
         account_id: line.account_id || null,
         description: line.description.trim() || null,
+        ...(line.item_id ? {} : { unit: line.unit.trim() || null }),
         quantity: amount(line.quantity),
         unit_price: amount(line.unit_price),
       }));
@@ -250,17 +278,17 @@ export class FinanceInvoices extends FinanceTab {
       saved = (await this.finance.saveInvoice(body, this.editingId ?? undefined)).data;
       if (submit && saved) saved = (await this.finance.submitInvoice(saved.id)).data;
     }, submit ? 'finInvoiceSubmitted' : 'finInvoiceSaved');
+    const kept = saved as FinInvoice | null;
     if (!ok) {
       // A save that went through before a refused submit leaves a draft with a new version: follow it.
-      const kept = saved as FinInvoice | null;
       if (kept) {
         this.editingId = kept.id;
         this.editingVersion = kept.version;
+        this.current.set(kept);
       }
       return;
     }
-    this.panel.set('none');
-    await Promise.all([this.load(1), this.finance.loadItems()]);
+    if (kept) await this.refreshCurrent(kept.id);
   }
 
   protected async submit(invoice: FinInvoice): Promise<void> {
@@ -298,8 +326,10 @@ export class FinanceInvoices extends FinanceTab {
 
   private async refreshCurrent(id: number): Promise<void> {
     await this.quiet(async () => {
-      this.current.set(await this.finance.invoice(id));
+      const invoice = await this.finance.invoice(id);
+      this.current.set(invoice);
       this.panel.set('view');
+      await this.loadPreviews(invoice);
     });
     await Promise.all([this.load(this.page()), this.finance.loadItems()]);
   }
@@ -311,6 +341,8 @@ export class FinanceInvoices extends FinanceTab {
     this.partyName = '';
     this.partyPhone = '';
     this.partyNotes = '';
+    this.partyWallet = '';
+    this.partyWalletName = '';
     this.panel.set(this.panel() === 'party' ? 'none' : 'party');
   }
 
@@ -319,12 +351,25 @@ export class FinanceInvoices extends FinanceTab {
     this.partyName = party.name;
     this.partyPhone = party.phone ?? '';
     this.partyNotes = party.notes ?? '';
+    this.partyWallet = party.sham_cash_wallet ?? '';
+    this.partyWalletName = party.sham_cash_name ?? '';
   }
 
   protected async saveParty(): Promise<void> {
     if (!this.partyName.trim()) return;
+    const wallet = this.partyWallet.replace(/\s/g, '');
+    if (wallet && !/^\d{16}$/.test(wallet)) {
+      this.warn('finWalletHint');
+      return;
+    }
     const editing = this.partyEditing;
-    const fields = { name: this.partyName.trim(), phone: this.partyPhone.trim() || null, notes: this.partyNotes.trim() || null };
+    const fields = {
+      name: this.partyName.trim(),
+      phone: this.partyPhone.trim() || null,
+      notes: this.partyNotes.trim() || null,
+      sham_cash_wallet: wallet || null,
+      sham_cash_name: this.partyWalletName.trim() || null,
+    };
     const ok = await this.act(
       () => (editing ? this.finance.updateParty(editing.id, fields) : this.finance.createParty({ kind: this.partyView(), ...fields })),
       'finPartySaved',
@@ -334,7 +379,95 @@ export class FinanceInvoices extends FinanceTab {
     this.partyName = '';
     this.partyPhone = '';
     this.partyNotes = '';
+    this.partyWallet = '';
+    this.partyWalletName = '';
     await this.finance.loadParties();
+  }
+
+  protected fileSize(bytes: number): string {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
+
+  protected async onAttachment(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+    const invoice = this.current();
+    if (!file || !invoice) return;
+    if (file.size > 10 * 1024 * 1024) {
+      this.warn('finAttachHint');
+      return;
+    }
+    const ok = await this.act(() => this.finance.uploadAttachment(invoice.id, file), 'finAttachmentAdded');
+    if (ok) await this.reloadAttachments(invoice.id);
+  }
+
+  protected async downloadAttachment(file: FinAttachment): Promise<void> {
+    const invoice = this.current();
+    if (!invoice) return;
+    this.busy.set(true);
+    try {
+      saveFile(await this.finance.attachmentFile(invoice.id, file.id), file.original_name);
+    } catch (error) {
+      this.office.fail(await revealed(error));
+    } finally {
+      this.busy.set(false);
+    }
+  }
+
+  protected async deleteAttachment(file: FinAttachment): Promise<void> {
+    const invoice = this.current();
+    if (!invoice) return;
+    const ok = await this.act(() => this.finance.deleteAttachment(invoice.id, file.id), 'finAttachmentDeleted');
+    if (ok) await this.reloadAttachments(invoice.id);
+  }
+
+  protected preview(id: number): string {
+    return this.previews()[id] ?? '';
+  }
+
+  private async reloadAttachments(id: number): Promise<void> {
+    await this.quiet(async () => {
+      const invoice = await this.finance.invoice(id);
+      this.current.set(invoice);
+      await this.loadPreviews(invoice);
+    });
+  }
+
+  private async loadPreviews(invoice: FinInvoice): Promise<void> {
+    const ticket = ++this.previewTicket;
+    this.dropPreviewUrls();
+    const next: Record<number, string> = {};
+    await Promise.all(
+      (invoice.attachments ?? []).filter((file) => this.isImage(file)).map(async (file) => {
+        try {
+          next[file.id] = URL.createObjectURL(await this.finance.attachmentFile(invoice.id, file.id));
+        } catch {
+          /* The name still shows when the preview cannot be fetched. */
+        }
+      }),
+    );
+    if (ticket !== this.previewTicket) {
+      for (const url of Object.values(next)) URL.revokeObjectURL(url);
+      return;
+    }
+    this.previews.set(next);
+  }
+
+  private clearPreviews(): void {
+    this.previewTicket += 1;
+    this.dropPreviewUrls();
+  }
+
+  private dropPreviewUrls(): void {
+    for (const url of Object.values(this.previews())) URL.revokeObjectURL(url);
+    this.previews.set({});
+  }
+
+  private isImage(file: FinAttachment): boolean {
+    return (file.mime ?? '').startsWith('image/') || /\.(jpe?g|png|webp)$/i.test(file.original_name);
   }
 
   protected async toggleParty(party: FinParty): Promise<void> {

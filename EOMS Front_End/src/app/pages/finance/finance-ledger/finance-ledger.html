@@ -88,11 +88,21 @@
         <div class="fin-totals">
           <div><span>{{ t('finDebit') }}</span><bdi class="num">{{ money(debitTotal()) }}</bdi></div>
           <div><span>{{ t('finCredit') }}</span><bdi class="num">{{ money(creditTotal()) }}</bdi></div>
-          <div class="grand"><span>{{ t('finDifference') }}</span><span [class]="balanced() ? 'fin-balanced' : 'fin-unbalanced'">{{ balanced() ? t('finBalanced') : money(debitTotal() - creditTotal()) }}</span></div>
+          <div class="grand">
+            <span>{{ t('finDifference') }}</span>
+            @if (balanced()) {
+              <span class="fin-balanced">{{ t('finBalanced') }}</span>
+            } @else if (difference() !== 0) {
+              <span [class]="difference() > 0 ? 'fin-balanced' : 'fin-unbalanced'"><bdi>{{ money(difference()) }}</bdi> · {{ difference() > 0 ? t('finDiffCompany') : t('finDiffCustomer') }}</span>
+            } @else {
+              <span>—</span>
+            }
+          </div>
         </div>
+        <p class="fin-hint">{{ t('finEntryHint') }}</p>
         <div class="fin-actions">
           <button class="text" type="button" (click)="open('none')">{{ t('cancel') }}</button>
-          <button class="primary" type="submit" [disabled]="!balanced()">{{ t('finPostEntry') }}</button>
+          <button class="primary" type="submit">{{ t('finPostEntry') }}</button>
         </div>
       </fieldset>
     </form>
@@ -173,7 +183,7 @@
             <tr [class.picked]="openEntry() === entry.id">
               <td><button class="link-button" type="button" [attr.aria-expanded]="openEntry() === entry.id" (click)="toggleEntry(entry.id)"><bdi>{{ entry.number }}</bdi></button></td>
               <td class="num">{{ short(entry.date) }}</td>
-              <td>{{ entry.description }}@if (entry.reverses_id) { <small class="soft block-line">{{ t('finIsReversal') }}</small> }</td>
+              <td>{{ entry.description }}@if (entry.reverses_id) { <small class="soft block-line">{{ t('finIsReversal') }}</small> }@if (hasDifference(entry)) { <small class="block-line" [class]="gap(entry) > 0 ? 'fin-balanced' : 'fin-unbalanced'">{{ t('finDifference') }} <bdi>{{ money(entry.difference) }}</bdi> · {{ gap(entry) > 0 ? t('finDiffCompany') : t('finDiffCustomer') }}</small> }</td>
               <td>{{ sourceLabel(entry.source_type) }}</td>
               <td class="num end"><bdi>{{ money(entryTotal(entry)) }} {{ entry.currency_code }}</bdi></td>
               <td class="fin-row-actions">

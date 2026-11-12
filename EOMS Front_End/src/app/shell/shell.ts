@@ -14,7 +14,7 @@ import { moduleIcon } from './icons';
 const navGroups: { label: CopyKey; ids: ModuleId[] }[] = [
   { label: 'navPeople', ids: ['employees', 'attendance', 'leave', 'requests', 'payroll', 'hrSettings'] },
   { label: 'navWork', ids: ['tasks', 'projects', 'clients', 'procurement', 'documents', 'assets', 'meetings'] },
-  { label: 'navMoney', ids: ['finance'] },
+  { label: 'navMoney', ids: ['finCash', 'finInvoices', 'finItems', 'finLedger', 'finReports', 'finSettings'] },
   { label: 'navSystem', ids: ['access', 'alerts'] },
 ];
 
@@ -87,11 +87,8 @@ export class Shell {
       jobs.push(total('/payroll/runs', { status: 'submitted' }).then((value) => void (counts.payroll = value)));
     }
     if (this.session.has('finance.approve')) {
-      jobs.push(
-        Promise.all([total('/finance/transactions', { status: 'pending' }), total('/finance/invoices', { status: 'pending' })]).then(
-          ([transactions, invoices]) => void (counts.finance = transactions + invoices),
-        ),
-      );
+      jobs.push(total('/finance/transactions', { status: 'pending' }).then((value) => void (counts.finCash = value)));
+      jobs.push(total('/finance/invoices', { status: 'pending' }).then((value) => void (counts.finInvoices = value)));
     }
     await Promise.all(jobs);
     this.waiting.set(counts);

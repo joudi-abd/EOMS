@@ -35,6 +35,16 @@ export class Api {
     return firstValueFrom(this.http.get(apiBase + path, { params, responseType: 'blob' }));
   }
 
+  /** A POST that returns a file. Sham Cash also sends the document id in `X-Doc-Id`. */
+  async filePost(path: string, body: unknown = {}): Promise<{ blob: Blob; docId: string | null }> {
+    try {
+      const response = await firstValueFrom(this.http.post(apiBase + path, body, { observe: 'response', responseType: 'blob' }));
+      return { blob: response.body ?? new Blob(), docId: response.headers.get('X-Doc-Id') };
+    } catch (error) {
+      throw await revealed(error);
+    }
+  }
+
   /** Walks every page of a paginated list. */
   async all<T>(path: string, params: Query = {}): Promise<T[]> {
     const rows: T[] = [];

@@ -1,6 +1,6 @@
 import { Component, computed, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { amount, FinItem, FinStockMove, today } from '../../../data/finance';
+import { amount, FinItem, FinStockMove, today, unitsFor } from '../../../data/finance';
 import { FinanceTab } from '../finance-tab';
 
 type Panel = 'none' | 'item' | 'adjust' | 'moves';
@@ -22,6 +22,7 @@ export class FinanceItems extends FinanceTab {
   protected editing: FinItem | null = null;
   protected itemName = '';
   protected itemUnit = '';
+  protected readonly unitsFor = unitsFor;
   protected itemCurrency = 'SYP';
   protected itemRevenue = 0;
 

@@ -186,7 +186,12 @@ export const areaNeeds: Record<ModuleId, readonly Permission[] | 'open'> = {
   projects: ['projects.view'],
   // The backend has no client permission yet; clients follow the projects and finance they belong to.
   clients: ['projects.view', 'finance.view'],
-  finance: ['finance.view'],
+  finCash: ['finance.view'],
+  finInvoices: ['finance.view'],
+  finItems: ['finance.view'],
+  finLedger: ['finance.view'],
+  finReports: ['finance.view'],
+  finSettings: ['finance.view'],
   procurement: ['purchases.view'],
   documents: ['documents.view'],
   assets: ['assets.view'],

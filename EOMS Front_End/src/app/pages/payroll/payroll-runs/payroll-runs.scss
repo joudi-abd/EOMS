@@ -107,6 +107,18 @@
   font-size: 15px;
 }
 
+.fin-form label.pr-skip {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink);
+}
+
+.fin-form label.pr-skip input {
+  width: auto;
+}
+
 .pr-how {
   margin: 0;
   padding-inline-start: 20px;

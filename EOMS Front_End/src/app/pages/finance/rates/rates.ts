@@ -12,7 +12,7 @@ import { ExchangeRateRow, Server } from '../../../data/server';
 import { Notice } from '../../../shared/notice/notice';
 
 /** The setting groups the backend seeds (`sys_settings.setting_group`). */
-const groups = ['company', 'attendance', 'finance', 'payroll'] as const;
+const groups = ['finance', 'company', 'attendance', 'payroll'] as const;
 type Group = (typeof groups)[number];
 
 interface SettingRow {
@@ -49,7 +49,7 @@ export class Rates extends Ui {
   protected readonly busy = signal(false);
   protected readonly error = signal('');
 
-  protected readonly group = signal<Group>('company');
+  protected readonly group = signal<Group>('finance');
   protected readonly settings = signal<SettingRow[]>([]);
   protected readonly settingsLoading = signal(false);
   protected readonly defaultCurrency = signal('');
@@ -58,7 +58,7 @@ export class Rates extends Ui {
     super();
     void this.records.loadCurrencies().then(() => this.lookup());
     if (this.session.has('settings.view')) {
-      void this.loadGroup('company');
+      void this.loadGroup('finance');
       void this.loadDefaultCurrency();
     }
   }

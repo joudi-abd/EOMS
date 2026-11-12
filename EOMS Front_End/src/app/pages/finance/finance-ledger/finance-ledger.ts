@@ -190,7 +190,7 @@ export class FinanceLedger extends FinanceTab {
   }
 
   protected removeLine(index: number): void {
-    this.lines.update((rows) => (rows.length > 2 ? rows.filter((_, i) => i !== index) : rows));
+    this.lines.update((rows) => (rows.length > 1 ? rows.filter((_, i) => i !== index) : rows));
   }
 
   protected touch(): void {
@@ -209,6 +209,19 @@ export class FinanceLedger extends FinanceTab {
     return this.debitTotal() > 0 && this.debitTotal() === this.creditTotal();
   }
 
+  /** Signed gap the server posts to the entry-differences account: positive for the company, negative for the customer. */
+  protected difference(): number {
+    return Math.round((this.debitTotal() - this.creditTotal()) * 100) / 100;
+  }
+
+  protected hasDifference(entry: FinEntry): boolean {
+    return entry.difference != null && amount(entry.difference) !== 0;
+  }
+
+  protected gap(entry: FinEntry): number {
+    return amount(entry.difference);
+  }
+
   protected async saveEntry(): Promise<void> {
     const lines = this.lines()
       .filter((line) => line.account_id && (amount(line.debit) > 0 || amount(line.credit) > 0))
@@ -219,7 +232,7 @@ export class FinanceLedger extends FinanceTab {
         party_id: line.party_id || null,
         memo: line.memo.trim() || null,
       }));
-    if (lines.length < 2 || !this.balanced() || !this.entryDescription.trim()) {
+    if (!lines.length || !this.entryDescription.trim()) {
       this.warn('finEntryUnbalanced');
       return;
     }

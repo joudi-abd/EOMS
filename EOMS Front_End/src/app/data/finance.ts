@@ -15,6 +15,40 @@ export type PeriodStatus = 'open' | 'close_requested' | 'closed';
 export type ReportKind = 'trial-balance' | 'income-statement' | 'balance-sheet' | 'ledger' | 'party' | 'box';
 export type Money = string | number;
 
+/** Catalogue and free-text invoice units. Each value fits the backend's 20-character column. */
+export const itemUnits: readonly string[] = [
+  'قطعة',
+  'حبة',
+  'طقم',
+  'زوج',
+  'كغ',
+  'غرام',
+  'طن',
+  'متر',
+  'سم',
+  'متر طولي',
+  'متر مربع',
+  'متر مكعب',
+  'لتر',
+  'مل',
+  'علبة',
+  'صندوق',
+  'كرتون',
+  'كيس',
+  'ربطة',
+  'لفة',
+  'لوح',
+  'ساعة',
+  'يوم',
+  'خدمة',
+];
+
+/** The saved unit stays selectable when it is older than this list. */
+export function unitsFor(current: string): readonly string[] {
+  const value = current.trim();
+  return value && !itemUnits.includes(value) ? [value, ...itemUnits] : itemUnits;
+}
+
 export interface FinAccount {
   id: number;
   parent_id: number | null;
@@ -63,6 +97,8 @@ export interface FinParty {
   name: string;
   phone: string | null;
   notes: string | null;
+  sham_cash_wallet: string | null;
+  sham_cash_name: string | null;
   active: boolean;
 }
 
@@ -95,10 +131,19 @@ export interface FinInvoiceLine {
   item_id: number | null;
   account_id: number | null;
   description: string | null;
+  unit?: string | null;
   quantity: Money;
   unit_price: Money;
   amount?: Money;
   cost_amount?: Money | null;
+}
+
+export interface FinAttachment {
+  id: number;
+  invoice_id: number;
+  original_name: string;
+  mime: string | null;
+  size: number;
 }
 
 export interface FinInvoice {
@@ -121,6 +166,7 @@ export interface FinInvoice {
   version: number;
   lines?: FinInvoiceLine[];
   payments?: FinTransaction[];
+  attachments?: FinAttachment[];
 }
 
 export interface FinJournalLine {
@@ -140,6 +186,8 @@ export interface FinEntry {
   description: string;
   source_type: string | null;
   reverses_id: number | null;
+  /** Manual entries only: positive when debit exceeded credit, negative when credit did. Null when the entry balanced. */
+  difference?: Money | null;
   lines: FinJournalLine[];
 }
 
@@ -229,7 +277,7 @@ export interface InvoiceInput {
   currency_code: string;
   notes: string | null;
   version?: number;
-  lines: { item_id: number | null; account_id: number | null; description: string | null; quantity: number; unit_price: number }[];
+  lines: { item_id: number | null; account_id: number | null; description: string | null; unit?: string | null; quantity: number; unit_price: number }[];
 }
 
 export interface EntryInput {
@@ -357,7 +405,15 @@ export class Finance {
 
   // Boxes and transactions
 
-  createBox(body: { name: string; kind: BoxKind; currency_code: string; parent_account_id: number | null }): Promise<ApiItem<FinBox>> {
+  createBox(body: {
+    name: string;
+    kind: BoxKind;
+    currency_code: string;
+    parent_account_id: number | null;
+    opening_amount?: number;
+    opening_date?: string;
+    opening_account_id?: number;
+  }): Promise<ApiItem<FinBox>> {
     return this.api.post('/finance/boxes', body);
   }
 
@@ -383,11 +439,18 @@ export class Finance {
 
   // Parties, items, invoices
 
-  createParty(body: { kind: PartyKind; name: string; phone: string | null; notes: string | null }): Promise<ApiItem<FinParty>> {
+  createParty(body: {
+    kind: PartyKind;
+    name: string;
+    phone: string | null;
+    notes: string | null;
+    sham_cash_wallet: string | null;
+    sham_cash_name: string | null;
+  }): Promise<ApiItem<FinParty>> {
     return this.api.post('/finance/parties', body);
   }
 
-  updateParty(id: number, body: Partial<Pick<FinParty, 'name' | 'phone' | 'notes' | 'active'>>): Promise<ApiItem<FinParty>> {
+  updateParty(id: number, body: Partial<Pick<FinParty, 'name' | 'phone' | 'notes' | 'sham_cash_wallet' | 'sham_cash_name' | 'active'>>): Promise<ApiItem<FinParty>> {
     return this.api.patch(`/finance/parties/${id}`, body);
   }
 
@@ -429,6 +492,20 @@ export class Finance {
 
   cancelInvoice(id: number, date: string, reason: string): Promise<ApiItem<FinInvoice>> {
     return this.api.post(`/finance/invoices/${id}/cancel`, { date, reason });
+  }
+
+  uploadAttachment(id: number, file: File): Promise<unknown> {
+    const form = new FormData();
+    form.append('file', file, file.name);
+    return this.api.post(`/finance/invoices/${id}/attachments`, form);
+  }
+
+  attachmentFile(invoiceId: number, attachmentId: number): Promise<Blob> {
+    return this.api.blob(`/finance/invoices/${invoiceId}/attachments/${attachmentId}`);
+  }
+
+  deleteAttachment(invoiceId: number, attachmentId: number): Promise<unknown> {
+    return this.api.delete(`/finance/invoices/${invoiceId}/attachments/${attachmentId}`);
   }
 
   // Reports

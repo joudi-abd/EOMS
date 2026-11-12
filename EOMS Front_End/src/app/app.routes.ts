@@ -31,8 +31,27 @@ export const routes: Routes = [
       { path: 'modules/payroll', component: PayrollPage },
       { path: 'modules/tasks', component: TasksPage },
       { path: 'modules/alerts', component: Alerts },
-      { path: 'modules/finance', component: FinancePage },
-      { path: 'modules/finance/rates', component: Rates },
+      { path: 'modules/finCash', component: FinancePage, data: { section: 'cash' } },
+      { path: 'modules/finInvoices', component: FinancePage, data: { section: 'invoices' } },
+      { path: 'modules/finItems', component: FinancePage, data: { section: 'items' } },
+      { path: 'modules/finLedger', component: FinancePage, data: { section: 'ledger' } },
+      { path: 'modules/finReports', component: FinancePage, data: { section: 'reports' } },
+      { path: 'modules/finSettings', component: Rates },
+      { path: 'modules/finance/rates', redirectTo: '/modules/finSettings', pathMatch: 'full' },
+      {
+        path: 'modules/finance',
+        pathMatch: 'full',
+        redirectTo: ({ queryParams }) => {
+          const view = String(queryParams['view'] ?? '');
+          const target: Record<string, string> = {
+            invoices: '/modules/finInvoices',
+            items: '/modules/finItems',
+            ledger: '/modules/finLedger',
+            reports: '/modules/finReports',
+          };
+          return target[view] ?? '/modules/finCash';
+        },
+      },
       { path: 'modules/:id', component: Later },
     ],
   },

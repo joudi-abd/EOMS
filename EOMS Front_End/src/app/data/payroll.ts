@@ -10,6 +10,19 @@ export type ItemCategory = 'earning' | 'deduction';
 export type ItemOrigin = 'auto' | 'proposed' | 'adjustment' | 'manual';
 export type ItemStatus = 'applied' | 'proposed' | 'approved' | 'modified' | 'waived' | 'rejected';
 export type PayMethod = 'cash' | 'sham_cash';
+export type ShamStatus = 'open' | 'confirmed' | 'cancelled';
+
+export interface ShamExport {
+  id: number;
+  pay_run_id: number;
+  currency_code: string;
+  doc_id: string;
+  pay_date: string;
+  count: number;
+  total: Money;
+  status: ShamStatus;
+  box_id: number | null;
+}
 
 export interface RunTotals {
   earnings: number;
@@ -186,5 +199,25 @@ export class Payroll {
 
   exportRun(id: number): Promise<Blob> {
     return this.api.blob(`/payroll/runs/${id}/export`);
+  }
+
+  shamCash(runId: number, body: { currency: 'SYP' | 'USD'; date: string; skip_missing: boolean }): Promise<{ blob: Blob; docId: string | null }> {
+    return this.api.filePost(`/payroll/runs/${runId}/shamcash`, body);
+  }
+
+  async shamExports(runId: number): Promise<ShamExport[]> {
+    return (await this.api.get<ApiItem<ShamExport[]>>(`/payroll/runs/${runId}/shamcash-exports`)).data;
+  }
+
+  shamFile(exportId: number): Promise<Blob> {
+    return this.api.blob(`/payroll/shamcash-exports/${exportId}/file`);
+  }
+
+  confirmSham(exportId: number, boxId: number): Promise<unknown> {
+    return this.api.post(`/payroll/shamcash-exports/${exportId}/confirm`, { box_id: boxId });
+  }
+
+  cancelSham(exportId: number): Promise<unknown> {
+    return this.api.post(`/payroll/shamcash-exports/${exportId}/cancel`);
   }
 }

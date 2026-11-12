@@ -74,7 +74,8 @@ describe('Session', () => {
     expect(session.can('tasks')).toBe(true);
     expect(session.has('tasks.manage')).toBe(true);
     expect(session.can('meetings')).toBe(false);
-    expect(session.can('finance')).toBe(false);
+    expect(session.can('finCash')).toBe(false);
+    expect(session.can('finSettings')).toBe(false);
     expect(session.can('documents')).toBe(true);
     expect(session.has('employees.view_financial')).toBe(false);
     expect(session.canAct('attendance.link')).toBe(true);
@@ -89,6 +90,8 @@ describe('Session', () => {
   it('lets finance review, approve and pay payroll but not prepare it or add purchases', () => {
     const session = signIn(['finance_manager']);
     expect(session.can('payroll')).toBe(true);
+    expect(session.can('finCash')).toBe(true);
+    expect(session.can('finSettings')).toBe(true);
     expect(session.can('employees')).toBe(false);
     expect(session.canAct('payroll.prepare')).toBe(false);
     expect(session.canAct('payroll.review')).toBe(true);
