@@ -1,0 +1,79 @@
+<section class="panel">
+  <div class="panel-head">
+    <div>
+      <h2>{{ t('fpjSharesTitle') }}</h2>
+      <p>{{ t('fpjSharesLede') }}</p>
+    </div>
+    @if (!locked()) {
+      <button class="text" type="button" [disabled]="busy()" (click)="copyPrevious()">{{ t('fpjCopyPrevious') }}</button>
+    }
+  </div>
+
+  @if (locked()) {
+    <p class="fin-warn"><i class="fa-solid fa-lock" aria-hidden="true"></i> {{ t('fpjSharesLocked') }}</p>
+  }
+
+  @if (rows().length) {
+    <div class="fin-lines">
+      <table>
+        <thead>
+          <tr>
+            <th>{{ t('finEmployee') }}</th>
+            @for (column of columns(); track column.id) { <th>{{ column.name }}</th> }
+            <th class="end">{{ t('finTotal') }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (row of rows(); track row.id) {
+            <tr [class.attention]="over(row)">
+              <td>{{ row.name }}</td>
+              @for (column of columns(); track column.id) {
+                <td>
+                  <input
+                    class="fpj-pct"
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="any"
+                    [name]="'s' + row.id + '-' + column.id"
+                    [attr.aria-label]="row.name + ' · ' + column.name"
+                    [disabled]="locked() || busy()"
+                    [(ngModel)]="row.cells[column.id]"
+                    (ngModelChange)="changed()"
+                  />
+                </td>
+              }
+              <td class="num end" [class.late]="over(row)" [class.ok]="total(row) === 100"><bdi>{{ qty(total(row)) }}%</bdi></td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  } @else if (!loading()) {
+    <p class="soft">{{ t('fpjNoShares') }}</p>
+  }
+
+  @if (!locked()) {
+    <div class="fpj-adders">
+      @if (freeEmployees().length) {
+        <label>{{ t('fpjAddEmployee') }}
+          <select name="addEmployee" [(ngModel)]="addEmployee" (ngModelChange)="pickEmployee($event)">
+            <option [ngValue]="0">{{ t('finChoose') }}</option>
+            @for (item of freeEmployees(); track item.id) { <option [ngValue]="item.id">{{ item.name }}</option> }
+          </select>
+        </label>
+      }
+      @if (freeProjects().length && rows().length) {
+        <label>{{ t('fpjAddProject') }}
+          <select name="addProject" [(ngModel)]="addProject" (ngModelChange)="pickProject($event)">
+            <option [ngValue]="0">{{ t('finChoose') }}</option>
+            @for (item of freeProjects(); track item.project_id) { <option [ngValue]="item.project_id">{{ finance.projectName(item.project_id) }}</option> }
+          </select>
+        </label>
+      }
+      <span class="fpj-push"></span>
+      <button class="primary" type="button" [disabled]="busy() || !dirty() || !rows().length" (click)="saveShares()">{{ t('fpjSaveShares') }}</button>
+    </div>
+    <p class="fin-hint">{{ t('fpjSharesHint') }}</p>
+  }
+</section>

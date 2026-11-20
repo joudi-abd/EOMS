@@ -1,5 +1,15 @@
 import { designCopy } from './copy-design';
 import { financeCopy } from './copy-finance';
+import { finOverviewCopy } from './copy-fin-overview';
+import { finBoxesCopy } from './copy-fin-boxes';
+import { finVouchersCopy } from './copy-fin-vouchers';
+import { finPartiesCopy } from './copy-fin-parties';
+import { finProjectsCopy } from './copy-fin-projects';
+import { finAdvancesCopy } from './copy-fin-advances';
+import { finAssetsCopy } from './copy-fin-assets';
+import { finSiteCopy } from './copy-fin-site';
+import { finReportsCopy } from './copy-fin-reports';
+import { finSettingsCopy } from './copy-fin-settings';
 import { hrCopy } from './copy-hr';
 import { payrollCopy } from './copy-payroll';
 import { tasksCopy } from './copy-tasks';
@@ -593,8 +603,8 @@ const base = {
 } as const;
 
 export const copy = {
-  ar: { ...base.ar, ...hrCopy.ar, ...financeCopy.ar, ...payrollCopy.ar, ...tasksCopy.ar, ...rolesCopy.ar, ...designCopy.ar },
-  en: { ...base.en, ...hrCopy.en, ...financeCopy.en, ...payrollCopy.en, ...tasksCopy.en, ...rolesCopy.en, ...designCopy.en },
+  ar: { ...base.ar, ...hrCopy.ar, ...financeCopy.ar, ...finOverviewCopy.ar, ...finBoxesCopy.ar, ...finVouchersCopy.ar, ...finPartiesCopy.ar, ...finProjectsCopy.ar, ...finAdvancesCopy.ar, ...finAssetsCopy.ar, ...finSiteCopy.ar, ...finReportsCopy.ar, ...finSettingsCopy.ar, ...payrollCopy.ar, ...tasksCopy.ar, ...rolesCopy.ar, ...designCopy.ar },
+  en: { ...base.en, ...hrCopy.en, ...financeCopy.en, ...finOverviewCopy.en, ...finBoxesCopy.en, ...finVouchersCopy.en, ...finPartiesCopy.en, ...finProjectsCopy.en, ...finAdvancesCopy.en, ...finAssetsCopy.en, ...finSiteCopy.en, ...finReportsCopy.en, ...finSettingsCopy.en, ...payrollCopy.en, ...tasksCopy.en, ...rolesCopy.en, ...designCopy.en },
 };
 
 export type CopyKey = keyof typeof copy.ar;
@@ -610,10 +620,14 @@ export const moduleIds = [
   'hrSettings',
   'projects',
   'clients',
-  'finCash',
-  'finInvoices',
-  'finItems',
-  'finLedger',
+  'finOverview',
+  'finBoxes',
+  'finVouchers',
+  'finParties',
+  'finProjects',
+  'finAdvances',
+  'finAssets',
+  'finSite',
   'finReports',
   'finSettings',
   'procurement',

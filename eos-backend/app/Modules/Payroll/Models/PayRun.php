@@ -16,7 +16,7 @@ class PayRun extends Model
     protected function casts(): array
     {
         return ['prepared_by' => 'integer', 'approved_by' => 'integer', 'version' => 'integer',
-            'calculated_at' => 'datetime', 'submitted_at' => 'datetime', 'approved_at' => 'datetime'];
+            'accrual_voucher_id' => 'integer', 'calculated_at' => 'datetime', 'submitted_at' => 'datetime', 'approved_at' => 'datetime'];
     }
 
     public function lines(): HasMany

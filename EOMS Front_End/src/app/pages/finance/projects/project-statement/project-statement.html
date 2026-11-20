@@ -1,0 +1,85 @@
+<div class="fin-toolbar">
+  <div class="seg" role="radiogroup" [attr.aria-label]="t('fpjCopy')">
+    <button type="button" role="radio" [attr.aria-checked]="variant() === 'internal'" [class.on]="variant() === 'internal'" (click)="pick('internal')">{{ t('fpjCopyInternal') }}</button>
+    <button type="button" role="radio" [attr.aria-checked]="variant() === 'client'" [class.on]="variant() === 'client'" (click)="pick('client')">{{ t('fpjCopyClient') }}</button>
+  </div>
+  @if (variant() === 'internal') {
+    <label class="fpj-check"><input name="hideInternal" type="checkbox" [(ngModel)]="hideInternal" (ngModelChange)="load()" /> {{ t('fpjHideInternal') }}</label>
+  }
+  <span class="fpj-push"></span>
+  <button class="text" type="button" [disabled]="!statement()" (click)="print()"><i class="fa-solid fa-print" aria-hidden="true"></i> {{ t('fpjPrint') }}</button>
+</div>
+@if (variant() === 'client') { <p class="fin-hint">{{ t('fpjClientCopyHint') }}</p> }
+
+@if (statement(); as s) {
+  <section class="summary" [attr.aria-label]="t('fpjStatementTitle')">
+    @for (item of totals(s); track item[0]) {
+      <p><span>{{ item[0] }}</span><strong [class.late]="negative(item[1])"><bdi>{{ figure(item[1], s.header.currency) }}</bdi></strong><small><bdi>{{ s.header.currency }}</bdi></small></p>
+    }
+  </section>
+
+  <section class="panel">
+    <div class="panel-head"><div><h2>{{ t('fpjIncoming') }}</h2><p>{{ t('fpjAsOf') }} {{ date(s.header.date) }}</p></div></div>
+    <div class="flush">
+      <table>
+        <thead>
+          <tr><th>{{ t('finDate') }}</th><th>{{ t('finNumber') }}</th><th>{{ t('finBox') }}</th><th>{{ t('finDescription') }}</th><th class="end">{{ t('finAmount') }}</th></tr>
+        </thead>
+        <tbody>
+          @for (row of s.incoming; track $index) {
+            <tr>
+              <td>{{ short(row.date) }}</td>
+              <td><bdi>{{ row.number ?? '—' }}</bdi></td>
+              <td>{{ row.cash_box ?? '' }}</td>
+              <td class="sm">{{ row.description ?? '' }}</td>
+              <td class="num end">
+                <bdi>{{ money(row.amount, s.header.currency) }}</bdi>
+                @if (row.original_currency && row.original_currency !== s.header.currency) {
+                  <small class="soft block-line"><bdi>{{ money(row.original_amount, row.original_currency) }}</bdi></small>
+                }
+              </td>
+            </tr>
+          } @empty {
+            <tr><td colspan="5" class="soft">{{ t('fpjNoIncoming') }}</td></tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  @for (group of s.outgoing; track group.category_id ?? group.name) {
+    <section class="panel">
+      <div class="panel-head">
+        <div><h2>{{ group.name }}</h2>@if (!group.is_billable) { <p>{{ t('fpjLoaded') }}</p> }</div>
+        <strong class="num"><bdi>{{ money(group.total, s.header.currency) }}</bdi></strong>
+      </div>
+      <div class="flush">
+        <table>
+          <thead>
+            <tr><th>{{ t('finDate') }}</th><th>{{ t('finNumber') }}</th><th>{{ t('finParty') }}</th><th>{{ t('finDescription') }}</th><th class="end">{{ t('finAmount') }}</th></tr>
+          </thead>
+          <tbody>
+            @for (row of group.lines; track $index) {
+              <tr>
+                <td>{{ short(row.date) }}</td>
+                <td><bdi>{{ row.number ?? '—' }}</bdi></td>
+                <td>{{ row.party ?? '' }}</td>
+                <td class="sm">{{ row.description ?? '' }}</td>
+                <td class="num end">
+                  <bdi>{{ money(row.amount, s.header.currency) }}</bdi>
+                  @if (row.original_currency && row.original_currency !== s.header.currency) {
+                    <small class="soft block-line"><bdi>{{ money(row.original_amount, row.original_currency) }}</bdi></small>
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </section>
+  } @empty {
+    <p class="soft">{{ t('fpjNoOutgoing') }}</p>
+  }
+} @else if (loading()) {
+  <p class="soft">{{ t('finLoading') }}</p>
+}

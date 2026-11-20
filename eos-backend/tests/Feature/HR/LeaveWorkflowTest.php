@@ -365,9 +365,26 @@ class LeaveWorkflowTest extends TestCase
         $this->employee->servicePeriods()->first()->update(['end_date' => '2026-11-08']);
         $this->postJson('/api/v1/leaves/preview', $this->input(['start_date' => '2026-11-10', 'end_date' => '2026-11-10']))->assertUnprocessable();
         Sanctum::actingAs($this->hr);
-        $this->action($row, 'approve')->assertUnprocessable();
+        $this->action($row, 'approve')->assertConflict(); // the leave day falls after the end of service
         $this->action($row, 'reject')->assertOk();
         $this->assertSame(2000000, $this->balance());
+    }
+
+    public function test_leave_for_days_worked_before_termination_can_still_be_approved(): void
+    {
+        $row = $this->submit(); // 9 Nov
+        $this->employee->update(['status' => 'terminated', 'termination_date' => '2026-11-10']);
+        $this->employee->servicePeriods()->first()->update(['end_date' => '2026-11-10']);
+        Sanctum::actingAs($this->hr);
+        $this->action($row, 'approve')->assertOk()->assertJsonPath('data.status', 'approved');
+    }
+
+    public function test_outsiders_get_403_before_any_state_detail(): void
+    {
+        $row = $this->submit();
+        Sanctum::actingAs($this->actor('employee'));
+        $this->action($row, 'withdraw', ['version' => 999])->assertForbidden();
+        $this->postJson('/api/v1/leaves/'.$row['id'].'/preview', $this->input())->assertForbidden();
     }
 
     public function test_cancellation_rechecks_time_when_hr_approves_and_does_not_refund_used_time(): void

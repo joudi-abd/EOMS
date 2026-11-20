@@ -1,0 +1,26 @@
+.fpj-choice {
+  display: grid;
+  gap: 6px;
+  font-size: 15px;
+  color: var(--muted);
+}
+
+.fpj-base {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  font-size: 15px;
+  color: var(--muted);
+}
+
+.fpj-base > span,
+.fpj-base > .fin-hint {
+  flex-basis: 100%;
+}
+
+.fin-form label.fpj-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink);
+}

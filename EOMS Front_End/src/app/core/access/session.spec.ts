@@ -51,12 +51,12 @@ describe('Session', () => {
     expect(session.canAct('payroll.review')).toBe(true);
     expect(session.canAct('payroll.pay')).toBe(true);
     expect(session.canAct('payroll.prepare')).toBe(false);
-    expect(session.can('finCash')).toBe(false);
+    expect(session.can('finBoxes')).toBe(false);
   });
 
   it('opens the finance areas with company-wide finance.view', () => {
-    const session = signIn(['finance_manager'], { 'finance.view': 'all', 'finance.manage': 'all' });
-    expect(session.can('finCash')).toBe(true);
+    const session = signIn(['finance_manager'], { 'finance.view': 'all', 'finance.settings': 'all' });
+    expect(session.can('finBoxes')).toBe(true);
     expect(session.can('finSettings')).toBe(true);
     expect(session.can('employees')).toBe(false);
   });

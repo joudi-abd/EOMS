@@ -233,7 +233,7 @@ export class AttendanceReport extends Ui {
   }
 
   protected async approvePeriod(): Promise<void> {
-    if (this.exporting() || !confirm(this.t('bulkApproveConfirm'))) return;
+    if (this.exporting() || !(await this.askConfirm({ message: 'bulkApproveConfirm', confirm: 'confirmProceed' }))) return;
     this.exporting.set(true);
     try {
       const span = this.span();

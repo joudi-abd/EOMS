@@ -96,6 +96,7 @@ class AttendanceReviewService
     {
         return DB::transaction(function () use ($day, $version, $actor) {
             $day = $this->current($day, $version);
+            $this->ensureNotOwnDay($day, $actor);
             abort_if($day->approved_at !== null, 409, 'اليوم معتمد سابقاً.');
             $policy = AttendancePolicy::findOrFail($day->policy_id);
             abort_if(CarbonImmutable::now('UTC')->lessThan(AttendanceClock::at($day->work_date->format('Y-m-d'), $policy->end_time, $policy->timezone)), 409, 'لم ينته وقت الدوام بعد.');
@@ -109,6 +110,12 @@ class AttendanceReviewService
 
             return $day->refresh();
         }, 3);
+    }
+
+    /** Nobody signs off their own attendance (bulk approval skips such days with this reason). */
+    private function ensureNotOwnDay(AttendanceDay $day, User $actor): void
+    {
+        abort_if(Employee::query()->whereKey($day->employee_id)->value('user_id') === $actor->id, 403, 'لا يعتمد أحد حضوره بنفسه.');
     }
 
     /** Flags that describe a situation a person must look at; bulk approval never signs these off. */
@@ -161,6 +168,7 @@ class AttendanceReviewService
     {
         return DB::transaction(function () use ($day, $version, $reason, $actor) {
             $day = $this->current($day, $version);
+            $this->ensureNotOwnDay($day, $actor);
             abort_if($day->approved_at === null, 409, 'اليوم غير معتمد.');
             $day->update(['approved_by' => null, 'approved_at' => null, 'pending_changes' => false, 'version' => $day->version + 1]);
             $this->audit->log('attendance.day_reopened', $day, null, ['reason' => $reason, 'actor_id' => $actor->id]);

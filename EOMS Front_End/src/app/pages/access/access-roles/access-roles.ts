@@ -116,12 +116,14 @@ export class AccessRoles extends Ui {
   protected async restore(): Promise<void> {
     const role = this.role();
     if (!role) return;
+    if (!(await this.askConfirm({ message: 'confirmSensitiveBody', tone: 'danger', confirm: 'confirmProceed' }))) return;
     await this.run(async () => this.pick(await this.catalog.restore(role)), 'rlRestored');
   }
 
   protected async remove(): Promise<void> {
     const role = this.role();
     if (!role) return;
+    if (!(await this.askDelete())) return;
     await this.run(async () => {
       await this.catalog.remove(role);
       this.picked.set('');

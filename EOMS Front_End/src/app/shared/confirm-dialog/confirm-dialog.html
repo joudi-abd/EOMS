@@ -1,0 +1,30 @@
+@if (gate.request(); as ask) {
+  <dialog
+    #box
+    class="confirm"
+    [attr.aria-labelledby]="'confirm-title'"
+    (cancel)="onCancel()"
+    (close)="onCancel()"
+  >
+    <header class="top">
+      <h2 id="confirm-title">{{ t(ask.title ?? (ask.tone === 'danger' ? 'confirmDeleteTitle' : 'confirmTitle')) }}</h2>
+      <button class="x" type="button" (click)="refuse()" [attr.aria-label]="t('dismiss')">
+        <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+      </button>
+    </header>
+    <p class="body">{{ t(ask.message) }}</p>
+    @if (ask.detail) {
+      <p class="detail">{{ ask.detail }}</p>
+    }
+    <div class="acts">
+      <button class="text" type="button" (click)="refuse()">{{ t(ask.cancel ?? 'cancel') }}</button>
+      <button
+        [class]="ask.tone === 'danger' ? 'quiet' : 'primary'"
+        type="button"
+        (click)="accept()"
+      >
+        {{ t(ask.confirm ?? (ask.tone === 'danger' ? 'confirmDelete' : 'confirmProceed')) }}
+      </button>
+    </div>
+  </dialog>
+}

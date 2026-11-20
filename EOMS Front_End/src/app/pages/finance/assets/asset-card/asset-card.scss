@@ -1,0 +1,27 @@
+/* The card: facts, then one panel per history. Small gaps only; everything else comes from the ledger kit. */
+.panel-head .actions {
+  flex-wrap: nowrap;
+}
+
+.fas-gap {
+  margin-top: 14px;
+}
+
+.fas-end {
+  margin-inline-start: auto;
+}
+
+.fas-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink);
+}
+
+.fas-check input {
+  width: auto;
+}
+
+.fas-totals {
+  margin-bottom: 14px;
+}

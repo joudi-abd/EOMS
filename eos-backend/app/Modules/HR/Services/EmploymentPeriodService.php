@@ -12,7 +12,7 @@ class EmploymentPeriodService
 {
     public function today(): string
     {
-        $zone = AttendancePolicy::query()->orderBy('effective_from')->value('timezone') ?? config('app.timezone');
+        $zone = AttendancePolicy::officeTimezone();
 
         return CarbonImmutable::now($zone)->toDateString();
     }

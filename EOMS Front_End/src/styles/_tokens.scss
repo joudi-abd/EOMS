@@ -63,8 +63,8 @@
   --rail: 256px;
   --shadow-pop: 0 18px 40px -12px rgb(20 22 43 / 0.22), 0 2px 6px rgb(20 22 43 / 0.06);
 
-  /* Type: one family for Arabic and Latin */
-  --font-ui: 'Readex Pro Variable', sans-serif;
+  /* Type: Roboto for Latin, Noto Sans Arabic for Arabic. Same ordinary interface faces Telegram uses. */
+  --font-ui: 'Roboto Variable', 'Noto Sans Arabic Variable', sans-serif;
 
   color-scheme: light;
   font-family: var(--font-ui);

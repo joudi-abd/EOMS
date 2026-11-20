@@ -119,11 +119,351 @@
   width: auto;
 }
 
-.pr-how {
-  margin: 0;
-  padding-inline-start: 20px;
-  display: grid;
+.pr-lines-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.pr-cash-acts {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 8px;
-  font-size: 16px;
+  margin-inline-start: auto;
+}
+
+.pr-cash-acts .text,
+.pr-cash-acts .primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pr-dlg {
+  width: min(900px, calc(100vw - 24px));
+  max-height: calc(100dvh - 24px);
+  padding: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: calc(var(--r-dialog) + 4px);
+  background: var(--surface);
+  color: var(--ink);
+  overflow: hidden;
+  box-shadow: none;
+}
+
+.pr-dlg[open] {
+  animation: pr-dlg-in 240ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.pr-dlg::backdrop {
+  background: rgb(12 24 20 / 0.48);
+  animation: pr-dlg-back 240ms ease-out both;
+}
+
+.pr-dlg-head {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 14px;
+  align-items: start;
+  padding: 20px 20px 16px;
+  border-bottom: 1px solid var(--line);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--mark-tint) 55%, transparent), transparent 100%);
+}
+
+.pr-dlg-icon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  font-size: 18px;
+}
+
+.pr-dlg-icon.cash {
+  background: color-mix(in srgb, var(--action) 16%, var(--surface));
+  color: var(--action);
+}
+
+.pr-dlg-icon.sham {
+  background: color-mix(in srgb, var(--mark) 18%, var(--surface));
+  color: var(--mark-ink);
+}
+
+.pr-dlg-copy h2 {
+  margin: 0;
+  font-size: 21px;
+  line-height: 1.25;
+}
+
+.pr-dlg-copy p {
+  margin: 6px 0 0;
   color: var(--muted);
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+.pr-dlg-body {
+  display: grid;
+  gap: 0;
+  max-height: calc(100dvh - 120px);
+  overflow: auto;
+  padding: 0 0 8px;
+}
+
+.pr-pick-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 14px;
+  margin: 14px 16px 0;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-control);
+  background: color-mix(in srgb, var(--hover) 65%, var(--surface));
+}
+
+.pr-bulk-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 15px;
+  font-weight: 650;
+  color: var(--ink);
+  cursor: pointer;
+  user-select: none;
+}
+
+.pr-bulk-all input,
+.pr-pick-list input {
+  width: auto;
+  margin: 0;
+}
+
+.pr-pick-meta {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.pr-pick-list {
+  list-style: none;
+  margin: 10px 16px 0;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--r-control);
+  max-height: min(38vh, 320px);
+  overflow: auto;
+  background: var(--surface);
+}
+
+.pr-pick-list li + li {
+  border-top: 1px solid var(--line);
+}
+
+.pr-pick-list li.on {
+  background: color-mix(in srgb, var(--mark-tint) 55%, transparent);
+}
+
+.pr-pick-list label {
+  display: grid;
+  grid-template-columns: auto auto 1fr auto;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 12px;
+  cursor: pointer;
+}
+
+.pr-avatar {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--action) 12%, var(--surface));
+  color: var(--action-ink, var(--action));
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.pr-pick-who {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.pr-pick-who .strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pr-pick-net {
+  font-size: 14px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+
+.pr-dlg-form {
+  margin-top: 14px;
+  padding: 0 16px;
+}
+
+.pr-dlg-acts {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 16px 0 12px;
+}
+
+.pr-sham-files {
+  margin: 8px 16px 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.pr-sham-files h3 {
+  margin: 0 0 8px;
+  font-size: 15px;
+  color: var(--muted);
+  font-weight: 650;
+}
+
+tr.cash-on {
+  background: color-mix(in srgb, var(--mark-tint) 70%, transparent);
+}
+
+@keyframes pr-dlg-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes pr-dlg-back {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pr-dlg[open],
+  .pr-dlg::backdrop {
+    animation: none;
+  }
+}
+
+/* Full-width table; the employee card slides in on the left. */
+.pr-split {
+  display: flex;
+  flex-direction: row-reverse;
+  align-items: start;
+  gap: 16px;
+  width: 100%;
+  min-width: 0;
+}
+
+:host-context([dir='rtl']) .pr-split {
+  flex-direction: row;
+}
+
+.pr-lines {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.pr-line-card {
+  flex: 0 0 min(420px, 42%);
+  max-width: 420px;
+  min-width: 0;
+  animation: pr-card-in 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.pr-line-card.out {
+  animation: pr-card-out 280ms cubic-bezier(0.4, 0, 1, 1) both;
+  pointer-events: none;
+}
+
+.pr-split.closing .pr-lines {
+  transition: flex-basis 280ms cubic-bezier(0.4, 0, 1, 1);
+}
+
+.pr-line-card .fin-sheet {
+  max-width: none;
+}
+
+@keyframes pr-card-in {
+  from {
+    opacity: 0.55;
+    transform: translateX(-100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes pr-card-out {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0.4;
+    transform: translateX(-100%);
+  }
+}
+
+@media (max-width: 900px) {
+  .pr-split,
+  :host-context([dir='rtl']) .pr-split {
+    flex-direction: column;
+  }
+
+  .pr-line-card {
+    flex-basis: auto;
+    max-width: none;
+    width: 100%;
+  }
+
+  @keyframes pr-card-in {
+    from {
+      opacity: 0.55;
+      transform: translateY(-12px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes pr-card-out {
+    from {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    to {
+      opacity: 0.4;
+      transform: translateY(-12px);
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pr-line-card,
+  .pr-line-card.out {
+    animation: none;
+  }
 }

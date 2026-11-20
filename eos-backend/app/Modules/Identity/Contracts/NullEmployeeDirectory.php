@@ -19,6 +19,16 @@ class NullEmployeeDirectory implements EmployeeDirectory
         return null;
     }
 
+    public function employeeIdsForUsers(array $userIds): array
+    {
+        return [];
+    }
+
+    public function accountBlocked(int $userId): bool
+    {
+        return false;
+    }
+
     public function profileForUser(int $userId): mixed
     {
         return null;

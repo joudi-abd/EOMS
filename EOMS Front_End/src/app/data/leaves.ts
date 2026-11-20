@@ -93,7 +93,7 @@ export class Leaves {
     return this.api.get<{data: LeaveOptions}>('/leaves/options', employeeId ? {employee_id: employeeId} : {});
   }
   list(query: LeaveListQuery) {
-    return this.api.get<{data: LeaveRecord[]; meta: {current_page: number; last_page: number}}>('/leaves', this.params(query));
+    return this.api.get<{data: LeaveRecord[]; meta: {current_page: number; last_page: number; total?: number}}>('/leaves', this.params(query));
   }
   preview(input: LeaveInput, id?: number, employeeId?: number) {
     const body = employeeId ? {...input, employee_id: employeeId} : input;

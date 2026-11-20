@@ -1,0 +1,31 @@
+.fsr-decide {
+  display: grid;
+  grid-template-columns: minmax(0, 220px) 1fr;
+  align-items: end;
+  gap: 12px;
+}
+
+.fsr-invoice {
+  display: block;
+  width: 100%;
+  max-height: 560px;
+  object-fit: contain;
+  border: 1px solid var(--line);
+  border-radius: var(--r-control);
+  background: var(--raised);
+}
+
+.fsr-file {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 10px 0 0;
+  overflow-wrap: anywhere;
+}
+
+@container work (max-width: 640px) {
+  .fsr-decide {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

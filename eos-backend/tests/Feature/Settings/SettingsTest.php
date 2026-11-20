@@ -122,14 +122,14 @@ class SettingsTest extends TestCase
         $this->assertSame(64, strlen($client->token_hash));
     }
 
-    public function test_latest_rate_cache_is_refreshed_after_update(): void
+    public function test_a_changed_rate_is_read_back_at_once(): void
     {
         $service = app(ExchangeRateService::class);
 
-        $service->setRate('USD', 'SYP', 14000, '2026-10-21');
-        $this->assertEquals(14000, (float) $service->latestRate('USD', 'SYP')->rate);
+        $service->setRates('2026-10-21', ['SYP' => 14000]);
+        $this->assertSame('14000.00000000', $service->rateToBase('SYP', '2026-10-21'));
 
-        $service->setRate('USD', 'SYP', 15000, '2026-10-22');
-        $this->assertEquals(15000, (float) $service->latestRate('USD', 'SYP')->rate);
+        $service->setRates('2026-10-21', ['SYP' => 15000]);
+        $this->assertSame('15000.00000000', $service->rateToBase('SYP', '2026-10-21'));
     }
 }

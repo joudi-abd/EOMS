@@ -808,7 +808,8 @@ export class Office {
         const { [employeeId]: _dropped, ...rest } = all;
         return rest;
       });
-      await Promise.all([this.loadEmployees(), this.loadUsers()]);
+      // Ending a department manager's service clears that department's manager on the server.
+      await Promise.all([this.loadEmployees(), this.loadUsers(), this.loadDepartments()]);
       this.done('endedService');
       return { ok: true, id: employeeId };
     } catch (error) {
@@ -1024,11 +1025,16 @@ export class Office {
 
   // HR settings
 
-  /** The earliest day a new version may start: tomorrow, in the office zone. */
+  /** The earliest day a new version may start: tomorrow, in the office zone. The first policy may start today. */
   nextPolicyDay(): string {
     const zone = this.officeZone(this.policyVersions());
     const [y, m, d] = dayIn(zone).split('-').map(Number);
     return new Date(Date.UTC(y, m - 1, d + 1)).toISOString().slice(0, 10);
+  }
+
+  /** Date shown in the form. With no policy yet, today, so the current day is covered. */
+  policyStart(): string {
+    return this.policyVersions().length === 0 ? dayIn(this.officeZone([])) : this.nextPolicyDay();
   }
 
   /** Shift hours are versioned: a save adds a version that rules from `effectiveFrom`, and earlier days keep theirs. */
@@ -1044,7 +1050,8 @@ export class Office {
     if (!valid) {
       return { ok: false, error: this.language.t('policyInvalid') };
     }
-    if (!validIsoDate(effectiveFrom) || effectiveFrom < this.nextPolicyDay()) {
+    const first = this.policyVersions().length === 0;
+    if (!validIsoDate(effectiveFrom) || effectiveFrom < (first ? '1970-01-01' : this.nextPolicyDay())) {
       return { ok: false, error: this.language.t('policyDateInvalid') };
     }
     if (!this.actorCan(actorId, 'hr.shift')) {
@@ -1052,17 +1059,21 @@ export class Office {
     }
     // Everything the form does not ask for carries over from the version in force.
     const base = this.policyVersions().find((item) => item.effective_from <= dayIn(this.officeZone(this.policyVersions())));
-    if (!base) {
-      return this.denied();
-    }
-    const chosen = rules ?? {
+    const chosen = rules ?? (base ? {
       graceMode: base.grace_mode as PolicyRules['graceMode'],
       lateBlock: base.late_block_minutes,
       overtime: Number(base.overtime_multiplier),
       pairing: base.pairing_mode as PolicyRules['pairing'],
       duplicateSeconds: base.duplicate_seconds,
       finalizeAfter: base.finalize_after_minutes,
-    };
+    } : {
+      graceMode: 'completed_blocks' as const,
+      lateBlock: 60,
+      overtime: 2,
+      pairing: 'first_last' as const,
+      duplicateSeconds: 60,
+      finalizeAfter: 120,
+    });
     const rulesOk =
       (chosen.graceMode === 'threshold_full' || chosen.graceMode === 'excess_only' || chosen.graceMode === 'completed_blocks') &&
       (chosen.pairing === 'first_last' || chosen.pairing === 'directional') &&
@@ -1083,7 +1094,7 @@ export class Office {
     try {
       await this.api.post('/attendance/policies', {
         effective_from: effectiveFrom,
-        timezone: base.timezone,
+        timezone: base?.timezone ?? this.officeZone([]),
         working_days: [...new Set(policy.workdays)].sort(),
         start_time: policy.start,
         end_time: policy.end,
@@ -1357,8 +1368,11 @@ export class Office {
   }
 
   fail(error: unknown): Outcome {
-    const detail = serverMessage(error);
-    const message: NoticeMessage = statusOf(error) === 0 ? 'serverDown' : 'requestFailed';
+    const status = statusOf(error);
+    const message: NoticeMessage =
+      status === 0 ? 'serverDown' : status === 429 ? 'tooManyRequests' : status >= 500 ? 'serverError' : status === 409 ? 'staleData' : 'requestFailed';
+    let detail = status >= 500 ? '' : serverMessage(error);
+    if (status === 409 && detail) detail = `${detail} ${this.language.t('staleData')}`;
     this.notice.set({ message, detail, undo: null, error: true });
     return { ok: false, error: detail || this.language.t(message) };
   }

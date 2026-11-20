@@ -15,14 +15,14 @@
         </div>
       </header>
       <nav class="tabs" [attr.aria-label]="t('tasks')">
-        <a [routerLink]="[]" [queryParams]="{ view: null }" [class.active]="view() === 'boards'" [attr.aria-current]="view() === 'boards' ? 'page' : null">
+        <a [routerLink]="[]" [queryParams]="{ view: null, board: null, card: null }" queryParamsHandling="merge" [class.active]="view() === 'boards'" [attr.aria-current]="view() === 'boards' ? 'page' : null">
           {{ t('tkTabBoards') }}
         </a>
-        <a [routerLink]="[]" [queryParams]="{ view: 'mine' }" [class.active]="view() === 'mine'" [attr.aria-current]="view() === 'mine' ? 'page' : null">
+        <a [routerLink]="[]" [queryParams]="{ view: 'mine', board: null, card: null }" queryParamsHandling="merge" [class.active]="view() === 'mine'" [attr.aria-current]="view() === 'mine' ? 'page' : null">
           {{ t('tkTabMine') }}
         </a>
         @if (showReports()) {
-          <a [routerLink]="[]" [queryParams]="{ view: 'reports' }" [class.active]="view() === 'reports'" [attr.aria-current]="view() === 'reports' ? 'page' : null">
+          <a [routerLink]="[]" [queryParams]="{ view: 'reports', board: null, card: null }" queryParamsHandling="merge" [class.active]="view() === 'reports'" [attr.aria-current]="view() === 'reports' ? 'page' : null">
             {{ t('tkTabReports') }}
           </a>
         }

@@ -4,9 +4,11 @@ namespace App\Modules\HR\Services;
 
 use App\Modules\HR\Events\EmployeeTerminating;
 use App\Modules\HR\Models\AttendanceBinding;
+use App\Modules\HR\Models\Department;
 use App\Modules\HR\Models\Employee;
 use App\Modules\HR\Models\EmployeeJobHistory;
 use App\Modules\HR\Models\EmploymentContract;
+use App\Modules\Identity\Access\Access;
 use App\Modules\Identity\Models\User;
 use App\Modules\Identity\Services\AuditLogger;
 use App\Modules\Identity\Services\UserService;
@@ -43,6 +45,16 @@ class EmployeeTerminationService
                     'contracts' => ['يجب إنهاء العقود الفعالة قبل إنهاء خدمة الموظف.'],
                 ]);
             }
+            // Service cannot end before a contract's paid coverage ends (terminated or expired contracts still priced
+            // those days), or a later rehire could overlap the old contract.
+            $coveredUntil = EmploymentContract::query()->where('employee_id', $employee->id)
+                ->whereIn('status', ['terminated', 'expired'])->get(['end_date', 'terminated_at'])
+                ->map(fn ($c) => ($c->terminated_at ?? $c->end_date)?->format('Y-m-d'))->filter()->max();
+            if ($coveredUntil !== null && $data['termination_date'] < $coveredUntil) {
+                throw ValidationException::withMessages([
+                    'termination_date' => ["تاريخ إنهاء الخدمة يسبق نهاية عقد سابق ({$coveredUntil})."],
+                ]);
+            }
             // Cross-module guards (e.g. open Sham Cash reservation) listen and may abort.
             event(new EmployeeTerminating($employee));
 
@@ -55,7 +67,15 @@ class EmployeeTerminationService
 
             if ($employee->user_id !== null) {
                 $linkedUser = User::query()->findOrFail($employee->user_id);
-                $this->users->setStatus($linkedUser, 'disabled', $actor);
+                $this->users->setStatus($linkedUser, 'disabled', $actor, checkReach: false);
+            }
+
+            // A person who left manages nothing: department-manager grants must not come back silently on rehire.
+            $managed = Department::query()->where('manager_employee_id', $employee->id)->lockForUpdate()->pluck('id');
+            if ($managed->isNotEmpty()) {
+                Department::query()->whereIn('id', $managed)->update(['manager_employee_id' => null]);
+                $this->audit->log('department.manager_cleared', $employee, ['department_ids' => $managed->all()], null);
+                app(Access::class)->flush();
             }
 
             $employee->update([

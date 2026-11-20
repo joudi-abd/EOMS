@@ -29,7 +29,8 @@ export class RequestTable extends Ui {
     return `${this.t('lastDay')} ${this.short(row.day)}`;
   }
 
-  protected decide(id: string, approve: boolean): void {
+  protected async decide(id: string, approve: boolean): Promise<void> {
+    if (!(await this.askConfirm({ message: 'confirmSensitiveBody', tone: approve ? 'action' : 'danger', confirm: 'confirmProceed' }))) return;
     this.office.decideRequest(id, this.session.account().id, approve);
   }
 }

@@ -122,18 +122,6 @@ export class Attendance extends Ui {
     });
   }
 
-  protected lastRecord(): string {
-    const zone = this.book.roll()[0]?.policy.timezone ?? 'Asia/Damascus';
-    const at = this.rows()
-      .map((row) => row.at)
-      .filter((value): value is string => Boolean(value))
-      .sort()
-      .at(-1);
-    if (!at) return '—';
-    const clock = clockOf(at, zone);
-    return clock ? `${this.date(dateOf(at, zone))} ${clock}` : '—';
-  }
-
   protected punchWhen(iso: string | null, zone: string): string {
     const day = dateOf(iso, zone);
     const clock = clockOf(iso, zone);

@@ -1,0 +1,99 @@
+<form class="fin-sheet narrow fsr-sheet" (ngSubmit)="submit()">
+  <header>
+    <h2>{{ t('fsrNew') }}</h2>
+    <button class="quiet-x" type="button" (click)="closed.emit()" [attr.aria-label]="t('finClose')"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+  </header>
+
+  @if (unlinked()) {
+    <p class="fin-warn"><i class="fa-solid fa-link-slash" aria-hidden="true"></i> <span>{{ unlinked() }} <span class="strong">{{ t('fsrAskFinance') }}</span></span></p>
+  }
+
+  @if (!ready()) {
+    <p class="fin-hint">{{ t('finLoading') }}</p>
+  } @else if (!projects().length || !categories().length) {
+    <p class="fin-warn"><i class="fa-solid fa-circle-info" aria-hidden="true"></i> {{ t('fsrNoChoices') }}</p>
+  } @else {
+    <fieldset [disabled]="busy()">
+      <label class="fsr-field">{{ t('finProject') }}
+        <select name="project" required [(ngModel)]="projectId">
+          <option [ngValue]="0" disabled>{{ t('finChoose') }}</option>
+          @for (item of projects(); track item.id) { <option [ngValue]="item.id">{{ item.name }}</option> }
+        </select>
+      </label>
+
+      <label class="fsr-field">{{ t('fsrWhatFor') }}
+        <select name="category" required [(ngModel)]="categoryId">
+          <option [ngValue]="0" disabled>{{ t('finChoose') }}</option>
+          @for (item of categories(); track item.id) { <option [ngValue]="item.id">{{ item.name }}</option> }
+        </select>
+      </label>
+
+      <div class="fsr-money">
+        <label class="fsr-field">{{ t('finAmount') }}
+          <input name="amount" type="number" inputmode="decimal" min="0" step="any" required [(ngModel)]="amountValue" />
+        </label>
+        <label class="fsr-field">{{ t('finCurrency') }}
+          <select name="currency" required [(ngModel)]="currency">
+            @for (item of currencies(); track item.id) { <option [value]="item.code">{{ item.code }}</option> }
+          </select>
+        </label>
+      </div>
+
+      <div class="fsr-field">
+        <span id="fsr-source">{{ t('fsrPaidFrom') }}</span>
+        <div class="seg fsr-seg" role="radiogroup" aria-labelledby="fsr-source">
+          <button type="button" role="radio" [attr.aria-checked]="source === 'custody'" [class.on]="source === 'custody'" (click)="source = 'custody'">{{ t('fsrFromCustody') }}</button>
+          <button type="button" role="radio" [attr.aria-checked]="source === 'own_money'" [class.on]="source === 'own_money'" (click)="source = 'own_money'">{{ t('fsrFromOwn') }}</button>
+        </div>
+        @if (source === 'custody') {
+          @if (custodyBalance(); as balance) {
+            <p class="fin-hint">{{ t('fsrCustodyLeft') }} <bdi class="num strong">{{ money(balance, currency) }}</bdi></p>
+          } @else {
+            <p class="fin-hint late">{{ t('fsrNoCustodyIn') }} <bdi>{{ currency }}</bdi>.</p>
+          }
+        } @else {
+          <p class="fin-hint">{{ t('fsrOwnHint') }}</p>
+        }
+      </div>
+
+      @if (suppliers().length) {
+        <label class="fsr-field">{{ t('fsrSupplier') }} <small class="soft">({{ t('finOptional') }})</small>
+          <select name="supplier" [(ngModel)]="supplierId">
+            <option [ngValue]="0">{{ t('finNone') }}</option>
+            @for (item of suppliers(); track item.id) { <option [ngValue]="item.id">{{ item.name }}</option> }
+          </select>
+        </label>
+      }
+
+      <label class="fsr-field">{{ t('fsrDescription') }}
+        <textarea name="description" rows="2" maxlength="500" required [(ngModel)]="description" [placeholder]="t('fsrDescriptionHint')"></textarea>
+      </label>
+
+      <div class="fsr-field">
+        <span>{{ t('fsrInvoice') }}</span>
+        <div class="fsr-pickers">
+          <label class="text fsr-pick">
+            <i class="fa-solid fa-camera" aria-hidden="true"></i> {{ t('fsrTakePhoto') }}
+            <input class="vh" type="file" accept="image/*" capture="environment" (change)="pick($event)" />
+          </label>
+          <label class="text fsr-pick">
+            <i class="fa-solid fa-paperclip" aria-hidden="true"></i> {{ t('fsrChooseFile') }}
+            <input class="vh" type="file" accept="image/jpeg,image/png,image/webp,application/pdf,.jpg,.jpeg,.png,.webp,.pdf" (change)="pick($event)" />
+          </label>
+        </div>
+        @if (file(); as chosen) {
+          @if (preview(); as url) {
+            <img class="fsr-thumb" [src]="url" [alt]="t('fsrInvoice')" />
+          }
+          <p class="fin-hint"><i class="fa-solid fa-check ok" aria-hidden="true"></i> <bdi>{{ chosen.name }}</bdi></p>
+        } @else {
+          <p class="fin-hint">{{ t('fsrInvoiceHint') }}</p>
+        }
+      </div>
+
+      <div class="fin-actions">
+        <button class="primary fsr-send" type="submit">{{ t('fsrSend') }}</button>
+      </div>
+    </fieldset>
+  }
+</form>

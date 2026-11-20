@@ -32,7 +32,7 @@ class ConfigureAdmsDevice extends Command
             $device = AttendanceDevice::query()->where('serial_number', $data['serial'])->first();
             if (! $device) {
                 $device = $devices->create(['name' => $data['name'], 'serial_number' => $data['serial'],
-                    'timezone' => AttendancePolicy::query()->orderBy('effective_from')->value('timezone'),
+                    'timezone' => AttendancePolicy::officeTimezone(),
                     'model' => 'iFace 880 Plus'])['device'];
             }
 

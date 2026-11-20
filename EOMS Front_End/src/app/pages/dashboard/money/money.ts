@@ -4,7 +4,7 @@ import { Api } from '../../../core/api/api';
 import { ApiItem, ApiPage } from '../../../core/api/types';
 import { Session } from '../../../core/access/session';
 import { Ui } from '../../../core/ui';
-import { amount, FinBox } from '../../../data/finance';
+import { amount, FinBox, Finance, formatMoney } from '../../../data/finance';
 import { PayRunSummary, RunStatus, totalsList } from '../../../data/payroll';
 
 const money2 = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -22,6 +22,7 @@ const money2 = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximu
 export class MoneyGlance extends Ui {
   protected readonly session = inject(Session);
   private readonly api = inject(Api);
+  private readonly finance = inject(Finance);
   protected readonly totalsList = totalsList;
 
   protected readonly boxes = signal<FinBox[] | null>(null);
@@ -32,7 +33,7 @@ export class MoneyGlance extends Ui {
 
   constructor() {
     super();
-    if (this.session.has('finance.view')) void this.loadFinance();
+    if (this.session.reach('finance.view')) void this.loadFinance();
     if (this.session.has('payroll.view')) void this.loadPayroll();
   }
 
@@ -56,16 +57,25 @@ export class MoneyGlance extends Ui {
     }
   }
 
+  /** A box balance in its currency's own decimals (from the currency settings). */
+  protected boxMoney(value: string | number, code: string): string {
+    return formatMoney(value, this.finance.decimals(code));
+  }
+
   private async loadFinance(): Promise<void> {
+    // The currencies first, so each balance shows in its own decimals on the first paint.
+    await this.finance.loadCurrencies().catch(() => undefined);
     try {
-      this.boxes.set((await this.api.get<ApiItem<FinBox[]>>('/finance/boxes')).data.filter((box) => box.active));
+      // Not paginated: the whole list in `data`.
+      this.boxes.set((await this.api.get<ApiItem<FinBox[]>>('/finance/cash-boxes', { active: 1 })).data.filter((box) => box.is_active));
     } catch {
       this.boxes.set([]);
     }
+    const vouchers = this.session.reach('finance.vouchers') !== null;
     const [transactions, invoices, overdue] = await Promise.all([
-      this.total('/finance/transactions', { status: 'pending' }),
-      this.total('/finance/invoices', { status: 'pending' }),
-      this.total('/finance/invoices', { status: 'posted', overdue: 1 }),
+      vouchers ? this.total('/finance/vouchers', { status: 'submitted' }) : Promise.resolve(0),
+      vouchers ? this.total('/finance/site-requests', { status: 'submitted' }) : Promise.resolve(0),
+      this.session.reach('finance.counts.approve') !== null ? this.total('/finance/cash-counts', { status: 'submitted' }) : Promise.resolve(0),
     ]);
     this.pendingTransactions.set(transactions);
     this.pendingInvoices.set(invoices);

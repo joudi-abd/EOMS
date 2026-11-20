@@ -1,0 +1,75 @@
+@if (mayWrite() && editing() === null) {
+  <div class="fin-toolbar">
+    <button class="text" type="button" (click)="startNew()"><i class="fa-solid fa-plus" aria-hidden="true"></i> {{ t('fpjAddLine') }}</button>
+  </div>
+}
+
+@if (editing() !== null) {
+  <form class="fin-sheet narrow" (ngSubmit)="submit()">
+    <header>
+      <h2>{{ editing() ? t('fpjEditLine') : t('fpjAddLine') }}</h2>
+      <button class="quiet-x" type="button" (click)="editing.set(null)" [attr.aria-label]="t('finClose')"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+    </header>
+    <fieldset class="fin-form" [disabled]="busy()">
+      <label>{{ t('finCostCategory') }}
+        <select name="category" required [(ngModel)]="categoryId" [disabled]="!!editing()">
+          <option [ngValue]="0">{{ t('finChoose') }}</option>
+          @for (item of finance.activeCostCategories(); track item.id) { <option [ngValue]="item.id">{{ item.name }}</option> }
+          @if (editing() && !finance.costCategoryName(categoryId)) { <option [ngValue]="categoryId">#{{ categoryId }}</option> }
+        </select>
+      </label>
+      <label>{{ t('finCurrency') }}
+        <select name="currency" required [(ngModel)]="currencyId" [disabled]="!!editing()">
+          @for (item of finance.activeCurrencies(); track item.id) { <option [ngValue]="item.id">{{ item.code }}</option> }
+        </select>
+      </label>
+      <label>{{ t('fpjBudgetAmount') }}<input name="amount" type="number" min="0" step="any" required [(ngModel)]="budgetAmount" /></label>
+      <label class="wide">{{ t('finNotes') }}<input name="notes" maxlength="500" [(ngModel)]="notes" [placeholder]="t('finOptional')" /></label>
+      @if (editing()) { <p class="fin-hint wide">{{ t('fpjLineFixedHint') }}</p> }
+      <div class="fin-actions wide">
+        <button class="text" type="button" (click)="editing.set(null)">{{ t('finCancel') }}</button>
+        <button class="primary" type="submit" [disabled]="!categoryId || budgetAmount === null">{{ t('finSave') }}</button>
+      </div>
+    </fieldset>
+  </form>
+}
+
+<div class="sheet">
+  <table>
+    <thead>
+      <tr>
+        <th>{{ t('finCostCategory') }}</th>
+        <th class="end">{{ t('fpjBudgetAmount') }}</th>
+        <th class="end">{{ t('fpjActual') }}</th>
+        <th class="end">{{ t('fpjRemaining') }}</th>
+        <th class="end">%</th>
+        <th>{{ t('finStatus') }}</th>
+        @if (mayWrite()) { <th><span class="vh">{{ t('finActions') }}</span></th> }
+      </tr>
+    </thead>
+    <tbody>
+      @for (line of lines(); track line.id) {
+        <tr [class.picked]="editing() === line.id" [class.attention]="line.level === 'exceeded'">
+          <td>
+            {{ line.category?.name ?? finance.costCategoryName(line.project_cost_category_id) }}
+            @if (line.notes) { <small class="soft block-line">{{ line.notes }}</small> }
+          </td>
+          <td class="num end"><bdi>{{ money(line.budget_amount, line.currency) }}</bdi></td>
+          <td class="num end"><bdi>{{ line.actual === null ? '—' : money(line.actual, line.currency) }}</bdi></td>
+          <td class="num end" [class.late]="negative(line.remaining)"><bdi>{{ line.remaining === null ? '—' : money(line.remaining, line.currency) }}</bdi></td>
+          <td class="num end"><bdi>{{ line.pct === null ? '—' : qty(line.pct) + '%' }}</bdi></td>
+          <td><span [class]="levelTone(line.level)">{{ levelLabel(line.level) }}</span></td>
+          @if (mayWrite()) {
+            <td class="fin-row-actions">
+              <button class="text small" type="button" (click)="startEdit(line)">{{ t('finEdit') }}</button>
+              <button class="quiet small" type="button" [disabled]="busy()" (click)="remove(line)">{{ t('finDelete') }}</button>
+            </td>
+          }
+        </tr>
+      } @empty {
+        <tr><td [attr.colspan]="mayWrite() ? 7 : 6" class="soft">{{ loading() ? t('finLoading') : t('fpjNoBudget') }}</td></tr>
+      }
+    </tbody>
+  </table>
+</div>
+<p class="fin-hint">{{ t('fpjBudgetHint') }}</p>

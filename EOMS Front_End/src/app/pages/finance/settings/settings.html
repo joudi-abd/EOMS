@@ -1,0 +1,54 @@
+<main class="work" id="content">
+  @if (!allowed()) {
+    <h1>{{ t('finSettings') }}</h1>
+    <p class="empty">{{ t('finNoAccess') }}</p>
+    <a class="primary" routerLink="/">{{ t('back') }}</a>
+  } @else {
+    <app-notice />
+    <header class="heading">
+      <div>
+        <h1>{{ t('finSettings') }}</h1>
+        <p class="lede">{{ t('ledeFinSettings') }}</p>
+      </div>
+    </header>
+
+    <nav class="tabs" [attr.aria-label]="t('finSettings')">
+      @for (tab of tabs(); track tab.id) {
+        <a
+          [routerLink]="[]"
+          [queryParams]="{ view: tab.id, part: null }"
+          [class.active]="view() === tab.id"
+          [attr.aria-current]="view() === tab.id ? 'page' : null"
+          >{{ t(tab.label) }}</a
+        >
+      }
+    </nav>
+
+    @switch (view()) {
+      @case ('setup') {
+        <app-fst-setup [status]="status()" (changed)="loadStatus()" />
+      }
+      @case ('currencies') {
+        <app-fst-currencies [part]="part()" />
+      }
+      @case ('branches') {
+        <app-fst-branches [part]="part()" />
+      }
+      @case ('chart') {
+        <app-fst-chart [part]="part()" />
+      }
+      @case ('categories') {
+        <app-fst-categories [part]="part()" />
+      }
+      @case ('components') {
+        <app-fst-salary-components />
+      }
+      @case ('periods') {
+        <app-fst-periods />
+      }
+      @default {
+        <p class="empty">{{ t('finLoading') }}</p>
+      }
+    }
+  }
+</main>

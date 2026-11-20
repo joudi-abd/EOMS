@@ -1,0 +1,62 @@
+<form class="fin-sheet" (ngSubmit)="submit()">
+  <header>
+    <h2>{{ party() ? t('fpaEditTitle') : t('fpaNew') }}</h2>
+    <button class="quiet-x" type="button" (click)="closed.emit()" [attr.aria-label]="t('finClose')"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+  </header>
+  <fieldset class="fin-form" [disabled]="busy()">
+    <label>{{ t('finName') }}<input name="name" required maxlength="150" [(ngModel)]="name" /></label>
+    <label>{{ t('finPhone') }}<input name="phone" type="tel" dir="ltr" maxlength="30" [(ngModel)]="phone" /></label>
+
+    <fieldset class="wide fpa-roles">
+      <legend>{{ t('fpaRoles') }}</legend>
+      @for (role of roles; track role) {
+        <label class="fpa-check">
+          <input type="checkbox" [name]="'role-' + role" [ngModel]="has(role)" (ngModelChange)="flip(role, $event)" />
+          {{ roleLabel(role) }}
+        </label>
+      }
+    </fieldset>
+
+    <div class="wide">
+      <button class="link-button" type="button" [attr.aria-expanded]="more()" (click)="more.set(!more())">
+        <i class="fa-solid" [class.fa-chevron-down]="!more()" [class.fa-chevron-up]="more()" aria-hidden="true"></i>
+        {{ more() ? t('fpaLess') : t('fpaMore') }}
+      </button>
+    </div>
+
+    @if (more()) {
+      <label>{{ t('fpaTrade') }}<input name="trade" maxlength="100" [(ngModel)]="trade" /></label>
+      <label>{{ t('fpaAddress') }}<input name="address" maxlength="300" [(ngModel)]="address" /></label>
+      @if (employees().length) {
+        <label>
+          {{ t('fpaLinkedEmployee') }}
+          <select name="employee" [(ngModel)]="employeeId">
+            <option [ngValue]="0">{{ t('fpaNoEmployee') }}</option>
+            @for (item of employees(); track item.id) {
+              <option [ngValue]="item.id">{{ item.name }}</option>
+            }
+          </select>
+        </label>
+      }
+      <label>{{ t('fpaShamCash') }}<input name="wallet" dir="ltr" inputmode="numeric" maxlength="16" [(ngModel)]="wallet" /></label>
+      <label>{{ t('fpaShamName') }}<input name="walletName" maxlength="150" [(ngModel)]="walletName" /></label>
+      @if (contractor()) {
+        <label>
+          {{ t('fpaTracking') }}
+          <select name="tracking" [(ngModel)]="tracking">
+            <option value="">{{ t('fpaTrackingDefault') }}</option>
+            <option value="agreement">{{ t('fpaTrackingAgreement') }}</option>
+            <option value="payments_only">{{ t('fpaTrackingPayments') }}</option>
+          </select>
+        </label>
+        <p class="fin-hint wide">{{ t('fpaTrackingHint') }}</p>
+      }
+      <label class="fin-field">{{ t('finNotes') }}<textarea name="notes" rows="2" maxlength="1000" [(ngModel)]="notes"></textarea></label>
+    }
+
+    <div class="fin-actions wide">
+      <button class="text" type="button" (click)="closed.emit()">{{ t('finCancel') }}</button>
+      <button class="primary" type="submit">{{ t('finSave') }}</button>
+    </div>
+  </fieldset>
+</form>

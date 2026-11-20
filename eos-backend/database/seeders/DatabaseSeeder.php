@@ -4,7 +4,9 @@ namespace Database\Seeders;
 
 use App\Modules\Identity\Database\Seeders\RolePermissionSeeder;
 use App\Modules\Identity\Database\Seeders\SystemAdminSeeder;
+use App\Modules\Settings\Database\Seeders\BranchSeeder;
 use App\Modules\Settings\Database\Seeders\CurrencySeeder;
+use App\Modules\Settings\Database\Seeders\SettingsSeeder;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
@@ -19,6 +21,8 @@ class DatabaseSeeder extends Seeder
     {
         $this->call([
             CurrencySeeder::class,
+            BranchSeeder::class,
+            SettingsSeeder::class,
             RolePermissionSeeder::class,
             SystemAdminSeeder::class,
         ]);

@@ -1,113 +1,154 @@
 # وحدة المالية — مرجع الـAPI والقواعد
 
-كل المسارات تحت `/api/v1/finance` وتتطلب `auth:sanctum`. المبالغ لمنزلتين، والكميات لثلاث.
+> الحالة: **كل مراحل الخلفية (1–11) منفّذة.** هذا الملف يغطي النواة والخزينة. مرجع كل مجال في ملفه:
+>
+> | المجال | الملف |
+> |---|---|
+> | جهات التعامل، الشركاء، تصنيفات المصاريف، سند المصروف، طلبات المشرفين | `docs/finance/phases/parties-expenses.md` |
+> | المشاريع، العقود، الموازنة، المقاولون، المطالبات، الربحية، كشف المشروع | `docs/finance/phases/projects.md` |
+> | سلف الموظفين وأقساطها، العُهد | `docs/finance/phases/advances-custody.md` |
+> | بنود الراتب، تكامل الرواتب، نسب الوقت، التوزيع على المشاريع | `docs/finance/phases/payroll-allocation.md` و`docs/PAYROLL_API_AR.md` |
+> | الأصول | `docs/finance/phases/assets.md` |
+> | التقارير T1–T23، لوحة المدير، معالج الإعداد، شاشة الإقفال | `docs/finance/phases/reports-setup.md` |
+>
+> سجل التغييرات: `docs/finance/CHANGELOG.md`.
 
-## الصلاحيات
+كل المسارات تحت `/api/v1/finance` وتتطلب `auth:sanctum`. الاستجابة `{data}`، والقوائم المرقّمة `{data, links, meta}` (`per_page` حتى 100). الأخطاء `422` للتحقق، `403` للصلاحية أو لفرع خارج النطاق، `409` لحالة لا تسمح.
 
-| الصلاحية | الدور | ماذا تتيح |
+- **المبالغ نصوص عشرية** بأربع منازل في التخزين (`"1250.5000"`)، وتُقرَّب عند الترحيل لخانات العملة (الدولار 2، الليرة السورية 0). لا أرقام عائمة.
+- **العملة** تُرسل بالمعرّف (`currency_id`) أو بالرمز (`currency: "USD"`)، ومثلها `counter_currency` و`fee_currency`.
+- **التواريخ** `YYYY-MM-DD`.
+
+## الصلاحيات والنطاق
+
+| الصلاحية | النطاق | ماذا تتيح |
 |---|---|---|
-| `finance.view` | المالية، مدير الشركة | كل القراءات والتقارير |
-| `finance.manage` | المالية (`finance_manager`) | الدليل، القيود، الصناديق، العمليات، الأطراف، المواد، الفواتير، طلب الإقفال |
-| `finance.approve` | مدير الشركة (`company_manager`) | سقف الاعتماد، اعتماد الصرف والفواتير، الموافقة على الإقفال، إعادة الفتح |
+| `finance.view` | الكل / الذات | القراءة: الصناديق، السندات، القيود، الدليل، الجرد |
+| `finance.settings` | الكل | العملات، الفروع، الدليل، الحسابات الإلزامية، الصناديق، إسناد الفروع للمستخدمين |
+| `finance.rates` | الكل / الذات | النشرة اليومية |
+| `finance.vouchers` | الكل / الذات | إنشاء السندات وتعديل مسوداتها واعتمادها ورفضها |
+| `finance.reverse` | الكل / الذات | عكس السندات المعتمدة |
+| `finance.counts` | الكل / الذات | إدخال الجرد وإرساله |
+| `finance.counts.approve` | الكل | اعتماد الجرد ورفضه (ليس لمن أجراه) |
+| `finance.periods` | الكل | فحوصات الإقفال، الإقفال، إعادة الفتح |
+| `finance.reports` | الكل / الذات | التقارير (حالياً: حركة الصندوق) |
+| `finance.audit` | الكل | سجل التدقيق |
+| `finance.projects` / `finance.projects.view` | الكل / الذات | المشاريع (`/api/v1/projects`) |
+| `finance.site_requests`، `finance.allocations`، `finance.assets` | — | مسارات قراءة أولية؛ تكتمل في مراحلها |
 
-لا يعتمد أحد عملية أو فاتورة سجّلها بنفسه. بعد التحديث شغّل الـseeder لإضافة `finance.approve`.
+**النطاق "الذات" في المالية = الفروع المسندة للمستخدم** (`PUT /users/{id}/branches`). القوائم تعرض فروعه فقط، وأي إنشاء أو اعتماد على صندوق أو سند في فرع آخر يرجع 403. استثناء: `finance.projects.view` بالذات = المشاريع التي يديرها، و`finance.site_requests` بالذات = المشاريع التي يشرف عليها.
 
-## الأساس المحاسبي
+الأدوار: `finance_manager` (المحاسب العام) كل المالية بنطاق الكل عدا اعتماد الجرد؛ `company_manager` (المدير العام) عرض وتقارير ومشاريع للعرض واعتماد الجرد والتدقيق، ولا يعتمد السندات اليومية (D25)؛ `branch_accountant` (محاسب الفرع) بنطاق فروعه؛ `project_manager` مشاريعه للعرض؛ `site_supervisor` (المشرف) طلبات الموقع.
 
-- **الدليل:** `GET/POST /accounts`، `PATCH /accounts/{id}`. خمسة أنواع: `asset`, `liability`, `equity`, `revenue`, `expense`. الحساب الفرعي من نوع أبيه. يُرحَّل على الحسابات الفعّالة التي ليس لها فروع فقط. الحساب الذي له حركات لا يصبح أباً.
-- **حسابات النظام** (تُنشأ تلقائياً، تُعاد تسميتها ونقلها ولا تُوقف): `receivables` ذمم العملاء، `payables` ذمم الموردين، `inventory` المخزون، `cogs` تكلفة البضاعة المباعة، `fx_clearing` وسيط صرف العملات، `salaries` الرواتب، `opening_balances` أرصدة افتتاحية (حقوق ملكية)، `entry_differences` فروقات القيود (إيراد).
-- **القيد:** بعملة واحدة، متوازن، مرقّم `JE-2026-000001`. `POST /entries` لقيد يدوي، و`GET /entries` للبحث.
-- **القيد اليدوي:** سطر واحد على الأقل (تُضاف الأسطر حسب الحاجة). إذا اختلف المدين عن الدائن يُرحَّل القيد ويُوازن تلقائياً بسطر على حساب "فروقات القيود"، ويُحفظ الفرق في `difference`:
-  - موجب (المدين أكبر): **لصالح الشركة** — ربح، يُلوَّن بالأخضر.
-  - سالب (الدائن أكبر): **لصالح الزبون** — يُلوَّن بالأحمر.
-  - `null`: قيد متوازن.
-  عكس القيد يعكس سطر الفرق أيضاً ويحمل الفرق بالإشارة المعاكسة. قيود العمليات والفواتير تبقى متوازنة تماماً.
-- **العكس فقط:** `POST /entries/{id}/reverse` `{date, reason}` للقيود اليدوية. قيود العمليات والفواتير تُعكس من مصدرها. القيد يُعكس مرة واحدة، والقيد العكسي لا يُعكس.
-- **العملات منفصلة:** لا تحويل ولا تجميع ولا فروق صرف.
-- **قواعد يفرضها الدفتر على كل قيد** (عمليات، فواتير، عكس، قيود يدوية): لا يصبح رصيد صندوق سالباً؛ سطر ذمم العملاء أو الموردين يحتاج `party_id`؛ حساب المخزون يتحرك فقط من فاتورة مادة أو تسوية جرد (ومعكوساتها) — لا قبض/صرف يدوي ولا قيد يدوي ولا بند وصف حر؛ عملة القيد على صندوق هي عملة الصندوق. في تسوية الجرد يُرفض حساب المخزون نفسه وصناديق النظام وحسابات النظام الأخرى كمقابل، عدا "أرصدة افتتاحية" لإدخال المخزون الموجود عند البدء.
+## الإعدادات (`/api/v1/settings`)
 
-## الإقفال الشهري
+| الطلب | الصلاحية | ملاحظات |
+|---|---|---|
+| GET `/currencies?active=1` | مسجّل | الحقول: `code, name, symbol, decimals, rounding_step, is_base, is_payroll_currency, is_active`. الأساسية أولاً |
+| POST `/currencies`، PATCH `/currencies/{id}` | `finance.settings` | عملة أساسية واحدة (USD) لا تُعطَّل ولا تتغير. الرمز لا يُعدَّل |
+| GET `/exchange-rates?date=` | مسجّل | نشرة اليوم: `{date, base, rates:[{code, rate_to_base, ...}], missing:[codes]}` |
+| GET `/exchange-rates/history?currency=SYP&limit=30` | مسجّل | الأحدث أولاً |
+| POST `/exchange-rates` `{date, rates:{SYP: 13000, TRY: 43.4}}` | `finance.rates` | `rate_to_base` = كم وحدة من العملة تساوي 1 دولار. يستبدل أسعار اليوم نفسه، ويُسجَّل في التدقيق |
+| POST `/exchange-rates/copy-previous` `{date}` | `finance.rates` | ينسخ آخر سعر سابق لكل عملة ناقصة في ذلك اليوم |
+| GET `/branches`، POST، PATCH `/branches/{id}` | مسجّل / `finance.settings` | مكتب رئيسي واحد: تعيين آخر ينقل العلامة. لا يُعطَّل المكتب الرئيسي |
 
-| الخطوة | المسار |
+## النواة
+
+| الطلب | الصلاحية | ملاحظات |
+|---|---|---|
+| GET `/accounts?active=1` | `finance.view` | الدليل شجرة (`children`)، ولكل حساب `roles` (أدوار النظام التي يلعبها) و`cash_box_id` |
+| POST `/accounts` | `finance.settings` | `{code, name, type, parent_id?, is_postable?, requires_party?, requires_project?}` |
+| PATCH `/accounts/{id}`، POST `/accounts/{id}/deactivate` | `finance.settings` | النوع لا يتغير |
+| GET `/system-accounts` | `finance.view` | كل الأدوار الإلزامية: `{roles:[{role, label, account_id, account, unmapped}], unmapped_count}` |
+| PUT `/system-accounts` `{mappings:{role: account_id}}` | `finance.settings` | |
+| GET `/periods` | `finance.view` | |
+| GET `/periods/{YYYY-MM}/checks` | `finance.periods` | `{blockers:[], warnings:[]}` |
+| POST `/periods/{YYYY-MM}/close` | `finance.periods` | يرجع الفترة مع `warnings` |
+| POST `/periods/{YYYY-MM}/reopen` `{reason}` | `finance.periods` | |
+| GET `/entries?from&to&account_id&source_type&source_id&branch_id`، GET `/entries/{id}` | `finance.view` | القيود بسطورها |
+| GET/PUT `/users/{id}/branches` `{branch_ids:[]}` | `finance.settings` | فروع محاسب الفرع |
+| GET `/my-branches` | `finance.view` | `branch_ids: null` = كل الفروع |
+| GET `/audit-log?action&user_id&from&to&auditable_type&auditable_id` | `finance.audit` | عمليات `finance.*` و`fx.*` و`settings.*` |
+
+**قواعد الدليل:** الفرعي من نوع أبيه. الأب الذي له حركات لا يأخذ فروعاً. الحساب يصبح تجميعياً (`is_postable=false`) تلقائياً عند أول فرع. يُرحَّل على الحسابات الفعّالة القابلة للترحيل فقط. حسابات الصناديق (`is_system`) والحسابات المربوطة بدور لا تُعطَّل.
+
+**الحسابات الإلزامية:** `cash_boxes_parent, receivables_clients, client_advances, payables_suppliers, payables_contractors, contractor_advances, employee_advances, custody, salaries_payable, salaries_expense, project_costs, project_revenue, payroll_allocation_contra, overhead_allocation_contra, fx_position, transfer_fees, partners_current, partners_capital, fixed_assets, asset_disposal_gain_loss, asset_maintenance, cash_over_short, other_receivables, other_payables, opening_balance_equity, rounding_differences`. أي ترحيل يحتاج دوراً غير مربوط يُرفض: `اربط الحساب "..." من إعدادات الحسابات الإلزامية.` (الحقل `system_accounts`). دليل البداية: `FinanceChartSeeder`.
+
+**محرك القيود:** لكل قيد ولكل عملة مجموع المدين = مجموع الدائن، وإلا يُرفض كاملاً (`القيد غير متوازن في العملة X.`). لا موازنة تلقائية أبداً. كل سطر يحمل سعر النشرة في تاريخ القيد أو قبله (`rate_to_base`) ومعادله بالدولار (`base_debit/base_credit`)؛ إن لم يوجد سعر يُرفض القيد. الحساب والجهة غير الفعّالين يُرفضان (R4)، والمشروع `closed` يُرفض و`completed` يُقبل مع تحذير (R5). الأرصدة في `fin_account_balances` لكل (حساب، عملة، جهة)، ويعيد بناءها `php artisan finance:rebuild-balances [--dry-run]`.
+
+**الإقفال (R1):** لا ترحيل ولا عكس بتاريخ شهر مقفل. الأشهر تُقفل بالترتيب وبعد انتهائها. موانع الإقفال: أشهر سابقة مفتوحة، سندات مسودة أو مُرسلة في الشهر، طلبات موقع غير معالجة، جرد غير معتمد، كشف رواتب الشهر غير معتمد. تحذيرات: توزيع الرواتب والمصاريف العامة غير منفذ، أو لا يوجد كشف رواتب. إعادة الفتح بسبب، ومن آخر شهر مقفل نزولاً.
+
+**الترقيم:** بلا فجوات لكل نوع وسنة، ويُمنح عند الاعتماد: `RV` قبض، `PV` صرف، `TR` تحويل، `FX` تصريف، `EX` مصروف، `PB` مطالبة، `CU` صرف عهدة، `CS` تسوية عهدة، `CR` رد عهدة، `AI` سلفة موظف، `AP` شراء أصل، `AM` صيانة أصل، `AD` استبعاد أصل، `CA` فرق جرد، `OB` رصيد افتتاحي، `AL` توزيع، `MJ` قيد يدوي، `PR` استحقاق رواتب، `SP` صرف راتب، `JE` القيد. الصيغة `RV-2026-000001`. المسودة تظهر `display_number: "مسودة #12"`.
+
+## الخزينة
+
+### الصناديق
+
+| الطلب | الصلاحية |
 |---|---|
-| طلب إقفال شهر منتهٍ (يُرفض إذا فيه عملية أو فاتورة غير محسومة) | POST `/periods/close-request` `{month}` |
-| موافقة أو رفض | POST `/periods/{month}/decision` `{decision: approve\|reject, note}` — عند الموافقة يُعاد فحص العمليات/الفواتير غير المحسومة داخل المعاملة مع قفل الفترة؛ أي معلّق جديد يرفض الإقفال |
-| إعادة فتح شهر مقفل | POST `/periods/{month}/reopen` `{reason}` |
-
-لا يُرحَّل أي قيد بتاريخ شهر مقفل.
-
-## الإشعارات
-
-`finance.payment_pending`، `finance.invoice_pending`، `finance.period_close_requested` لمن يملك `finance.approve`؛ و`finance.payment_approved|rejected`، `finance.invoice_approved|rejected`، `finance.period_closed|close_rejected` لمن سجّل العملية أو طلب الإقفال. لا يُوقف صندوق له عمليات بانتظار الاعتماد، ولا تُحفظ فاتورة إجماليها صفر.
-
-## سقف الاعتماد
-
-`GET /approval-limits`، و`PUT /approval-limits` `{currency_code, amount}` من مدير الشركة. الصرف من صندوق وفواتير البيع والشراء فوق السقف تنتظر اعتماد مدير الشركة. **إذا لم يُضبط سقف لعملة فكل صرف وفاتورة بها ينتظر الاعتماد.**
-
-## الصناديق والعمليات
-
-- `GET /boxes` (مع الرصيد)، `POST /boxes` `{name, kind: cash|sham_cash, currency_code, parent_account_id?, opening_amount?, opening_date?, opening_account_id?}`، `PATCH /boxes/{id}`. لكل صندوق حساب أصل تلقائي.
-- **مبلغ افتتاحي:** `opening_amount` يُسجَّل قبضاً مرحّلاً بتاريخ `opening_date` (افتراضياً اليوم) من حساب "أرصدة افتتاحية"، أو من حساب حقوق ملكية تختاره بـ`opening_account_id` (مثل رأس المال). يعيد الصندوق مع `balance`.
-- `POST /transactions/{kind}`:
-
-| kind | الحقول | القيد |
-|---|---|---|
-| `receipt` قبض | `box_id, amount, date, description` + (`party_id` عميل، و`invoice_id` اختياري) أو `account_id` | مدين الصندوق / دائن ذمة العميل أو الحساب |
-| `payment` صرف | نفسه + مورد بدل عميل | مدين ذمة المورد أو الحساب / دائن الصندوق. فوق السقف: `pending` |
-| `transfer` تحويل | `box_id, counter_box_id, amount` بنفس العملة | مدين الصندوق المستلم / دائن المرسل |
-| `exchange` صرف عملة | `box_id, counter_box_id, amount, counter_amount` بعملتين | قيدان، كلٌ بعملته عبر `fx_clearing`؛ يُحفظ السعر |
-
-- لا يُصرف أكثر من رصيد الصندوق. لا يُدفع على فاتورة أكثر من المتبقي.
-- `POST /transactions/{id}/decision` `{decision, note}` للعمليات المعلّقة؛ `POST /transactions/{id}/reverse` `{date, reason}` يعكس القيود ويعيد المدفوع على الفاتورة.
-- **الرواتب:** دفعة الراتب في وحدة الرواتب تتطلب الآن `box_id` بعملة الدفع؛ يُسجَّل تلقائياً صرف من الصندوق على حساب الرواتب، ويُرفض الدفع إن لم يكفِ الرصيد. لا تُعكس من المالية.
-
-## الأطراف والمواد والفواتير
-
-- **الأطراف:** `GET/POST /parties`، `PATCH /parties/{id}` — `kind: customer|supplier`، و`sham_cash_wallet` (16 رقماً) و`sham_cash_name` (اسم صاحب المحفظة) اختياريان.
-- **المواد المخزنة:** `GET/POST /items`، `PATCH /items/{id}` — `name, unit, currency_code` (عملة التقييم)، `revenue_account_id` (افتراضي للبيع). `GET /items/{id}/moves` حركات المادة.
-- **الجرد:** `POST /items/{id}/adjust` `{date, quantity (+/−), unit_cost?, account_id, reason}` — الزيادة بالتكلفة المحددة أو المتوسط، والنقص بالمتوسط؛ `account_id` مقابل غير نظامي وغير صندوق (مصروف/إيراد/حقوق ملكية…)، أو "أرصدة افتتاحية" لجرد البداية، وليس حساب المخزون.
-- **الفاتورة:** `POST /invoices` (مسودة)، `PUT /invoices/{id}` مع `version`:
+| GET `/cash-boxes?branch_id&active` | `finance.view` (فروعه) |
+| GET `/cash-boxes/{id}` | `finance.view` |
+| POST `/cash-boxes` | `finance.settings` |
+| PATCH `/cash-boxes/{id}`، POST `/cash-boxes/{id}/deactivate` | `finance.settings` |
 
 ```json
-{"type": "sale", "party_id": 3, "date": "2026-11-05", "due_date": "2026-11-20", "currency_code": "SYP",
- "lines": [{"item_id": 7, "quantity": 5, "unit_price": 2000000},
-           {"description": "كابل", "unit": "متر", "quantity": 12.5, "unit_price": 4000, "account_id": 12}]}
+{"name": "موني آوت", "type": "exchange_office", "branch_id": 1, "custodian_user_id": 5, "contact_info": "…",
+ "currencies": [{"currency": "USD", "allow_negative": true, "negative_limit": 30000}, {"currency": "TRY"}]}
 ```
+`type`: `cash_safe | exchange_office | bank | e_wallet`. يُنشأ حساب الصندوق تلقائياً تحت `cash_boxes_parent` برمز `{رمز الأب}-{id}`. كل عملة في القائمة تعيد: `balance, allow_negative, negative_limit, available, negative, near_limit` (`near_limit` عند استهلاك 80% من حد السالب). لا تُزال عملة لها رصيد.
 
-  بند المادة يحرّك المخزون، وبند الوصف الحر يحتاج حساباً (إيراد للبيع، مصروف أو أصل للشراء). لا خصم ولا ضريبة.
-  **الواحدة `unit`** (متر، كيلو، قطعة…، حتى 20 حرفاً) لكل بند، و`amount` = الكمية × سعر الواحدة، والإجمالي مجموعها. بند المادة يأخذ واحدة المادة تلقائياً ولا يقبل غيرها.
-- **المرفقات (صورة الفاتورة):** `POST /invoices/{id}/attachments` (multipart، الحقل `file`: jpg/jpeg/png/webp/pdf حتى 10MB، حتى 10 مرفقات، غير الملغاة)، وتظهر في `GET /invoices/{id}` ضمن `attachments`. التنزيل/العرض: `GET /invoices/{id}/attachments/{attachmentId}`. الحذف `DELETE` للمسودة فقط.
-- `POST /invoices/{id}/submit`: ضمن السقف تُرحَّل مباشرة وتأخذ رقماً (`S-2026-0001` / `P-2026-0001`)، وفوقه `pending`. `POST /invoices/{id}/decision` للاعتماد؛ الرفض يعيدها مسودة.
-- `POST /invoices/{id}/cancel` `{date, reason}`: يعكس القيود والمخزون؛ يُرفض إن كان عليها دفعات (اعكسها أولاً). **إلغاء الشراء** مسموح فقط ما دامت الفاتورة آخر حركة على كل مادة فيها، وإلا تُستخدم تسوية الجرد؛ ولا يُخزَّن متوسط تكلفة سالب أبداً (الفرق الناتج عن التقريب دون السنت يُعامل صفراً). **إلغاء البيع** مسموح بعد حركات لاحقة: البضاعة تعود بتكلفة الوحدة نفسها التي خرجت بها (المحفوظة في حركة المخزون)، وعكس القيد يعيد المبلغ المقرّب نفسه، فيعود المتوسط ورصيد المخزون كما كانا. الشراء يُقيَّم في المخزون بمبلغ البند المرحّل ÷ الكمية. الإلغاء وتسوية الجرد (حتى بقيمة صفر) يُرفضان في شهر مقفل.
-- `GET /invoices?type=&status=&party_id=&overdue=1`؛ لكل فاتورة `remaining` و`payment_status` (`unpaid`/`partial`/`paid`) و`overdue`.
+**الرصيد السالب (R8، OP-13):** غير مسموح = الحد 0؛ مسموح بحد = −الحد؛ مسموح بلا حد = لا فحص. الفحص على **أدنى رصيد جارٍ من تاريخ السند فما بعد**، فلا يُكسر كشف يوم لاحق بسند بتاريخ قديم. الرسالة: `رصيد الصندوق X بعملة USD لا يكفي: الرصيد الحالي …، المتاح ….` (الحقل `amount`). الترحيل يقفل صفوف الصناديق ثم الأرصدة، فسندان متزامنان لا يكسران الحد.
 
-## المخزون
+### السندات
 
-مستودع واحد، متوسط مرجّح. الشراء بعملة المادة فقط. البيع بأي عملة: الإيراد بعملة الفاتورة، وتكلفة البضاعة المباعة قيد منفصل بعملة المادة. لا مخزون سالب (يُفحص عند الإرسال وعند الترحيل). حساب المخزون يساوي دائماً الكمية × المتوسط، ولهذا يُرفض إلغاء الشراء الذي يكسر هذه المساواة.
-
-## التقارير (عملة واحدة لكل تقرير)
-
-`GET /reports/{report}`:
-
-| report | المعاملات |
+| الطلب | الصلاحية |
 |---|---|
-| `box` كشف صندوق | `box_id, from, to` |
-| `party` كشف عميل/مورد مع الفواتير المفتوحة والمتأخرة | `party_id, currency, from, to` |
-| `ledger` دفتر الأستاذ لحساب | `account_id, currency, from, to` |
-| `trial-balance` ميزان المراجعة | `currency, from, to` |
-| `income-statement` الأرباح والخسائر | `currency, from, to` |
-| `balance-sheet` الميزانية | `currency, to` — الأصول = الخصوم + حقوق الملكية + ربح الفترة حتى التاريخ |
+| GET `/vouchers?type&purpose&status&box_id&party_id&project_id&branch_id&from&to&search` | `finance.view` |
+| GET `/vouchers/{id}` | `finance.view` — مع `lines`، `attachments`، `entry.lines`، `reversal_entry`، `display_number`، `warnings` |
+| POST `/vouchers` (`approve: true` يُرحّل فوراً) | `finance.vouchers` |
+| PUT `/vouchers/{id}` (مسودة فقط، مع `version`) | `finance.vouchers` |
+| DELETE `/vouchers/{id}` (مسودة فقط) | `finance.vouchers` |
+| POST `/vouchers/{id}/submit`، `/approve`، `/reject` `{reason}` | `finance.vouchers` |
+| POST `/vouchers/{id}/reverse` `{date, reason}` | `finance.reverse` |
+| POST `/vouchers/{id}/attachments` (`file`)، GET/DELETE `/vouchers/{id}/attachments/{a}` | `finance.vouchers` / `finance.view` |
+| GET `/vouchers/suggest-rate?from=USD&to=TRY&date=` | `finance.view` — سعر النشرة المتقاطع لتعبئة التصريف |
 
-كشوف الصندوق والأطراف والأستاذ تعيد الرصيد الافتتاحي، والحركات برصيد تراكمي، والرصيد الختامي.
+دورة الحالة: `draft → (submitted) → approved → reversed`، أو `rejected` من `submitted`. المسودة تُعدَّل وتُحذف؛ المعتمد لا يُعدَّل ولا يُحذف ويُصحَّح بالعكس (R3). العكس بتاريخ في شهر مفتوح، مرة واحدة. المالية تعتمد ما أدخلته بنفسها (OP-14). أي رد يحمل `warnings: []` غير مانعة. المرفقات: jpg/png/webp/pdf حتى 10MB، و10 مرفقات للسجل، وتُحذف من المسودة فقط.
 
-## التزامن
+| النوع / الغرض | الحقول | القيد |
+|---|---|---|
+| `receipt` / `payment` بغرض `other` | `cash_box_id, currency, amount, account_id` + أبعاد اختيارية | الصندوق مقابل الحساب. الحساب ليس صندوقاً ولا حساب دور (إلا `opening_balance_equity`) |
+| `receipt`/`payment` بغرض `debt` | `party_id, debt_direction: we_owe\|owed_to_us` | علينا: قبض يقترض (د `other_payables`)، صرف يسدد. لنا: صرف يُقرض (م `other_receivables`)، قبض يحصّل |
+| `payment` بغرض `supplier_payment` | `party_id` (دور مورد)؛ مع `project_id` يلزم `project_cost_category_id` | بلا مشروع: م `payables_suppliers` / د الصندوق. مع مشروع: م `project_costs` (المشروع، التصنيف، المورد) / د الصندوق |
+| `transfer` | `cash_box_id, counter_cash_box_id, currency, amount, fee_amount?, fee_currency?` | م الصندوق ب / د الصندوق أ؛ العمولة: م `transfer_fees` / د أ. صندوقان مختلفان والعملة مفعّلة على الاثنين |
+| `exchange` | `cash_box_id, currency, amount, counter_cash_box_id, counter_currency, counter_amount` أو `rate` | م `fx_position` [X] / د أ [X]؛ م ب [Y] / د `fx_position` [Y]؛ سعر الصفقة على السطور الأربعة. `rate = counter_amount ÷ amount`. عملتان مختلفتان ومبلغان موجبان (R9). انحراف السعر عن النشرة فوق `finance.exchange_rate_tolerance_pct` (5%) يعطي تحذيراً ولا يمنع (R10) |
+| `manual_journal` | `lines:[{account_id, currency, debit\|credit, party_id?, project_id?, …, memo}]` | كما أُدخل، متوازن لكل عملة. حسابات الصناديق مرفوضة |
+| `opening_balance` | `lines` (للصندوق: `cash_box_id` بدل `account_id`) | السطور + سطر مقابل على `opening_balance_equity` لكل عملة تلقائياً |
+| `count_adjustment`، `payroll_accrual`، `payroll_payment` | — | تُنشأ تلقائياً من الجرد والرواتب فقط |
 
-كل عمليات الصندوق والفواتير والجرد والقيود تقفل الصفوف التي تتحقق منها (الصندوق قبل إدخال العملية، والمواد قبل فحص الحركات) ثم تقرأ الرصيد والحركات بعد القفل. اتصال MySQL/MariaDB يعمل بمستوى عزل `READ COMMITTED` (قابل للتغيير بـ`DB_ISOLATION_LEVEL`) فتُقرأ أحدث البيانات المثبتة بعد القفل، وأي تعارض من قاعدة البيانات (deadlock، خطأ MariaDB 1020، serialization failure) يعيد المعاملة كاملة حتى 3 مرات، فتنتهي العملية الثانية برسالة الرفض المناسبة (رصيد غير كافٍ، حركات لاحقة…). إن بقي التعارض بعد المحاولات يرجع 409 "أعد المحاولة" بدل 500.
+الأغراض الأخرى (`client_payment, contractor_payment, contractor_advance, internal_expense, partner_drawing, partner_deposit, employee_advance, custody`) والأنواع (`expense, project_billing, custody_*, advance_issue, asset_*, allocation`) ترجع `هذا النوع من السندات غير متاح بعد.` حتى مراحلها.
 
-## البداية
+### الجرد
 
-الأموال الموجودة عند البدء تُدخل كمبلغ افتتاحي عند إنشاء الصندوق، أو تُسجَّل لاحقاً قبضاً من حساب حقوق ملكية.
+| الطلب | الصلاحية |
+|---|---|
+| GET `/cash-counts?box_id&status&from&to`، GET `/cash-counts/{id}` | `finance.view` |
+| POST `/cash-counts` `{cash_box_id, count_date, notes?, lines:[{currency, counted_amount, explanation?}]}` | `finance.counts` |
+| PUT/DELETE `/cash-counts/{id}` (مسودة، من أجراه) | `finance.counts` |
+| POST `/cash-counts/{id}/submit`، `/resnapshot` | `finance.counts` |
+| POST `/cash-counts/{id}/approve`، `/reject` `{reason}` | `finance.counts.approve` |
+| POST/GET `/cash-counts/{id}/attachments` | كشف الصراف |
 
-```bash
-php artisan migrate   # يضيف الحسابين النظاميين والأعمدة الجديدة وجدول المرفقات
-```
+عند الإرسال يُلتقط رصيد النظام لكل عملة في تاريخ الجرد ويُحسب `difference = counted − system`، ويصل إشعار لحاملي `finance.counts.approve`. لا يُرحَّل الفرق قبل الاعتماد (R22)، ولا يعتمد من أجرى الجرد. إذا تحرّك الصندوق بعد الإرسال يظهر `stale: true` ويُرفض الاعتماد (409) حتى `resnapshot` (R23). عند الاعتماد يُرحَّل سند `count_adjustment`: العجز م `cash_over_short` / د الصندوق، والزيادة عكسه.
+
+## التقارير
+
+GET `/reports/box-statement?box_id&currency_id?&from&to` (`finance.reports`): لكل عملة `opening`، والسطور (`date, entry_number, voucher_number, voucher_type, description, debit, credit, balance`)، و`total_in`، `total_out`، `closing`. الافتراضي من أول الشهر حتى اليوم.
+
+## المشاريع (`/api/v1/projects`)
+
+سجل مشاريع عام: GET `/` و`/{id}` (`finance.projects.view`)، POST `/`، PATCH `/{id}`، POST `/{id}/status` `{status}`، PUT `/{id}/members` `{members:[{user_id, role: supervisor|member}]}` (`finance.projects`). الحالات: `planned, active, on_hold, completed, closed`. بنطاق الذات: مدير المشاريع يرى مشاريعه، ومحاسب الفرع يرى مشاريع فروعه وينشئ فيها.
+
+## الرواتب
+
+اعتماد كشف الرواتب يُرحّل سند `payroll_accrual` بتاريخ آخر يوم في الشهر (م `salaries_expense` / د `salaries_payable` لكل موظف). كل دفعة راتب سند `payroll_payment` مرحّل: بنفس العملة م `salaries_payable` / د الصندوق والفرق على `rounding_differences`؛ وبعملة أخرى عبر `fx_position`. إلغاء الدفعة من الرواتب يعكس سندها؛ المالية لا تعكس سندات الرواتب من شاشة السندات (409).

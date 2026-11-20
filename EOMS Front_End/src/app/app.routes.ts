@@ -6,8 +6,16 @@ import { Attendance } from './pages/attendance/attendance';
 import { Dashboard } from './pages/dashboard/dashboard';
 import { Access } from './pages/access/access';
 import { Employees } from './pages/employees/employees';
-import { FinancePage } from './pages/finance/finance';
-import { Rates } from './pages/finance/rates/rates';
+import { FinOverviewPage } from './pages/finance/overview/overview';
+import { FinBoxesPage } from './pages/finance/boxes/boxes';
+import { FinVouchersPage } from './pages/finance/vouchers/vouchers';
+import { FinPartiesPage } from './pages/finance/parties/parties';
+import { FinProjectsPage } from './pages/finance/projects/projects';
+import { FinAdvancesPage } from './pages/finance/advances/advances';
+import { FinAssetsPage } from './pages/finance/assets/assets';
+import { FinSitePage } from './pages/finance/site/site';
+import { FinReportsPage } from './pages/finance/reports/reports';
+import { FinSettingsPage } from './pages/finance/settings/settings';
 import { HrSettings } from './pages/hr-settings/hr-settings';
 import { Login } from './pages/login/login';
 import { Later } from './pages/later/later';
@@ -31,27 +39,23 @@ export const routes: Routes = [
       { path: 'modules/payroll', component: PayrollPage },
       { path: 'modules/tasks', component: TasksPage },
       { path: 'modules/alerts', component: Alerts },
-      { path: 'modules/finCash', component: FinancePage, data: { section: 'cash' } },
-      { path: 'modules/finInvoices', component: FinancePage, data: { section: 'invoices' } },
-      { path: 'modules/finItems', component: FinancePage, data: { section: 'items' } },
-      { path: 'modules/finLedger', component: FinancePage, data: { section: 'ledger' } },
-      { path: 'modules/finReports', component: FinancePage, data: { section: 'reports' } },
-      { path: 'modules/finSettings', component: Rates },
+      { path: 'modules/finOverview', component: FinOverviewPage },
+      { path: 'modules/finBoxes', component: FinBoxesPage },
+      { path: 'modules/finVouchers', component: FinVouchersPage },
+      { path: 'modules/finParties', component: FinPartiesPage },
+      { path: 'modules/finProjects', component: FinProjectsPage },
+      { path: 'modules/finAdvances', component: FinAdvancesPage },
+      { path: 'modules/finAssets', component: FinAssetsPage },
+      { path: 'modules/finSite', component: FinSitePage },
+      { path: 'modules/finReports', component: FinReportsPage },
+      { path: 'modules/finSettings', component: FinSettingsPage },
+      // Old finance addresses open the closest new area.
+      { path: 'modules/finCash', redirectTo: '/modules/finBoxes', pathMatch: 'full' },
+      { path: 'modules/finInvoices', redirectTo: '/modules/finVouchers', pathMatch: 'full' },
+      { path: 'modules/finItems', redirectTo: '/modules/finOverview', pathMatch: 'full' },
+      { path: 'modules/finLedger', redirectTo: '/modules/finReports', pathMatch: 'full' },
       { path: 'modules/finance/rates', redirectTo: '/modules/finSettings', pathMatch: 'full' },
-      {
-        path: 'modules/finance',
-        pathMatch: 'full',
-        redirectTo: ({ queryParams }) => {
-          const view = String(queryParams['view'] ?? '');
-          const target: Record<string, string> = {
-            invoices: '/modules/finInvoices',
-            items: '/modules/finItems',
-            ledger: '/modules/finLedger',
-            reports: '/modules/finReports',
-          };
-          return target[view] ?? '/modules/finCash';
-        },
-      },
+      { path: 'modules/finance', redirectTo: '/modules/finOverview', pathMatch: 'full' },
       { path: 'modules/:id', component: Later },
     ],
   },

@@ -1,0 +1,70 @@
+:host {
+  display: contents;
+}
+
+.confirm {
+  width: min(420px, calc(100vw - 32px));
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--r-dialog);
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: none;
+}
+
+.confirm::backdrop {
+  background: rgb(16 32 26 / 0.45);
+}
+
+.top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 20px 22px 0;
+}
+
+.top h2 {
+  margin: 0;
+  font-size: 20px;
+  line-height: 1.3;
+}
+
+.x {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: var(--r-control);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.x:hover {
+  background: var(--hover);
+  color: var(--ink);
+}
+
+.body {
+  margin: 12px 22px 0;
+  font-size: 16px;
+  line-height: 1.55;
+}
+
+.detail {
+  margin: 8px 22px 0;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.acts {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 20px 22px 22px;
+}

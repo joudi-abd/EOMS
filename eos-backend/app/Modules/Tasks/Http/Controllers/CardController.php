@@ -204,10 +204,14 @@ class CardController extends Controller
     {
         $this->access->authorize($request->user(), Board::findOrFail(Card::findOrFail($attachment->card_id)->board_id));
         abort_unless(Storage::disk('local')->exists($attachment->path), 404, 'الملف غير موجود.');
-        $inline = str_starts_with((string) $attachment->mime, 'image/') || $attachment->mime === 'application/pdf';
+        // Only formats a browser renders without running scripts open inline (an SVG or HTML disguised as an image is
+        // downloaded instead), and the sandbox CSP keeps even those from executing anything on the API origin.
+        $inline = in_array($attachment->mime, ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'application/pdf'], true);
 
         return Storage::disk('local')->response($attachment->path, $attachment->original_name,
-            ['Content-Type' => $attachment->mime ?? 'application/octet-stream', 'X-Content-Type-Options' => 'nosniff'], $inline ? 'inline' : 'attachment');
+            ['Content-Type' => $inline ? $attachment->mime : 'application/octet-stream', 'X-Content-Type-Options' => 'nosniff',
+                'Content-Security-Policy' => 'sandbox; default-src \'none\'; img-src \'self\'; style-src \'unsafe-inline\''],
+            $inline ? 'inline' : 'attachment');
     }
 
     public function destroyAttachment(Attachment $attachment, Request $request): JsonResponse

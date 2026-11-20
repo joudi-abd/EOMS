@@ -39,3 +39,6 @@ Schedule::command('tasks:recurring')->hourly()->withoutOverlapping();
 
 // Due-soon and overdue reminders; each is sent once per due date.
 Schedule::command('tasks:reminders')->hourly()->withoutOverlapping();
+
+// R17: open custodies older than finance.custody_overdue_days; once per custody per day.
+Schedule::command('finance:custody-overdue')->dailyAt('08:00')->timezone(config('app.timezone'))->withoutOverlapping();

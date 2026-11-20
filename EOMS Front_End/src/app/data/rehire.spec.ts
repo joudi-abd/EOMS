@@ -12,8 +12,14 @@ const ended: ApiEmployee = { id: 7, employee_no: 'U-00000007', first_name: 'Ali'
   department_id: null, job_title_id: null, manager_id: null, status: 'terminated', hire_date: '2026-01-01', termination_date: '2026-11-02', termination_reason: 'Original ending',
   user_id: 2, has_account: true, email: 'employee@example.test', current_service_start: null, service_periods: [{ id: 1, start_date: '2026-01-01', end_date: '2026-11-02' }] };
 
+// What `/auth/me` reports for each role: the app reads `permissions`, never the role name.
+const grantsFor: Record<string, ApiUser['permissions']> = {
+  hr_manager: { 'employees.view': 'all', 'employees.view_sensitive': 'all', 'employees.manage': 'all' },
+  project_manager: { 'employees.view': 'all' },
+};
+
 async function setup(role = 'hr_manager') {
-  const user = signal<ApiUser>({ id: 1, name: 'HR', email: 'hr@example.test', phone: null, status: 'active', roles: [role], created_at: null, last_login_at: null });
+  const user = signal<ApiUser>({ id: 1, name: 'HR', email: 'hr@example.test', phone: null, status: 'active', roles: [role], created_at: null, last_login_at: null, permissions: grantsFor[role] });
   let returned = false;
   const post = vi.fn(async () => { returned = true; return { data: {} }; });
   const get = vi.fn(async (path: string) => ({ data: path === '/employees/7' ? { ...ended, status: 'active', termination_date: null, termination_reason: null, current_service_start: '2026-11-07', service_periods: [...ended.service_periods!, { id: 2, start_date: '2026-11-07', end_date: null }] } : [] }));

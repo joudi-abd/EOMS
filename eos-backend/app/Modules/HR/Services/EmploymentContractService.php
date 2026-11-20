@@ -106,7 +106,9 @@ class EmploymentContractService
 
             $overlap = EmploymentContract::query()
                 ->where('employee_id', $employee->id)
-                ->where('status', 'active')
+                // Terminated and expired contracts still priced their days (payroll reads them): they count up to their
+                // effective end (terminated_at when set, otherwise end_date).
+                ->whereIn('status', ['active', 'terminated', 'expired'])
                 ->whereKeyNot($contract->id)
                 ->whereDate('start_date', '<=', $contract->end_date?->format('Y-m-d') ?? '9999-12-31')
                 ->where(function ($query) use ($contract) {
@@ -121,7 +123,7 @@ class EmploymentContractService
 
             if ($overlap) {
                 throw ValidationException::withMessages([
-                    'start_date' => ['توجد فترة متداخلة مع عقد معتمد لهذا الموظف.'],
+                    'start_date' => ['توجد فترة متداخلة مع عقد معتمد أو منتهٍ لهذا الموظف.'],
                 ]);
             }
 

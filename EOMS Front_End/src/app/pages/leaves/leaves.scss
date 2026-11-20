@@ -14,6 +14,47 @@
   margin-top: 16px;
 }
 
+.scopes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  width: fit-content;
+  max-width: 100%;
+  margin: 20px 0 0;
+  padding: 3px;
+  background: var(--hover);
+  border: 0;
+  border-radius: var(--r-control);
+}
+
+.scopes button {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 6px 16px;
+  color: var(--muted);
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  white-space: nowrap;
+  font-size: 16px;
+  cursor: pointer;
+  transition:
+    background-color 140ms ease-out,
+    color 140ms ease-out;
+}
+
+.scopes button:hover:not(:disabled) { color: var(--ink); }
+
+.scopes button.active {
+  background: var(--surface);
+  color: var(--mark-ink);
+  font-weight: 600;
+  box-shadow: 0 0 0 1px var(--line-strong);
+}
+
+.scopes button:disabled { cursor: not-allowed; }
+
 .inline {
   min-height: 0;
   padding: 0;

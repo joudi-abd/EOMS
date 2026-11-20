@@ -1,6 +1,5 @@
 import { Component, computed, effect, inject, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Session } from '../../../core/access/session';
 import { Ui } from '../../../core/ui';
 import { Office } from '../../../data/office';
 import { LeaveOptions, LeaveRecord, LeaveTypeOption } from '../../../data/leaves';
@@ -25,7 +24,6 @@ export interface LeaveFilters {
 })
 export class LeaveRegister extends Ui {
   protected readonly office = inject(Office);
-  protected readonly session = inject(Session);
   readonly settings = input.required<LeaveOptions>();
   readonly rows = input.required<LeaveRecord[]>();
   readonly filters = input.required<LeaveFilters>();
@@ -34,7 +32,6 @@ export class LeaveRegister extends Ui {
   readonly page = input(1);
   readonly lastPage = input(1);
   readonly decision = input<{row: LeaveRecord; action: string} | null>(null);
-  readonly scopeChange = output<'mine' | 'review' | 'all'>();
   readonly apply = output<void>();
   readonly turn = output<number>();
   readonly edit = output<LeaveRecord>();
@@ -43,8 +40,10 @@ export class LeaveRegister extends Ui {
   readonly dismiss = output<void>();
   protected reason = '';
   protected from = '';
-  /** The request opened in the side panel. */
+  /** The request opened in the side card. */
   protected readonly picked = signal<number | null>(null);
+  /** True while the detail card is playing its exit slide. */
+  protected readonly closing = signal(false);
   protected readonly current = computed(() => this.rows().find((row: LeaveRecord) => row.id === this.picked()) ?? null);
 
   constructor() {
@@ -63,8 +62,32 @@ export class LeaveRegister extends Ui {
   protected label(status: string): string { return leaveLabel(this.language.lang() === 'ar', status); }
   protected owns(row: LeaveRecord): boolean { return row.is_owner || !!row.can_act_for_owner; }
   protected set(key: keyof LeaveFilters, value: string): void { this.filters()[key] = value; }
+
   protected pick(row: LeaveRecord): void {
-    this.picked.set(this.picked() === row.id ? null : row.id);
+    if (this.picked() === row.id) {
+      this.close();
+      return;
+    }
+    this.closing.set(false);
+    this.picked.set(row.id);
+  }
+
+  protected close(): void {
+    if (this.picked() === null || this.closing()) return;
+    this.dismiss.emit();
+    if (typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      this.picked.set(null);
+      return;
+    }
+    this.closing.set(true);
+  }
+
+  protected finishClose(event?: AnimationEvent): void {
+    // Angular emulates view encapsulation by prefixing keyframe names.
+    if (event && !String(event.animationName).includes('lv-card-out')) return;
+    if (!this.closing()) return;
+    this.closing.set(false);
+    this.picked.set(null);
   }
 
   protected typeName(id: number): string {

@@ -16,9 +16,11 @@ Route::prefix('api/v1/auth')->middleware('api')->group(function () {
 });
 
 Route::prefix('api/v1')->middleware(['api', 'auth:sanctum'])->group(function () {
-    Route::apiResource('users', UserController::class)->except(['destroy']);
-    Route::patch('users/{user}/status', [UserController::class, 'updateStatus']);
-    Route::put('users/{user}/roles', [UserController::class, 'assignRoles']);
+    Route::middleware('perm:users.manage')->group(function () {
+        Route::apiResource('users', UserController::class)->except(['destroy'])->whereNumber('user');
+        Route::patch('users/{user}/status', [UserController::class, 'updateStatus'])->whereNumber('user');
+        Route::put('users/{user}/roles', [UserController::class, 'assignRoles'])->whereNumber('user');
+    });
     Route::get('notifications', [NotificationController::class, 'index']);
     Route::post('notifications/read-all', [NotificationController::class, 'readAll']);
     Route::post('notifications/{id}/read', [NotificationController::class, 'read'])->whereUuid('id');

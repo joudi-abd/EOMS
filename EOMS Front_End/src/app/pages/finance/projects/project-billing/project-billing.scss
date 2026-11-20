@@ -1,0 +1,17 @@
+.panel {
+  display: grid;
+  gap: 8px;
+}
+
+.fpj-big {
+  margin: 0;
+  font-size: 30px;
+  font-weight: 600;
+}
+
+.fin-form label.fpj-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink);
+}

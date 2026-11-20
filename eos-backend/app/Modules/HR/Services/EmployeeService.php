@@ -103,6 +103,13 @@ class EmployeeService
             $tracked = ['department_id', 'job_title_id', 'manager_id'];
             $changes = Arr::only($employee->getDirty(), $tracked);
             $oldValues = Arr::only($employee->getRawOriginal(), array_keys($changes));
+            // Every changed field is named; the payout wallet is also recorded masked, so a redirected salary is traceable.
+            $changes['fields'] = array_keys($employee->getDirty());
+            if ($employee->isDirty('sham_cash_wallet')) {
+                $mask = fn (?string $wallet) => $wallet === null ? null : '****'.substr($wallet, -4);
+                $oldValues['sham_cash_wallet'] = $mask($employee->getRawOriginal('sham_cash_wallet'));
+                $changes['sham_cash_wallet'] = $mask($employee->sham_cash_wallet);
+            }
             if ($employee->isDirty([
                 'department_id',
                 'job_title_id',

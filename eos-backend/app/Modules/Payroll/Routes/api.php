@@ -1,6 +1,7 @@
 <?php
 
 use App\Modules\Payroll\Http\Controllers\PayRunController;
+use App\Modules\Payroll\Http\Controllers\SalaryComponentController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('api/v1/payroll')->middleware(['api', 'auth:sanctum'])->controller(PayRunController::class)->group(function () {
@@ -19,7 +20,7 @@ Route::prefix('api/v1/payroll')->middleware(['api', 'auth:sanctum'])->controller
         Route::delete('items/{item}', 'removeItem')->whereNumber('item');
         Route::post('runs/{run}/submit', 'submit')->whereNumber('run');
     });
-    // Review and approve: finance (payroll.approve; the company manager holds it too).
+    // Review and approve: finance only (payroll.approve; OP-1 — the company manager reads payroll but does not approve it).
     Route::middleware('perm:payroll.approve')->group(function () {
         Route::post('items/{item}/review', 'reviewDeduction')->whereNumber('item');
         Route::post('runs/{run}/review-remaining', 'reviewRemaining')->whereNumber('run');
@@ -36,5 +37,22 @@ Route::prefix('api/v1/payroll')->middleware(['api', 'auth:sanctum'])->controller
         Route::get('shamcash-exports/{export}/file', 'shamCashFile')->whereNumber('export');
         Route::post('shamcash-exports/{export}/confirm', 'confirmShamCash')->whereNumber('export');
         Route::post('shamcash-exports/{export}/cancel', 'cancelShamCash')->whereNumber('export');
+    });
+});
+
+// Salary components (D19): finance defines them under its settings; HR gives recurring ones to employees.
+Route::prefix('api/v1/payroll')->middleware(['api', 'auth:sanctum'])->controller(SalaryComponentController::class)->group(function () {
+    Route::middleware('perm:payroll.view')->group(function () {
+        Route::get('components', 'index');
+        Route::get('employee-components', 'employeeComponents');
+    });
+    Route::middleware('perm:finance.settings')->group(function () {
+        Route::post('components', 'store');
+        Route::patch('components/{component}', 'update')->whereNumber('component');
+    });
+    Route::middleware('perm:payroll.manage')->group(function () {
+        Route::post('employee-components', 'assign');
+        Route::patch('employee-components/{assignment}', 'updateAssignment')->whereNumber('assignment');
+        Route::delete('employee-components/{assignment}', 'removeAssignment')->whereNumber('assignment');
     });
 });

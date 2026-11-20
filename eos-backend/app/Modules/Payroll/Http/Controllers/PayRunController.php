@@ -3,14 +3,18 @@
 namespace App\Modules\Payroll\Http\Controllers;
 
 use App\Modules\HR\Models\Employee;
+use App\Modules\Identity\Services\AuditLogger;
 use App\Modules\Payroll\Models\PayExport;
 use App\Modules\Payroll\Models\PayPayment;
 use App\Modules\Payroll\Models\PayRun;
 use App\Modules\Payroll\Models\PayRunItem;
 use App\Modules\Payroll\Models\PayRunLine;
+use App\Modules\Payroll\Models\SalaryComponent;
+use App\Modules\Payroll\Services\PayrollCalculator;
 use App\Modules\Payroll\Services\PayRunService;
 use App\Modules\Payroll\Services\ShamCashFile;
 use App\Modules\Payroll\Services\ShamCashService;
+use App\Modules\Settings\Services\CurrencyService;
 use App\Support\ApiResponse;
 use App\Support\CsvResponse;
 use Illuminate\Http\JsonResponse;
@@ -22,7 +26,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class PayRunController extends Controller
 {
-    public function __construct(private PayRunService $runs, private ShamCashService $shamCash) {}
+    public function __construct(private PayRunService $runs, private ShamCashService $shamCash, private CurrencyService $currencies) {}
 
     // ── Sham Cash bulk transfer ───────────────────────────────────────────────
 
@@ -30,7 +34,7 @@ class PayRunController extends Controller
     public function shamCash(PayRun $run, Request $request): BinaryFileResponse
     {
         $data = $request->validate([
-            'currency' => ['required', Rule::in(['SYP', 'USD'])],
+            'currency' => ['required', Rule::in($this->currencies->payrollCodes())],
             'date' => ['nullable', 'date_format:Y-m-d', 'before_or_equal:today'],
             'line_ids' => ['nullable', 'array', 'min:1', 'max:'.ShamCashFile::MAX_ROWS], 'line_ids.*' => ['integer', 'distinct'],
             'skip_missing' => ['nullable', 'boolean'],
@@ -49,12 +53,15 @@ class PayRunController extends Controller
 
     public function shamCashFile(PayExport $export): BinaryFileResponse
     {
+        // The file carries wallets and amounts: every download is on the record.
+        app(AuditLogger::class)->log('payroll.shamcash_downloaded', $export, null, ['doc_id' => $export->doc_id]);
+
         return $this->download($export);
     }
 
     public function confirmShamCash(PayExport $export, Request $request): JsonResponse
     {
-        $data = $request->validate(['box_id' => ['required', 'integer', 'exists:fin_boxes,id']]);
+        $data = $request->validate(['box_id' => ['required', 'integer', 'exists:fin_cash_boxes,id']]);
 
         return ApiResponse::ok($this->shamCash->confirm($export, (int) $data['box_id'], $request->user()));
     }
@@ -107,9 +114,15 @@ class PayRunController extends Controller
 
     public function addItem(PayRun $run, Request $request): JsonResponse
     {
+        // component_id: any active non-system component (or the general bonus / deduction); without it, `category`
+        // picks the general bonus or deduction. A project-linked component needs project_id (R21).
         $data = $request->validate([
-            'employee_id' => ['required', 'integer'], 'category' => ['required', Rule::in(['earning', 'deduction'])],
-            'amount' => ['required', 'numeric', 'gt:0', 'decimal:0,2', 'max:9999999999999'],
+            'employee_id' => ['required', 'integer'],
+            'category' => ['required_without:component_id', 'nullable', Rule::in(['earning', 'deduction'])],
+            'component_id' => ['nullable', 'integer'], 'project_id' => ['nullable', 'integer'],
+            'amount' => ['nullable', 'numeric', 'gt:0', 'decimal:0,2', 'max:999999999'],
+            'base_amount' => ['nullable', 'numeric', 'gt:0', 'decimal:0,4', 'max:999999999999'],
+            'percentage' => ['nullable', 'numeric', 'gt:0', 'max:100', 'decimal:0,4'],
             'reason' => ['required', 'string', 'min:3', 'max:1000'],
         ]);
 
@@ -133,10 +146,14 @@ class PayRunController extends Controller
     public function reviewDeduction(PayRunItem $item, Request $request): JsonResponse
     {
         $data = $request->validate([
-            'decision' => ['required', Rule::in(['approve', 'modify', 'waive'])],
+            'decision' => ['required', Rule::in(['approve', 'modify', 'waive', 'postpone'])],
             'amount' => ['required_if:decision,modify', 'nullable', 'numeric', 'min:0', 'decimal:0,2'],
             'reason' => [Rule::requiredIf($request->input('decision') !== 'approve'), 'nullable', 'string', 'min:3', 'max:1000'],
         ]);
+        // R18: an advance installment is postponed (moved after the advance's last one) rather than reviewed.
+        if ($data['decision'] === 'postpone') {
+            return ApiResponse::ok($this->lineDetail($this->runs->postponeInstallment($item, $data['reason'], $request->user())));
+        }
 
         return ApiResponse::ok($this->runs->reviewProposed($item, $data['decision'], isset($data['amount']) ? (float) $data['amount'] : null,
             $data['reason'] ?? 'اعتماد الخصم المقترح', $request->user()));
@@ -147,7 +164,9 @@ class PayRunController extends Controller
     {
         $data = $request->validate([
             'decision' => ['required', Rule::in(['approve', 'waive'])],
-            'kinds' => ['nullable', 'array'], 'kinds.*' => ['string', Rule::in(['late', 'early_exit', 'absence', 'bonus', 'manual_deduction'])],
+            'kinds' => ['nullable', 'array', 'min:1'],
+            'kinds.*' => ['string', Rule::in([...PayrollCalculator::PROPOSED_KINDS, ...SalaryComponent::query()->where('is_system', false)->pluck('code')->all(),
+                ...SalaryComponent::MANUAL_SYSTEM])],
             'reason' => [Rule::requiredIf($request->input('decision') === 'waive'), 'nullable', 'string', 'min:3', 'max:1000'],
         ]);
         $count = $this->runs->reviewRemaining($run, $data['decision'], $data['kinds'] ?? null,
@@ -176,8 +195,8 @@ class PayRunController extends Controller
     public function pay(PayRunLine $line, Request $request): JsonResponse
     {
         $data = $request->validate([
-            'currency' => ['required', Rule::in(['SYP', 'USD'])], 'method' => ['required', Rule::in(['cash', 'sham_cash'])],
-            'box_id' => ['required', 'integer', 'exists:fin_boxes,id'],
+            'currency' => ['required', Rule::in($this->currencies->payrollCodes())], 'method' => ['required', Rule::in(['cash', 'sham_cash'])],
+            'box_id' => ['required', 'integer', 'exists:fin_cash_boxes,id'],
             'paid_at' => ['required', 'date_format:Y-m-d', 'before_or_equal:today'],
             'reference' => ['required_if:method,sham_cash', 'nullable', 'string', 'max:100'],
             'expected_amount' => ['nullable', 'numeric', 'min:0'],
@@ -189,30 +208,37 @@ class PayRunController extends Controller
 
     public function voidPayment(PayPayment $payment, Request $request): JsonResponse
     {
-        $data = $request->validate(['date' => ['required', 'date_format:Y-m-d'], 'reason' => ['required', 'string', 'min:3', 'max:500']]);
+        $data = $request->validate(['date' => ['required', 'date_format:Y-m-d', 'before_or_equal:today'], 'reason' => ['required', 'string', 'min:3', 'max:500']]);
 
         return ApiResponse::ok($this->runs->voidPayment($payment, $data['date'], $data['reason'], $request->user()));
     }
 
-    /** Finance-only payslip sheet: one row per employee with totals and payment. */
+    /**
+     * Finance-only payslip sheet: one row per employee with a column per salary component used in the run (earnings
+     * first, then deductions, in the components' order; a locked-month adjustment column is signed), then totals and payment.
+     */
     public function export(PayRun $run): StreamedResponse
     {
+        app(AuditLogger::class)->log('payroll.run_exported', $run, null, ['month' => $run->month]);
         $lines = PayRunLine::query()->where('pay_run_id', $run->id)->with(['items', 'payment'])->orderBy('employee_id')->get();
         $employees = Employee::query()->whereIn('id', $lines->pluck('employee_id'))->get()->keyBy('id');
-        $sum = fn ($line, $kind) => $line->items->where('kind', $kind)->sum(fn ($i) => (float) $i->amount);
+        $components = SalaryComponent::query()->get()->keyBy('id');
+        $byCode = $components->keyBy('code');
+        $key = fn (PayRunItem $i) => $i->component_id ?? $byCode->get($i->kind)?->id ?? $i->kind;
+        $columns = $lines->flatMap(fn (PayRunLine $l) => $l->items->map($key))->unique()
+            ->sortBy(fn ($id) => [$components->get($id)?->kind === 'deduction' ? 1 : 0, $components->get($id)?->sort ?? PHP_INT_MAX, (string) $id])->values();
+        $amount = fn (PayRunItem $i) => ($i->origin === 'adjustment' && $i->category === 'deduction' ? -1 : 1) * (float) $i->amount;
 
         return CsvResponse::download('payroll-'.$run->month.'.csv', [
-            'month', 'employee_no', 'employee_name', 'pay_type', 'currency', 'rate', 'salary_or_base', 'overtime', 'bonus',
-            'unpaid_leave', 'partial_pay_leave', 'late', 'early_exit', 'absence', 'manual_deduction', 'adjustments',
+            'month', 'employee_no', 'employee_name', 'pay_type', 'currency', 'rate',
+            ...$columns->map(fn ($id) => $components->get($id)?->name ?? (string) $id)->all(),
             'earnings', 'deductions', 'net', 'paid_currency', 'exchange_rate', 'paid_amount', 'method', 'reference', 'paid_at',
-        ], $lines->map(function (PayRunLine $line) use ($run, $employees, $sum) {
+        ], $lines->map(function (PayRunLine $line) use ($run, $employees, $columns, $key, $amount) {
             $employee = $employees->get($line->employee_id);
-            $adjustments = $line->items->where('origin', 'adjustment')->sum(fn ($i) => ($i->category === 'deduction' ? -1 : 1) * (float) $i->amount);
+            $sums = $line->items->groupBy($key)->map(fn ($items) => round($items->sum($amount), 2));
 
             return [$run->month, $employee?->employee_no, $employee?->full_name, $line->pay_type, $line->currency_code, $line->rate,
-                $sum($line, 'salary') + $sum($line, 'days_worked') + $sum($line, 'hours_worked') + $sum($line, 'paid_leave') + $sum($line, 'holiday_pay'),
-                $sum($line, 'overtime'), $sum($line, 'bonus'), $sum($line, 'unpaid_leave'), $sum($line, 'partial_pay_leave'),
-                $sum($line, 'late'), $sum($line, 'early_exit'), $sum($line, 'absence'), $sum($line, 'manual_deduction'), round($adjustments, 2),
+                ...$columns->map(fn ($id) => $sums->get($id, 0))->all(),
                 $line->earnings, $line->deductions, $line->net, $line->payment?->paid_currency, $line->payment?->exchange_rate,
                 $line->payment?->paid_amount, $line->payment?->method, $line->payment?->reference, $line->payment?->paid_at?->format('Y-m-d')];
         }));
@@ -261,6 +287,6 @@ class PayRunController extends Controller
             'working_days', 'attendance_ready', 'blocked_days', 'issues', 'earnings', 'deductions', 'net']),
             'employee_name' => $employee?->full_name, 'employee_no' => $employee?->employee_no,
             'sham_cash_wallet' => $employee?->sham_cash_wallet,
-            'items' => $line->items()->orderBy('id')->get(), 'payment' => $line->payment];
+            'items' => $line->items()->with('component:id,code,name,kind,is_project_linked')->orderBy('id')->get(), 'payment' => $line->payment];
     }
 }

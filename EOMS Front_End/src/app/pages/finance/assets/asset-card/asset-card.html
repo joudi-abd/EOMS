@@ -1,0 +1,316 @@
+@if (card(); as a) {
+  <section class="panel">
+    <div class="panel-head">
+      <div>
+        <h2><bdi>{{ a.code }}</bdi> · {{ a.name }}</h2>
+        <p><span [class]="tone(a.status)">{{ statusLabelOf(a.status) }}</span></p>
+      </div>
+      <div class="actions">
+        @if (canAct && operable()) {
+          <button class="text small" type="button" [disabled]="busy()" (click)="toggleStatus()">{{ t(a.status === 'in_service' ? 'fasSetMaintenance' : 'fasSetService') }}</button>
+        }
+        @if (canAct && a.status !== 'cancelled') {
+          <button class="text small" type="button" (click)="show('edit')">{{ t('finEdit') }}</button>
+        }
+        @if (canAct && deletable()) {
+          <button class="quiet small" type="button" (click)="confirmingDelete.set(!confirmingDelete())">{{ t('finDelete') }}</button>
+        }
+        <button class="quiet-x" type="button" (click)="closed.emit()" [attr.aria-label]="t('fasBack')"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+      </div>
+    </div>
+
+    <dl class="fin-kv">
+      <dt>{{ t('finCategory') }}</dt><dd>{{ a.category?.name || '—' }}</dd>
+      @if (a.serial_no) { <dt>{{ t('fasSerial') }}</dt><dd><bdi>{{ a.serial_no }}</bdi></dd> }
+      <dt>{{ t('fasCost') }}</dt>
+      <dd><bdi class="num">{{ qty(a.quantity) }} × {{ figure(a.unit_cost, a.currency) }} = <span class="strong">{{ money(a.total_cost, a.currency) }}</span></bdi></dd>
+      <dt>{{ t('fasPurchaseDate') }}</dt><dd>{{ short(a.purchase_date ?? '') }}</dd>
+      <dt>{{ t('finBranch') }}</dt><dd>{{ a.branch?.name || '—' }}</dd>
+      <dt>{{ t('fasHolder') }}</dt><dd>{{ a.holder?.name || t('fasNoHolder') }}</dd>
+      @if (a.acquisition; as v) {
+        <dt>{{ t(v.type === 'opening_balance' ? 'vtOpeningBalance' : 'fasPurchaseVoucher') }}</dt>
+        <dd>
+          <a class="link-button" routerLink="/modules/finVouchers" [queryParams]="{ id: v.id }"><bdi>{{ v.number }}</bdi></a>
+          <span [class]="tone(v.status)"> · {{ statusLabel(v.status) }}</span>
+        </dd>
+      }
+      @if (a.notes) { <dt>{{ t('finNotes') }}</dt><dd>{{ a.notes }}</dd> }
+    </dl>
+    <p class="fin-hint fas-gap">{{ t('fasNoDepreciation') }}</p>
+    @if (a.status === 'in_service' || a.status === 'under_maintenance') {
+      @if (!operable()) { <p class="fin-warn fas-gap"><i class="fa-solid fa-circle-info" aria-hidden="true"></i> {{ t('fasNotAcquired') }}</p> }
+    } @else {
+      <p class="fin-hint fas-gap">{{ t('fasClosedAsset') }}</p>
+    }
+    @if (confirmingDelete()) {
+      <p class="fin-warn fas-gap">
+        <span>{{ t('fasDeleteConfirm') }}</span>
+        <button class="quiet small fas-end" type="button" [disabled]="busy()" (click)="remove()">{{ t('fasDeleteYes') }}</button>
+        <button class="text small" type="button" (click)="confirmingDelete.set(false)">{{ t('finCancel') }}</button>
+      </p>
+    }
+  </section>
+
+  @switch (panel()) {
+    @case ('edit') {
+      <form class="fin-sheet narrow" (ngSubmit)="saveEdit()">
+        <header><h2>{{ t('fasEditTitle') }}</h2><button class="quiet-x" type="button" (click)="panel.set('none')" [attr.aria-label]="t('finClose')"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button></header>
+        <p class="fin-hint">{{ t('fasEditHint') }}</p>
+        <fieldset class="fin-form" [disabled]="busy()">
+          <label class="wide">{{ t('fasAssetName') }}<input name="editName" required maxlength="200" [(ngModel)]="editName" /></label>
+          <label>{{ t('finCategory') }}
+            <select name="editCategory" [(ngModel)]="editCategory">
+              <option [ngValue]="null">{{ t('finNone') }}</option>
+              @for (item of categoryList(); track item.id) { <option [ngValue]="item.id">{{ item.label }}</option> }
+            </select>
+          </label>
+          <label>{{ t('fasSerial') }}<input name="editSerial" maxlength="100" [(ngModel)]="editSerial" /></label>
+          <label class="wide">{{ t('finNotes') }}<textarea name="editNotes" rows="2" maxlength="1000" [(ngModel)]="editNotes"></textarea></label>
+          <div class="fin-actions wide">
+            <button class="text" type="button" (click)="panel.set('none')">{{ t('finCancel') }}</button>
+            <button class="primary" type="submit" [disabled]="busy() || !editName.trim()">{{ t('finSave') }}</button>
+          </div>
+        </fieldset>
+      </form>
+    }
+    @case ('transfer') {
+      <form class="fin-sheet narrow" (ngSubmit)="transfer()">
+        <header><h2>{{ t('fasTransfer') }}</h2><button class="quiet-x" type="button" (click)="panel.set('none')" [attr.aria-label]="t('finClose')"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button></header>
+        <fieldset class="fin-form" [disabled]="busy()">
+          <label class="wide">{{ t('fasToEmployee') }}
+            <select name="toEmployee" required [(ngModel)]="toEmployee">
+              <option [ngValue]="null">{{ t('finChoose') }}</option>
+              @for (item of people(); track item.id) {
+                @if (item.id !== a.current_holder_employee_id) { <option [ngValue]="item.id">{{ text(item.name) }}@if (item.no) { · {{ item.no }} }</option> }
+              }
+            </select>
+          </label>
+          <label>{{ t('finDate') }}<input name="transferDate" type="date" required [(ngModel)]="transferDate" /></label>
+          <label class="wide">{{ t('finNotes') }}<input name="transferNotes" maxlength="1000" [(ngModel)]="transferNotes" /></label>
+          <div class="fin-actions wide">
+            <button class="text" type="button" (click)="panel.set('none')">{{ t('finCancel') }}</button>
+            <button class="primary" type="submit" [disabled]="busy() || !toEmployee">{{ t('fasTransfer') }}</button>
+          </div>
+        </fieldset>
+      </form>
+    }
+    @case ('maintenance') {
+      <form class="fin-sheet" (ngSubmit)="maintain()">
+        <header><h2>{{ t('fasRecordMaintenance') }}</h2><button class="quiet-x" type="button" (click)="panel.set('none')" [attr.aria-label]="t('finClose')"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button></header>
+        <p class="fin-hint">{{ t('fasMaintenanceHint') }}</p>
+        <fieldset class="fin-form" [disabled]="busy()">
+          <label class="wide">{{ t('fasWhatWasDone') }}<input name="mDescription" required maxlength="500" [(ngModel)]="mDescription" /></label>
+          <label>{{ t('fasPaidFrom') }}
+            <select name="mBox" required [ngModel]="mBox()" (ngModelChange)="maintenanceBoxChanged($event)">
+              @for (box of maintenanceBoxes(); track box.id) { <option [ngValue]="box.id">{{ box.name }}</option> }
+              @if (!maintenanceBoxes().length) { <option [ngValue]="0">{{ t('finNoBoxes') }}</option> }
+            </select>
+          </label>
+          @if (maintenanceCurrencies().length > 1) {
+            <label>{{ t('finCurrency') }}
+              <select name="mCurrency" required [(ngModel)]="mCurrency">
+                @for (item of maintenanceCurrencies(); track item.currency_id) { <option [value]="item.code">{{ item.code }}</option> }
+              </select>
+            </label>
+          }
+          <label>{{ t('finAmount') }} <span class="soft"><bdi>{{ mCurrency }}</bdi></span>
+            <input name="mAmount" type="number" min="0" step="any" required [(ngModel)]="mAmount" />
+          </label>
+          <label>{{ t('finDate') }}<input name="mDate" type="date" required [(ngModel)]="mDate" /></label>
+          <label class="wide fas-check"><input name="mApprove" type="checkbox" [(ngModel)]="mApprove" /><span>{{ t('fasApproveNow') }}</span></label>
+          <div class="wide">
+            <button class="text small" type="button" [attr.aria-expanded]="more()" (click)="more.set(!more())">{{ t(more() ? 'fasLess' : 'fasMore') }}</button>
+          </div>
+          @if (more()) {
+            @if (finance.openProjects().length) {
+              <label>{{ t('finProject') }} <span class="soft">({{ t('finOptional') }})</span>
+                <select name="mProject" [(ngModel)]="mProject">
+                  <option [ngValue]="null">{{ t('finNone') }}</option>
+                  @for (item of finance.openProjects(); track item.project_id) { <option [ngValue]="item.project_id">{{ finance.projectName(item.project_id) }}</option> }
+                </select>
+              </label>
+            }
+            <label>{{ t('finReference') }}<input name="mReference" maxlength="60" [(ngModel)]="mReference" /></label>
+          }
+          <div class="fin-actions wide">
+            <button class="text" type="button" (click)="panel.set('none')">{{ t('finCancel') }}</button>
+            <button class="primary" type="submit" [disabled]="busy() || !mBox() || !mCurrency || !mAmount || !mDescription.trim()">{{ t('finSave') }}</button>
+          </div>
+        </fieldset>
+      </form>
+    }
+    @case ('dispose') {
+      <form class="fin-sheet narrow" (ngSubmit)="dispose()">
+        <header><h2>{{ t('fasDispose') }}</h2><button class="quiet-x" type="button" (click)="panel.set('none')" [attr.aria-label]="t('finClose')"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button></header>
+        <p class="fin-hint">{{ t('fasDisposeHint') }}</p>
+        <fieldset class="fin-form" [disabled]="busy()">
+          <div class="wide seg" role="group" [attr.aria-label]="t('finType')">
+            @for (type of disposalTypes; track type) {
+              <button type="button" [class.on]="dType === type" (click)="dType = type">{{ disposalLabel(type) }}</button>
+            }
+          </div>
+          <label>{{ t('finDate') }}<input name="dDate" type="date" required [(ngModel)]="dDate" /></label>
+          @if (dType === 'sale') {
+            <label>{{ t('fasSaleAmount') }} <span class="soft"><bdi>{{ a.currency }}</bdi></span>
+              <input name="dAmount" type="number" min="0" step="any" required [(ngModel)]="dAmount" />
+            </label>
+            <label>{{ t('fasReceivedIn') }}
+              <select name="dBox" required [(ngModel)]="dBox">
+                @for (box of saleBoxes(); track box.id) { <option [ngValue]="box.id">{{ box.name }}</option> }
+                @if (!saleBoxes().length) { <option [ngValue]="0">{{ t('fasNoBoxForCurrency') }}</option> }
+              </select>
+            </label>
+          }
+          <label class="wide">{{ t('finNotes') }}<input name="dNotes" maxlength="1000" [(ngModel)]="dNotes" /></label>
+          <label class="wide fas-check"><input name="dApprove" type="checkbox" [(ngModel)]="dApprove" /><span>{{ t('fasApproveNow') }}</span></label>
+          <div class="fin-actions wide">
+            <button class="text" type="button" (click)="panel.set('none')">{{ t('finCancel') }}</button>
+            <button class="quiet" type="submit" [disabled]="busy() || (dType === 'sale' && (!dAmount || !dBox))">{{ t('fasDispose') }}</button>
+          </div>
+        </fieldset>
+      </form>
+    }
+  }
+
+  <!-- Custody -->
+  <section class="panel">
+    <div class="panel-head">
+      <div><h2>{{ t('fasCustody') }}</h2><p>{{ t('fasHolder') }}: {{ a.holder?.name || t('fasNoHolder') }}</p></div>
+      @if (canAct && operable()) {
+        <button class="text small" type="button" (click)="show('transfer')">{{ t('fasTransfer') }}</button>
+      }
+    </div>
+    @if (a.custody_history.length) {
+      <div class="flush">
+        <table>
+          <thead><tr><th>{{ t('finDate') }}</th><th>{{ t('finFrom') }}</th><th>{{ t('finTo') }}</th><th>{{ t('finNotes') }}</th></tr></thead>
+          <tbody>
+            @for (row of a.custody_history; track row.id) {
+              <tr>
+                <td>{{ short(row.transferred_at ?? '') }}</td>
+                <td>{{ row.from?.name || t('fasNoHolder') }}</td>
+                <td>{{ row.to?.name || '—' }}</td>
+                <td class="soft">{{ row.notes || '' }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    } @else {
+      <p class="fin-hint">{{ t('fasCustodyEmpty') }}</p>
+    }
+  </section>
+
+  <!-- Maintenance -->
+  <section class="panel">
+    <div class="panel-head">
+      <div><h2>{{ t('fasMaintenance') }}</h2></div>
+      @if (canAct && operable()) {
+        <button class="text small" type="button" (click)="show('maintenance')">{{ t('fasRecordMaintenance') }}</button>
+      }
+    </div>
+    @if (a.maintenance.length) {
+      <div class="flush">
+        <table>
+          <thead><tr><th>{{ t('finDate') }}</th><th>{{ t('finDescription') }}</th><th>{{ t('finProject') }}</th><th>{{ t('fasVoucher') }}</th><th class="end">{{ t('finAmount') }}</th></tr></thead>
+          <tbody>
+            @for (row of a.maintenance; track row.id) {
+              <tr>
+                <td>{{ short(row.date ?? '') }}</td>
+                <td>{{ row.description }}</td>
+                <td>{{ projectLabel(row.project_id) }}</td>
+                <td>
+                  @if (row.voucher; as v) { <a class="link-button" routerLink="/modules/finVouchers" [queryParams]="{ id: v.id }"><bdi>{{ v.number }}</bdi></a> } @else { — }
+                </td>
+                <td class="num"><bdi>{{ money(row.voucher?.amount, row.voucher?.currency) }}</bdi></td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    } @else {
+      <p class="fin-hint">{{ t('fasMaintenanceEmpty') }}</p>
+    }
+  </section>
+
+  <!-- Expenses -->
+  <section class="panel">
+    <div class="panel-head">
+      <div><h2>{{ t('fasExpenses') }}</h2><p>{{ t('fasExpensesHint') }}</p></div>
+    </div>
+    @if (a.expenses.lines.length) {
+      <div class="sheet fas-totals">
+        <table>
+          <thead><tr><th>{{ t('finCurrency') }}</th><th class="end">{{ t('fasOperating') }}</th><th class="end">{{ t('fasMaintenanceKind') }}</th></tr></thead>
+          <tbody>
+            @for (row of expenseTotals(); track row.currency) {
+              <tr>
+                <td><bdi>{{ row.currency }}</bdi></td>
+                <td class="num"><bdi>{{ figure(row.operating, row.currency) }}</bdi></td>
+                <td class="num"><bdi>{{ figure(row.maintenance, row.currency) }}</bdi></td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      <div class="flush">
+        <table>
+          <thead><tr><th>{{ t('finDate') }}</th><th>{{ t('finType') }}</th><th>{{ t('finDescription') }}</th><th>{{ t('fasVoucher') }}</th><th class="end">{{ t('finAmount') }}</th></tr></thead>
+          <tbody>
+            @for (row of a.expenses.lines; track row.id) {
+              <tr>
+                <td>{{ short(row.date) }}</td>
+                <td>{{ t(row.kind === 'maintenance' ? 'fasMaintenanceKind' : 'fasOperating') }}</td>
+                <td>{{ row.memo || row.account.name }}</td>
+                <td>
+                  @if (row.voucher_id) { <a class="link-button" routerLink="/modules/finVouchers" [queryParams]="{ id: row.voucher_id }"><bdi>{{ row.voucher_number || row.entry_number }}</bdi></a> } @else { <bdi>{{ row.entry_number || '—' }}</bdi> }
+                </td>
+                <td class="num" [class.late]="negative(row.amount)"><bdi>{{ money(row.amount, row.currency) }}</bdi></td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    } @else {
+      <p class="fin-hint">{{ t('fasExpensesEmpty') }}</p>
+    }
+  </section>
+
+  <!-- Disposal -->
+  <section class="panel">
+    <div class="panel-head">
+      <div><h2>{{ t('fasDisposal') }}</h2></div>
+      @if (canAct && operable()) {
+        <button class="quiet small" type="button" (click)="show('dispose')">{{ t('fasDispose') }}</button>
+      }
+    </div>
+    @if (a.disposals.length) {
+      <div class="flush">
+        <table>
+          <thead><tr><th>{{ t('finDate') }}</th><th>{{ t('finType') }}</th><th class="end">{{ t('fasSaleAmount') }}</th><th class="end">{{ t('fasResult') }}</th><th>{{ t('fasVoucher') }}</th></tr></thead>
+          <tbody>
+            @for (row of a.disposals; track row.id) {
+              <tr>
+                <td>{{ short(row.date ?? '') }}</td>
+                <td>{{ disposalLabel(row.type) }}@if (row.notes) { <span class="soft"> · {{ row.notes }}</span> }</td>
+                <td class="num"><bdi>{{ row.type === 'sale' ? money(row.sale_amount, row.currency || a.currency) : '—' }}</bdi></td>
+                <td class="num" [class.late]="disposalResult(row) < 0" [class.ok]="disposalResult(row) > 0">
+                  <bdi>{{ t(resultWord(disposalResult(row))) }} {{ money(abs(disposalResult(row)), a.currency) }}</bdi>
+                </td>
+                <td>
+                  @if (row.voucher; as v) { <a class="link-button" routerLink="/modules/finVouchers" [queryParams]="{ id: v.id }"><bdi>{{ v.number }}</bdi></a> } @else { — }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    } @else {
+      <p class="fin-hint">{{ t('fasDisposalEmpty') }}</p>
+    }
+  </section>
+} @else if (loading()) {
+  <p class="empty">{{ t('finLoading') }}</p>
+} @else {
+  <p class="empty">{{ t('fasNotFound') }} <button class="link-button" type="button" (click)="closed.emit()">{{ t('fasBack') }}</button></p>
+}

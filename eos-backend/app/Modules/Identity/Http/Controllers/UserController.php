@@ -26,9 +26,13 @@ class UserController extends Controller
     public function index(Request $request)
     {
         $this->ensureCan($request);
+        $filters = $request->validate([
+            'q' => ['sometimes', 'nullable', 'string', 'max:120'],
+            'status' => ['sometimes', 'nullable', 'in:active,disabled'],
+        ]);
 
         return ApiResponse::paginated(
-            $this->users->search($request->query())->through(fn (User $user) => new UserResource($user))
+            $this->users->search($filters)->through(fn (User $user) => new UserResource($user))
         );
     }
 
@@ -96,8 +100,8 @@ class UserController extends Controller
         abort_unless($request->user()->can('roles.manage'), 403, 'تغيير الأدوار يتطلب صلاحية إدارة الأدوار.');
 
         $data = $request->validate([
-            'roles' => ['required', 'array'],
-            'roles.*' => ['string', 'exists:usr_roles,name'],
+            'roles' => ['present', 'array'],
+            'roles.*' => ['string', 'distinct', 'exists:usr_roles,name'],
         ]);
 
         return ApiResponse::ok(new UserResource($this->users->assignRoles($user, $data['roles'])));

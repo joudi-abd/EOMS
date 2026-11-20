@@ -1,0 +1,105 @@
+<section class="panel" [attr.aria-label]="box().name">
+  <div class="panel-head">
+    <div>
+      <h2>{{ box().name }}</h2>
+      <p>
+        {{ boxTypeLabel(box().type) }} · {{ finance.branchName(box().branch_id) || '—' }}
+        @if (custodian(); as name) { · {{ t('fbxCustodian') }}: {{ text(name) }} }
+        @if (!box().is_active) { · <span class="mute">{{ t('finInactive') }}</span> }
+      </p>
+      @if (box().contact_info) { <p class="fbx-contact">{{ box().contact_info }}</p> }
+    </div>
+    <a class="quiet-x fbx-x" [routerLink]="[]" [queryParams]="{ id: null }" queryParamsHandling="merge" [attr.aria-label]="t('finClose')">
+      <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+    </a>
+  </div>
+
+  @if (may('finance.vouchers') && box().is_active) {
+    <div class="fin-toolbar fbx-quick">
+      <a class="text small" routerLink="/modules/finVouchers" [queryParams]="{ new: 'receipt', box: box().id, currency: code() || null }">{{ t('vtReceipt') }}</a>
+      <a class="text small" routerLink="/modules/finVouchers" [queryParams]="{ new: 'payment', box: box().id, currency: code() || null }">{{ t('vtPayment') }}</a>
+      <a class="text small" routerLink="/modules/finVouchers" [queryParams]="{ new: 'transfer', box: box().id, currency: code() || null }">{{ t('fbxTransfer') }}</a>
+    </div>
+  }
+
+  <form class="filters" (ngSubmit)="load()">
+    @if (box().currencies.length > 1) {
+      <div class="fbx-field">
+        <span>{{ t('finCurrency') }}</span>
+        <div class="seg" role="radiogroup" [attr.aria-label]="t('finCurrency')">
+          @for (row of box().currencies; track row.currency_id) {
+            <button type="button" role="radio" [attr.aria-checked]="currencyId === row.currency_id" [class.on]="currencyId === row.currency_id" (click)="pick(row.currency_id)">{{ row.code }}</button>
+          }
+        </div>
+      </div>
+    }
+    <label>{{ t('finFrom') }}<input name="stFrom" type="date" [(ngModel)]="from" (change)="load()" /></label>
+    <label>{{ t('finTo') }}<input name="stTo" type="date" [(ngModel)]="to" (change)="load()" /></label>
+  </form>
+
+  @if (!may('finance.reports')) {
+    <ul class="fin-list">
+      @for (row of box().currencies; track row.currency_id) {
+        <li><bdi>{{ row.code }}</bdi><bdi class="num end strong" [class.late]="row.negative">{{ money(row.balance, row.code) }}</bdi></li>
+      }
+    </ul>
+    <p class="fin-hint">{{ t('fbxNoStatement') }}</p>
+  } @else if (block(); as b) {
+    <section class="summary fbx-summary" [attr.aria-label]="t('fbxStatement')">
+      <p><span>{{ t('finOpening') }}</span><strong [class.late]="negative(b.opening)"><bdi class="num">{{ money(b.opening, b.code) }}</bdi></strong></p>
+      <p><span>{{ t('finIn') }}</span><strong><bdi class="num">{{ money(b.total_in, b.code) }}</bdi></strong></p>
+      <p><span>{{ t('finOut') }}</span><strong><bdi class="num">{{ money(b.total_out, b.code) }}</bdi></strong></p>
+      <p><span>{{ t('finClosing') }}</span><strong [class.late]="negative(b.closing)"><bdi class="num">{{ money(b.closing, b.code) }}</bdi></strong></p>
+    </section>
+    @if (!b.lines.length) {
+      <p class="empty">{{ t('fbxNoMovement') }}</p>
+    } @else {
+      <div class="sheet">
+        <table>
+          <thead>
+            <tr>
+              <th>{{ t('finDate') }}</th>
+              <th>{{ t('fbxVoucher') }}</th>
+              <th>{{ t('finDescription') }}</th>
+              <th class="end">{{ t('finIn') }}</th>
+              <th class="end">{{ t('finOut') }}</th>
+              <th class="end">{{ t('finBalance') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (line of b.lines; track $index) {
+              <tr>
+                <td class="num">{{ short(line.date) }}</td>
+                <td>
+                  @if (line.voucher_id) {
+                    <a class="name" routerLink="/modules/finVouchers" [queryParams]="{ id: line.voucher_id }"><bdi dir="ltr">{{ line.voucher_number || line.entry_number }}</bdi></a>
+                  } @else {
+                    <bdi dir="ltr">{{ line.entry_number || '—' }}</bdi>
+                  }
+                  @if (line.voucher_type) { <small class="soft block-line">{{ voucherTypeLabel(line.voucher_type) }}</small> }
+                </td>
+                <td class="sm">
+                  {{ line.description || '—' }}
+                  @if (line.memo && line.memo !== line.description) { <small class="soft block-line">{{ line.memo }}</small> }
+                </td>
+                <td class="num end">@if (positive(line.debit)) { {{ figure(line.debit, b.code) }} }</td>
+                <td class="num end">@if (positive(line.credit)) { {{ figure(line.credit, b.code) }} }</td>
+                <td class="num end" [class.late]="negative(line.balance)">{{ figure(line.balance, b.code) }}</td>
+              </tr>
+            }
+          </tbody>
+          <tfoot>
+            <tr>
+              <th colspan="3">{{ t('finTotal') }}</th>
+              <th class="num end">{{ figure(b.total_in, b.code) }}</th>
+              <th class="num end">{{ figure(b.total_out, b.code) }}</th>
+              <th class="num end" [class.late]="negative(b.closing)">{{ figure(b.closing, b.code) }}</th>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    }
+  } @else if (loading()) {
+    <p class="empty">{{ t('finLoading') }}</p>
+  }
+</section>

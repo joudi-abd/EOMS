@@ -262,7 +262,8 @@ export class SettingsLeaves extends Ui {
     });
   }
 
-  protected toggle(type: LeaveType): void {
+  protected async toggle(type: LeaveType): Promise<void> {
+    if (type.active && !(await this.askConfirm({ message: 'confirmSensitiveBody', tone: 'danger', confirm: 'confirmProceed' }))) return;
     void this.run(async () => {
       await this.api.patch('/leave-settings/types/' + type.id + '/activation', { active: !type.active });
       await this.loadSettings();
@@ -277,7 +278,8 @@ export class SettingsLeaves extends Ui {
     }));
   }
 
-  protected removeHoliday(id: number): void {
+  protected async removeHoliday(id: number): Promise<void> {
+    if (!(await this.askDelete())) return;
     void this.run(async () => {
       await this.api.delete('/leave-settings/holidays/' + id);
       await this.loadSettings();

@@ -19,13 +19,14 @@ class StoreEmployeeRequest extends FormRequest
             'last_name' => ['required', 'string', 'max:80'],
             'national_id' => ['required', 'string', 'max:30'],
             'birth_date' => ['nullable', 'date', 'before:today'],
-            'email' => ['nullable', 'email', 'max:255', 'unique:hr_employees,email'],
+            'email' => ['nullable', 'email', 'max:191', 'unique:hr_employees,email'],
             'phone' => ['nullable', 'string', 'max:30', 'unique:usr_users,phone'],
             'address' => ['nullable', 'string', 'max:500'],
             'department_id' => ['nullable', 'integer', 'exists:hr_departments,id'],
             'job_title_id' => ['nullable', 'integer', 'exists:hr_job_titles,id'],
             'manager_id' => ['nullable', 'integer', 'exists:hr_employees,id'],
-            'sham_cash_wallet' => ['nullable', 'string', 'max:30'],
+            // A new hire's payout wallet (Sham Cash accounts are 16 digits); changing it later needs employees.view_financial.
+            'sham_cash_wallet' => ['nullable', 'digits:16'],
             'hire_date' => ['required', 'date'],
             'account' => ['prohibited'],
         ];

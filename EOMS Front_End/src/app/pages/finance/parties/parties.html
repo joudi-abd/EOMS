@@ -1,0 +1,81 @@
+<main class="work" id="content">
+  @if (!mayView) {
+    <h1>{{ t('finParties') }}</h1>
+    <p class="empty">{{ t('finNoAccess') }}</p>
+  } @else {
+    <app-notice />
+    <header class="heading">
+      <div>
+        @if (card(); as c) {
+          <h1>{{ c.name }}</h1>
+          <p class="lede">
+            {{ roleWords(c.roles) }}
+            @if (!c.is_active) { · <span class="mute">{{ t('finInactive') }}</span> }
+          </p>
+        } @else {
+          <h1>{{ t('finParties') }}</h1>
+          <p class="lede">{{ t('ledeFinParties') }}</p>
+        }
+      </div>
+      <div class="actions">
+        @if (view() === 'parties' && !id() && mayEdit) {
+          <button class="text" type="button" (click)="toggle('import')">
+            <i class="fa-solid fa-file-csv" aria-hidden="true"></i> {{ t('fpaImport') }}
+          </button>
+          <button class="primary" type="button" (click)="toggle('new')">
+            <i class="fa-solid fa-plus" aria-hidden="true"></i> {{ t('fpaNew') }}
+          </button>
+        }
+        @if (id()) {
+          <a class="text" [routerLink]="[]" [queryParams]="{ id: null }">{{ t('fpaAllParties') }}</a>
+          @if (card(); as c) {
+            @if (c.is_active && mayEdit) {
+              <a class="text" routerLink="/modules/finVouchers" [queryParams]="voucherLink(c, 'payment')">{{ t('fpaPayTo') }}</a>
+              <a class="primary" routerLink="/modules/finVouchers" [queryParams]="voucherLink(c, 'receipt')">{{ t('fpaReceiveFrom') }}</a>
+            }
+          }
+        }
+        @if (view() === 'partners' && mayEdit) {
+          <button class="primary" type="button" (click)="partnerSheet.set(true)">
+            <i class="fa-solid fa-plus" aria-hidden="true"></i> {{ t('fpaAddPartner') }}
+          </button>
+        }
+      </div>
+    </header>
+
+    <nav class="tabs" [attr.aria-label]="t('finParties')">
+      <a [routerLink]="[]" [queryParams]="{ view: null, id: null }" [class.active]="view() === 'parties'" [attr.aria-current]="view() === 'parties' ? 'page' : null">
+        {{ t('fpaTabParties') }}
+      </a>
+      <a [routerLink]="[]" [queryParams]="{ view: 'partners', id: null }" [class.active]="view() === 'partners'" [attr.aria-current]="view() === 'partners' ? 'page' : null">
+        {{ t('fpaTabPartners') }}
+      </a>
+    </nav>
+
+    @if (view() === 'partners') {
+      <app-fin-partners [(adding)]="partnerSheet" (changed)="imported()" />
+    } @else {
+      @if (panel() === 'new') {
+        <app-fin-party-form [party]="null" (saved)="saved($event)" (closed)="panel.set('none')" />
+      }
+      @if (panel() === 'edit' && card()) {
+        <app-fin-party-form [party]="card()" (saved)="saved($event)" (closed)="panel.set('none')" />
+      }
+      @if (panel() === 'import') {
+        <app-fin-party-import (imported)="imported()" (closed)="panel.set('none')" />
+      }
+
+      @if (id()) {
+        @if (card(); as c) {
+          <app-fin-party-card [party]="c" (edit)="panel.set('edit')" (changed)="changed()" />
+        } @else if (missing()) {
+          <p class="empty">{{ t('fpaNotFound') }}</p>
+        } @else {
+          <p class="empty">{{ t('finLoading') }}</p>
+        }
+      } @else {
+        <app-fin-parties-list [version]="listVersion()" [employee]="employee()" (create)="panel.set('new')" />
+      }
+    }
+  }
+</main>

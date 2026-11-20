@@ -39,54 +39,54 @@ colors:
   fill-quiet: "#cdd1e0"
 typography:
   headline:
-    fontFamily: "Readex Pro Variable, sans-serif"
+    fontFamily: "Roboto Variable, Noto Sans Arabic Variable, sans-serif"
     fontSize: "28px"
     fontWeight: 600
     lineHeight: 1.35
   title:
-    fontFamily: "Readex Pro Variable, sans-serif"
+    fontFamily: "Roboto Variable, Noto Sans Arabic Variable, sans-serif"
     fontSize: "20px"
     fontWeight: 600
     lineHeight: 1.45
   panel-title:
-    fontFamily: "Readex Pro Variable, sans-serif"
+    fontFamily: "Roboto Variable, Noto Sans Arabic Variable, sans-serif"
     fontSize: "18px"
     fontWeight: 600
   metric:
-    fontFamily: "Readex Pro Variable, sans-serif"
+    fontFamily: "Roboto Variable, Noto Sans Arabic Variable, sans-serif"
     fontSize: "40px"
     fontWeight: 600
     lineHeight: 1.1
     letterSpacing: "-0.03em"
   figure:
-    fontFamily: "Readex Pro Variable, sans-serif"
+    fontFamily: "Roboto Variable, Noto Sans Arabic Variable, sans-serif"
     fontSize: "30px"
     fontWeight: 600
     lineHeight: 1.2
     letterSpacing: "-0.02em"
   body:
-    fontFamily: "Readex Pro Variable, sans-serif"
+    fontFamily: "Roboto Variable, Noto Sans Arabic Variable, sans-serif"
     fontSize: "18px"
     fontWeight: 400
     lineHeight: 1.5
   table:
-    fontFamily: "Readex Pro Variable, sans-serif"
+    fontFamily: "Roboto Variable, Noto Sans Arabic Variable, sans-serif"
     fontSize: "17px"
     fontWeight: 400
   label:
-    fontFamily: "Readex Pro Variable, sans-serif"
+    fontFamily: "Roboto Variable, Noto Sans Arabic Variable, sans-serif"
     fontSize: "16px"
     fontWeight: 400
   caption:
-    fontFamily: "Readex Pro Variable, sans-serif"
+    fontFamily: "Roboto Variable, Noto Sans Arabic Variable, sans-serif"
     fontSize: "15px"
     fontWeight: 400
   axis:
-    fontFamily: "Readex Pro Variable, sans-serif"
+    fontFamily: "Roboto Variable, Noto Sans Arabic Variable, sans-serif"
     fontSize: "14px"
     fontWeight: 400
   sign-in:
-    fontFamily: "Readex Pro Variable, sans-serif"
+    fontFamily: "Roboto Variable, Noto Sans Arabic Variable, sans-serif"
     fontSize: "36px"
     fontWeight: 600
     lineHeight: 1.4
@@ -210,7 +210,7 @@ The rail mark is the supplied UFUQ logo. Under it sits the company administratio
 
 **Key Characteristics:**
 
-- One self-hosted family, Readex Pro Variable, for Arabic and Latin
+- Roboto for Latin and Noto Sans Arabic for Arabic, the ordinary interface faces
 - Slate ground, white rail and surfaces, 1px hairlines, no shadow at rest
 - Indigo fills what acts; a tint and an underline mark where you are
 - A 256px white rail grouped by area, and a 64px white top bar
@@ -262,10 +262,10 @@ Attendance marks map to the same fill across the dashboard, the report, and the 
 
 ## Typography
 
-**Display Font:** Readex Pro Variable (with sans-serif)
-**Body Font:** Readex Pro Variable (with sans-serif)
+**Display Font:** Roboto Variable, Noto Sans Arabic Variable (with sans-serif)
+**Body Font:** Roboto Variable, Noto Sans Arabic Variable (with sans-serif)
 
-**Character:** One variable family carries every word in both scripts, so Arabic and Latin share one colour on the page. Hierarchy comes from size and three weights: 400 for reading, 500 for table headers, labels and bordered buttons, 600 for titles, figures and anything marked.
+**Character:** Roboto carries Latin and Noto Sans Arabic carries Arabic, the ordinary interface faces. Hierarchy comes from size and three weights: 400 for reading, 500 for table headers, labels and bordered buttons, 600 for titles, figures and anything marked.
 
 ### Hierarchy
 
@@ -281,7 +281,7 @@ Attendance marks map to the same fill across the dashboard, the report, and the 
 
 ### Named Rules
 
-**The One Family Rule.** Readex Pro Variable carries every role in Arabic and Latin. There is no display face and no monospace face; the earlier title face is gone.
+**The interface faces.** Roboto carries Latin and Noto Sans Arabic carries Arabic. There is no display face and no monospace face.
 
 **The Untouched Joins Rule.** Arabic text is never letter-spaced. Latin page and section titles tighten by 0.015em; figures tighten by 0.02em to 0.03em.
 

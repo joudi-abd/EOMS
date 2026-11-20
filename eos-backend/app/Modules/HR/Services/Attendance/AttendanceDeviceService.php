@@ -73,7 +73,7 @@ class AttendanceDeviceService
             }
             $binding = AttendanceBinding::create($data + ['device_id' => $device->id]);
             // Link previously unknown events only; never reassign existing historical owners.
-            $officeZone = AttendancePolicy::query()->orderBy('effective_from')->value('timezone');
+            $officeZone = AttendancePolicy::officeTimezone();
             AttendancePunch::query()->where('device_id', $device->id)
                 ->where('device_user_id', $binding->device_user_id)->whereNull('employee_id')
                 ->orderBy('id')->chunkById(100, function ($punches) use ($binding, $officeZone) {
@@ -95,7 +95,7 @@ class AttendanceDeviceService
         return DB::transaction(function () use ($binding, $date) {
             AttendanceDevice::query()->lockForUpdate()->findOrFail($binding->device_id);
             $binding = AttendanceBinding::query()->lockForUpdate()->findOrFail($binding->id);
-            $zone = AttendancePolicy::query()->orderBy('effective_from')->value('timezone');
+            $zone = AttendancePolicy::officeTimezone();
             if ($binding->revoked_from !== null || $date < CarbonImmutable::now($zone)->toDateString()
                 || $date < $binding->valid_from->format('Y-m-d') || $binding->valid_to !== null) {
                 throw ValidationException::withMessages(['valid_to' => ['يمكن إغلاق ربط مفتوح من اليوم أو بتاريخ لاحق فقط.']]);

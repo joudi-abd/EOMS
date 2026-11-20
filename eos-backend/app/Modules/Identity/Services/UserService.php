@@ -99,15 +99,18 @@ class UserService
                 ->lockForUpdate()
                 ->findOrFail($user->id);
 
+            // Any change to an account (profile, email, password, roles) needs an actor at least as powerful as it,
+            // or a manager of accounts could take over an administrator by resetting the password.
+            $this->ensureMayTouch($user);
             $oldRoles = $user->getRoleNames()->all();
             if ($roles !== null) {
                 $this->ensureMayAssign($roles, $oldRoles);
-                $this->ensureMayTouch($user);
                 $this->ensureLastActiveAdminIsPreserved($user, $oldRoles, $roles);
             }
             // Notify other modules before updating the user.
             event(new UserProfileUpdating($user, $data));
             $user->fill($data);
+            $passwordChanged = $user->isDirty('password');
             $changed = Arr::except(
                 $user->getDirty(),
                 ['password']
@@ -117,6 +120,11 @@ class UserService
                 array_keys($changed)
             );
             $user->save();
+            if ($passwordChanged) {
+                // A new password ends every other session: a stolen token must not outlive a reset.
+                $current = auth()->user()?->is($user) ? auth()->user()->currentAccessToken() : null;
+                $user->tokens()->when($current !== null && isset($current->id), fn ($q) => $q->whereKeyNot($current->id))->delete();
+            }
             if ($roles !== null) {
                 $user->syncRoles($roles);
                 $this->forget($user);
@@ -128,6 +136,7 @@ class UserService
                     $user,
                     $old + ($roles !== null ? ['roles' => $oldRoles] : []),
                     $changed + ($roles !== null ? ['roles' => $user->getRoleNames()->all()] : [])
+                        + ($passwordChanged ? ['password_changed' => true] : [])
                 );
             }
 
@@ -135,12 +144,17 @@ class UserService
         });
     }
 
+    /**
+     * @param  bool  $checkReach  false only for the system disabling an account as a consequence of another
+     *                            authorised action (an employee's termination), never for a direct request.
+     */
     public function setStatus(
         User $user,
         string $status,
-        User $actor
+        User $actor,
+        bool $checkReach = true
     ): User {
-        return DB::transaction(function () use ($user, $status, $actor) {
+        return DB::transaction(function () use ($user, $status, $actor, $checkReach) {
 
             $this->lockSystemAdminRole();
 
@@ -151,6 +165,16 @@ class UserService
             if ($status === 'disabled' && $actor->is($user)) {
                 throw ValidationException::withMessages([
                     'status' => ['لا يمكنك تعطيل حسابك بنفسك.'],
+                ]);
+            }
+
+            if ($checkReach) {
+                $this->ensureMayTouch($user, $actor);
+            }
+
+            if ($status === 'active' && $user->status !== 'active' && $this->employees->accountBlocked($user->id)) {
+                throw ValidationException::withMessages([
+                    'status' => ['انتهت خدمة الموظف المرتبط بهذا الحساب؛ أعد تعيينه قبل تفعيل الحساب.'],
                 ]);
             }
 
@@ -245,11 +269,18 @@ class UserService
         }
     }
 
-    /** Only an administrator changes an administrator's roles. */
-    private function ensureMayTouch(User $target): void
+    /**
+     * Only an administrator touches an administrator's account, and nobody touches an account that holds more
+     * than they do (a wider scope or a permission they lack).
+     */
+    private function ensureMayTouch(User $target, ?User $actor = null): void
     {
         if ($target->hasRole(DefaultRoles::ADMIN)) {
             $this->ensureAdministrator();
+        }
+        $actor ??= auth()->user();
+        if (! $actor instanceof User || ! $this->access->outranksOrEquals($actor, $target)) {
+            throw new AuthorizationException('لا يمكنك تعديل حساب يملك صلاحيات أوسع من صلاحياتك.');
         }
     }
 
@@ -258,6 +289,7 @@ class UserService
         $search = trim((string) ($filters['q'] ?? ''));
 
         return User::query()
+            ->with('roles')
             ->when($search !== '', fn ($q) => $q->where(fn ($w) => $w
                 ->where('name', 'like', "%{$search}%")
                 ->orWhere('email', 'like', "%{$search}%")

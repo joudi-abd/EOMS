@@ -1,0 +1,89 @@
+@if (report(); as r) {
+  @if (r.totals.length) {
+    <section class="summary" [attr.aria-label]="t('fadSummary')">
+      @for (item of r.totals; track item.currency) {
+        <p>
+          <span>{{ t('fadOpenBalance') }} <bdi>{{ item.currency }}</bdi></span>
+          <strong><bdi class="num">{{ figure(item.balance, item.currency) }}</bdi></strong>
+          <small>{{ num(item.count) }} {{ t('fadOpenCount') }}</small>
+        </p>
+      }
+      <p>
+        <span>{{ t('fadOverdue') }}</span>
+        <strong [class.late]="overdueCount() > 0">{{ num(overdueCount()) }}</strong>
+        <small>{{ t('fadOverdueNote') }} {{ num(r.overdue_days) }} {{ t('finDays') }}</small>
+      </p>
+    </section>
+  }
+}
+
+<form class="filters" (ngSubmit)="load(1)">
+  <label>{{ t('finStatus') }}
+    <select name="status" [(ngModel)]="status" (ngModelChange)="load(1)">
+      <option value="">{{ t('finAll') }}</option>
+      <option value="open">{{ t('fadCustodyOpen') }}</option>
+      <option value="closed">{{ t('fadCustodyClosed') }}</option>
+    </select>
+  </label>
+  <label>{{ t('fadHolder') }}
+    <select name="holder" [(ngModel)]="holderId" (ngModelChange)="load(1)">
+      <option [ngValue]="0">{{ t('finAll') }}</option>
+      @for (party of holders(); track party.id) { <option [ngValue]="party.id">{{ party.name }}</option> }
+    </select>
+  </label>
+  <label class="fad-check">
+    <span><input name="overdue" type="checkbox" [(ngModel)]="overdue" (ngModelChange)="load(1)" /> {{ t('fadOverdueOnly') }}</span>
+  </label>
+  @if (status !== 'open' || overdue || holderId) {
+    <div class="fin-filter-actions"><button class="text" type="button" (click)="reset()">{{ t('finReset') }}</button></div>
+  }
+</form>
+
+@if (loading() && !rows().length) {
+  <p class="empty">{{ t('finLoading') }}</p>
+} @else if (!rows().length) {
+  <p class="empty">{{ t('fadNoCustody') }}</p>
+} @else {
+  <div class="sheet">
+    <table>
+      <thead>
+        <tr>
+          <th>{{ t('fadHolder') }}</th>
+          <th>{{ t('finProject') }}</th>
+          <th>{{ t('finCurrency') }}</th>
+          <th class="end">{{ t('fadIssued') }}</th>
+          <th class="end">{{ t('fadSettled') }}</th>
+          <th class="end">{{ t('fadReturned') }}</th>
+          <th class="end">{{ t('finBalance') }}</th>
+          <th class="end">{{ t('fadAge') }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (row of rows(); track row.id) {
+          <tr [class.attention]="row.overdue">
+            <td>
+              <button class="link-button" type="button" (click)="open(row)">{{ row.holder_name ?? finance.partyName(row.holder_party_id) }}</button>
+              @if (row.status === 'closed') { <small class="soft block-line">{{ statusWord(row.status) }}</small> }
+            </td>
+            <td>{{ row.project_name ?? t('fadGeneral') }}</td>
+            <td><bdi>{{ row.currency }}</bdi></td>
+            <td class="end"><bdi class="num">{{ figure(row.issued_total, row.currency) }}</bdi></td>
+            <td class="end"><bdi class="num">{{ figure(row.settled_total, row.currency) }}</bdi></td>
+            <td class="end"><bdi class="num">{{ figure(row.returned_total, row.currency) }}</bdi></td>
+            <td class="end"><bdi class="num strong">{{ figure(row.balance, row.currency) }}</bdi></td>
+            <td class="end num" [class.late]="row.overdue">
+              @if (row.status === 'open') { {{ num(row.age_days) }} {{ t('finDays') }} } @else { — }
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+  @if (pages() > 1) {
+    <nav class="fin-pager" [attr.aria-label]="t('finPages')">
+      <button class="text small" type="button" [disabled]="page() <= 1" (click)="load(page() - 1)">{{ t('finPrev') }}</button>
+      <span class="soft">{{ num(page()) }} / {{ num(pages()) }}</span>
+      <button class="text small" type="button" [disabled]="page() >= pages()" (click)="load(page() + 1)">{{ t('finNext') }}</button>
+    </nav>
+  }
+}

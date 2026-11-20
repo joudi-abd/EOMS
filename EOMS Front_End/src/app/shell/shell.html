@@ -1,5 +1,5 @@
 <a class="skip" href="#content">{{ t('skip') }}</a>
-<div class="app">
+<div class="app" [class.board-focus]="boardFocus()">
   <aside class="rail" [class.is-open]="chrome.menuOpen()">
     <div class="mark">
       <img class="brand" src="/brand/ufuq.png" width="176" height="121" alt="UFUQ" />

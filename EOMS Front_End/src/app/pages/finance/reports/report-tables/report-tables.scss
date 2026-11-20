@@ -1,0 +1,36 @@
+:host {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+
+.summary {
+  margin: 0;
+}
+
+.frp-block {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.frp-block h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+tr.frp-strong td,
+tfoot td {
+  font-weight: 600;
+}
+
+tfoot td {
+  background: var(--raised);
+  border-top: 1px solid var(--line-strong);
+  border-bottom: 0;
+}
+
+td.soft {
+  color: var(--soft);
+}

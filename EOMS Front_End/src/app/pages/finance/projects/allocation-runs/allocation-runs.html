@@ -1,0 +1,201 @@
+<section class="panel">
+  <div class="panel-head">
+    <div>
+      <h2>{{ t('fpjRunsTitle') }}</h2>
+      <p>{{ t('fpjRunsLede') }}</p>
+    </div>
+    @if (!making()) {
+      <button class="text" type="button" (click)="start()">{{ t('fpjNewAllocation') }}</button>
+    }
+  </div>
+
+  @if (making()) {
+    <form class="fin-sheet" (ngSubmit)="runPreview()">
+      <header>
+        <h2>{{ t('fpjNewAllocation') }}</h2>
+        <button class="quiet-x" type="button" (click)="making.set(false)" [attr.aria-label]="t('finClose')"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+      </header>
+      <fieldset [disabled]="busy()">
+        <div class="fpj-choice">
+          <span>{{ t('fpjWhat') }}</span>
+          <div class="seg" role="radiogroup" [attr.aria-label]="t('fpjWhat')">
+            <button type="button" role="radio" [attr.aria-checked]="kind === 'payroll'" [class.on]="kind === 'payroll'" (click)="pickKind('payroll')">{{ t('fpjKindPayroll') }}</button>
+            <button type="button" role="radio" [attr.aria-checked]="kind === 'overhead'" [class.on]="kind === 'overhead'" (click)="pickKind('overhead')">{{ t('fpjKindOverhead') }}</button>
+          </div>
+        </div>
+        @if (kind === 'overhead') {
+          <div class="fin-form">
+            <label>{{ t('finBranch') }}
+              <select name="branch" required [(ngModel)]="branchId">
+                @for (item of branches(); track item.id) { <option [ngValue]="item.id">{{ item.name }}</option> }
+              </select>
+            </label>
+          </div>
+        }
+        <div class="fpj-choice">
+          <span>{{ t('fpjMethod') }}</span>
+          <div class="seg" role="radiogroup" [attr.aria-label]="t('fpjMethod')">
+            @for (item of methods(); track item) {
+              <button type="button" role="radio" [attr.aria-checked]="method === item" [class.on]="method === item" (click)="pickMethod(item)">{{ methodLabel(item) }}</button>
+            }
+          </div>
+          <small class="fin-hint">{{ methodHint() }}</small>
+        </div>
+
+        @if (needsLines()) {
+          <div class="fin-lines">
+            <table>
+              <thead>
+                <tr>
+                  <th>{{ t('finProject') }}</th>
+                  @if (method === 'percentages') { <th>%</th> } @else { <th>{{ t('finCurrency') }}</th><th>{{ t('finAmount') }}</th> }
+                  <th><span class="vh">{{ t('finActions') }}</span></th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (line of lines; track $index; let i = $index) {
+                  <tr>
+                    <td>
+                      <select [name]="'p' + i" required [(ngModel)]="line.projectId">
+                        <option [ngValue]="0">{{ t('finChoose') }}</option>
+                        @for (item of projects(); track item.project_id) { <option [ngValue]="item.project_id">{{ finance.projectName(item.project_id) }}</option> }
+                      </select>
+                    </td>
+                    @if (method === 'percentages') {
+                      <td><input [name]="'pc' + i" type="number" min="0" max="100" step="any" required [(ngModel)]="line.percentage" /></td>
+                    } @else {
+                      <td>
+                        <select [name]="'c' + i" [(ngModel)]="line.currency">
+                          @for (item of finance.activeCurrencies(); track item.id) { <option [value]="item.code">{{ item.code }}</option> }
+                        </select>
+                      </td>
+                      <td><input [name]="'a' + i" type="number" min="0" step="any" required [(ngModel)]="line.amount" /></td>
+                    }
+                    <td><button class="quiet small" type="button" (click)="removeLine(i)" [attr.aria-label]="t('finDelete')"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button></td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+          <div class="fin-toolbar">
+            <button class="text small" type="button" (click)="addLine()"><i class="fa-solid fa-plus" aria-hidden="true"></i> {{ t('fpjAddProjectLine') }}</button>
+            @if (method === 'percentages') {
+              <span class="fpj-push" [class.late]="percentTotal() > 100">{{ t('finTotal') }} <bdi>{{ qty(percentTotal()) }}%</bdi></span>
+            }
+          </div>
+        }
+
+        <label class="fin-field">{{ t('finNotes') }}<input name="notes" maxlength="1000" [(ngModel)]="notes" [placeholder]="t('finOptional')" /></label>
+
+        @if (preview(); as p) {
+          <section class="fpj-preview" [class.stale]="!previewed()">
+            <h3>{{ t('fpjPreviewTitle') }}</h3>
+            @if (!previewed()) { <p class="fin-hint">{{ t('fpjPreviewStale') }}</p> }
+            <p class="fin-hint">
+              {{ t('fpjPool') }}
+              @for (item of p.pool; track item.currency_id) { · <bdi class="strong">{{ money(item.amount, item.currency) }}</bdi> }
+              @if (!p.pool.length) { · {{ t('finNone') }} }
+            </p>
+            @for (warning of p.warnings; track $index) {
+              <p class="fin-warn"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> {{ warning }}</p>
+            }
+            <div class="sheet">
+              <table>
+                <thead>
+                  <tr>
+                    <th>{{ t('finProject') }}</th>
+                    @if (kind === 'payroll') { <th>{{ t('finEmployee') }}</th> }
+                    <th class="end">%</th>
+                    <th class="end">{{ t('finAmount') }}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (line of p.lines; track $index) {
+                    <tr>
+                      <td>{{ line.project_name ?? finance.projectName(line.project_id) }}</td>
+                      @if (kind === 'payroll') { <td>{{ line.employee_name ?? '—' }}</td> }
+                      <td class="num end"><bdi>{{ line.percentage === null ? '—' : qty(line.percentage) + '%' }}</bdi></td>
+                      <td class="num end"><bdi>{{ money(line.amount, line.currency) }}</bdi></td>
+                    </tr>
+                  } @empty {
+                    <tr><td [attr.colspan]="kind === 'payroll' ? 4 : 3" class="soft">{{ t('fpjPreviewEmpty') }}</td></tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+            <div class="fin-totals">
+              @for (item of p.allocated; track item.currency_id) {
+                <div><span>{{ t('fpjAllocated') }} <bdi>{{ item.currency }}</bdi></span><bdi class="num">{{ money(item.amount, item.currency) }}</bdi></div>
+              }
+              @for (item of p.unallocated; track item.currency_id) {
+                @if (positive(item.amount)) {
+                  <div><span>{{ t('fpjUnallocated') }} <bdi>{{ item.currency }}</bdi></span><bdi class="num">{{ money(item.amount, item.currency) }}</bdi></div>
+                }
+              }
+            </div>
+          </section>
+        }
+
+        <div class="fin-actions">
+          <button class="text" type="button" (click)="making.set(false)">{{ t('finCancel') }}</button>
+          <button [class]="previewed() ? 'text' : 'primary'" type="submit">{{ t('fpjPreview') }}</button>
+          @if (previewed()) {
+            <button class="primary" type="button" [disabled]="!preview()!.lines.length || !!preview()!.existing_allocation_id" (click)="post()">{{ t('fpjPost') }}</button>
+          }
+        </div>
+      </fieldset>
+    </form>
+  }
+
+  <div class="flush">
+    <table>
+      <thead>
+        <tr>
+          <th>{{ t('fpjWhat') }}</th>
+          <th>{{ t('fpjMethod') }}</th>
+          <th>{{ t('finBranch') }}</th>
+          <th>{{ t('finStatus') }}</th>
+          <th>{{ t('fpjVoucher') }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (row of rows(); track row.id) {
+          <tr [class.picked]="open()?.id === row.id">
+            <td><button class="link-button" type="button" [attr.aria-expanded]="open()?.id === row.id" (click)="toggle(row)">{{ kindLabel(row.kind) }}</button></td>
+            <td class="sm">{{ methodLabel(row.method) }}</td>
+            <td>{{ finance.branchName(row.branch_id) || '—' }}</td>
+            <td><span [class]="allocTone(row.status)">{{ allocStatus(row.status) }}</span></td>
+            <td>
+              @if (row.voucher_id) {
+                <a class="name" routerLink="/modules/finVouchers" [queryParams]="{ id: row.voucher_id }"><bdi>{{ row.voucher?.number ?? '#' + row.voucher_id }}</bdi></a>
+              } @else { — }
+            </td>
+          </tr>
+          @if (open(); as d) {
+            @if (d.id === row.id) {
+              <tr class="sub">
+                <td colspan="5">
+                  <ul class="fin-list">
+                    @for (line of d.lines; track $index) {
+                      <li>
+                        <span>{{ line.project_name ?? finance.projectName(line.project_id) }} @if (line.employee_name) { <small class="soft">· {{ line.employee_name }}</small> }</span>
+                        <bdi class="num end">{{ money(line.amount, line.currency) }}</bdi>
+                      </li>
+                    }
+                  </ul>
+                  <p class="fin-hint">
+                    {{ t('finTotal') }}
+                    @for (item of totalsOf(d); track item[0]) { · <bdi class="strong">{{ money(item[1], item[0]) }}</bdi> }
+                  </p>
+                  @if (row.status === 'approved') { <p class="fin-hint">{{ t('fpjReverseHint') }}</p> }
+                </td>
+              </tr>
+            }
+          }
+        } @empty {
+          <tr><td colspan="5" class="soft">{{ loading() ? t('finLoading') : t('fpjNoAllocations') }}</td></tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</section>

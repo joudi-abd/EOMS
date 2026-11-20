@@ -4,19 +4,32 @@
   position: fixed;
   inset: 0;
   z-index: 40;
-  background: rgb(0 0 0 / 0.18);
+  background: rgb(0 0 0 / 0.64);
 }
 
 .tk-drawer {
   position: fixed;
-  inset-block: 0;
-  inset-inline-end: 0;
   z-index: 41;
-  width: min(560px, 100vw);
-  padding: 14px 18px 28px;
-  overflow-y: auto;
-  background: var(--surface);
+  top: 48px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 320px);
+  grid-template-rows: auto auto;
+  align-items: stretch;
+  width: min(960px, calc(100vw - 48px));
+  max-height: calc(100vh - 96px);
+  padding: 0;
+  overflow: auto;
+  border-radius: 8px;
+  background: #fff;
+  color: var(--ink);
   box-shadow: var(--shadow-pop);
+}
+
+.tk-drawer-head,
+.tk-drawer > .empty {
+  grid-column: 1 / -1;
 }
 
 .tk-drawer-head {
@@ -24,14 +37,73 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  padding: 12px 12px 0 16px;
+  color: #5e6c84;
+  font-size: 14px;
+}
+
+.tk-drawer-head strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.tk-main,
+.tk-side {
+  min-height: 280px;
+}
+
+.tk-side {
+  align-self: stretch;
+}
+
+.tk-main {
+  padding: 4px 20px 24px;
+}
+
+.tk-fields {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: end;
+}
+
+.tk-move {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 8px;
+}
+
+.tk-move label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 15px;
+}
+
+.tk-move select,
+.tk-move .text {
+  height: 40px;
+  min-height: 40px;
+}
+
+.tk-move select {
+  width: 100%;
+}
+
+.tk-side {
+  padding: 12px 16px 24px;
+  background: #f1f2f4;
 }
 
 .tk-title-field textarea,
 .tk-title-text {
   width: 100%;
-  margin: 8px 0 4px;
-  font-size: 1.2rem;
+  margin: 4px 0 8px;
+  font-size: 20px;
   font-weight: 600;
+  line-height: 1.25;
+  color: var(--ink);
 }
 
 .tk-title-field textarea {
@@ -65,9 +137,9 @@
 }
 
 .tk-sec {
-  margin-top: 16px;
-  padding-top: 12px;
-  border-top: 1px solid var(--line);
+  margin-top: 20px;
+  padding-top: 0;
+  border-top: 0;
 }
 
 .tk-sec h3 {
@@ -75,7 +147,20 @@
   align-items: center;
   gap: 8px;
   margin: 0 0 8px;
-  font-size: 0.95rem;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.tk-side .soft,
+.tk-side .fin-hint,
+.tk-activity li {
+  color: #5e6c84;
+}
+
+.tk-side .tk-activity li strong,
+.tk-comments strong {
+  color: var(--ink);
 }
 
 .tk-sec textarea,
@@ -200,7 +285,7 @@ span.tk-tag {
 
 .tk-comments li {
   padding: 8px 0;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 0;
 }
 
 .tk-comments header {
@@ -222,5 +307,17 @@ span.tk-tag {
 
 .tk-activity li {
   padding: 4px 0;
-  font-size: 0.85rem;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+@media (max-width: 800px) {
+  .tk-drawer {
+    top: 16px;
+    left: 16px;
+    transform: none;
+    grid-template-columns: minmax(0, 1fr);
+    width: calc(100vw - 32px);
+    max-height: calc(100vh - 32px);
+  }
 }

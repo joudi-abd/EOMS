@@ -36,11 +36,21 @@ export class SettingsShift extends Ui {
     }) as typeof item & { state: CopyKey });
   });
 
-  /** The version in force today; the form starts from its rules. */
+  /** The version in force today; the form starts from its rules, or the office defaults when none exists. */
   protected readonly current = computed(() => {
     const list = this.office.policyVersions();
     const today = this.office.nextPolicyDay();
     return list.find((item) => item.effective_from < today) ?? list[list.length - 1] ?? null;
+  });
+
+  protected readonly rules = computed(() => this.current() ?? {
+    grace_mode: 'completed_blocks',
+    late_block_minutes: 60,
+    overtime_multiplier: 2,
+    pairing_mode: 'first_last',
+    duplicate_seconds: 60,
+    finalize_after_minutes: 120,
+    timezone: 'Asia/Damascus',
   });
 
   protected graceName(mode: string): CopyKey {

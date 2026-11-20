@@ -1,0 +1,89 @@
+@if (totals().length) {
+  <section class="summary" [attr.aria-label]="t('fbxTotals')">
+    @for (item of totals(); track item.code) {
+      <p>
+        <span>{{ t('fbxTotalOf') }} <bdi>{{ item.code }}</bdi></span>
+        <strong [class.late]="negative(item.total)"><bdi class="num">{{ figure(item.total, item.code) }}</bdi></strong>
+      </p>
+    }
+  </section>
+}
+
+@if (sheetOpen()) {
+  <app-fin-box-form [box]="editing()" (saved)="saved($event)" (closed)="closeSheet()" />
+}
+
+@if (openBox(); as box) {
+  <app-fin-box-statement [box]="box" />
+}
+
+@if (hasInactive()) {
+  <div class="seg" role="radiogroup" [attr.aria-label]="t('finStatus')">
+    <button type="button" role="radio" [attr.aria-checked]="!showInactive()" [class.on]="!showInactive()" (click)="showInactive.set(false)">{{ t('fbxActiveBoxes') }}</button>
+    <button type="button" role="radio" [attr.aria-checked]="showInactive()" [class.on]="showInactive()" (click)="showInactive.set(true)">{{ t('fbxInactiveBoxes') }}</button>
+  </div>
+}
+
+@if (loading() && !finance.boxes().length) {
+  <p class="empty">{{ t('finLoading') }}</p>
+} @else if (!rows().length) {
+  <p class="empty">{{ showInactive() ? t('fbxNoInactive') : t('finNoBoxes') }}</p>
+} @else {
+  <div class="sheet">
+    <table>
+      <thead>
+        <tr>
+          <th>{{ t('finName') }}</th>
+          <th>{{ t('finType') }}</th>
+          <th>{{ t('finBranch') }}</th>
+          <th class="end">{{ t('finBalance') }}</th>
+          @if (may('finance.settings')) { <th class="end"><span class="vh">{{ t('finActions') }}</span></th> }
+        </tr>
+      </thead>
+      <tbody>
+        @for (box of rows(); track box.id) {
+          <tr [class.picked]="openId() === box.id">
+            <td>
+              <button class="link-button" type="button" [attr.aria-expanded]="openId() === box.id" (click)="open(box)">{{ box.name }}</button>
+            </td>
+            <td class="sm">{{ boxTypeLabel(box.type) }}</td>
+            <td class="sm">{{ finance.branchName(box.branch_id) || '—' }}</td>
+            <td class="end">
+              @for (row of box.currencies; track row.currency_id) {
+                <span class="block-line">
+                  <bdi class="num" [class.late]="row.negative">{{ money(row.balance, row.code) }}</bdi>
+                  @if (row.near_limit) {
+                    <small class="wait"> · {{ t('fbxNearLimit') }}</small>
+                  }
+                  @if (row.available !== null && (row.negative || row.allow_negative)) {
+                    <small class="soft"> · {{ t('fbxAvailable') }} <bdi class="num">{{ figure(row.available, row.code) }}</bdi></small>
+                  }
+                </span>
+              } @empty {
+                <span class="soft">—</span>
+              }
+            </td>
+            @if (may('finance.settings')) {
+              <td class="fin-row-actions">
+                @if (confirming() === box.id) {
+                  <span class="fbx-confirm">
+                    {{ t('fbxDeactivateAsk') }}
+                    <button class="quiet small" type="button" [disabled]="busy()" (click)="deactivate(box)">{{ t('finDeactivate') }}</button>
+                    <button class="text small" type="button" (click)="confirming.set(null)">{{ t('finCancel') }}</button>
+                  </span>
+                } @else {
+                  <button class="text small" type="button" (click)="edit(box)">{{ t('finEdit') }}</button>
+                  @if (box.is_active) {
+                    <button class="text small" type="button" (click)="confirming.set(box.id)">{{ t('finDeactivate') }}</button>
+                  } @else {
+                    <button class="text small" type="button" [disabled]="busy()" (click)="activate(box)">{{ t('finActivate') }}</button>
+                  }
+                }
+              </td>
+            }
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+}

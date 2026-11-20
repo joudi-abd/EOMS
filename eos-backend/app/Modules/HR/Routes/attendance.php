@@ -36,14 +36,14 @@ Route::prefix('api/v1')->middleware(['api', 'auth:sanctum'])->group(function () 
     });
     Route::middleware('perm:attendance.manage')->group(function () {
         Route::get('attendance/quarantined-punches', [AdmsController::class, 'quarantined']);
-        Route::post('attendance/quarantined-punches/{quarantine}/review', [AdmsController::class, 'reviewQuarantined'])->middleware('perm:attendance.approve');
+        Route::post('attendance/quarantined-punches/{quarantine}/review', [AdmsController::class, 'reviewQuarantined'])->middleware('perm:attendance.approve')->whereNumber('quarantine');
         Route::post('attendance/policies', [AttendanceSettingsController::class, 'storePolicy']);
         Route::patch('attendance/devices/{device}/connection', [AdmsController::class, 'configure']);
         Route::post('attendance/bindings/{binding}/enroll-fingerprint', [AdmsController::class, 'enroll']);
-        Route::post('attendance/fingerprint-enrollments/{enrollment}/confirm', [AdmsController::class, 'confirm']);
+        Route::post('attendance/fingerprint-enrollments/{enrollment}/confirm', [AdmsController::class, 'confirm'])->whereNumber('enrollment');
         Route::get('attendance/bindings/{binding}/fingerprint-enrollment', [AdmsController::class, 'latest']);
-        Route::post('attendance/fingerprint-enrollments/{enrollment}/cancel', [AdmsController::class, 'cancel']);
-        Route::get('attendance/fingerprint-enrollments/{enrollment}', [AdmsController::class, 'status']);
+        Route::post('attendance/fingerprint-enrollments/{enrollment}/cancel', [AdmsController::class, 'cancel'])->whereNumber('enrollment');
+        Route::get('attendance/fingerprint-enrollments/{enrollment}', [AdmsController::class, 'status'])->whereNumber('enrollment');
         Route::get('attendance/devices', [AttendanceSettingsController::class, 'devices']);
         Route::post('attendance/devices', [AttendanceSettingsController::class, 'storeDevice']);
         Route::patch('attendance/devices/{device}', [AttendanceSettingsController::class, 'updateDevice']);

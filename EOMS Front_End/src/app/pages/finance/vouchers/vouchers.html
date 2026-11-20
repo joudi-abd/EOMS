@@ -1,0 +1,45 @@
+<main class="work" id="content">
+  @if (!may('finance.view')) {
+    <h1>{{ t('finVouchers') }}</h1>
+    <p class="empty">{{ t('finNoAccess') }}</p>
+  } @else {
+    <app-notice />
+    <header class="heading">
+      <div>
+        <h1>{{ t('finVouchers') }}</h1>
+        <p class="lede">{{ t('ledeFinVouchers') }}</p>
+      </div>
+      @if (may('finance.vouchers')) {
+        <div class="actions">
+          <button class="primary" type="button" (click)="startNew()">
+            <i class="fa-solid fa-plus" aria-hidden="true"></i> {{ t('fvoNew') }}
+          </button>
+        </div>
+      }
+    </header>
+
+    @if (editing(); as voucher) {
+      <app-voucher-form [voucher]="voucher" (saved)="saved($event)" (closed)="editing.set(null)" />
+    } @else if (prefill(); as start) {
+      @for (key of [prefillKey()]; track key) {
+        <app-voucher-form [prefill]="start" (saved)="saved($event)" (closed)="closeForm()" />
+      }
+    } @else if (openId()) {
+      <app-voucher-view
+        [id]="openId()"
+        [seed]="fresh()"
+        (closed)="closeView()"
+        (edit)="editing.set($event)"
+        (changed)="changed($event)"
+      />
+    }
+
+    <app-voucher-list
+      [status]="statusParam()"
+      [picked]="openId()"
+      [refresh]="refresh()"
+      (open)="open($event)"
+      (create)="startNew()"
+    />
+  }
+</main>

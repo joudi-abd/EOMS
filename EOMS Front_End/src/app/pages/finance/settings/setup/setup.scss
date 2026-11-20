@@ -1,0 +1,90 @@
+/* The setup checklist: one row per step, a round mark, what is missing, and where to fix it. */
+
+.fst-steps {
+  list-style: none;
+  margin: 0;
+  padding-block: 6px;
+}
+
+.fst-steps li {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.fst-steps li:last-child {
+  border-bottom: 0;
+}
+
+.mark {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line-strong);
+  color: var(--muted);
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+}
+
+li.done .mark {
+  border-color: var(--ontime);
+  color: var(--ontime);
+}
+
+.body {
+  flex: 1;
+  display: grid;
+  gap: 4px;
+  font-size: 16px;
+  min-width: 0;
+}
+
+.ok-line {
+  color: var(--ontime);
+  font-size: 15px;
+}
+
+.missing {
+  color: var(--wait);
+  font-size: 15px;
+}
+
+.go {
+  flex: none;
+}
+
+.panel-head .quiet-x {
+  flex: none;
+}
+
+.missing.clamp {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.more summary {
+  cursor: pointer;
+  color: var(--action-ink);
+  font-size: 15px;
+}
+
+.more[open] summary {
+  margin-block-end: 6px;
+}
+
+.more .missing {
+  display: block;
+  margin-block-end: 4px;
+}
+
+.more[open] ~ .missing.clamp,
+.body:has(.more[open]) > .missing.clamp {
+  display: none;
+}

@@ -1,0 +1,46 @@
+@if (composing()) {
+  <app-fin-site-request-form [myCustody]="myCustody()" (saved)="saved()" (closed)="close()" />
+}
+
+@if (loading() && !rows().length) {
+  <p class="empty">{{ t('finLoading') }}</p>
+} @else if (!rows().length) {
+  @if (!composing()) {
+    <p class="empty">{{ t('fsrNoRequests') }}</p>
+    @if (myCustody()?.party) {
+      <button class="text fsr-fill" type="button" (click)="compose()"><i class="fa-solid fa-plus" aria-hidden="true"></i> {{ t('fsrNew') }}</button>
+    }
+  }
+} @else {
+  <section class="panel">
+    <div class="panel-head"><div><h2>{{ t('fsrTabMine') }}</h2></div></div>
+    <ul class="fin-list fsr-list">
+      @for (row of rows(); track row.id) {
+        <li>
+          <span class="fsr-main">
+            <span class="strong">{{ row.description }}</span>
+            <small class="soft block-line">{{ row.project_name ?? '—' }} · {{ row.cost_category_name ?? '' }}</small>
+            <small class="soft block-line">{{ short(row.created_at ?? '') }} · {{ source(row.payment_source) }}</small>
+            @if (row.status === 'rejected' && row.rejected_reason) {
+              <small class="late block-line">{{ t('fsrRejectedBecause') }} {{ row.rejected_reason }}</small>
+            }
+            @if (row.status === 'approved' && row.voucher_number) {
+              <small class="soft block-line">{{ t('fsrVoucherNo') }} <bdi>{{ row.voucher_number }}</bdi></small>
+            }
+          </span>
+          <span class="end fsr-side">
+            <bdi class="num strong">{{ money(row.amount, row.currency_code ?? row.currency_id) }}</bdi>
+            <small class="block-line" [class]="tone(row.status)">{{ statusLabel(row.status) }}</small>
+          </span>
+        </li>
+      }
+    </ul>
+  </section>
+  @if (pages() > 1) {
+    <nav class="fin-pager" [attr.aria-label]="t('finPages')">
+      <button class="text" type="button" [disabled]="page() <= 1" (click)="load(page() - 1)">{{ t('finPrev') }}</button>
+      <span class="soft">{{ num(page()) }} / {{ num(pages()) }}</span>
+      <button class="text" type="button" [disabled]="page() >= pages()" (click)="load(page() + 1)">{{ t('finNext') }}</button>
+    </nav>
+  }
+}

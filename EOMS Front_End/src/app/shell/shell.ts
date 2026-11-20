@@ -1,6 +1,7 @@
 import { Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { ActivatedRoute, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { ActivatedRoute, NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { filter, map } from 'rxjs';
 import { Session } from '../core/access/session';
 import { CopyKey, ModuleId } from '../core/copy';
 import { Language } from '../core/language';
@@ -14,7 +15,7 @@ import { moduleIcon } from './icons';
 const navGroups: { label: CopyKey; ids: ModuleId[] }[] = [
   { label: 'navPeople', ids: ['employees', 'attendance', 'leave', 'requests', 'payroll', 'hrSettings'] },
   { label: 'navWork', ids: ['tasks', 'projects', 'clients', 'procurement', 'documents', 'assets', 'meetings'] },
-  { label: 'navMoney', ids: ['finCash', 'finInvoices', 'finItems', 'finLedger', 'finReports', 'finSettings'] },
+  { label: 'navMoney', ids: ['finOverview', 'finBoxes', 'finVouchers', 'finParties', 'finProjects', 'finAdvances', 'finAssets', 'finSite', 'finReports', 'finSettings'] },
   { label: 'navSystem', ids: ['access', 'alerts'] },
 ];
 
@@ -39,6 +40,15 @@ export class Shell {
   protected readonly waiting = signal<Partial<Record<ModuleId, number>>>({});
   private readonly route = inject(ActivatedRoute);
   private readonly params = toSignal(this.route.queryParamMap);
+  private readonly path = toSignal(
+    this.router.events.pipe(
+      filter((event): event is NavigationEnd => event instanceof NavigationEnd),
+      map((event) => event.urlAfterRedirects.split('?')[0]),
+    ),
+    { initialValue: this.router.url.split('?')[0] },
+  );
+  /** A task board fills the screen: the rail keeps its icons and the top bar steps aside. */
+  protected readonly boardFocus = computed(() => (this.path() ?? '').startsWith('/modules/tasks') && !!this.params()?.get('board'));
 
   /** Only the groups that hold at least one module this account may open. */
   protected readonly groups = computed(() =>
@@ -67,8 +77,8 @@ export class Shell {
   }
 
   /**
-   * Counts what waits on this account: leave requests in its review queue, pay runs submitted for approval, and
-   * finance transactions and invoices above the approval limit. Each count is one page-1 request read for its total;
+   * Counts what waits on this account: leave requests in its review queue, pay runs submitted for approval, finance
+   * vouchers and site requests waiting for a decision, and cash counts waiting for a second person's approval. Each count is one page-1 request read for its total;
    * a count the account may not see is simply left out.
    */
   private async loadWaiting(): Promise<void> {
@@ -88,9 +98,13 @@ export class Shell {
     if (this.session.has('payroll.approve')) {
       jobs.push(total('/payroll/runs', { status: 'submitted' }).then((value) => void (counts.payroll = value)));
     }
-    if (this.session.has('finance.approve')) {
-      jobs.push(total('/finance/transactions', { status: 'pending' }).then((value) => void (counts.finCash = value)));
-      jobs.push(total('/finance/invoices', { status: 'pending' }).then((value) => void (counts.finInvoices = value)));
+    // Finance: vouchers sent for approval, and site requests waiting in the finance inbox.
+    if (this.session.reach('finance.vouchers')) {
+      jobs.push(total('/finance/vouchers', { status: 'submitted' }).then((value) => void (counts.finVouchers = value)));
+      jobs.push(total('/finance/site-requests', { status: 'submitted' }).then((value) => void (counts.finSite = value)));
+    }
+    if (this.session.has('finance.counts.approve')) {
+      jobs.push(total('/finance/cash-counts', { status: 'submitted' }).then((value) => void (counts.finBoxes = value)));
     }
     await Promise.all(jobs);
     this.waiting.set(counts);

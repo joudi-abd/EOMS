@@ -1,0 +1,26 @@
+/* A box opened in place. */
+
+.fbx-x {
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+
+.fbx-contact {
+  white-space: pre-line;
+}
+
+.fbx-quick {
+  margin-bottom: 14px;
+}
+
+.fbx-field {
+  display: grid;
+  gap: 6px;
+  font-size: 15px;
+  color: var(--muted);
+}
+
+.fbx-summary {
+  margin: 16px 0;
+}

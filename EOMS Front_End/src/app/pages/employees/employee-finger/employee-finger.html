@@ -35,11 +35,6 @@
     }
   </dl>
   @if (mayEnroll()) {
-    @if (!pin()) {
-      <a class="text" routerLink="/modules/hrSettings" [queryParams]="{ tab: 'devices' }">{{
-        t('addBinding')
-      }}</a>
-    }
     <button class="primary" type="button" (click)="openEnroll()">
       <i class="fa-solid fa-fingerprint" aria-hidden="true"></i>
       {{ t('enrollOpen') }}

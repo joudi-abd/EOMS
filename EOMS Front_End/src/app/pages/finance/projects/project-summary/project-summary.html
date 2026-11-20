@@ -1,0 +1,70 @@
+@if (budgetAlerts()) {
+  <p class="fin-warn">
+    <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
+    <span>{{ t('fpjBudgetAlerts') }} <bdi class="strong">{{ num(budgetAlerts()) }}</bdi></span>
+    <a class="text small fpj-push" [routerLink]="[]" [queryParams]="{ id: file().project_id, view: 'budget' }">{{ t('fpjViewBudget') }}</a>
+  </p>
+}
+
+@if (profit(); as p) {
+  <section class="summary" [attr.aria-label]="t('fpjViewSummary')">
+    <p><span>{{ t('fpjReceived') }}</span><strong><bdi>{{ figure(p.receipts, p.currency) }}</bdi></strong><small><bdi>{{ p.currency }}</bdi></small></p>
+    @if (file().contract_type !== 'internal') {
+      <p><span>{{ t('fpjBilled') }}</span><strong><bdi>{{ figure(p.billed, p.currency) }}</bdi></strong><small><bdi>{{ p.currency }}</bdi></small></p>
+    }
+    <p><span>{{ t('fpjCosts') }}</span><strong><bdi>{{ figure(p.total_costs, p.currency) }}</bdi></strong><small><bdi>{{ p.currency }}</bdi></small></p>
+    @if (p.fee !== null) {
+      <p><span>{{ t('fpjFee') }} <bdi>{{ qty(p.fee_pct) }}%</bdi></span><strong><bdi>{{ figure(p.fee, p.currency) }}</bdi></strong><small><bdi>{{ p.currency }}</bdi></small></p>
+    }
+    <p><span>{{ t('fpjNetMargin') }}</span><strong [class.late]="negative(p.net_margin)"><bdi>{{ figure(p.net_margin, p.currency) }}</bdi></strong><small><bdi>{{ p.currency }}</bdi></small></p>
+  </section>
+
+  <div class="fin-grid">
+    <section class="panel">
+      <div class="panel-head"><div><h2>{{ t('fpjInWords') }}</h2><p>{{ t('fpjAsOf') }} {{ date(p.date) }} · <bdi>{{ p.currency }}</bdi></p></div></div>
+      <dl class="fin-kv">
+        <dt>{{ t('fpjReceivedLong') }}</dt><dd><bdi class="num">{{ money(p.receipts, p.currency) }}</bdi></dd>
+        @if (file().contract_type !== 'internal') {
+          <dt>{{ t('fpjBilledLong') }}</dt><dd><bdi class="num">{{ money(p.billed, p.currency) }}</bdi></dd>
+          <dt>{{ t('fpjClientBalanceLong') }}</dt>
+          <dd><bdi class="num" [class.late]="negative(p.client_balance)">{{ money(p.client_balance, p.currency) }}</bdi> · {{ t(balanceWord(p.client_balance)) }}</dd>
+        }
+        <dt>{{ t('fpjDirectCosts') }}</dt><dd><bdi class="num">{{ money(p.direct_costs, p.currency) }}</bdi></dd>
+        <dt>{{ t('fpjLoadedCosts') }}</dt><dd><bdi class="num">{{ money(p.loaded_costs, p.currency) }}</bdi></dd>
+        @if (p.fee !== null) {
+          <dt>{{ t('fpjFee') }}</dt><dd><bdi class="num">{{ money(p.fee, p.currency) }}</bdi> <small class="soft">({{ qty(p.fee_pct) }}%)</small></dd>
+        }
+        <dt>{{ t('fpjGrossMargin') }}</dt><dd><bdi class="num" [class.late]="negative(p.gross_margin)">{{ money(p.gross_margin, p.currency) }}</bdi></dd>
+        <dt>{{ t('fpjNetMargin') }}</dt><dd><bdi class="num strong" [class.late]="negative(p.net_margin)">{{ money(p.net_margin, p.currency) }}</bdi></dd>
+      </dl>
+      <p class="fin-hint">{{ t('fpjMarginHint') }}</p>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head"><div><h2>{{ t('fpjCostsByCategory') }}</h2></div></div>
+      <ul class="fin-list">
+        @for (row of p.costs_by_category; track row.id ?? row.name) {
+          <li>
+            <span>{{ row.name }} @if (!row.is_billable) { <small class="soft">· {{ t('fpjLoaded') }}</small> }</span>
+            <bdi class="num end">{{ money(row.amount, p.currency) }}</bdi>
+          </li>
+        } @empty {
+          <li class="soft">{{ t('fpjNoCosts') }}</li>
+        }
+      </ul>
+      @if (file().summary; as s) {
+        <p class="fin-hint">
+          {{ t('fpjAgreementsOpen') }} <bdi>{{ num(s.agreements.open) }}</bdi>
+          @if (s.custodies.open) {
+            · {{ t('fpjCustodiesOpen') }} <bdi>{{ num(s.custodies.open) }}</bdi>
+            @for (b of s.custodies.balances; track b.currency) { · <bdi>{{ money(b.balance, b.currency) }}</bdi> }
+          }
+        </p>
+      }
+    </section>
+  </div>
+} @else if (problem()) {
+  <p class="fin-warn"><i class="fa-solid fa-circle-info" aria-hidden="true"></i> {{ problem() }}</p>
+} @else {
+  <p class="soft">{{ t('finLoading') }}</p>
+}

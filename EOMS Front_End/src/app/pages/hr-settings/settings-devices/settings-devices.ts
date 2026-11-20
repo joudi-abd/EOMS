@@ -32,7 +32,6 @@ export class SettingsDevices extends Ui {
   protected readonly working = signal(false);
   protected readonly mode = signal<'bridge' | 'adms'>('bridge');
   protected readonly closing = signal<number | null>(null);
-
   protected readonly opened = computed(() => this.devices.devices().find((item) => item.id === this.openId()) ?? null);
   /** Null until the server has answered, so an empty list is never shown while it loads. */
   protected readonly rows = computed<ApiBinding[] | null>(() => {
@@ -116,12 +115,13 @@ export class SettingsDevices extends Ui {
   }
 
   protected async toggle(device: ApiDevice): Promise<void> {
+    if (device.is_active && !(await this.askConfirm({ message: 'confirmSensitiveBody', tone: 'danger', confirm: 'confirmProceed' }))) return;
     const outcome = await this.devices.setActive(device, !device.is_active);
     this.problem.set(outcome.ok ? '' : (outcome.error ?? ''));
   }
 
   protected async rotate(device: ApiDevice): Promise<void> {
-    if (!confirm(this.t('rotateWarn'))) return;
+    if (!(await this.askConfirm({ message: 'rotateWarn', tone: 'danger', confirm: 'confirmProceed' }))) return;
     this.working.set(true);
     const outcome = await this.devices.rotate(device);
     this.working.set(false);
@@ -165,7 +165,7 @@ export class SettingsDevices extends Ui {
   /** Attests full sync through a chosen local instant in the device timezone. */
   protected async confirmSync(event: Event, device: ApiDevice): Promise<void> {
     event.preventDefault();
-    if (!confirm(this.t('syncConfirmWarn'))) return;
+    if (!(await this.askConfirm({ message: 'syncConfirmWarn', tone: 'danger', confirm: 'confirmProceed' }))) return;
     const data = new FormData(event.target as HTMLFormElement);
     const stamp = String(data.get('through') ?? '').trim();
     const note = String(data.get('note') ?? '');

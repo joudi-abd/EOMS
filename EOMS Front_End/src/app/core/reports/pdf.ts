@@ -25,7 +25,7 @@ export const isolate = (value: string | number) => `<bdi>${escape(value)}</bdi>`
 const sheet = `
 @page { size: A4 var(--orientation); margin: 0; }
 html, body { background: #fff !important; }
-body { margin: 0; color: #14162b; font: 12px/1.5 'Readex Pro Variable', sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+body { margin: 0; color: #14162b; font: 12px/1.5 'Roboto Variable', 'Noto Sans Arabic Variable', sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 .r-head { display: grid; justify-items: start; gap: 6px; padding-bottom: 12px; border-bottom: 2px solid #4f46c8; }
 .r-brand { display: block; height: 48px; width: auto; }
 .r-company { margin: 0; color: #454a63; font-size: 12px; }

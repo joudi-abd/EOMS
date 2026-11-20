@@ -16,6 +16,7 @@ import {
   TaskListRow,
 } from '../../../data/tasks';
 import { CardPanel } from '../card-panel/card-panel';
+import { ColorField } from '../color-field/color-field';
 import { dayKeys, TasksBase } from '../tasks-base';
 
 type Panel = 'none' | 'members' | 'labels' | 'recurring' | 'settings' | 'archive';
@@ -34,7 +35,7 @@ const POLL_MS = 5000;
  */
 @Component({
   selector: 'app-board-view',
-  imports: [FormsModule, RouterLink, CardPanel],
+  imports: [FormsModule, RouterLink, CardPanel, ColorField],
   templateUrl: './board-view.html',
   styleUrl: './board-view.scss',
   host: { class: 'ledger' },
@@ -118,7 +119,15 @@ export class BoardView extends TasksBase {
       });
     });
     const timer = setInterval(() => void this.poll(), POLL_MS);
-    inject(DestroyRef).onDestroy(() => clearInterval(timer));
+    const root = document.documentElement;
+    effect(() => {
+      const color = this.snapshot()?.board.color;
+      root.style.setProperty('--board-fill', color ? this.readable(color) : '');
+    });
+    inject(DestroyRef).onDestroy(() => {
+      clearInterval(timer);
+      root.style.removeProperty('--board-fill');
+    });
   }
 
   protected cardsIn(listId: number): CardSummary[] {
@@ -160,21 +169,21 @@ export class BoardView extends TasksBase {
     await this.load();
   }
 
-  /** Polls the change feed while the tab is visible; reloads the board when someone else changed it. */
+  /** Polls the change feed while the tab is visible and reloads when the board moved on since this copy. */
   private async poll(): Promise<void> {
     const snapshot = this.snapshot();
     if (!snapshot || this.polling || this.dragging() !== null || document.visibilityState !== 'visible') return;
     this.polling = true;
     try {
       const feed = await this.tasks.changes(snapshot.board.id, this.cursor);
-      const foreign = feed.changes.some((change) => change.user_id !== this.me) || !feed.complete;
-      this.cursor = feed.cursor;
-      if (foreign) {
+      if (feed.changes.length > 0 || !feed.complete) {
         await this.load();
         this.refresh.update((n) => n + 1);
+      } else {
+        this.cursor = feed.cursor;
       }
     } catch {
-      // A missed poll is retried on the next tick.
+      // A missed poll is retried on the next tick. The cursor stays, so the change is not skipped.
     } finally {
       this.polling = false;
     }
@@ -183,11 +192,11 @@ export class BoardView extends TasksBase {
   // ── Cards ─────────────────────────────────────────────────────────────────
 
   protected open(card: CardSummary): void {
-    void this.router.navigate([], { queryParams: { board: this.boardId(), card: card.id } });
+    void this.router.navigate([], { queryParams: { board: this.boardId(), card: card.id }, queryParamsHandling: 'merge' });
   }
 
   protected closeCard(): void {
-    void this.router.navigate([], { queryParams: { board: this.boardId() } });
+    void this.router.navigate([], { queryParams: { card: null }, queryParamsHandling: 'merge' });
   }
 
   protected async addCard(list: TaskListRow): Promise<void> {
@@ -322,6 +331,7 @@ export class BoardView extends TasksBase {
   }
 
   protected async archiveList(list: TaskListRow): Promise<void> {
+    if (!(await this.askConfirm({ message: 'confirmSensitiveBody', confirm: 'confirmProceed' }))) return;
     if (await this.act(() => this.tasks.archiveList(list.id, true), 'tkDone')) await this.load();
   }
 
@@ -385,6 +395,7 @@ export class BoardView extends TasksBase {
   }
 
   protected async removeMember(member: Member): Promise<void> {
+    if (!(await this.askDelete('confirmRemoveBody'))) return;
     if (await this.act(() => this.tasks.removeMember(this.boardId(), member.user_id), 'tkDone')) await this.load();
   }
 
@@ -405,6 +416,7 @@ export class BoardView extends TasksBase {
   }
 
   protected async deleteLabel(label: Label): Promise<void> {
+    if (!(await this.askDelete())) return;
     if (await this.act(() => this.tasks.deleteLabel(label.id), 'tkDone')) await this.load();
   }
 
@@ -417,6 +429,7 @@ export class BoardView extends TasksBase {
   }
 
   protected async archiveBoard(archived: boolean): Promise<void> {
+    if (archived && !(await this.askConfirm({ message: 'confirmSensitiveBody', confirm: 'confirmProceed' }))) return;
     if (await this.act(() => this.tasks.archiveBoard(this.boardId(), archived), 'tkDone')) {
       this.panel.set('none');
       await this.load();
@@ -443,7 +456,8 @@ export class BoardView extends TasksBase {
   }
 
   protected listName(listId: number): string {
-    return this.lists().find((list) => list.id === listId)?.name ?? '—';
+    const name = this.lists().find((list) => list.id === listId)?.name;
+    return name ? this.listLabel(name) : '—';
   }
 
   // Recurring
@@ -493,6 +507,7 @@ export class BoardView extends TasksBase {
   }
 
   protected async stopRecurring(row: Recurrence): Promise<void> {
+    if (!(await this.askConfirm({ message: 'confirmSensitiveBody', tone: 'danger', confirm: 'confirmProceed' }))) return;
     if (await this.act(() => this.tasks.stopRecurrence(row.id), 'tkDone')) await this.loadRecurrences();
   }
 

@@ -1,0 +1,121 @@
+<main class="work" id="content">
+  <app-notice />
+  <header class="heading">
+    <div>
+      <h1>{{ t('finAssets') }}</h1>
+      <p class="lede">{{ t('ledeFinAssets') }}</p>
+    </div>
+    @if (canRead && canAct && openId() === null) {
+      <div class="actions">
+        <button class="text" type="button" (click)="toggle('import')">{{ t('fasImport') }}</button>
+        <button class="text" type="button" (click)="toggle('opening')">{{ t('fasAddExisting') }}</button>
+        <button class="primary" type="button" (click)="toggle('purchase')"><i class="fa-solid fa-plus" aria-hidden="true"></i> {{ t('fasBuy') }}</button>
+      </div>
+    }
+  </header>
+
+  @if (!canRead) {
+    <p class="empty">{{ t('finNoAccess') }}</p>
+  } @else if (openId(); as id) {
+    <app-fin-asset-card [assetId]="id" [categories]="categories()" (closed)="closeCard()" (removed)="closeCard()" />
+  } @else {
+    @switch (sheet()) {
+      @case ('purchase') { <app-fin-asset-form mode="purchase" [categories]="categories()" (saved)="created($event)" (closed)="sheet.set('none')" /> }
+      @case ('opening') { <app-fin-asset-form mode="opening" [categories]="categories()" (saved)="created($event)" (closed)="sheet.set('none')" /> }
+      @case ('import') { <app-fin-asset-import (saved)="refresh()" (closed)="sheet.set('none')" /> }
+    }
+
+    <div class="ledger">
+      <section class="summary" [attr.aria-label]="t('finAssets')">
+        <p><span>{{ t('fasStInService') }}</span><strong><bdi class="num">{{ num(figures().inService) }}</bdi></strong></p>
+        <p><span>{{ t('fasStUnderMaintenance') }}</span><strong><bdi class="num">{{ num(figures().underMaintenance) }}</bdi></strong></p>
+        @for (item of figures().cost; track item.currency) {
+          <p><span>{{ t('fasTotalCost') }}</span><strong><bdi class="num">{{ money(item.value, item.currency) }}</bdi></strong><small>{{ t('fasTotalCostNote') }}</small></p>
+        } @empty {
+          <p><span>{{ t('fasTotalCost') }}</span><strong><bdi class="num">0</bdi></strong><small>{{ t('fasTotalCostNote') }}</small></p>
+        }
+      </section>
+      <p class="fin-hint">{{ t('fasNoDepreciation') }}</p>
+
+      <form class="filters" (ngSubmit)="applyFilters()">
+        <label>{{ t('finSearch') }}
+          <input name="search" type="search" [placeholder]="t('fasSearchHint')" [(ngModel)]="search" (ngModelChange)="searchChanged()" />
+        </label>
+        <label>{{ t('finStatus') }}
+          <select name="status" [(ngModel)]="status" (ngModelChange)="applyFilters()">
+            <option value="">{{ t('fasAllStatuses') }}</option>
+            @for (item of statuses; track item) { <option [value]="item">{{ t(statusKey(item)) }}</option> }
+          </select>
+        </label>
+        <label>{{ t('finCategory') }}
+          <select name="category" [(ngModel)]="categoryId" (ngModelChange)="applyFilters()">
+            <option [ngValue]="0">{{ t('finAll') }}</option>
+            @for (item of categoryList(); track item.id) { <option [ngValue]="item.id">{{ item.label }}</option> }
+          </select>
+        </label>
+        <label>{{ t('fasHolder') }}
+          <select name="holder" [(ngModel)]="holderId" (ngModelChange)="applyFilters()">
+            <option [ngValue]="0">{{ t('finAll') }}</option>
+            @for (item of holders(); track item.id) { <option [ngValue]="item.id">{{ item.name }}</option> }
+          </select>
+        </label>
+        @if (hasFilters) {
+          <div class="fin-filter-actions">
+            <button class="text small" type="button" (click)="resetFilters()">{{ t('finReset') }}</button>
+          </div>
+        }
+      </form>
+
+      @if (rows().length) {
+        <div class="sheet">
+          <table>
+            <thead>
+              <tr>
+                <th>{{ t('finCode') }}</th>
+                <th>{{ t('finName') }}</th>
+                <th>{{ t('finCategory') }}</th>
+                <th>{{ t('fasHolder') }}</th>
+                <th>{{ t('fasPurchaseDate') }}</th>
+                <th class="end">{{ t('fasCost') }}</th>
+                <th>{{ t('finStatus') }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (item of rows(); track item.id) {
+                <tr class="fas-row" (click)="open(item.id)">
+                  <td><bdi>{{ item.code }}</bdi></td>
+                  <td><a class="link-button" [routerLink]="[]" [queryParams]="{ id: item.id }" (click)="$event.stopPropagation()">{{ item.name }}</a></td>
+                  <td>{{ item.category?.name || '—' }}</td>
+                  <td>{{ item.holder?.name || '—' }}</td>
+                  <td>{{ short(item.purchase_date ?? '') }}</td>
+                  <td class="num"><bdi>{{ money(item.total_cost, item.currency) }}</bdi></td>
+                  @if (pending(item)) {
+                    <td class="wait">{{ t('fasAwaitingPurchase') }}</td>
+                  } @else {
+                    <td [class]="tone(item.status)">{{ assetStatus(item) }}</td>
+                  }
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        @if (lastPage() > 1) {
+          <nav class="fin-pager" [attr.aria-label]="t('finPages')">
+            <button class="text small" type="button" [disabled]="page() <= 1 || loading()" (click)="load(page() - 1)">{{ t('finPrev') }}</button>
+            <span class="soft"><bdi>{{ num(page()) }} / {{ num(lastPage()) }}</bdi></span>
+            <button class="text small" type="button" [disabled]="page() >= lastPage() || loading()" (click)="load(page() + 1)">{{ t('finNext') }}</button>
+          </nav>
+        }
+      } @else if (loading()) {
+        <p class="empty">{{ t('finLoading') }}</p>
+      } @else if (hasFilters) {
+        <p class="empty">{{ t('fasEmptyFiltered') }}</p>
+      } @else {
+        <p class="empty">{{ t('fasEmpty') }}</p>
+        @if (canAct && sheet() === 'none') {
+          <p><button class="primary" type="button" (click)="toggle('purchase')">{{ t('fasBuy') }}</button></p>
+        }
+      }
+    </div>
+  }
+</main>

@@ -1,5 +1,4 @@
 <section class="panel">
-  <div class="panel-head"><h2>{{ l('من في إجازة', 'Who is away') }}</h2></div>
   <form class="form" (ngSubmit)="show.emit()">
     <fieldset [disabled]="busy()">
       <label>{{ l('من تاريخ', 'From date') }}<input type="date" name="calendarFrom" required [ngModel]="from()" (ngModelChange)="from.set($event)"></label>

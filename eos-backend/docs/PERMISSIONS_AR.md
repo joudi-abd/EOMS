@@ -21,6 +21,7 @@
     - `leaves.approve` لطلبات الموظفين.
     - `leaves.approve_reviewers` لطلبات من يملكون الاعتماد. إجازة حامل هذه الصلاحية تُعتمد مباشرة.
   - لوحات المهام تعمل بنطاقي `tasks.view` و`tasks.manage`.
+- **نطاق "الذات" في المالية = الفروع المسندة للمستخدم** (`fin_user_branches`، من `PUT /api/v1/finance/users/{id}/branches`). محاسب الفرع لا يرى ولا ينشئ إلا في فروعه (R6). استثناءان: `finance.projects.view` بالذات = المشاريع التي يديرها، و`finance.site_requests` بالذات = المشاريع التي يشرف عليها.
 
 ## في الكود
 
@@ -31,6 +32,7 @@
 | معرفة المدى | `app(Access::class)->scope($user, 'x')` يرجع `all` / `department` / `own` / `null`، و`covers($user, 'x', 'all')` |
 | من يُبلَّغ | `app(Access::class)->usersWith('x')` |
 | موظفو النطاق في HR | `HrScope::employeeIds($user, 'attendance')` |
+| فروع النطاق في المالية | `FinanceScope::branchIds($user, 'finance.vouchers')` (`null` = كل الفروع)، و`apply($query, $user, 'finance.view')`، و`assertBranch(...)` (403) |
 
 - **إضافة صلاحية:** سجّلها في الكتالوج، وإن احتاجت أضفها لأدوار `DefaultRoles`، ثم شغّل `php artisan permissions:sync`. الأدوار الأساسية التي تتضمنها تعريفاتها تحصل عليها تلقائياً، ولا يتغير أي تعديل آخر أجراه المدير.
 - **اختبار التغطية:** `AccessTest` يفشل في حالتين: صلاحية مسجّلة لا يطبّقها أي كود، أو كود يتحقق من صلاحية غير مسجّلة.
@@ -56,7 +58,31 @@
 | DELETE `/api/v1/access/roles/{name}?version=` | حذف دور مخصص غير مسند |
 | POST `/api/v1/access/roles/{name}/restore` | إرجاع دور أساسي لتعريفه الأصلي |
 
+## صلاحيات المالية والأدوار
+
+| الصلاحية | النطاقات | المحاسب العام | المدير العام | محاسب الفرع | مدير المشاريع | المشرف |
+|---|---|---|---|---|---|---|
+| `finance.view` | الكل، الذات | الكل | الكل | الذات | | |
+| `finance.settings` | الكل | الكل | | | | |
+| `finance.rates` | الكل، الذات | الكل | | الذات | | |
+| `finance.vouchers` | الكل، الذات | الكل | | الذات | | |
+| `finance.reverse` | الكل، الذات | الكل | | الذات | | |
+| `finance.projects` | الكل، الذات | الكل | | الذات | | |
+| `finance.projects.view` | الكل، الذات | الكل | الكل | الذات | الذات | |
+| `finance.site_requests` | الكل، الذات | الكل | | الذات | | الذات |
+| `finance.allocations` | الكل | الكل | | | | |
+| `finance.counts` | الكل، الذات | الكل | | الذات | | |
+| `finance.counts.approve` | الكل | | الكل | | | |
+| `finance.assets` | الكل، الذات | الكل | | الذات | | |
+| `finance.periods` | الكل | الكل | | | | |
+| `finance.reports` | الكل، الذات | الكل | الكل | الذات | | |
+| `finance.audit` | الكل | الكل | الكل | | | |
+
+الأدوار: `finance_manager` (المحاسب العام)، `company_manager` (المدير العام: لا يعتمد السندات اليومية ولا كشف الرواتب)، `branch_accountant`، `project_manager`، `site_supervisor`. لا يعتمد الجرد من أجراه، ولا يعتمد كشف الرواتب من أعدّه.
+
 ## ما تغيّر عن النظام السابق
+
+- **المالية (المرحلة 1–2):** حُذفت `finance.manage` و`finance.approve` وحلّت محلها صلاحيات الجدول أعلاه. مدير الشركة فقد `payroll.approve` (OP-1). التفاصيل في `docs/finance/CHANGELOG.md`.
 
 - **حُذفت صلاحيات لا يطبّقها أي كود:**
   - المشاريع والمشتريات والأصول والمستندات العامة والاجتماعات.

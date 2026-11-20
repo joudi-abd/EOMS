@@ -44,7 +44,13 @@ class AttendanceSettingsController extends Controller
         $data += ['late_block_minutes' => 60, 'overtime_multiplier' => '2.00'];
         $data['working_days'] = array_map('intval', $data['working_days']);
         $policy = DB::transaction(function () use ($data, $audit) {
-            $first = AttendancePolicy::query()->orderBy('id')->lockForUpdate()->firstOrFail();
+            $first = AttendancePolicy::query()->orderBy('id')->lockForUpdate()->first();
+            if ($first === null) {
+                $policy = AttendancePolicy::create($data);
+                $audit->log('attendance.policy_created', $policy, null, $data + ['schedule_changed' => false]);
+
+                return $policy;
+            }
             if ($data['timezone'] !== $first->timezone
                 || $data['effective_from'] <= CarbonImmutable::now($first->timezone)->toDateString()) {
                 throw ValidationException::withMessages(['effective_from' => ['أنشئ نسخة تبدأ من الغد أو لاحقاً؛ المنطقة الزمنية للمكتب ثابتة في النسخة الأولى.']]);
@@ -81,8 +87,15 @@ class AttendanceSettingsController extends Controller
             'name' => ['required', 'string', 'max:120'],
             'model' => ['sometimes', 'required', 'string', 'max:64'],
             'serial_number' => ['required', 'string', 'max:100', 'unique:hr_attendance_devices,serial_number'],
+            'timezone' => ['sometimes', 'required', 'timezone'],
         ]);
-        $data['timezone'] = AttendancePolicy::query()->orderBy('effective_from')->value('timezone');
+        // A device reads its wall-clock punches in this zone; it must be the office zone once one is fixed, or every
+        // punch would be shifted by the difference (and the zone cannot be changed after punches arrive).
+        $office = AttendancePolicy::query()->exists() ? AttendancePolicy::officeTimezone() : null;
+        if ($office !== null && isset($data['timezone']) && $data['timezone'] !== $office) {
+            throw ValidationException::withMessages(['timezone' => ["توقيت الجهاز يجب أن يطابق توقيت المكتب ({$office})."]]);
+        }
+        $data['timezone'] ??= $office ?? config('app.timezone');
 
         return ApiResponse::created($devices->create($data));
     }

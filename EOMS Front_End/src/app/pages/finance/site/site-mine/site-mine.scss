@@ -1,0 +1,20 @@
+/* Phone first: each request is a tappable-size row; the amount and status keep to the inline end. */
+.fsr-list li {
+  align-items: flex-start;
+  min-height: 56px;
+}
+
+.fsr-main {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.fsr-side {
+  text-align: end;
+  white-space: nowrap;
+}
+
+.fsr-fill {
+  width: fit-content;
+  min-height: 48px;
+}

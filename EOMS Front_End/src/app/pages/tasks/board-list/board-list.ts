@@ -2,12 +2,13 @@ import { Component, computed, effect, inject, input, signal } from '@angular/cor
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { BoardOptions, BoardSummary, BoardType } from '../../../data/tasks';
+import { ColorField } from '../color-field/color-field';
 import { TasksBase } from '../tasks-base';
 
 /** Every board the user can see, as tiles, with the form to open a new one. */
 @Component({
   selector: 'app-board-list',
-  imports: [FormsModule, RouterLink],
+  imports: [FormsModule, RouterLink, ColorField],
   templateUrl: './board-list.html',
   styleUrl: './board-list.scss',
   host: { class: 'ledger' },
@@ -89,7 +90,7 @@ export class BoardList extends TasksBase {
     );
     if (snapshot) {
       this.creating.set(false);
-      void this.router.navigate([], { queryParams: { board: snapshot.board.id } });
+      void this.router.navigate([], { queryParams: { board: snapshot.board.id, card: null, view: null }, queryParamsHandling: 'merge' });
     }
   }
 

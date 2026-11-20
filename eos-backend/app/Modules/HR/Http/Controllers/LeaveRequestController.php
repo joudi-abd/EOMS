@@ -15,6 +15,7 @@ use App\Modules\Identity\Access\Access;
 use App\Modules\Identity\Access\Scope;
 use App\Modules\Identity\Models\User;
 use App\Modules\Identity\Services\AuditLogger;
+use App\Support\ApiResponse;
 use App\Support\CsvResponse;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
@@ -39,7 +40,7 @@ class LeaveRequestController extends Controller
         $page = $this->filtered($request, $actor)->orderByDesc('id')->paginate(20);
         $page->setCollection($page->getCollection()->map(fn ($row) => $this->present($row, $actor)));
 
-        return response()->json(['data' => $page->items(), 'meta' => ['current_page' => $page->currentPage(), 'last_page' => $page->lastPage(), 'total' => $page->total()]]);
+        return ApiResponse::paginated($page);
     }
 
     /**

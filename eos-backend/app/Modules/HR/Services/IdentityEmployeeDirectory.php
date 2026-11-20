@@ -47,6 +47,17 @@ class IdentityEmployeeDirectory implements EmployeeDirectory
         return $id === null ? null : (int) $id;
     }
 
+    public function employeeIdsForUsers(array $userIds): array
+    {
+        return $userIds === [] ? [] : Employee::query()->whereIn('user_id', $userIds)->pluck('id', 'user_id')
+            ->mapWithKeys(fn ($id, $userId) => [(int) $userId => (int) $id])->all();
+    }
+
+    public function accountBlocked(int $userId): bool
+    {
+        return Employee::query()->where('user_id', $userId)->where('status', 'terminated')->exists();
+    }
+
     public function profileForUser(int $userId): mixed
     {
         $employee = Employee::query()->where('user_id', $userId)->with(['department:id,name', 'jobTitle:id,name'])->first();

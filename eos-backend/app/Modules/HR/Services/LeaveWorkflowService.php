@@ -107,6 +107,8 @@ class LeaveWorkflowService
     public function preview(User $actor, array $input, ?LeaveRequest $request = null): array
     {
         $employee = $request ? Employee::findOrFail($request->employee_id) : $this->subjectFor($actor, $input['employee_id'] ?? null);
+        // Someone else's request: refuse before anything about the employee's service is revealed.
+        abort_if($request !== null && ! $this->mayActFor($actor, $request), 403);
 
         return DB::transaction(function () use ($actor, $employee, $input, $request) {
             DB::table('hr_leave_half_days')->lockForUpdate()->find(1);
@@ -224,6 +226,7 @@ class LeaveWorkflowService
     public function submit(User $actor, array $input, ?LeaveRequest $editing = null): LeaveRequest
     {
         $employee = $editing ? Employee::findOrFail($editing->employee_id) : $this->subjectFor($actor, $input['employee_id'] ?? null);
+        abort_if($editing !== null && ! $this->mayActFor($actor, $editing), 403);
 
         return DB::transaction(function () use ($actor, $employee, $input, $editing) {
             DB::table('hr_leave_half_days')->lockForUpdate()->find(1);
@@ -234,7 +237,8 @@ class LeaveWorkflowService
                 if ($existing) {
                     abort_unless(in_array($actor->id, [$existing->submitted_by, $existing->entered_by], true), 409, 'مفتاح الطلب مستخدم.');
                     $submitted = array_intersect_key($input, array_flip(['start_date', 'end_date', 'unit', 'half', 'start_time', 'end_time', 'reason']));
-                    abort_unless($existing->input == $submitted && $existing->leave_type_id === (int) $input['leave_type_id'], 409, 'هذا المفتاح يخص طلباً مختلفاً؛ حدّث القائمة قبل إرسال طلب جديد.');
+                    abort_unless($existing->input == $submitted && $existing->leave_type_id === (int) $input['leave_type_id']
+                        && $existing->employee_id === $employee->id, 409, 'هذا المفتاح يخص طلباً مختلفاً؛ حدّث القائمة قبل إرسال طلب جديد.');
 
                     return $existing->load('days');
                 }
@@ -348,8 +352,10 @@ class LeaveWorkflowService
             $employee = Employee::lockForUpdate()->findOrFail($request->employee_id);
             $this->expire($employee);
             $request->refresh();
-            $this->version($request, $data);
             $own = $this->mayActFor($actor, $request);
+            // Outsiders get 403 before any state or version detail.
+            abort_unless($own || $this->mayReview($actor, $request), 403);
+            $this->version($request, $data);
             $old = $request->getAttributes();
             if ($action === 'withdraw') {
                 abort_unless($own, 403);
@@ -360,8 +366,11 @@ class LeaveWorkflowService
                 abort_unless($this->mayReview($actor, $request), 403);
                 abort_unless($request->status === 'pending', 409);
                 if ($action === 'approve') {
-                    $period = $this->period($employee);
-                    abort_unless($period->id === $request->service_period_id, 409, 'تغيّرت فترة خدمة الموظف.');
+                    // The request's own service period: leave for days already worked stays approvable after the
+                    // employee leaves (only days past the end of service are refused).
+                    $period = EmployeeServicePeriod::query()->whereKey($request->service_period_id)
+                        ->where('employee_id', $employee->id)->first();
+                    abort_unless($period !== null, 409, 'تغيّرت فترة خدمة الموظف.');
                     if ($period->end_date) {
                         abort_if($request->days()->where('active', true)->where('date', '>', $period->end_date->toDateString())->exists(), 409, 'تتجاوز الإجازة نهاية الخدمة.');
                     }

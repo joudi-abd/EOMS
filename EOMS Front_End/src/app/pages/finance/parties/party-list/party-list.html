@@ -1,0 +1,68 @@
+<form class="filters" (submit)="$event.preventDefault()">
+  <div class="fin-filter-row" role="group" [attr.aria-label]="t('fpaRoleFilter')">
+    <div class="seg" role="radiogroup" [attr.aria-label]="t('fpaRoleFilter')">
+      @for (choice of roleChoices; track choice.role) {
+        <button type="button" role="radio" [attr.aria-checked]="role() === choice.role" [class.on]="role() === choice.role" (click)="pick(choice.role)">
+          {{ t(choice.label) }}
+        </button>
+      }
+    </div>
+  </div>
+  <label>
+    {{ t('finSearch') }}
+    <input name="search" type="search" [placeholder]="t('fpaSearchPlaceholder')" [ngModel]="search()" (ngModelChange)="typed($event)" />
+  </label>
+  <label class="fpa-check">
+    <input name="inactive" type="checkbox" [ngModel]="inactiveToo()" (ngModelChange)="showInactive($event)" />
+    {{ t('fpaShowInactive') }}
+  </label>
+</form>
+
+@if (loading() && !rows().length) {
+  <p class="empty">{{ t('finLoading') }}</p>
+} @else if (!rows().length) {
+  @if (filtered()) {
+    <p class="empty">{{ t('fpaNoMatch') }}</p>
+  } @else {
+    <p class="empty">{{ t('fpaEmpty') }}</p>
+    @if (mayEdit) {
+      <button class="primary" type="button" (click)="create.emit()">{{ t('fpaNew') }}</button>
+    }
+  }
+} @else {
+  <div class="sheet">
+    <table>
+      <thead>
+        <tr>
+          <th>{{ t('finName') }}</th>
+          <th>{{ t('fpaRoles') }}</th>
+          <th>{{ t('finPhone') }}</th>
+          <th>{{ t('fpaTrade') }}</th>
+          <th>{{ t('finStatus') }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (row of rows(); track row.id) {
+          <tr>
+            <td><a class="name" [routerLink]="[]" [queryParams]="{ id: row.id }">{{ row.name }}</a></td>
+            <td>
+              <span class="fpa-roles">
+                @for (role of row.roles; track role) { <span class="fpa-role">{{ roleLabel(role) }}</span> }
+              </span>
+            </td>
+            <td>@if (row.phone) { <bdi dir="ltr">{{ row.phone }}</bdi> } @else { <span class="soft">—</span> }</td>
+            <td>{{ row.trade || '—' }}</td>
+            <td [class]="tone(row.is_active ? 'active' : 'inactive')">{{ row.is_active ? t('finActive') : t('finInactive') }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+  @if (lastPage() > 1) {
+    <nav class="fin-pager" [attr.aria-label]="t('finPages')">
+      <button class="text small" type="button" [disabled]="page() <= 1 || loading()" (click)="page.set(page() - 1)">{{ t('finPrev') }}</button>
+      <span class="soft"><bdi>{{ num(page()) }}</bdi> {{ t('fpaPageOf') }} <bdi>{{ num(lastPage()) }}</bdi> · <bdi>{{ num(total()) }}</bdi> {{ t('fpaCount') }}</span>
+      <button class="text small" type="button" [disabled]="page() >= lastPage() || loading()" (click)="page.set(page() + 1)">{{ t('finNext') }}</button>
+    </nav>
+  }
+}

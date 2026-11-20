@@ -1,0 +1,36 @@
+<main class="work" id="content">
+  <app-notice />
+  <header class="heading">
+    <div>
+      <h1>{{ t('finBoxes') }}</h1>
+      <p class="lede">{{ t('ledeFinBoxes') }}</p>
+    </div>
+    @if (may('finance.view')) {
+      <div class="actions">
+        @if (view() === 'boxes' && may('finance.settings')) {
+          <a class="text" [routerLink]="[]" [queryParams]="{ new: 'box' }">{{ t('fbxNewBox') }}</a>
+        }
+        @if (view() === 'counts' && may('finance.counts')) {
+          <a class="primary" [routerLink]="[]" [queryParams]="{ view: 'counts', new: 'count' }">{{ t('fbxNewCount') }}</a>
+        }
+      </div>
+    }
+  </header>
+  @if (!may('finance.view')) {
+    <p class="empty">{{ t('finNoAccess') }}</p>
+  } @else {
+    <nav class="tabs" [attr.aria-label]="t('finBoxes')">
+      <a [routerLink]="[]" [queryParams]="{}" [class.active]="view() === 'boxes'" [attr.aria-current]="view() === 'boxes' ? 'page' : null">
+        {{ t('fbxTabBoxes') }}
+      </a>
+      <a [routerLink]="[]" [queryParams]="{ view: 'counts' }" [class.active]="view() === 'counts'" [attr.aria-current]="view() === 'counts' ? 'page' : null">
+        {{ t('fbxTabCounts') }}
+      </a>
+    </nav>
+    @if (view() === 'boxes') {
+      <app-fin-box-list />
+    } @else {
+      <app-fin-cash-counts />
+    }
+  }
+</main>

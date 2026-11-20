@@ -1,0 +1,12 @@
+/* The accepted headers fold away; the row errors read as one list under the warning. */
+.fas-errors {
+  display: grid;
+  gap: 8px;
+}
+
+.fas-headers summary {
+  cursor: pointer;
+  color: var(--action-ink);
+  font-weight: 600;
+  margin-bottom: 10px;
+}

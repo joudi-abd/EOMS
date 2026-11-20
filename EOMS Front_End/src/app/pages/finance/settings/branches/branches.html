@@ -1,0 +1,100 @@
+<div class="fin-toolbar">
+  <div class="seg" role="group" [attr.aria-label]="t('fstTabBranches')">
+    <button type="button" [class.on]="view() === 'list'" [attr.aria-pressed]="view() === 'list'" (click)="view.set('list')">{{ t('fstPartBranches') }}</button>
+    <button type="button" [class.on]="view() === 'people'" [attr.aria-pressed]="view() === 'people'" (click)="view.set('people')">{{ t('fstPartAccountants') }}</button>
+  </div>
+  @if (view() === 'list' && !editing()) {
+    <button class="text" type="button" (click)="startNew()">{{ t('fstNewBranch') }}</button>
+  }
+</div>
+
+@if (view() === 'list') {
+  @if (editing() && form; as f) {
+    <form class="fin-sheet narrow" (ngSubmit)="submit()">
+      <header>
+        <h2>{{ f.id ? t('fstEditBranch') : t('fstNewBranch') }}</h2>
+        <button class="quiet-x" type="button" (click)="close()" [attr.aria-label]="t('dismiss')"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+      </header>
+      <fieldset class="fin-form" [disabled]="busy()">
+        <label>{{ t('finName') }}<input name="name" required maxlength="150" [(ngModel)]="f.name" /></label>
+        <label>{{ t('finCode') }}<input name="code" required maxlength="20" [(ngModel)]="f.code" dir="ltr" /></label>
+        <label class="fst-check wide"><input name="head" type="checkbox" [(ngModel)]="f.is_head_office" [disabled]="isHeadOffice(f.id)" /> {{ t('fstHeadOffice') }}</label>
+        <p class="fin-hint wide">{{ t('fstHeadOfficeHint') }}</p>
+        <div class="fin-actions wide">
+          <button class="text" type="button" (click)="close()">{{ t('finCancel') }}</button>
+          <button class="primary" type="submit">{{ t('finSave') }}</button>
+        </div>
+      </fieldset>
+    </form>
+  }
+
+  <div class="sheet">
+    <table>
+      <thead>
+        <tr>
+          <th>{{ t('finName') }}</th>
+          <th>{{ t('finCode') }}</th>
+          <th>{{ t('fstHeadOffice') }}</th>
+          <th>{{ t('finStatus') }}</th>
+          <th><span class="vh">{{ t('finActions') }}</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (item of finance.branches(); track item.id) {
+          <tr>
+            <td class="strong">{{ item.name }}</td>
+            <td><bdi>{{ item.code }}</bdi></td>
+            <td>@if (item.is_head_office) { <span class="fst-chip">{{ t('fstHeadOffice') }}</span> }</td>
+            <td [class]="item.is_active ? 'ok' : 'mute'">{{ item.is_active ? t('finActive') : t('finInactive') }}</td>
+            <td class="fin-row-actions">
+              <button class="text small" type="button" (click)="edit(item)">{{ t('finEdit') }}</button>
+              @if (!item.is_head_office) {
+                <button [class]="item.is_active ? 'quiet small' : 'text small'" type="button" [disabled]="busy()" (click)="toggleActive(item)">
+                  {{ item.is_active ? t('finDeactivate') : t('finActivate') }}
+                </button>
+              }
+            </td>
+          </tr>
+        } @empty {
+          <tr><td colspan="5" class="empty">{{ t('fstNoBranches') }}</td></tr>
+        }
+      </tbody>
+    </table>
+  </div>
+} @else {
+  <section class="fin-sheet narrow">
+    <p class="fin-hint">{{ t('fstReachHint') }}</p>
+    <div class="fin-form">
+      <label class="wide">{{ t('fstAccount') }}
+        <select name="person" [ngModel]="person()" (ngModelChange)="pickPerson($event)">
+          <option [ngValue]="null">{{ t('finChoose') }}</option>
+          @for (item of people(); track item.userId) { <option [ngValue]="item.userId">{{ item.name }}</option> }
+        </select>
+      </label>
+    </div>
+    @if (people().length <= 1) {
+      <p class="fin-warn"><i class="fa-solid fa-circle-info" aria-hidden="true"></i> {{ t('fstPeopleLimited') }}</p>
+    }
+    @if (person()) {
+      @if (loadingPerson()) {
+        <p class="empty">{{ t('finLoading') }}</p>
+      } @else {
+        <ul class="fin-list">
+          @for (item of activeBranches(); track item.id) {
+            <li>
+              <label class="fst-check">
+                <input type="checkbox" [checked]="picked().has(item.id)" (change)="tick(item.id, $any($event.target).checked)" [disabled]="busy()" />
+                {{ item.name }}
+              </label>
+              @if (item.is_head_office) { <span class="fst-chip end">{{ t('fstHeadOffice') }}</span> }
+            </li>
+          }
+        </ul>
+        @if (!picked().size) { <p class="fin-hint">{{ t('fstReachNone') }}</p> }
+        <div class="fin-actions">
+          <button class="primary" type="button" [disabled]="busy()" (click)="saveReach()">{{ t('finSave') }}</button>
+        </div>
+      }
+    }
+  </section>
+}

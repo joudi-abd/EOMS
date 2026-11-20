@@ -32,10 +32,12 @@ class SettingController extends Controller
     {
         $data = $request->validate([
             'value' => ['required', 'string', 'max:1000'],
-            'group' => ['sometimes', 'string', 'max:60'],
+            'group' => ['sometimes', 'string', 'max:60', 'regex:/^[a-z][a-z0-9_]*$/'],
         ]);
+        abort_unless(preg_match('/^[a-z][a-z0-9_]*(\.[a-z0-9_]+)+$/', $key) === 1 && strlen($key) <= 120, 422,
+            'مفتاح الإعداد يجب أن يكون بصيغة group.name بأحرف إنجليزية صغيرة.');
 
-        $setting = $this->settings->set($key, $data['value'], $data['group'] ?? 'general');
+        $setting = $this->settings->set($key, $data['value'], $data['group'] ?? null);
 
         return ApiResponse::ok([
             'key' => $setting->setting_key,

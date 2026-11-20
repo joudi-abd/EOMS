@@ -1,0 +1,68 @@
+<form class="filters" (submit)="$event.preventDefault()">
+  <label>{{ t('finSearch') }}<input name="search" type="search" [(ngModel)]="search" (ngModelChange)="searchChanged()" [placeholder]="t('fpjSearchHint')" /></label>
+  <label>{{ t('finStatus') }}
+    <select name="status" [(ngModel)]="status" (ngModelChange)="load()">
+      <option value="">{{ t('finAll') }}</option>
+      @for (item of statuses; track item) { <option [value]="item">{{ projectStatusLabel(item) }}</option> }
+    </select>
+  </label>
+  <label>{{ t('fpjContractType') }}
+    <select name="type" [(ngModel)]="type" (ngModelChange)="load()">
+      <option value="">{{ t('finAll') }}</option>
+      @for (item of types; track item) { <option [value]="item">{{ contractTypeLabel(item) }}</option> }
+    </select>
+  </label>
+  @if (filtered()) {
+    <div class="fin-filter-actions">
+      <button class="text" type="button" (click)="reset()">{{ t('finReset') }}</button>
+    </div>
+  }
+</form>
+
+<div class="sheet">
+  <table>
+    <thead>
+      <tr>
+        <th>{{ t('finCode') }}</th>
+        <th>{{ t('finProject') }}</th>
+        <th>{{ t('finStatus') }}</th>
+        <th>{{ t('fpjClient') }}</th>
+        <th>{{ t('fpjContractType') }}</th>
+        <th class="end">{{ t('fpjReceipts') }}</th>
+        <th class="end">{{ t('fpjCosts') }}</th>
+        <th class="end">{{ t('fpjRemaining') }}</th>
+        <th class="end">{{ t('fpjProfit') }}</th>
+        <th class="end">{{ t('fpjClientBalance') }}</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (row of shown(); track row.project_id) {
+        <tr>
+          <td><bdi>{{ row.code ?? '—' }}</bdi></td>
+          <td><a class="name" [routerLink]="[]" [queryParams]="{ id: row.project_id }">{{ row.name }}</a></td>
+          <td><span [class]="tone(row.status)">{{ projectStatusLabel(row.status) }}</span></td>
+          <td>{{ row.client ?? '—' }}</td>
+          <td class="sm">{{ contractTypeLabel(row.contract_type) }} · <bdi>{{ row.currency }}</bdi></td>
+          <td class="num end"><bdi>{{ figure(row.receipts, row.currency) }}</bdi></td>
+          <td class="num end"><bdi>{{ figure(row.costs, row.currency) }}</bdi></td>
+          <td class="num end" [class.late]="negative(row.remaining)"><bdi>{{ figure(row.remaining, row.currency) }}</bdi></td>
+          <td class="num end" [class.late]="negative(row.profit)"><bdi>{{ figure(row.profit, row.currency) }}</bdi></td>
+          <td class="num end" [class.late]="negative(row.client_balance)"><bdi>{{ figure(row.client_balance, row.currency) }}</bdi></td>
+        </tr>
+      } @empty {
+        <tr><td colspan="10" class="soft">{{ loading() ? t('finLoading') : filtered() ? t('fpjNoMatch') : t('fpjNoProjects') }}</td></tr>
+      }
+    </tbody>
+  </table>
+</div>
+
+@if (pages() > 1) {
+  <nav class="fin-pager" [attr.aria-label]="t('finPages')">
+    <button class="text small" type="button" [disabled]="page() <= 1" (click)="page.set(page() - 1)">{{ t('finPrev') }}</button>
+    <span class="soft"><bdi>{{ num(page()) }} / {{ num(pages()) }}</bdi></span>
+    <button class="text small" type="button" [disabled]="page() >= pages()" (click)="page.set(page() + 1)">{{ t('finNext') }}</button>
+  </nav>
+}
+@if (rows().length) {
+  <p class="fin-hint">{{ t('fpjListHint') }}</p>
+}

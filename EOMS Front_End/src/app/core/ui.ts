@@ -1,10 +1,21 @@
 import { inject } from '@angular/core';
 import { Text } from '../data/text';
+import { Confirm, ConfirmRequest } from './confirm';
 import { CopyKey } from './copy';
 import { Language } from './language';
 
 export abstract class Ui {
   protected readonly language = inject(Language);
+  private readonly confirmDialog = inject(Confirm);
+
+  /** Asks before a sensitive or irreversible action. Resolves true only when the user confirms. */
+  protected askConfirm(request: ConfirmRequest): Promise<boolean> {
+    return this.confirmDialog.ask(request);
+  }
+
+  protected askDelete(message: CopyKey = 'confirmDeleteBody', detail?: string): Promise<boolean> {
+    return this.confirmDialog.delete(message, detail);
+  }
 
   protected t(key: CopyKey): string {
     return this.language.t(key);

@@ -1,0 +1,106 @@
+<form class="fin-sheet" (ngSubmit)="submit()">
+  <header>
+    <h2>{{ t(purchase ? 'fasBuy' : 'fasAddExisting') }}</h2>
+    <button class="quiet-x" type="button" (click)="closed.emit()" [attr.aria-label]="t('finClose')"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+  </header>
+  <p class="fin-hint">{{ t(purchase ? 'fasBuyHint' : 'fasOpeningHint') }}</p>
+
+  <fieldset class="fin-form" [disabled]="busy()">
+    <label class="wide">{{ t('fasAssetName') }}
+      <input name="name" required maxlength="200" [(ngModel)]="name" />
+    </label>
+    <label>{{ t('finCategory') }}
+      <select name="category" [(ngModel)]="categoryId">
+        <option [ngValue]="null">{{ t('finNone') }}</option>
+        @for (item of categoryList(); track item.id) { <option [ngValue]="item.id">{{ item.label }}</option> }
+      </select>
+    </label>
+    <label>{{ t('fasQuantity') }}
+      <input name="quantity" type="number" min="0.0001" step="any" required [(ngModel)]="quantity" />
+    </label>
+    <label>{{ t('fasUnitCost') }}
+      <input name="unitCost" type="number" min="0" step="any" required [(ngModel)]="unitCost" />
+    </label>
+    <label>{{ t('finCurrency') }}
+      <select name="currency" required [ngModel]="currency()" (ngModelChange)="currencyChanged($event)">
+        @for (item of finance.activeCurrencies(); track item.id) { <option [value]="item.code">{{ item.code }} · {{ item.name }}</option> }
+      </select>
+    </label>
+
+    <div class="wide fin-totals">
+      <div class="grand"><span>{{ t('fasTotal') }}</span><bdi class="num">{{ money(total(), currency()) }}</bdi></div>
+    </div>
+
+    @if (purchase) {
+      <label>{{ t('fasPurchaseDate') }}
+        <input name="purchaseDate" type="date" required [(ngModel)]="purchaseDate" />
+      </label>
+    } @else {
+      <label>{{ t('fasOpeningDate') }}
+        <input name="openingDate" type="date" required [(ngModel)]="openingDate" />
+      </label>
+    }
+    <label>{{ t('fasHolder') }}
+      <select name="holder" [(ngModel)]="holderId">
+        <option [ngValue]="null">{{ t('fasNoHolder') }}</option>
+        @for (item of people(); track item.id) { <option [ngValue]="item.id">{{ text(item.name) }}@if (item.no) { · {{ item.no }} }</option> }
+      </select>
+    </label>
+    @if (branchList().length !== 1) {
+      <label>{{ t('finBranch') }}
+        <select name="branch" required [ngModel]="branchId()" (ngModelChange)="branchChanged($event)">
+          @for (item of branchList(); track item.id) { <option [ngValue]="item.id">{{ item.name }}</option> }
+        </select>
+      </label>
+    }
+
+    @if (purchase) {
+      <label>{{ t('fasPaidFrom') }}
+        <select name="box" required [(ngModel)]="boxId">
+          @for (box of boxList(); track box.id) { <option [ngValue]="box.id">{{ box.name }}</option> }
+          @if (!boxList().length) { <option [ngValue]="0">{{ t('fasNoBoxForCurrency') }}</option> }
+        </select>
+      </label>
+      <label class="wide fas-check">
+        <input name="approve" type="checkbox" [(ngModel)]="approve" />
+        <span>{{ t('fasApproveNow') }}</span>
+      </label>
+      @if (!approve) { <p class="wide fin-hint">{{ t('fasApproveHint') }}</p> }
+    } @else {
+      <div class="wide fas-field">
+        <span>{{ t('finStatus') }}</span>
+        <div class="seg" role="group" [attr.aria-label]="t('finStatus')">
+          <button type="button" [class.on]="status === 'in_service'" (click)="status = 'in_service'">{{ t('fasStInService') }}</button>
+          <button type="button" [class.on]="status === 'under_maintenance'" (click)="status = 'under_maintenance'">{{ t('fasStUnderMaintenance') }}</button>
+        </div>
+      </div>
+    }
+
+    <div class="wide">
+      <button class="text small" type="button" [attr.aria-expanded]="more()" (click)="more.set(!more())">{{ t(more() ? 'fasLess' : 'fasMore') }}</button>
+    </div>
+    @if (more()) {
+      @if (!purchase) {
+        <label>{{ t('fasPurchaseDate') }} <span class="soft">({{ t('finOptional') }})</span>
+          <input name="openingPurchaseDate" type="date" [(ngModel)]="openingPurchaseDate" />
+        </label>
+      }
+      <label>{{ t('fasSerial') }}
+        <input name="serial" maxlength="100" [(ngModel)]="serial" />
+      </label>
+      @if (purchase) {
+        <label>{{ t('finReference') }}
+          <input name="reference" maxlength="60" [(ngModel)]="reference" />
+        </label>
+      }
+      <label class="wide">{{ t('finNotes') }}
+        <textarea name="notes" rows="2" maxlength="1000" [(ngModel)]="notes"></textarea>
+      </label>
+    }
+
+    <div class="fin-actions wide">
+      <button class="text" type="button" (click)="closed.emit()">{{ t('finCancel') }}</button>
+      <button class="primary" type="submit" [disabled]="busy() || !name.trim() || !unitCost || !quantity || (purchase && !boxId)">{{ t('finSave') }}</button>
+    </div>
+  </fieldset>
+</form>

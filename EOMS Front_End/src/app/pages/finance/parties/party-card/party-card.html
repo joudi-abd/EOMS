@@ -1,0 +1,169 @@
+@let c = party();
+
+@if (!c.is_active) {
+  <p class="fin-warn"><i class="fa-solid fa-circle-pause" aria-hidden="true"></i> {{ t('fpaInactiveNote') }}</p>
+}
+
+<section class="summary" [attr.aria-label]="t('finBalance')">
+  @for (b of c.balances; track b.currency_id) {
+    <p>
+      <span>{{ t('fpaBalanceWith') }} <bdi>{{ b.code }}</bdi></span>
+      <strong>{{ t(side(b.balance)) }} <bdi class="num">{{ plain(b.balance, b.code) }}</bdi></strong>
+    </p>
+  } @empty {
+    <p><span>{{ t('finBalance') }}</span><strong>{{ t('finEven') }}</strong><small>{{ t('fpaNoBalance') }}</small></p>
+  }
+</section>
+
+<section class="panel">
+  <div class="panel-head">
+    <div><h2>{{ t('fpaFacts') }}</h2></div>
+    @if (mayEdit) {
+      <div class="fin-row-actions">
+        <button class="text small" type="button" (click)="edit.emit()">{{ t('finEdit') }}</button>
+        @if (c.is_active) {
+          <button class="quiet" type="button" [disabled]="busy()" (click)="deactivate()">{{ t('finDeactivate') }}</button>
+        } @else {
+          <button class="text small" type="button" [disabled]="busy()" (click)="activate()">{{ t('finActivate') }}</button>
+        }
+      </div>
+    }
+  </div>
+  <dl class="fin-kv">
+    <dt>{{ t('fpaRoles') }}</dt>
+    <dd>
+      <span class="fpa-roles">
+        @for (role of c.roles; track role) { <span class="fpa-role">{{ roleLabel(role) }}</span> }
+      </span>
+    </dd>
+    <dt>{{ t('finPhone') }}</dt>
+    <dd>@if (c.phone) { <bdi dir="ltr">{{ c.phone }}</bdi> } @else { — }</dd>
+    @if (c.address) {
+      <dt>{{ t('fpaAddress') }}</dt>
+      <dd>{{ c.address }}</dd>
+    }
+    @if (c.trade) {
+      <dt>{{ t('fpaTrade') }}</dt>
+      <dd>{{ c.trade }}</dd>
+    }
+    @if (c.employee_id) {
+      <dt>{{ t('fpaLinkedEmployee') }}</dt>
+      <dd>{{ employeeName(c.employee_id) }}</dd>
+    }
+    @if (c.sham_cash_wallet) {
+      <dt>{{ t('fpaShamCash') }}</dt>
+      <dd><bdi dir="ltr" class="num">{{ c.sham_cash_wallet }}</bdi>@if (c.sham_cash_name) { · {{ c.sham_cash_name }} }</dd>
+    }
+    @if (c.roles.includes('contractor')) {
+      <dt>{{ t('fpaTracking') }}</dt>
+      <dd>{{ tracking(c) }}</dd>
+    }
+    @if (c.partner; as p) {
+      <dt>{{ t('fpaShare') }}</dt>
+      <dd>
+        @if (positiveShare(p.share_pct)) { <bdi class="num">{{ qty(p.share_pct) }}%</bdi> } @else { {{ t('fpaShareEmpty') }} }
+        @if (!p.is_active) { · <span class="mute">{{ t('finInactive') }}</span> }
+      </dd>
+    }
+    @if (c.notes) {
+      <dt>{{ t('finNotes') }}</dt>
+      <dd>{{ c.notes }}</dd>
+    }
+  </dl>
+</section>
+
+<section class="panel">
+  <div class="panel-head">
+    <div>
+      <h2>{{ t('fpaStatement') }}</h2>
+      <p>{{ t('fpaStatementHint') }}</p>
+    </div>
+  </div>
+  <form class="filters" (submit)="$event.preventDefault()">
+    <label>
+      {{ t('finCurrency') }}
+      <select name="currency" [ngModel]="currency()" (ngModelChange)="currency.set($event)">
+        <option value="">{{ t('fpaAllCurrencies') }}</option>
+        @for (item of finance.activeCurrencies(); track item.id) {
+          <option [value]="item.code">{{ item.code }}</option>
+        }
+      </select>
+    </label>
+    @if (mayProjects && finance.projects().length) {
+      <label>
+        {{ t('finProject') }}
+        <select name="project" [ngModel]="project()" (ngModelChange)="project.set($event)">
+          <option [ngValue]="0">{{ t('fpaAllProjects') }}</option>
+          @for (item of finance.projects(); track item.id) {
+            <option [ngValue]="item.project_id">{{ finance.projectName(item.project_id) }}</option>
+          }
+        </select>
+      </label>
+    }
+    <label>{{ t('finFrom') }}<input name="from" type="date" [ngModel]="from()" (ngModelChange)="from.set($event ?? '')" /></label>
+    <label>{{ t('finTo') }}<input name="to" type="date" [ngModel]="to()" (ngModelChange)="to.set($event ?? '')" /></label>
+    @if (filtered()) {
+      <div class="fin-filter-actions">
+        <button class="text small" type="button" (click)="clear()">{{ t('finReset') }}</button>
+      </div>
+    }
+  </form>
+
+  @if (statement(); as s) {
+    @for (cur of s.currencies; track cur.currency_id) {
+      <h3 class="fpa-currency"><bdi>{{ cur.code }}</bdi></h3>
+      <div class="sheet">
+        <table>
+          <thead>
+            <tr>
+              <th>{{ t('finDate') }}</th>
+              <th>{{ t('fpaVoucher') }}</th>
+              <th>{{ t('finDescription') }}</th>
+              <th class="end">{{ t('finDebit') }}</th>
+              <th class="end">{{ t('finCredit') }}</th>
+              <th class="end">{{ t('finBalance') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="sub">
+              <td>@if (s.filters.from) { {{ short(s.filters.from) }} }</td>
+              <td></td>
+              <td>{{ t('finOpening') }}</td>
+              <td></td>
+              <td></td>
+              <td class="end"><bdi class="num">{{ bare(cur.opening, cur.code) }}</bdi> <small class="soft">{{ t(side(cur.opening)) }}</small></td>
+            </tr>
+            @for (line of cur.lines; track $index) {
+              <tr>
+                <td class="num">{{ short(line.date) }}</td>
+                <td>
+                  @if (line.voucher_id) {
+                    <a class="name" routerLink="/modules/finVouchers" [queryParams]="{ id: line.voucher_id }"><bdi dir="ltr">{{ line.voucher_number || line.entry_number }}</bdi></a>
+                  } @else {
+                    <bdi dir="ltr" class="soft">{{ line.entry_number || '—' }}</bdi>
+                  }
+                </td>
+                <td>{{ lineText(line) }}</td>
+                <td class="num end">@if (positive(line.debit)) { <bdi>{{ figure(line.debit, cur.code) }}</bdi> }</td>
+                <td class="num end">@if (positive(line.credit)) { <bdi>{{ figure(line.credit, cur.code) }}</bdi> }</td>
+                <td class="end"><bdi class="num">{{ bare(line.balance, cur.code) }}</bdi> <small class="soft">{{ t(side(line.balance)) }}</small></td>
+              </tr>
+            }
+            <tr class="sub">
+              <td>@if (s.filters.to) { {{ short(s.filters.to) }} }</td>
+              <td></td>
+              <td class="strong">{{ t('finClosing') }}</td>
+              <td class="num end"><bdi>{{ figure(cur.total_debit, cur.code) }}</bdi></td>
+              <td class="num end"><bdi>{{ figure(cur.total_credit, cur.code) }}</bdi></td>
+              <td class="end strong"><bdi class="num">{{ bare(cur.closing, cur.code) }}</bdi> <small>{{ t(side(cur.closing)) }}</small></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    } @empty {
+      <p class="empty">{{ t('fpaNoLines') }}</p>
+    }
+  } @else if (loading()) {
+    <p class="empty">{{ t('finLoading') }}</p>
+  }
+</section>

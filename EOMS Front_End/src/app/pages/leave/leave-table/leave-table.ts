@@ -35,11 +35,13 @@ export class LeaveTable extends Ui {
     return flowTone(status);
   }
 
-  protected approve(id: string): void {
+  protected async approve(id: string): Promise<void> {
+    if (!(await this.askConfirm({ message: 'confirmSensitiveBody', confirm: 'confirmProceed' }))) return;
     this.office.approveLeave(id, this.session.account().id);
   }
 
-  protected reject(id: string): void {
+  protected async reject(id: string): Promise<void> {
+    if (!(await this.askConfirm({ message: 'confirmSensitiveBody', tone: 'danger', confirm: 'confirmProceed' }))) return;
     this.office.rejectLeave(id, this.session.account().id);
   }
 }

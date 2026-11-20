@@ -5,6 +5,7 @@ namespace App\Modules\Payroll\Services;
 use App\Modules\HR\Models\Employee;
 use App\Modules\HR\Models\EmploymentContract;
 use App\Modules\HR\Services\Attendance\PayrollInputService;
+use App\Modules\Payroll\Models\EmployeeComponent;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
 
@@ -26,6 +27,9 @@ class PayrollCalculator
 {
     /** Kinds whose amount the company manager decides; everything else is applied as calculated. */
     public const PROPOSED_KINDS = ['late', 'early_exit', 'absence'];
+
+    /** Items that make up the basic pay a percentage component is computed on. */
+    public const BASE_PAY_KINDS = ['salary', 'days_worked', 'hours_worked', 'holiday_pay', 'paid_leave'];
 
     public function __construct(private PayrollInputService $inputs) {}
 
@@ -75,7 +79,43 @@ class PayrollCalculator
             'working_days' => $workingDays, 'attendance_ready' => (bool) $input['ready'],
             'blocked_days' => (int) $input['blocked_days'], 'issues' => $this->issueList($issues),
             'items' => $items,
+            // Recurring components (D19) in the contract currency; none when the month has no single currency.
+            'recurring' => $last !== null && count($currencies) === 1 ? $this->recurring($employee->id, $month, $items) : [],
         ];
+    }
+
+    /**
+     * The employee's recurring components for the month: a fixed amount, or a percentage of the basic pay earned in
+     * the month (base pay less unpaid and partly paid leave). Each is its own item, keyed by the component code.
+     *
+     * @param  list<array>  $items  the month's calculated items
+     * @return list<array>
+     */
+    public function recurring(int $employeeId, string $month, array $items): array
+    {
+        $assignments = EmployeeComponent::query()->with('component')->where('employee_id', $employeeId)
+            ->where('start_month', '<=', $month)->where(fn ($q) => $q->whereNull('end_month')->orWhere('end_month', '>=', $month))
+            ->orderBy('id')->get()->filter(fn (EmployeeComponent $a) => $a->component?->is_active && $a->component->is_recurring);
+        $basic = collect($items)->sum(fn (array $i) => match (true) {
+            in_array($i['kind'], self::BASE_PAY_KINDS, true) => $i['amount'],
+            in_array($i['kind'], ['unpaid_leave', 'partial_pay_leave'], true) => -$i['amount'],
+            default => 0,
+        });
+        $result = [];
+        foreach ($assignments as $assignment) {
+            $component = $assignment->component;
+            $percentage = $component->calc_method === 'percentage' ? (float) ($assignment->percentage ?? $component->percentage ?? 0) : null;
+            $amount = round($percentage === null ? (float) $assignment->amount : max(0, $basic) * $percentage / 100, 2);
+            if ($amount <= 0) {
+                continue;
+            }
+            $result[] = ['kind' => $component->code, 'category' => $component->kind, 'origin' => 'recurring', 'unit' => null, 'quantity' => null,
+                'amount' => $amount, 'component_id' => $component->id, 'project_id' => $assignment->project_id,
+                'details' => array_filter(['employee_component_id' => $assignment->id, 'percentage' => $percentage,
+                    'base' => $percentage === null ? null : round(max(0, $basic), 2)], fn ($v) => $v !== null)];
+        }
+
+        return $result;
     }
 
     private function priceDay(array &$items, array $row, EmploymentContract $contract, int $workingDays): void

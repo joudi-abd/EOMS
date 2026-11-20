@@ -1,0 +1,80 @@
+@if (loading() && !request()) {
+  <p class="empty">{{ t('finLoading') }}</p>
+} @else if (request(); as r) {
+  <div class="fin-grid">
+    <section class="fin-sheet">
+      <header>
+        <h2>{{ t('fsrRequestOf') }} {{ r.holder_name ?? '—' }}</h2>
+        <a class="quiet-x" [routerLink]="[]" [queryParams]="{ view: 'inbox', id: null }" [attr.aria-label]="t('finClose')"><i class="fa-solid fa-xmark" aria-hidden="true"></i></a>
+      </header>
+      <dl class="fin-kv">
+        <dt>{{ t('finAmount') }}</dt>
+        <dd><bdi class="num strong">{{ money(r.amount, r.currency_code ?? r.currency_id) }}</bdi></dd>
+        <dt>{{ t('finProject') }}</dt>
+        <dd>{{ r.project_name ?? '—' }}</dd>
+        <dt>{{ t('finCostCategory') }}</dt>
+        <dd>{{ r.cost_category_name ?? '—' }}</dd>
+        <dt>{{ t('fsrPaidFrom') }}</dt>
+        <dd>{{ sourceLabel(r) }}</dd>
+        @if (r.supplier_name) {
+          <dt>{{ t('fsrSupplier') }}</dt>
+          <dd>{{ r.supplier_name }}</dd>
+        }
+        <dt>{{ t('finDescription') }}</dt>
+        <dd>{{ r.description }}</dd>
+        <dt>{{ t('fsrSentOn') }}</dt>
+        <dd>{{ stamp(r.created_at) }}</dd>
+        <dt>{{ t('finStatus') }}</dt>
+        <dd [class]="tone(r.status)">{{ statusLabel(r.status) }}</dd>
+        @if (r.status === 'approved' && r.voucher_id) {
+          <dt>{{ t('fsrVoucher') }}</dt>
+          <dd><a class="link-button" routerLink="/modules/finVouchers" [queryParams]="{ id: r.voucher_id }"><bdi>{{ r.voucher_number ?? '—' }}</bdi></a></dd>
+        }
+        @if (r.status === 'rejected' && r.rejected_reason) {
+          <dt>{{ t('finReason') }}</dt>
+          <dd class="late">{{ r.rejected_reason }}</dd>
+        }
+      </dl>
+
+      @if (mayDecide()) {
+        <p class="fin-hint">{{ r.payment_source === 'custody' ? t('fsrApproveCustodyHint') : t('fsrApproveOwnHint') }}</p>
+        @if (rejecting()) {
+          <form class="fin-stack" (ngSubmit)="reject()">
+            <label class="fin-field">{{ t('fsrRejectReason') }}
+              <textarea name="reason" rows="2" minlength="3" maxlength="500" required [(ngModel)]="reason"></textarea>
+            </label>
+            <div class="fin-actions">
+              <button class="text" type="button" (click)="rejecting.set(false)">{{ t('finCancel') }}</button>
+              <button class="quiet" type="submit" [disabled]="busy()">{{ t('fsrConfirmReject') }}</button>
+            </div>
+          </form>
+        } @else {
+          <form class="fsr-decide" (ngSubmit)="approve()">
+            <label class="fin-field">{{ t('fsrApproveDate') }}<input name="date" type="date" required [(ngModel)]="entryDate" /></label>
+            <div class="fin-actions">
+              <button class="quiet" type="button" [disabled]="busy()" (click)="rejecting.set(true)">{{ t('fsrReject') }}</button>
+              <button class="primary" type="submit" [disabled]="busy()">{{ t('fsrApprove') }}</button>
+            </div>
+          </form>
+        }
+      }
+    </section>
+
+    <section class="panel">
+      <div class="panel-head"><div><h2>{{ t('fsrInvoice') }}</h2></div></div>
+      @for (file of r.attachments ?? []; track file.id) {
+        @if (images()[file.id]; as url) {
+          <a [href]="url" target="_blank" rel="noopener"><img class="fsr-invoice" [src]="url" [alt]="file.original_name" /></a>
+        }
+        <p class="fsr-file">
+          <bdi class="soft">{{ file.original_name }}</bdi>
+          <button class="text small" type="button" (click)="download(file)"><i class="fa-solid fa-download" aria-hidden="true"></i> {{ t('fsrDownload') }}</button>
+        </p>
+      } @empty {
+        <p class="empty">{{ t('fsrNoInvoice') }}</p>
+      }
+    </section>
+  </div>
+} @else {
+  <p class="empty">{{ t('fsrNotFound') }}</p>
+}

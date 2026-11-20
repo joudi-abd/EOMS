@@ -163,7 +163,7 @@ class BoardController extends Controller
 
     public function updateList(TaskList $list, Request $request): JsonResponse
     {
-        $data = $request->validate(['name' => ['sometimes', 'string', 'max:100'], 'position' => ['sometimes', 'numeric']]);
+        $data = $request->validate(['name' => ['sometimes', 'string', 'max:100'], 'position' => ['sometimes', 'numeric', 'between:-1000000000000,1000000000000']]);
 
         return ApiResponse::ok($this->boards->updateList($list, $data, $request->user()));
     }

@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "EOMS Front_End/src/app/pages/tasks/board-list/board-list.scss"
+        ],
+        "createdAt": "2026-11-12T21:34:30.417Z",
+        "reason": "User asked for the board color as a side stripe on the task cards."
+      }
+    ]
+  }
+}

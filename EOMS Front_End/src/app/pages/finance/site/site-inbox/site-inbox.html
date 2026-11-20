@@ -1,0 +1,74 @@
+@if (waiting() > 0) {
+  <p class="fin-warn"><i class="fa-solid fa-inbox" aria-hidden="true"></i> {{ t('fsrWaiting') }} <bdi class="strong">{{ num(waiting()) }}</bdi></p>
+}
+
+<form class="filters" (ngSubmit)="load(1)">
+  <label>{{ t('finStatus') }}
+    <select name="status" [(ngModel)]="status" (ngModelChange)="load(1)">
+      <option value="">{{ t('finAll') }}</option>
+      @for (item of statuses; track item) { <option [value]="item">{{ statusLabel(item) }}</option> }
+    </select>
+  </label>
+  <label>{{ t('fsrPaidFrom') }}
+    <select name="source" [(ngModel)]="source" (ngModelChange)="load(1)">
+      <option value="">{{ t('finAll') }}</option>
+      <option value="custody">{{ t('fsrSourceCustody') }}</option>
+      <option value="own_money">{{ t('fsrSourceOwn') }}</option>
+    </select>
+  </label>
+  @if (finance.projects().length) {
+    <label>{{ t('finProject') }}
+      <select name="project" [(ngModel)]="projectId" (ngModelChange)="load(1)">
+        <option [ngValue]="0">{{ t('finAll') }}</option>
+        @for (item of finance.projects(); track item.id) { <option [ngValue]="item.project_id">{{ finance.projectName(item.project_id) }}</option> }
+      </select>
+    </label>
+  }
+  <label>{{ t('finFrom') }}<input name="from" type="date" [(ngModel)]="from" (change)="load(1)" /></label>
+  <label>{{ t('finTo') }}<input name="to" type="date" [(ngModel)]="to" (change)="load(1)" /></label>
+  @if (filtered()) {
+    <div class="fin-filter-actions"><button class="text" type="button" (click)="reset()">{{ t('finReset') }}</button></div>
+  }
+</form>
+
+@if (loading() && !rows().length) {
+  <p class="empty">{{ t('finLoading') }}</p>
+} @else if (!rows().length) {
+  <p class="empty">{{ t('fsrInboxEmpty') }}</p>
+} @else {
+  <div class="sheet">
+    <table>
+      <thead>
+        <tr>
+          <th>{{ t('finDate') }}</th>
+          <th>{{ t('fsrSupervisor') }}</th>
+          <th>{{ t('finProject') }}</th>
+          <th>{{ t('finCostCategory') }}</th>
+          <th class="end">{{ t('finAmount') }}</th>
+          <th>{{ t('fsrPaidFrom') }}</th>
+          <th>{{ t('finStatus') }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (row of rows(); track row.id) {
+          <tr [class.attention]="row.status === 'submitted'">
+            <td>{{ short(row.created_at ?? '') }}</td>
+            <td><button class="link-button" type="button" (click)="open(row)">{{ row.holder_name ?? '—' }}</button></td>
+            <td>{{ row.project_name ?? '—' }}</td>
+            <td>{{ row.cost_category_name ?? '—' }}</td>
+            <td class="end"><bdi class="num">{{ money(row.amount, row.currency_code ?? row.currency_id) }}</bdi></td>
+            <td>{{ sourceLabel(row.payment_source) }}</td>
+            <td [class]="tone(row.status)">{{ statusLabel(row.status) }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+  @if (pages() > 1) {
+    <nav class="fin-pager" [attr.aria-label]="t('finPages')">
+      <button class="text small" type="button" [disabled]="page() <= 1" (click)="load(page() - 1)">{{ t('finPrev') }}</button>
+      <span class="soft">{{ num(page()) }} / {{ num(pages()) }}</span>
+      <button class="text small" type="button" [disabled]="page() >= pages()" (click)="load(page() + 1)">{{ t('finNext') }}</button>
+    </nav>
+  }
+}

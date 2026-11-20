@@ -1,31 +1,33 @@
 <div class="grid-2">
-  @if (session.has('finance.view')) {
+  @if (session.reach('finance.view')) {
     <section class="panel" data-print>
       <header class="panel-head">
         <div><h2>{{ t('dashMoneyTitle') }}</h2><p>{{ t('dashMoneyLede') }}</p></div>
-        <a class="text" routerLink="/modules/finCash">{{ t('dashOpen') }}</a>
+        <a class="text" routerLink="/modules/finBoxes">{{ t('dashOpen') }}</a>
       </header>
       @if (boxes() === null) {
         <p class="empty">{{ t('loading') }}</p>
       } @else {
         <ul class="rows">
           @for (box of boxes() ?? []; track box.id) {
-            <li>
-              <span><i [class]="box.kind === 'sham_cash' ? 'fa-solid fa-wallet' : 'fa-solid fa-money-bill'" aria-hidden="true"></i> {{ box.name }}</span>
-              <bdi class="num">{{ money(box.balance) }} {{ box.currency_code }}</bdi>
-            </li>
+            @for (cur of box.currencies; track cur.currency_id) {
+              <li>
+                <span><i [class]="box.type === 'e_wallet' ? 'fa-solid fa-wallet' : 'fa-solid fa-money-bill'" aria-hidden="true"></i> {{ box.name }}</span>
+                <bdi class="num" [class.late]="cur.negative">{{ boxMoney(cur.balance, cur.code) }} {{ cur.code }}</bdi>
+              </li>
+            }
           } @empty {
             <li class="soft">{{ t('finNoBoxes') }}</li>
           }
         </ul>
         <div class="facts">
-          <a routerLink="/modules/finCash" [class.wait]="pendingTransactions() > 0">
+          <a routerLink="/modules/finVouchers" [queryParams]="{ status: 'submitted' }" [class.wait]="pendingTransactions() > 0">
             <strong>{{ num(pendingTransactions()) }}</strong><span>{{ t('dashPendingTransactions') }}</span>
           </a>
-          <a routerLink="/modules/finInvoices" [class.wait]="pendingInvoices() > 0">
+          <a routerLink="/modules/finSite" [queryParams]="{ view: 'inbox' }" [class.wait]="pendingInvoices() > 0">
             <strong>{{ num(pendingInvoices()) }}</strong><span>{{ t('dashPendingInvoices') }}</span>
           </a>
-          <a routerLink="/modules/finInvoices" [class.late]="overdueInvoices() > 0">
+          <a routerLink="/modules/finBoxes" [queryParams]="{ view: 'counts' }" [class.wait]="overdueInvoices() > 0">
             <strong>{{ num(overdueInvoices()) }}</strong><span>{{ t('dashOverdueInvoices') }}</span>
           </a>
         </div>

@@ -1,6 +1,6 @@
 import { Component, computed, inject, input } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { Session } from '../../../core/access/session';
 import { Ui } from '../../../core/ui';
 import { Employee } from '../../../data/employees';
@@ -11,7 +11,7 @@ import { FingerDialog } from '../finger-dialog/finger-dialog';
 /** The device user number (`biometric_code`) as the server holds it, and the way into enrollment. */
 @Component({
   selector: 'app-employee-finger',
-  imports: [FingerDialog, RouterLink],
+  imports: [FingerDialog],
   templateUrl: './employee-finger.html',
   styleUrl: './employee-finger.scss',
 })

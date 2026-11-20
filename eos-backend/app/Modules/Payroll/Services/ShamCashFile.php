@@ -29,7 +29,10 @@ class ShamCashFile
         if ($rows === [] || count($rows) > self::MAX_ROWS) {
             throw new RuntimeException('Sham Cash file takes 1 to '.self::MAX_ROWS.' rows.');
         }
-        $path = tempnam(sys_get_temp_dir(), 'shamcash').'.xlsx';
+        $base = tempnam(sys_get_temp_dir(), 'shamcash');
+        $path = $base.'.xlsx';
+        // tempnam() reserved $base itself; only the .xlsx is sent (and deleted after sending).
+        @unlink($base);
         if (! copy(self::TEMPLATE, $path)) {
             throw new RuntimeException('Sham Cash template is missing.');
         }

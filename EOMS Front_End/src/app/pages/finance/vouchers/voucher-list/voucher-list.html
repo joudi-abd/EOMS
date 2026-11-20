@@ -1,0 +1,119 @@
+@if (figures(); as f) {
+  <section class="summary" [attr.aria-label]="t('fvoFigures')">
+    <p>
+      <span>{{ t('fvoFigWaiting') }}</span>
+      <strong [class.wait]="f.waiting > 0">{{ num(f.waiting) }}</strong>
+      <small><button class="link-button" type="button" (click)="only('submitted')">{{ t('fvoShowThem') }}</button></small>
+    </p>
+    <p>
+      <span>{{ t('fvoFigDrafts') }}</span>
+      <strong>{{ num(f.drafts) }}</strong>
+      <small><button class="link-button" type="button" (click)="only('draft')">{{ t('fvoShowThem') }}</button></small>
+    </p>
+    <p>
+      <span>{{ t('fvoFigApprovedMonth') }}</span>
+      <strong>{{ num(f.month) }}</strong>
+      <small><button class="link-button" type="button" (click)="only('approved', true)">{{ t('fvoShowThem') }}</button></small>
+    </p>
+  </section>
+}
+
+<form class="filters" (submit)="$event.preventDefault()">
+  <label>
+    <span>{{ t('finType') }}</span>
+    <select name="type" [(ngModel)]="filters.type" (ngModelChange)="reload()">
+      <option value="">{{ t('finAll') }}</option>
+      @for (type of types; track type) { <option [value]="type">{{ typeLabel(type) }}</option> }
+    </select>
+  </label>
+  <label>
+    <span>{{ t('finStatus') }}</span>
+    <select name="status" [(ngModel)]="filters.status" (ngModelChange)="reload()">
+      <option value="">{{ t('finAll') }}</option>
+      @for (status of statuses; track status) { <option [value]="status">{{ statusLabel(status) }}</option> }
+    </select>
+  </label>
+  <label>
+    <span>{{ t('finBox') }}</span>
+    <select name="box" [(ngModel)]="filters.box_id" (ngModelChange)="reload()">
+      <option [ngValue]="0">{{ t('finAll') }}</option>
+      @for (box of finance.boxes(); track box.id) { <option [ngValue]="box.id">{{ box.name }}</option> }
+    </select>
+  </label>
+  <label>
+    <span>{{ t('finFrom') }}</span>
+    <input name="from" type="date" [(ngModel)]="filters.from" (ngModelChange)="reload()" />
+  </label>
+  <label>
+    <span>{{ t('finTo') }}</span>
+    <input name="to" type="date" [(ngModel)]="filters.to" (ngModelChange)="reload()" />
+  </label>
+  <label>
+    <span>{{ t('finSearch') }}</span>
+    <input name="search" type="search" autocomplete="off" [placeholder]="t('fvoSearchHint')" [(ngModel)]="filters.search" (ngModelChange)="searchChanged()" />
+  </label>
+  @if (filtered()) {
+    <div class="fin-filter-actions">
+      <button class="text" type="button" (click)="reset()">{{ t('finReset') }}</button>
+    </div>
+  }
+</form>
+
+@if (loading() && !rows().length) {
+  <p class="empty">{{ t('finLoading') }}</p>
+} @else if (!rows().length) {
+  @if (filtered()) {
+    <p class="empty">{{ t('fvoEmptyFiltered') }}</p>
+    <button class="text" type="button" (click)="reset()">{{ t('finReset') }}</button>
+  } @else {
+    <p class="empty">{{ t('fvoEmpty') }}</p>
+    @if (may('finance.vouchers')) { <button class="text" type="button" (click)="create.emit()">{{ t('fvoNew') }}</button> }
+  }
+} @else {
+  <div class="sheet">
+    <table>
+      <thead>
+        <tr>
+          <th>{{ t('finDate') }}</th>
+          <th>{{ t('finNumber') }}</th>
+          <th>{{ t('fvoKind') }}</th>
+          <th>{{ t('fvoWhere') }}</th>
+          <th class="end">{{ t('finAmount') }}</th>
+          <th>{{ t('finStatus') }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (voucher of rows(); track voucher.id) {
+          <tr class="fvo-row" [class.picked]="voucher.id === picked()" [class.attention]="voucher.status === 'submitted' && voucher.id !== picked()" (click)="open.emit(voucher.id)">
+            <td><bdi>{{ short(voucher.voucher_date) }}</bdi></td>
+            <td>
+              <button class="link-button" type="button" (click)="$event.stopPropagation(); open.emit(voucher.id)">
+                <bdi>{{ voucher.display_number ?? voucher.number }}</bdi>
+              </button>
+            </td>
+            <td>{{ voucherKind(voucher.type, voucher.purpose) }}</td>
+            <td>{{ where(voucher) || '—' }}</td>
+            <td class="end">
+              @if (voucher.amount !== null && voucher.type !== 'manual_journal') {
+                <bdi class="num">{{ money(voucher.amount, voucher.currency_id) }}</bdi>
+                @if (voucher.type === 'exchange' && voucher.counter_amount !== null) {
+                  <small class="soft block-line"><bdi class="num">{{ money(voucher.counter_amount, voucher.counter_currency_id) }}</bdi></small>
+                }
+              } @else {
+                —
+              }
+            </td>
+            <td [class]="tone(voucher.status)">{{ statusLabel(voucher.status) }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+  @if (lastPage() > 1) {
+    <nav class="fin-pager" [attr.aria-label]="t('finPages')">
+      <button class="text small" type="button" [disabled]="page() <= 1 || loading()" (click)="load(page() - 1)">{{ t('finPrev') }}</button>
+      <span><bdi>{{ num(page()) }} / {{ num(lastPage()) }}</bdi></span>
+      <button class="text small" type="button" [disabled]="page() >= lastPage() || loading()" (click)="load(page() + 1)">{{ t('finNext') }}</button>
+    </nav>
+  }
+}

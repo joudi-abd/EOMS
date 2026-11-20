@@ -77,7 +77,7 @@ class EmployeePrivacyTest extends TestCase
             'last_name' => 'Omar',
             'national_id' => '123000456000',
             'address' => 'Confidential home',
-            'sham_cash_wallet' => '0999876543',
+            'sham_cash_wallet' => '0999876543000001',
             'hire_date' => '2026-10-01',
         ])->assertCreated();
 

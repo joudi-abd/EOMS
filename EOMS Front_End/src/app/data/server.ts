@@ -42,11 +42,6 @@ export interface PayrollMonth {
   financial_effect_applied: boolean;
 }
 
-export interface ExchangeRateRow {
-  rate: string | number;
-  rate_date: string;
-}
-
 /** The documented endpoints that sit outside the attendance, leave and employee stores. */
 @Injectable({ providedIn: 'root' })
 export class Server {
@@ -71,21 +66,6 @@ export class Server {
 
   payrollMonth(employeeId: string, month: string): Promise<ApiItem<PayrollMonth>> {
     return this.api.get<ApiItem<PayrollMonth>>(`/employees/${employeeId}/payroll-inputs`, { month });
-  }
-
-  latestRate(from: string, to: string): Promise<ApiItem<ExchangeRateRow | null>> {
-    return this.api.get<ApiItem<ExchangeRateRow | null>>('/settings/exchange-rates/latest', { from, to });
-  }
-
-  async saveRate(from: string, to: string, rate: number, rateDate: string): Promise<ExchangeRateRow | null> {
-    try {
-      const result = await this.api.post<ApiItem<ExchangeRateRow>>('/settings/exchange-rates', { from, to, rate, rate_date: rateDate });
-      this.office.done('exchangeSaved');
-      return result.data;
-    } catch (error) {
-      this.office.fail(error);
-      return null;
-    }
   }
 
   /** Safe settings any signed-in account may read. An empty group arrives as a list, not a map. */

@@ -1,0 +1,88 @@
+@if (loading() && !custody()) {
+  <p class="empty">{{ t('finLoading') }}</p>
+} @else if (custody(); as c) {
+  <section class="fin-sheet">
+    <header>
+      <h2>{{ t('fadCustodyOf') }} {{ c.holder_name ?? finance.partyName(c.holder_party_id) }}</h2>
+      <a class="quiet-x" [routerLink]="[]" [queryParams]="{ view: 'custody', id: null }" [attr.aria-label]="t('finClose')"><i class="fa-solid fa-xmark" aria-hidden="true"></i></a>
+    </header>
+    @if (c.overdue) {
+      <p class="fin-warn"><i class="fa-solid fa-clock" aria-hidden="true"></i> {{ t('fadOverdueWarn') }} {{ num(c.age_days) }} {{ t('finDays') }}.</p>
+    }
+    <dl class="fin-kv">
+      <dt>{{ t('finBalance') }}</dt>
+      <dd><bdi class="num strong">{{ money(c.balance, c.currency) }}</bdi></dd>
+      <dt>{{ t('fadIssued') }}</dt>
+      <dd><bdi class="num">{{ money(c.issued_total, c.currency) }}</bdi></dd>
+      <dt>{{ t('fadSettled') }}</dt>
+      <dd><bdi class="num">{{ money(c.settled_total, c.currency) }}</bdi></dd>
+      <dt>{{ t('fadReturned') }}</dt>
+      <dd><bdi class="num">{{ money(c.returned_total, c.currency) }}</bdi></dd>
+      <dt>{{ t('finProject') }}</dt>
+      <dd>
+        @if (c.project_id) {
+          <a class="link-button" routerLink="/modules/finProjects" [queryParams]="{ id: c.project_id }">{{ c.project_name ?? finance.projectName(c.project_id) }}</a>
+        } @else {
+          {{ t('fadGeneral') }}
+        }
+      </dd>
+      <dt>{{ t('finStatus') }}</dt>
+      <dd>
+        <span [class]="tone(c.status)">{{ t(c.status === 'open' ? 'fadCustodyOpen' : 'fadCustodyClosed') }}</span>
+        · {{ t('fadOpenedOn') }} {{ short(c.opened_on ?? '') }}
+        @if (c.closed_on) { · {{ t('fadClosedOn') }} {{ short(c.closed_on) }} }
+        @if (c.status === 'open') { · <span [class.late]="c.overdue">{{ num(c.age_days) }} {{ t('finDays') }}</span> }
+      </dd>
+      <dt>{{ t('fadHolder') }}</dt>
+      <dd><a class="link-button" routerLink="/modules/finParties" [queryParams]="{ id: c.holder_party_id }">{{ t('fadStatement') }}</a></dd>
+    </dl>
+    @if (mayAct()) {
+      <div class="fin-actions">
+        <a class="text" routerLink="/modules/finVouchers" [queryParams]="topUp(c)">{{ t('fadTopUp') }}</a>
+        <a class="text" routerLink="/modules/finVouchers" [queryParams]="{ new: 'custody_return', custody: c.id, currency: c.currency }">{{ t('fadReturnRest') }}</a>
+        <a class="primary" routerLink="/modules/finVouchers" [queryParams]="{ new: 'custody_settlement', custody: c.id }">{{ t('fadSettle') }}</a>
+      </div>
+    }
+  </section>
+
+  @if (!c.vouchers.length) {
+    <p class="empty">{{ t('fadNoMovements') }}</p>
+  } @else {
+    <div class="sheet">
+      <table>
+        <thead>
+          <tr>
+            <th>{{ t('finDate') }}</th>
+            <th>{{ t('finType') }}</th>
+            <th>{{ t('finNumber') }}</th>
+            <th>{{ t('finDescription') }}</th>
+            <th class="end">{{ t('finAmount') }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (v of c.vouchers; track v.id) {
+            <tr>
+              <td>{{ short(v.voucher_date) }}</td>
+              <td>
+                {{ kind(v.kind) }}
+                @if (v.status === 'reversed') { <small class="block-line mute">{{ statusLabel(v.status) }}</small> }
+              </td>
+              <td><a class="link-button" routerLink="/modules/finVouchers" [queryParams]="{ id: v.id }"><bdi>{{ v.number ?? '—' }}</bdi></a></td>
+              <td>{{ v.description ?? '' }}</td>
+              <td class="end"><bdi class="num" [class.soft]="v.status === 'reversed'">{{ figure(v.amount, c.currency) }}</bdi></td>
+            </tr>
+            @for (line of v.lines; track line.line_no) {
+              <tr class="sub">
+                <td></td>
+                <td colspan="3">{{ lineLabel(line, c) }}</td>
+                <td class="end"><bdi class="num">{{ figure(line.debit, c.currency) }}</bdi></td>
+              </tr>
+            }
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+} @else {
+  <p class="empty">{{ t('fadNotFound') }}</p>
+}

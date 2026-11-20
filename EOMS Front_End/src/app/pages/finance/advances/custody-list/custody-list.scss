@@ -1,0 +1,12 @@
+/* The overdue checkbox sits on the filter row's baseline, beside the selects. */
+.fad-check {
+  justify-content: flex-end;
+}
+
+.fad-check span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  color: var(--ink);
+}

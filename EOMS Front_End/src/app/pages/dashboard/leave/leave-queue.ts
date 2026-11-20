@@ -2,6 +2,7 @@ import { Component, computed, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute } from '@angular/router';
 import { Session } from '../../../core/access/session';
+import { Confirm } from '../../../core/confirm';
 import { CopyKey } from '../../../core/copy';
 import { Language } from '../../../core/language';
 import { Office } from '../../../data/office';
@@ -15,6 +16,7 @@ export class LeaveQueue {
   protected readonly language = inject(Language);
   protected readonly office = inject(Office);
   protected readonly session = inject(Session);
+  private readonly confirmDialog = inject(Confirm);
   private readonly params = toSignal(inject(ActivatedRoute).queryParamMap);
 
   protected readonly open = computed(() => this.params()?.get('leave') === 'open');
@@ -51,11 +53,13 @@ export class LeaveQueue {
     return `${this.format(leave.days)} ${leave.days === 1 ? this.t('day') : this.t('days')}`;
   }
 
-  protected approve(id: string): void {
+  protected async approve(id: string): Promise<void> {
+    if (!(await this.confirmDialog.ask({ message: 'confirmSensitiveBody', confirm: 'confirmProceed' }))) return;
     this.office.approveLeave(id, this.session.account().id);
   }
 
-  protected reject(id: string): void {
+  protected async reject(id: string): Promise<void> {
+    if (!(await this.confirmDialog.ask({ message: 'confirmSensitiveBody', tone: 'danger', confirm: 'confirmProceed' }))) return;
     this.office.rejectLeave(id, this.session.account().id);
   }
 }

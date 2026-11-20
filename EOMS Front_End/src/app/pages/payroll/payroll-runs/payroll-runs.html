@@ -19,12 +19,17 @@
       }
       @if (r.status === 'submitted' && mayApprove) {
         <button class="quiet" type="button" [disabled]="busy()" (click)="startReturn()">{{ t('prReturn') }}</button>
-        <button class="primary" type="button" [disabled]="busy() || r.not_ready > 0 || r.blocking_issues > 0" (click)="approve()">{{ t('prApprove') }}</button>
+        <button class="primary" type="button" [disabled]="busy() || r.not_ready > 0 || r.blocking_issues > 0 || ownRun(r)" (click)="approve()">{{ t('prApprove') }}</button>
       }
       <button class="text" type="button" [disabled]="busy()" (click)="exportRun()"><i class="fa-solid fa-file-csv" aria-hidden="true"></i> CSV</button>
     </span>
   }
 </div>
+@if (run(); as r) {
+  @if (r.status === 'submitted' && mayApprove && ownRun(r)) {
+    <p class="fin-hint">{{ t('prOwnRun') }}</p>
+  }
+}
 
 @if (panel() === 'new') {
   <form class="fin-sheet narrow" (ngSubmit)="create()">
@@ -90,72 +95,29 @@
     </form>
   }
 
-  @if (r.status === 'approved' && mayPay) {
-    <section class="panel">
-      <div class="panel-head"><div><h2>{{ t('prShamTitle') }}</h2><p>{{ t('prShamHint') }}</p></div></div>
-      <form (ngSubmit)="issueSham()">
-        <fieldset class="fin-form" [disabled]="busy()">
-          <label>{{ t('finCurrency') }}
-            <select name="shamCurrency" [(ngModel)]="shamCurrency">
-              <option value="SYP">SYP</option>
-              <option value="USD">USD</option>
-            </select>
-          </label>
-          <label>{{ t('finDate') }}<input name="shamDate" type="date" required [(ngModel)]="shamDate" /></label>
-          <label class="wide pr-skip"><input name="shamSkip" type="checkbox" [(ngModel)]="shamSkip" /> {{ t('prShamSkip') }}</label>
-          <div class="fin-actions wide">
-            <button class="primary" type="submit"><i class="fa-solid fa-file-excel" aria-hidden="true"></i> {{ t('prShamIssue') }}</button>
+  <div class="pr-split" [class.open]="panel() === 'line' && !!line()" [class.closing]="closing()">
+    <div class="fin-stack pr-lines">
+      <div class="pr-lines-bar">
+        <div class="seg" role="radiogroup" [attr.aria-label]="t('prFilter')">
+          <button type="button" role="radio" [attr.aria-checked]="filter() === 'all'" [class.on]="filter() === 'all'" (click)="filter.set('all')">{{ t('finAll') }}</button>
+          <button type="button" role="radio" [attr.aria-checked]="filter() === 'blocked'" [class.on]="filter() === 'blocked'" (click)="filter.set('blocked')">{{ t('prFilterBlocked') }}</button>
+          <button type="button" role="radio" [attr.aria-checked]="filter() === 'unpaid'" [class.on]="filter() === 'unpaid'" (click)="filter.set('unpaid')">{{ t('prFilterUnpaid') }}</button>
+          <button type="button" role="radio" [attr.aria-checked]="filter() === 'paid'" [class.on]="filter() === 'paid'" (click)="filter.set('paid')">{{ t('prFilterPaid') }}</button>
+        </div>
+        @if (r.status === 'approved' && mayPay && payPayable().length) {
+          <div class="pr-cash-acts">
+            <button class="text" type="button" (click)="openShamDialog()">
+              <i class="fa-solid fa-wallet" aria-hidden="true"></i>
+              {{ t('prShamPayBtn') }}
+            </button>
+            <button class="primary" type="button" (click)="openCashDialog()">
+              <i class="fa-solid fa-money-bill" aria-hidden="true"></i>
+              {{ t('prCashPayBtn') }}
+            </button>
           </div>
-        </fieldset>
-      </form>
-      <ul class="fin-list">
-        @for (file of sham(); track file.id) {
-          <li>
-            <span>
-              <span class="strong"><bdi dir="ltr">{{ file.doc_id }}</bdi></span>
-              <small class="soft block-line">
-                <span [class]="shamTone(file.status)">{{ shamLabel(file.status) }}</span>
-                · {{ file.currency_code }} · {{ date(file.pay_date) }} · {{ num(file.count) }} · <bdi>{{ money(file.total) }}</bdi>
-              </small>
-            </span>
-            <span class="end">
-              <button class="text small" type="button" [disabled]="busy()" (click)="downloadSham(file)">{{ t('prShamFile') }}</button>
-              @if (file.status === 'open') {
-                <button class="quiet" type="button" [disabled]="busy()" (click)="cancelSham(file)">{{ t('prShamCancel') }}</button>
-              }
-            </span>
-          </li>
-          @if (file.status === 'open') {
-            <li>
-              <form (ngSubmit)="confirmSham(file)">
-                <fieldset class="fin-form" [disabled]="busy()">
-                  <label>{{ t('finBox') }}
-                    <select [name]="'shamBox' + file.id" required [(ngModel)]="shamBox[file.id]">
-                      <option [ngValue]="0">—</option>
-                      @for (box of shamBoxes(file.currency_code); track box.id) { <option [ngValue]="box.id">{{ box.name }}</option> }
-                    </select>
-                  </label>
-                  @if (!shamBoxes(file.currency_code).length) { <p class="fin-hint wide">{{ t('prNoBox') }}</p> }
-                  <div class="fin-actions"><button class="primary" type="submit">{{ t('prShamConfirm') }}</button></div>
-                </fieldset>
-              </form>
-            </li>
-          }
-        } @empty {
-          <li class="soft">{{ t('prShamEmpty') }}</li>
         }
-      </ul>
-    </section>
-  }
-
-  <div class="fin-grid">
-    <div class="fin-stack">
-      <div class="seg" role="radiogroup" [attr.aria-label]="t('prFilter')">
-        <button type="button" role="radio" [attr.aria-checked]="filter() === 'all'" [class.on]="filter() === 'all'" (click)="filter.set('all')">{{ t('finAll') }}</button>
-        <button type="button" role="radio" [attr.aria-checked]="filter() === 'blocked'" [class.on]="filter() === 'blocked'" (click)="filter.set('blocked')">{{ t('prFilterBlocked') }}</button>
-        <button type="button" role="radio" [attr.aria-checked]="filter() === 'unpaid'" [class.on]="filter() === 'unpaid'" (click)="filter.set('unpaid')">{{ t('prFilterUnpaid') }}</button>
-        <button type="button" role="radio" [attr.aria-checked]="filter() === 'paid'" [class.on]="filter() === 'paid'" (click)="filter.set('paid')">{{ t('prFilterPaid') }}</button>
       </div>
+
       <div class="sheet">
         <table>
           <thead>
@@ -171,7 +133,7 @@
           </thead>
           <tbody>
             @for (row of lines(); track row.id) {
-              <tr [class.picked]="line()?.id === row.id" [class.attention]="blocked(row)">
+              <tr [class.picked]="line()?.id === row.id" [class.attention]="blocked(row)" [class.cash-on]="payPicked(row.id)">
                 <td>
                   <button class="link-button" type="button" (click)="openLine(row)">{{ row.employee_name }}</button>
                   <small class="soft block-line"><bdi>{{ row.employee_no }}</bdi></small>
@@ -203,8 +165,14 @@
       </div>
     </div>
 
-    <aside class="fin-stack">
-      @if (panel() === 'line' && line(); as l) {
+    @if (panel() === 'line' && line(); as l) {
+      <aside
+        class="pr-line-card"
+        [class.out]="closing()"
+        role="region"
+        [attr.aria-label]="l.employee_name"
+        (animationend)="finishClose($event)"
+      >
         <section class="fin-sheet">
           <header>
             <h2>{{ l.employee_name }} <small class="soft"><bdi>{{ l.employee_no }}</bdi></small></h2>
@@ -336,8 +304,7 @@
               <fieldset class="fin-form" [disabled]="busy()">
                 <label>{{ t('prPaidCurrency') }}
                   <select name="payCurrency" [(ngModel)]="payCurrency" (ngModelChange)="payBox = 0">
-                    <option value="SYP">SYP</option>
-                    <option value="USD">USD</option>
+                    @for (code of payCurrencies(); track code) { <option [value]="code">{{ code }}</option> }
                   </select>
                 </label>
                 <label>{{ t('finBox') }}
@@ -356,19 +323,167 @@
             </form>
           }
         </section>
-      } @else {
-        <section class="panel">
-          <div class="panel-head"><div><h2>{{ t('prHowTitle') }}</h2><p>{{ t('prHowLede') }}</p></div></div>
-          <ol class="pr-how">
-            <li>{{ t('prHow1') }}</li>
-            <li>{{ t('prHow2') }}</li>
-            <li>{{ t('prHow3') }}</li>
-            <li>{{ t('prHow4') }}</li>
-          </ol>
+      </aside>
+    }
+  </div>
+
+  <dialog #cashDlg class="pr-dlg" aria-labelledby="pr-cash-title" (close)="closePayDialog()">
+    <header class="pr-dlg-head">
+      <span class="pr-dlg-icon cash" aria-hidden="true"><i class="fa-solid fa-money-bill"></i></span>
+      <div class="pr-dlg-copy">
+        <h2 id="pr-cash-title">{{ t('prCashPayTitle') }}</h2>
+        <p>{{ t('prCashBulkHint') }}</p>
+      </div>
+      <button class="quiet-x" type="button" (click)="cashDlg.close()" [attr.aria-label]="t('dismiss')"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+    </header>
+
+    <div class="pr-dlg-body">
+      <div class="pr-pick-bar">
+        <label class="pr-bulk-all">
+          <input type="checkbox" [checked]="allPaySelected()" [indeterminate]="somePaySelected()" (change)="toggleAllPay(($any($event.target)).checked)" />
+          {{ t('prSelectAllCash') }}
+        </label>
+        <span class="pr-pick-meta">{{ t('prCashSelected') }} <bdi>{{ num(paySelectedCount()) }}</bdi> / <bdi>{{ num(payPayable().length) }}</bdi></span>
+      </div>
+      <ul class="pr-pick-list">
+        @for (row of payPayable(); track row.id) {
+          <li [class.on]="payPicked(row.id)">
+            <label>
+              <input type="checkbox" [checked]="payPicked(row.id)" (change)="togglePay(row, ($any($event.target)).checked)" />
+              <span class="pr-avatar" aria-hidden="true">{{ personInitials(row.employee_name) }}</span>
+              <span class="pr-pick-who">
+                <span class="strong">{{ row.employee_name }}</span>
+                <small class="soft"><bdi>{{ row.employee_no }}</bdi></small>
+              </span>
+              <bdi class="pr-pick-net">{{ withCurrency(row.net, row.currency_code) }}</bdi>
+            </label>
+          </li>
+        }
+      </ul>
+
+      <form class="pr-dlg-form" (ngSubmit)="paySelectedCash()">
+        <fieldset class="fin-form" [disabled]="busy()">
+          <label>{{ t('prPaidCurrency') }}
+            <select name="bulkCurrency" [(ngModel)]="bulkCurrency" (ngModelChange)="bulkBox = 0">
+              @for (code of payCurrencies(); track code) { <option [value]="code">{{ code }}</option> }
+            </select>
+          </label>
+          <label>{{ t('finBox') }}
+            <select name="bulkBox" required [(ngModel)]="bulkBox">
+              <option [ngValue]="0">—</option>
+              @for (box of bulkBoxes(); track box.id) { <option [ngValue]="box.id">{{ box.name }}</option> }
+            </select>
+          </label>
+          <label>{{ t('finDate') }}<input name="bulkDate" type="date" required [(ngModel)]="bulkDate" /></label>
+          <label class="wide">{{ t('finNotes') }}<input name="bulkNote" maxlength="500" [(ngModel)]="bulkNote" /></label>
+          @if (!bulkBoxes().length) { <p class="fin-hint wide">{{ t('prNoBox') }}</p> }
+        </fieldset>
+        <footer class="pr-dlg-acts">
+          <button class="text" type="button" (click)="cashDlg.close()">{{ t('cancel') }}</button>
+          <button class="primary" type="submit" [disabled]="!paySelectedCount() || busy()">
+            <i class="fa-solid fa-money-bill" aria-hidden="true"></i>
+            {{ t('prRecordCashBulk') }} · <bdi>{{ num(paySelectedCount()) }}</bdi>
+          </button>
+        </footer>
+      </form>
+    </div>
+  </dialog>
+
+  <dialog #shamDlg class="pr-dlg" aria-labelledby="pr-sham-title" (close)="closePayDialog()">
+    <header class="pr-dlg-head">
+      <span class="pr-dlg-icon sham" aria-hidden="true"><i class="fa-solid fa-wallet"></i></span>
+      <div class="pr-dlg-copy">
+        <h2 id="pr-sham-title">{{ t('prShamPayTitle') }}</h2>
+        <p>{{ t('prShamPayHint') }}</p>
+      </div>
+      <button class="quiet-x" type="button" (click)="shamDlg.close()" [attr.aria-label]="t('dismiss')"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+    </header>
+
+    <div class="pr-dlg-body">
+      <div class="pr-pick-bar">
+        <label class="pr-bulk-all">
+          <input type="checkbox" [checked]="allPaySelected()" [indeterminate]="somePaySelected()" (change)="toggleAllPay(($any($event.target)).checked)" />
+          {{ t('prSelectAllCash') }}
+        </label>
+        <span class="pr-pick-meta">{{ t('prCashSelected') }} <bdi>{{ num(paySelectedCount()) }}</bdi> / <bdi>{{ num(payPayable().length) }}</bdi></span>
+      </div>
+      <ul class="pr-pick-list">
+        @for (row of payPayable(); track row.id) {
+          <li [class.on]="payPicked(row.id)">
+            <label>
+              <input type="checkbox" [checked]="payPicked(row.id)" (change)="togglePay(row, ($any($event.target)).checked)" />
+              <span class="pr-avatar" aria-hidden="true">{{ personInitials(row.employee_name) }}</span>
+              <span class="pr-pick-who">
+                <span class="strong">{{ row.employee_name }}</span>
+                <small class="soft"><bdi>{{ row.employee_no }}</bdi></small>
+              </span>
+              <bdi class="pr-pick-net">{{ withCurrency(row.net, row.currency_code) }}</bdi>
+            </label>
+          </li>
+        }
+      </ul>
+
+      <form class="pr-dlg-form" (ngSubmit)="issueSham()">
+        <fieldset class="fin-form" [disabled]="busy()">
+          <label>{{ t('finCurrency') }}
+            <select name="shamCurrency" [(ngModel)]="shamCurrency">
+              @for (code of payCurrencies(); track code) { <option [value]="code">{{ code }}</option> }
+            </select>
+          </label>
+          <label>{{ t('finDate') }}<input name="shamDate" type="date" required [(ngModel)]="shamDate" /></label>
+          <label class="wide pr-skip"><input name="shamSkip" type="checkbox" [(ngModel)]="shamSkip" /> {{ t('prShamSkip') }}</label>
+        </fieldset>
+        <footer class="pr-dlg-acts">
+          <button class="text" type="button" (click)="shamDlg.close()">{{ t('cancel') }}</button>
+          <button class="primary" type="submit" [disabled]="!paySelectedCount() || busy()">
+            <i class="fa-solid fa-file-excel" aria-hidden="true"></i>
+            {{ t('prShamIssue') }} · <bdi>{{ num(paySelectedCount()) }}</bdi>
+          </button>
+        </footer>
+      </form>
+
+      @if (sham().length) {
+        <section class="pr-sham-files" [attr.aria-label]="t('prShamFiles')">
+          <h3>{{ t('prShamFiles') }}</h3>
+          <ul class="fin-list">
+            @for (file of sham(); track file.id) {
+              <li>
+                <span>
+                  <span class="strong"><bdi dir="ltr">{{ file.doc_id }}</bdi></span>
+                  <small class="soft block-line">
+                    <span [class]="shamTone(file.status)">{{ shamLabel(file.status) }}</span>
+                    · {{ file.currency_code }} · {{ date(file.pay_date) }} · {{ num(file.count) }} · <bdi>{{ money(file.total) }}</bdi>
+                  </small>
+                </span>
+                <span class="end">
+                  <button class="text small" type="button" [disabled]="busy()" (click)="downloadSham(file)">{{ t('prShamFile') }}</button>
+                  @if (file.status === 'open') {
+                    <button class="quiet" type="button" [disabled]="busy()" (click)="cancelSham(file)">{{ t('prShamCancel') }}</button>
+                  }
+                </span>
+              </li>
+              @if (file.status === 'open') {
+                <li>
+                  <form (ngSubmit)="confirmSham(file)">
+                    <fieldset class="fin-form" [disabled]="busy()">
+                      <label>{{ t('finBox') }}
+                        <select [name]="'shamBox' + file.id" required [(ngModel)]="shamBox[file.id]">
+                          <option [ngValue]="0">—</option>
+                          @for (box of shamBoxes(file.currency_code); track box.id) { <option [ngValue]="box.id">{{ box.name }}</option> }
+                        </select>
+                      </label>
+                      @if (!shamBoxes(file.currency_code).length) { <p class="fin-hint wide">{{ t('prNoBox') }}</p> }
+                      <div class="fin-actions"><button class="primary" type="submit">{{ t('prShamConfirm') }}</button></div>
+                    </fieldset>
+                  </form>
+                </li>
+              }
+            }
+          </ul>
         </section>
       }
-    </aside>
-  </div>
+    </div>
+  </dialog>
 } @else if (!loading()) {
   <p class="empty">{{ mayManage ? t('prEmptyManage') : t('prNoRuns') }}</p>
 }

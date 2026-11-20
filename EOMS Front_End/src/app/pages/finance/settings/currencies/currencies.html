@@ -1,0 +1,158 @@
+<div class="fin-toolbar">
+  <div class="seg" role="group" [attr.aria-label]="t('fstTabCurrencies')">
+    <button type="button" [class.on]="view() === 'rates'" [attr.aria-pressed]="view() === 'rates'" (click)="view.set('rates')">{{ t('fstPartRates') }}</button>
+    <button type="button" [class.on]="view() === 'list'" [attr.aria-pressed]="view() === 'list'" (click)="view.set('list')">{{ t('fstPartCurrencies') }}</button>
+  </div>
+</div>
+
+@if (view() === 'rates') {
+  @if (historyOf(); as cur) {
+    <section class="fin-sheet narrow">
+      <header>
+        <h2>{{ t('fstHistoryTitle') }} <bdi>{{ cur.code }}</bdi></h2>
+        <button class="quiet-x" type="button" (click)="historyOf.set(null)" [attr.aria-label]="t('dismiss')"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+      </header>
+      <div class="sheet">
+        <table>
+          <thead><tr><th>{{ t('finDate') }}</th><th class="end">1 <bdi>{{ base() }}</bdi> =</th></tr></thead>
+          <tbody>
+            @for (row of history(); track row.rate_date) {
+              <tr>
+                <td class="num">{{ short(row.rate_date) }}</td>
+                <td class="num end"><bdi>{{ rate(row.rate_to_base) }} {{ cur.code }}</bdi></td>
+              </tr>
+            } @empty {
+              <tr><td colspan="2" class="empty">{{ t('fstHistoryNone') }}</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </section>
+  }
+
+  <form class="filters" (submit)="$event.preventDefault()">
+    <label>{{ t('finDate') }}<input name="day" type="date" [ngModel]="day()" (ngModelChange)="pickDay($event)" /></label>
+    @if (mayRates) {
+      <div class="fin-filter-actions">
+        <button class="text" type="button" [disabled]="busy()" (click)="copyPrevious()">{{ t('fstCopyPrevious') }}</button>
+        <button class="primary" type="button" [disabled]="busy()" (click)="saveRates()">{{ t('fstSaveRates') }}</button>
+      </div>
+    }
+  </form>
+
+  @if (missing().length) {
+    <p class="fin-warn"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> {{ t('fstRatesMissing') }} <bdi>{{ missing().join('، ') }}</bdi></p>
+  }
+
+  <div class="sheet">
+    <table>
+      <thead>
+        <tr>
+          <th>{{ t('finCurrency') }}</th>
+          <th>{{ t('fstRateCol') }}</th>
+          <th>{{ t('finStatus') }}</th>
+          <th><span class="vh">{{ t('finActions') }}</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (row of rows(); track row.currency.id) {
+          <tr [class.attention]="!row.entered">
+            <td><bdi class="strong">{{ row.currency.code }}</bdi> <span class="soft">{{ row.currency.name }}</span></td>
+            <td class="num">
+              <span class="rate-line">
+                1 <bdi>{{ base() }}</bdi> =
+                @if (mayRates) {
+                  <input
+                    class="rate-input"
+                    type="number"
+                    min="0"
+                    step="any"
+                    [name]="'rate-' + row.currency.code"
+                    [ngModel]="values()[row.currency.code]"
+                    (ngModelChange)="setValue(row.currency.code, $event)"
+                    [attr.aria-label]="row.currency.code"
+                  />
+                } @else {
+                  <bdi>{{ row.entered ? rate(row.entered.rate_to_base) : '—' }}</bdi>
+                }
+                <bdi>{{ row.currency.code }}</bdi>
+              </span>
+            </td>
+            <td [class]="row.entered ? 'ok' : 'wait'">{{ row.entered ? t('fstRateEntered') : t('fstRateMissing') }}</td>
+            <td class="fin-row-actions"><button class="text small" type="button" (click)="openHistory(row.currency)">{{ t('fstHistory') }}</button></td>
+          </tr>
+        } @empty {
+          <tr><td colspan="4" class="empty">{{ t('fstNoOtherCurrencies') }}</td></tr>
+        }
+      </tbody>
+    </table>
+  </div>
+  <p class="fin-hint">{{ t('fstRatesHint') }}</p>
+} @else {
+  @if (editing() && form; as f) {
+    <form class="fin-sheet narrow" (ngSubmit)="saveCurrency()">
+      <header>
+        <h2>{{ f.id ? t('fstEditCurrency') : t('fstNewCurrency') }}</h2>
+        <button class="quiet-x" type="button" (click)="close()" [attr.aria-label]="t('dismiss')"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+      </header>
+      <fieldset class="fin-form" [disabled]="busy()">
+        <label>{{ t('finCode') }}
+          <input name="code" required minlength="3" maxlength="3" [(ngModel)]="f.code" [disabled]="!!f.id" dir="ltr" />
+        </label>
+        <label>{{ t('finName') }}<input name="name" required maxlength="100" [(ngModel)]="f.name" /></label>
+        <label>{{ t('fstSymbol') }}<input name="symbol" required maxlength="10" [(ngModel)]="f.symbol" dir="ltr" /></label>
+        <label>{{ t('fstDecimals') }}<input name="decimals" type="number" min="0" max="4" step="1" required [(ngModel)]="f.decimals" /></label>
+        <label>{{ t('fstRounding') }}<input name="rounding" type="number" min="0" step="any" required [(ngModel)]="f.rounding_step" /></label>
+        <label class="fst-check wide"><input name="payroll" type="checkbox" [(ngModel)]="f.is_payroll_currency" /> {{ t('fstPayrollCurrency') }}</label>
+        @if (f.id && !f.is_base) {
+          <label class="fst-check wide"><input name="active" type="checkbox" [(ngModel)]="f.is_active" /> {{ t('finActive') }}</label>
+        }
+        <p class="fin-hint wide">{{ t('fstRoundingHint') }}</p>
+        <div class="fin-actions wide">
+          <button class="text" type="button" (click)="close()">{{ t('finCancel') }}</button>
+          <button class="primary" type="submit">{{ t('finSave') }}</button>
+        </div>
+      </fieldset>
+    </form>
+  }
+
+  @if (mayEdit && !editing()) {
+    <div class="fin-toolbar"><button class="text" type="button" (click)="startNew()">{{ t('fstNewCurrency') }}</button></div>
+  }
+
+  <div class="sheet">
+    <table>
+      <thead>
+        <tr>
+          <th>{{ t('finCode') }}</th>
+          <th>{{ t('finName') }}</th>
+          <th class="end">{{ t('fstDecimals') }}</th>
+          <th class="end">{{ t('fstRounding') }}</th>
+          <th>{{ t('fstUse') }}</th>
+          <th>{{ t('finStatus') }}</th>
+          @if (mayEdit) { <th><span class="vh">{{ t('finActions') }}</span></th> }
+        </tr>
+      </thead>
+      <tbody>
+        @for (item of finance.currencies(); track item.id) {
+          <tr>
+            <td><bdi class="strong">{{ item.code }}</bdi></td>
+            <td>{{ item.name }} @if (item.symbol) { <bdi class="soft">{{ item.symbol }}</bdi> }</td>
+            <td class="num end">{{ num(item.decimals) }}</td>
+            <td class="num end"><bdi>{{ item.rounding_step === null ? '—' : rate(item.rounding_step) }}</bdi></td>
+            <td>
+              @if (item.is_base) { <span class="fst-chip">{{ t('fstBase') }}</span> }
+              @if (item.is_payroll_currency) { <span class="fst-chip">{{ t('fstPayrollShort') }}</span> }
+            </td>
+            <td [class]="item.is_active ? 'ok' : 'mute'">{{ item.is_active ? t('finActive') : t('finInactive') }}</td>
+            @if (mayEdit) {
+              <td class="fin-row-actions"><button class="text small" type="button" (click)="edit(item)">{{ t('finEdit') }}</button></td>
+            }
+          </tr>
+        } @empty {
+          <tr><td [attr.colspan]="mayEdit ? 7 : 6" class="empty">{{ t('finNothing') }}</td></tr>
+        }
+      </tbody>
+    </table>
+  </div>
+}

@@ -1,0 +1,26 @@
+:host {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.fvo-lines-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.fvo-lines-foot .fin-totals {
+  min-width: 260px;
+}
+
+.fvo-lines-foot .fin-totals div {
+  gap: 16px;
+}
+
+.remove {
+  width: 32px;
+  height: 32px;
+}

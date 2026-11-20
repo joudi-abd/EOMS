@@ -39,7 +39,8 @@
             "styles": [
               "node_modules/@fortawesome/fontawesome-free/css/fontawesome.min.css",
               "node_modules/@fortawesome/fontawesome-free/css/solid.min.css",
-              "node_modules/@fontsource-variable/readex-pro/index.css",
+              "node_modules/@fontsource-variable/roboto/index.css",
+              "node_modules/@fontsource-variable/noto-sans-arabic/index.css",
               "src/styles.scss"
             ]
           },

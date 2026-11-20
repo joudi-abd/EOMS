@@ -1,0 +1,45 @@
+.frp-groups {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+
+.frp-groups .panel {
+  margin: 0;
+}
+
+.ledger .frp-list li {
+  display: grid;
+  gap: 2px;
+  align-items: start;
+}
+
+.frp-list .name {
+  white-space: normal;
+}
+
+.frp-list .soft {
+  font-size: 15px;
+}
+
+.frp-check {
+  flex-direction: row !important;
+  align-items: center;
+  align-self: end;
+  min-height: 40px;
+}
+
+.frp-seg {
+  margin-inline-end: auto;
+}
+
+.frp-subject {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.frp-busy {
+  opacity: 0.6;
+}

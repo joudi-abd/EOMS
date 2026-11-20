@@ -45,8 +45,12 @@ export class Devices {
     }
   }
 
+  /** The server gives a new device the office timezone; sending another one is refused. */
   async create(entry: { name: string; model: string; serial: string }): Promise<DeviceOutcome> {
-    const body: Record<string, string> = { name: entry.name.trim(), serial_number: entry.serial.trim() };
+    const body: Record<string, string> = {
+      name: entry.name.trim(),
+      serial_number: entry.serial.trim(),
+    };
     if (entry.model.trim()) body['model'] = entry.model.trim();
     try {
       const result = await this.api.post<ApiItem<ApiDeviceToken>>('/attendance/devices', body);

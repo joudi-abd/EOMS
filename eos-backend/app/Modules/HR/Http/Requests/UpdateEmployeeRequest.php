@@ -24,7 +24,7 @@ class UpdateEmployeeRequest extends FormRequest
             'father_name' => ['sometimes', 'required', 'string', 'max:80'],
             'last_name' => ['sometimes', 'string', 'max:80'],
             'birth_date' => ['sometimes', 'nullable', 'date', 'before:today'],
-            'email' => ['sometimes', 'nullable', 'email', 'max:255',
+            'email' => ['sometimes', 'nullable', 'email', 'max:191',
                 Rule::unique('hr_employees', 'email')->ignore($employee->id)],
             'phone' => ['sometimes', 'nullable', 'string', 'max:30',
                 Rule::unique('usr_users', 'phone')->ignore($employee->user_id)],
@@ -33,7 +33,8 @@ class UpdateEmployeeRequest extends FormRequest
             'job_title_id' => ['sometimes', 'nullable', 'integer', 'exists:hr_job_titles,id'],
             'manager_id' => ['sometimes', 'nullable', 'integer',
                 Rule::exists('hr_employees', 'id'), Rule::notIn([$employee->id])],
-            'sham_cash_wallet' => ['sometimes', 'nullable', 'string', 'max:30'],
+            // The salary payout wallet: only someone who may see pay data may change it (16 digits, as Sham Cash needs).
+            'sham_cash_wallet' => ['sometimes', Rule::prohibitedIf(fn () => ! $this->user()?->can('employees.view_financial')), 'nullable', 'digits:16'],
             'effective_date' => [
                 'sometimes',
                 'required',

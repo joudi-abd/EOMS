@@ -40,7 +40,7 @@ export interface DossierSpec {
 const sheet = `
 @page { size: A4 portrait; margin: 0; }
 html, body { background: #fff !important; }
-body { margin: 0; color: #14162b; font: 11.5px/1.55 'Readex Pro Variable', sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+body { margin: 0; color: #14162b; font: 11.5px/1.55 'Roboto Variable', 'Noto Sans Arabic Variable', sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 .d-top { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-bottom: 12px; border-bottom: 3px solid #4f46c8; }
 .d-brand { display: flex; align-items: center; gap: 12px; }
 .d-brand img { height: 46px; width: auto; }

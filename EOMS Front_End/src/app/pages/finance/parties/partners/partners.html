@@ -1,0 +1,111 @@
+@if (open()) {
+  <form class="fin-sheet narrow" (ngSubmit)="submit()">
+    <header>
+      <h2>
+        @if (editing(); as e) { {{ t('fpaEditPartner') }} · {{ partyLabel(e) }} } @else { {{ t('fpaAddPartner') }} }
+      </h2>
+      <button class="quiet-x" type="button" (click)="close()" [attr.aria-label]="t('finClose')"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+    </header>
+    <p class="fin-hint">{{ t('fpaSharesRule') }}</p>
+    <fieldset class="fin-form" [disabled]="busy()">
+      @if (!editing()) {
+        <label class="wide">
+          {{ t('finParty') }}
+          <select name="party" required [(ngModel)]="partyId">
+            <option [ngValue]="0">{{ t('finChoose') }}</option>
+            @for (party of candidates(); track party.id) {
+              <option [ngValue]="party.id">{{ party.name }}</option>
+            }
+          </select>
+        </label>
+        <p class="fin-hint wide">{{ t('fpaPartnerHint') }}</p>
+      }
+      <label>
+        {{ t('fpaSharePct') }}
+        <input name="share" type="number" min="0.0001" max="100" step="any" dir="ltr" [placeholder]="t('fpaShareEmpty')"
+          [ngModel]="share()" (ngModelChange)="setShare($event)" />
+      </label>
+      <label>{{ t('fpaJoined') }}<input name="joined" type="date" [(ngModel)]="joined" /></label>
+      <label class="wide fpa-check">
+        <input name="active" type="checkbox" [ngModel]="active()" (ngModelChange)="active.set($event)" />
+        {{ t('fpaPartnerActive') }}
+      </label>
+
+      @if (otherRows().length) {
+        <fieldset class="wide fpa-others">
+          <legend>{{ t('fpaOtherShares') }}</legend>
+          @for (row of otherRows(); track row.id) {
+            <label class="fpa-other">
+              <span>{{ partyLabel(row) }}</span>
+              <input type="number" min="0.0001" max="100" step="any" dir="ltr" [name]="'other-' + row.id" [placeholder]="t('fpaShareEmpty')"
+                [ngModel]="otherShare(row)" (ngModelChange)="setOther(row, $event)" />
+            </label>
+          }
+        </fieldset>
+      }
+
+      @let a = after();
+      <p class="wide fpa-total">
+        {{ t('fpaAfterSave') }}:
+        @if (a.state === 'empty') {
+          <span class="mute">{{ t('fpaTotalEmpty') }}</span>
+        } @else {
+          <bdi class="num strong">{{ qty(a.value) }}%</bdi>
+          <span [class]="a.state === 'ok' ? 'ok' : 'late'">{{ a.state === 'ok' ? t('fpaTotalOk') : t('fpaTotalBad') }}</span>
+        }
+      </p>
+
+      <div class="fin-actions wide">
+        <button class="text" type="button" (click)="close()">{{ t('finCancel') }}</button>
+        <button class="primary" type="submit">{{ t('finSave') }}</button>
+      </div>
+    </fieldset>
+  </form>
+}
+
+@if (loading() && !rows().length) {
+  <p class="empty">{{ t('finLoading') }}</p>
+} @else if (!rows().length) {
+  <p class="empty">{{ t('fpaNoPartners') }}</p>
+  @if (mayEdit && !open()) {
+    <button class="primary" type="button" (click)="adding.set(true)">{{ t('fpaAddPartner') }}</button>
+  }
+} @else {
+  <div class="sheet">
+    <table>
+      <thead>
+        <tr>
+          <th>{{ t('finParty') }}</th>
+          <th class="end">{{ t('fpaSharePct') }}</th>
+          <th>{{ t('fpaJoined') }}</th>
+          <th>{{ t('finStatus') }}</th>
+          @if (mayEdit) { <th><span class="vh">{{ t('finActions') }}</span></th> }
+        </tr>
+      </thead>
+      <tbody>
+        @for (row of rows(); track row.id) {
+          <tr [class.picked]="editing()?.id === row.id">
+            <td><a class="name" [routerLink]="[]" [queryParams]="{ view: null, id: row.party_id }">{{ partyLabel(row) }}</a></td>
+            <td class="num end"><bdi>{{ shareText(row.share_pct) }}</bdi></td>
+            <td>{{ row.joined_at ? short(row.joined_at) : '—' }}</td>
+            <td [class]="tone(row.is_active ? 'active' : 'inactive')">{{ row.is_active ? t('finActive') : t('finInactive') }}</td>
+            @if (mayEdit) {
+              <td class="end"><button class="text small" type="button" (click)="startEdit(row)">{{ t('finEdit') }}</button></td>
+            }
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+  @let tot = total();
+  <p class="fpa-total">
+    {{ t('fpaTotalShares') }}:
+    @if (tot.state === 'empty') {
+      <span class="mute">{{ t('fpaTotalEmpty') }}</span>
+    } @else {
+      <bdi class="num strong">{{ qty(tot.value) }}%</bdi>
+      <span [class]="tot.state === 'ok' ? 'ok' : 'late'">{{ tot.state === 'ok' ? t('fpaTotalOk') : t('fpaTotalBad') }}</span>
+    }
+  </p>
+  @if (!open()) { <p class="fin-hint">{{ t('fpaSharesRule') }}</p> }
+}

@@ -1,0 +1,13 @@
+.fpj-push {
+  margin-inline-start: auto;
+}
+
+.panel {
+  display: grid;
+  gap: 12px;
+}
+
+/* Angular drops the space between a figure and the word after it. */
+bdi + small {
+  margin-inline-start: 6px;
+}
