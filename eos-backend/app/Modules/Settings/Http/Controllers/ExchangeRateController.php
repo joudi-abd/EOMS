@@ -6,6 +6,7 @@ use App\Modules\Settings\Http\Requests\StoreExchangeRateRequest;
 use App\Modules\Settings\Services\ExchangeRateService;
 use App\Support\ApiResponse;
 use Dedoc\Scramble\Attributes\Group;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 
@@ -15,66 +16,52 @@ class ExchangeRateController extends Controller
     public function __construct(private ExchangeRateService $rates) {}
 
     /**
-     * List exchange rates.
+     * The bulletin of one day.
      *
-     * Returns a paginated exchange rate list.
-     * Supports searching and filtering.
+     * Rates against the base currency (units per 1 USD) entered for `date` (default today), and the active
+     * currencies still missing from it.
      */
-    public function currencies()
+    public function bulletin(Request $request): JsonResponse
     {
-        return ApiResponse::ok($this->rates->currencies());
+        $data = $request->validate(['date' => ['sometimes', 'date_format:Y-m-d']]);
+
+        return ApiResponse::ok($this->rates->bulletin($data['date'] ?? now()->toDateString()));
     }
 
     /**
-     * Create an exchange rate.
-     *
-     * Creates an exchange rate record for a specific
-     * currency pair and date.
+     * Rate history of one currency, newest first.
      */
-    public function store(StoreExchangeRateRequest $request)
-    {
-        $data = $request->validated();
-
-        $rate = $this->rates->setRate(
-            $data['from'],
-            $data['to'],
-            (float) $data['rate'],
-            $data['rate_date'] ?? now()->toDateString()
-        );
-
-        return ApiResponse::created($rate);
-    }
-
-    /**
-     * Get the latest exchange rate.
-     *
-     * Returns the most recent exchange rate for a
-     * specific currency pair.
-     */
-    public function latest(Request $request)
+    public function history(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'from' => ['required', 'exists:sys_currencies,code'],
-            'to' => ['required', 'exists:sys_currencies,code'],
-        ]);
-
-        return ApiResponse::ok($this->rates->latestRate($data['from'], $data['to']));
-    }
-
-    /**
-     * Exchange rate history for one pair.
-     *
-     * Returns the rates recorded for a currency pair, newest first, as `{rate, rate_date}` rows.
-     * `limit` caps how many days come back (default 30, at most 365).
-     */
-    public function history(Request $request)
-    {
-        $data = $request->validate([
-            'from' => ['required', 'exists:sys_currencies,code', 'different:to'],
-            'to' => ['required', 'exists:sys_currencies,code'],
+            'currency' => ['required', 'string', 'exists:sys_currencies,code'],
             'limit' => ['sometimes', 'integer', 'min:1', 'max:365'],
         ]);
 
-        return ApiResponse::ok($this->rates->history($data['from'], $data['to'], (int) ($data['limit'] ?? 30)));
+        return ApiResponse::ok($this->rates->history($data['currency'], (int) ($data['limit'] ?? 30)));
+    }
+
+    /**
+     * Save a day's bulletin.
+     *
+     * Body: `{date, rates: {TRY: 43.4, SYP: 13000}}`. Existing rates of that day are replaced.
+     */
+    public function store(StoreExchangeRateRequest $request): JsonResponse
+    {
+        $data = $request->validated();
+
+        return ApiResponse::created($this->rates->setRates($data['date'], $data['rates'], $request->user()->id));
+    }
+
+    /**
+     * Copy the previous rates into a day.
+     *
+     * Every active currency without a rate on `date` gets its latest earlier rate.
+     */
+    public function copyPrevious(Request $request): JsonResponse
+    {
+        $data = $request->validate(['date' => ['required', 'date_format:Y-m-d']]);
+
+        return ApiResponse::ok($this->rates->copyPrevious($data['date'], $request->user()->id));
     }
 }

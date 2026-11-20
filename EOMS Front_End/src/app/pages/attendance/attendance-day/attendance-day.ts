@@ -142,9 +142,11 @@ export class AttendanceDay extends Ui {
     await this.book.review(day, correction, decision, String(data.get('note') ?? '').trim());
   }
 
-  protected approve(): void {
+  protected async approve(): Promise<void> {
     const day = this.bundle()?.day;
-    if (day) void this.book.approve(day);
+    if (!day) return;
+    if (!(await this.askConfirm({ message: 'confirmSensitiveBody', confirm: 'confirmProceed' }))) return;
+    void this.book.approve(day);
   }
 
   protected async reopen(event: Event): Promise<void> {

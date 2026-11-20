@@ -201,7 +201,10 @@ export class Payroll {
     return this.api.blob(`/payroll/runs/${id}/export`);
   }
 
-  shamCash(runId: number, body: { currency: 'SYP' | 'USD'; date: string; skip_missing: boolean }): Promise<{ blob: Blob; docId: string | null }> {
+  shamCash(
+    runId: number,
+    body: { currency: string; date: string; skip_missing: boolean; line_ids?: number[] },
+  ): Promise<{ blob: Blob; docId: string | null }> {
     return this.api.filePost(`/payroll/runs/${runId}/shamcash`, body);
   }
 

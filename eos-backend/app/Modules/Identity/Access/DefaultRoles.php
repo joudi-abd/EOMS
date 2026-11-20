@@ -35,8 +35,9 @@ final class DefaultRoles
                     'employees.view' => $all, 'employees.documents.view' => $all,
                     'attendance.view' => $all, 'attendance.approve' => $all,
                     'leaves.view' => $all, 'leaves.approve_reviewers' => $all,
-                    'payroll.view' => $all, 'payroll.approve' => $all,
-                    'finance.view' => $all, 'finance.approve' => $all,
+                    'payroll.view' => $all,
+                    'finance.view' => $all, 'finance.reports' => $all, 'finance.projects.view' => $all,
+                    'finance.counts.approve' => $all, 'finance.audit' => $all,
                     'tasks.view' => $all, 'tasks.manage' => $all,
                     'settings.view' => $all,
                 ]),
@@ -51,16 +52,34 @@ final class DefaultRoles
                     'tasks.view' => Scope::OWN, 'tasks.manage' => Scope::OWN,
                 ]),
 
-            'finance_manager' => self::role('standard', 'المدير المالي', 'Finance manager',
-                'المالية، ويراجع الرواتب ويعتمدها ويصرفها.', 'Finance; reviews, approves and pays payroll.', [
+            'finance_manager' => self::role('standard', 'المحاسب العام', 'Chief accountant',
+                'كل المالية في كل الفروع، ويراجع الرواتب ويعتمدها ويصرفها. لا يعتمد فروقات الجرد.', 'All of finance in every branch; reviews, approves and pays payroll. Does not approve count differences.', [
                     'payroll.view' => $all, 'payroll.approve' => $all, 'payroll.pay' => $all,
-                    'finance.view' => $all, 'finance.manage' => $all,
+                    'finance.view' => $all, 'finance.settings' => $all, 'finance.rates' => $all, 'finance.vouchers' => $all,
+                    'finance.reverse' => $all, 'finance.projects' => $all, 'finance.projects.view' => $all, 'finance.site_requests' => $all,
+                    'finance.allocations' => $all, 'finance.counts' => $all, 'finance.assets' => $all, 'finance.periods' => $all,
+                    'finance.reports' => $all, 'finance.audit' => $all,
+                    'tasks.view' => Scope::OWN, 'tasks.manage' => Scope::OWN,
+                ]),
+
+            'branch_accountant' => self::role('standard', 'محاسب الفرع', 'Branch accountant',
+                'المالية في الفروع المسندة إليه فقط: السندات والعكس والنشرة والجرد والمشاريع والأصول والتقارير.', 'Finance in the branches assigned to the account only: vouchers, reversals, rates, counts, projects, assets and reports.', [
+                    'finance.view' => Scope::OWN, 'finance.rates' => Scope::OWN, 'finance.vouchers' => Scope::OWN, 'finance.reverse' => Scope::OWN,
+                    'finance.projects' => Scope::OWN, 'finance.projects.view' => Scope::OWN, 'finance.site_requests' => Scope::OWN,
+                    'finance.counts' => Scope::OWN, 'finance.assets' => Scope::OWN, 'finance.reports' => Scope::OWN,
                     'tasks.view' => Scope::OWN, 'tasks.manage' => Scope::OWN,
                 ]),
 
             'project_manager' => self::role('standard', 'مدير المشاريع', 'Project manager',
-                'يعرض الموظفين وينشئ لوحات مهام للفرق.', 'Views employees and opens team task boards.', [
+                'يعرض الموظفين وينشئ لوحات مهام للفرق، ويرى مالية المشاريع التي يديرها.', 'Views employees, opens team task boards and sees the finance of the projects they manage.', [
                     'employees.view' => $all,
+                    'finance.projects.view' => Scope::OWN,
+                    'tasks.view' => Scope::OWN, 'tasks.manage' => Scope::OWN,
+                ]),
+
+            'site_supervisor' => self::role('standard', 'المشرف', 'Site supervisor',
+                'يقدّم طلبات مصروف الموقع لمشاريعه ويرى عهدته وطلباته.', 'Submits site expense requests for their projects and sees their custody and requests.', [
+                    'finance.site_requests' => Scope::OWN,
                     'tasks.view' => Scope::OWN, 'tasks.manage' => Scope::OWN,
                 ]),
 

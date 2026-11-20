@@ -73,10 +73,12 @@ export class EmployeeContracts extends Ui {
   }
 
   protected async activate(contract: Contract): Promise<void> {
+    if (!(await this.askConfirm({ message: 'confirmSensitiveBody', confirm: 'confirmProceed' }))) return;
     await this.run(() => this.records.activate(this.person().id, contract.id));
   }
 
   protected async cancelSchedule(contract: Contract): Promise<void> {
+    if (!(await this.askConfirm({ message: 'confirmSensitiveBody', tone: 'danger', confirm: 'confirmProceed' }))) return;
     await this.run(() => this.records.cancelScheduledEnd(this.person().id, contract.id));
   }
 

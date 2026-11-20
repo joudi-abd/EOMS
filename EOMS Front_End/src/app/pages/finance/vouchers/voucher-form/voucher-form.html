@@ -1,0 +1,619 @@
+@if (!ready()) {
+  <p class="empty">{{ t('finLoading') }}</p>
+} @else {
+  <form class="fin-sheet" (ngSubmit)="send(true)">
+    <header>
+      <h2>{{ title() }}</h2>
+      <button
+        class="quiet-x"
+        type="button"
+        [attr.aria-label]="t('finClose')"
+        (click)="closed.emit()"
+      >
+        <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+      </button>
+    </header>
+
+    @if (!fixedType()) {
+      <div class="seg" role="group" [attr.aria-label]="t('finType')">
+        @for (item of common; track item) {
+          <button
+            type="button"
+            [class.on]="item === type"
+            [attr.aria-pressed]="item === type"
+            [disabled]="busy()"
+            (click)="setType(item)"
+          >
+            {{ segLabel(item) }}
+          </button>
+        }
+      </div>
+    }
+    <p class="fin-hint">{{ t('fvoPostHint') }}</p>
+
+    <fieldset class="fin-form" [disabled]="busy()">
+      <!-- Receipt and payment: what the money is for -->
+      @if (isCash()) {
+        <label class="wide"
+          >{{ t('fvoPurpose') }}
+          <select name="purpose" [ngModel]="purpose" (ngModelChange)="setPurpose($event)">
+            @for (item of purposes(); track item) {
+              <option [ngValue]="item">{{ purposeText(item) }}</option>
+            }
+          </select>
+        </label>
+      }
+
+      <!-- Custody settlement and return draw on one open custody -->
+      @if (drawsOnCustody()) {
+        <label class="wide"
+          >{{ t('fvoCustody') }}
+          <select
+            name="custody"
+            required
+            [ngModel]="custodyId"
+            (ngModelChange)="pickCustody($event)"
+          >
+            <option [ngValue]="0">{{ t('finChoose') }}</option>
+            @for (row of custodies(); track row.id) {
+              <option [ngValue]="row.id">{{ custodyLabel(row) }}</option>
+            }
+          </select>
+          @if (!custodies().length) {
+            <small class="soft">{{ t('fvoNoCustodies') }}</small>
+          }
+        </label>
+      }
+
+      <!-- A client payment or a billing: the project names the client -->
+      @if (is('client_payment') || type === 'project_billing') {
+        <label class="wide"
+          >{{ t('finProject') }}
+          <select
+            name="clientProject"
+            required
+            [ngModel]="projectId"
+            (ngModelChange)="pickProject($event)"
+          >
+            <option [ngValue]="0">{{ t('finChoose') }}</option>
+            @for (project of clientProjects(); track project.project_id) {
+              <option [ngValue]="project.project_id">
+                {{ finance.projectName(project.project_id) }}
+              </option>
+            }
+          </select>
+          @if (partyId) {
+            <small class="soft">{{ t('fvoClient') }}: {{ finance.partyName(partyId) }}</small>
+          }
+          @if (!hasProjects()) {
+            <small class="soft">{{ t('fvoNoProjects') }}</small>
+          }
+        </label>
+      }
+
+      <!-- Employee advance -->
+      @if (employeeAdvance()) {
+        <label class="wide"
+          >{{ t('finEmployee') }}
+          <select name="employee" required [(ngModel)]="employeeId">
+            <option [ngValue]="0">{{ t('finChoose') }}</option>
+            @for (person of employeeOptions(); track person.id) {
+              <option [ngValue]="person.id">{{ person.name }}</option>
+            }
+          </select>
+          <small class="soft">{{ t('fvoEmployeeHint') }}</small>
+        </label>
+        <label
+          >{{ t('fvoInstallments') }}
+          <input
+            name="installments"
+            type="number"
+            min="1"
+            max="120"
+            step="1"
+            required
+            [(ngModel)]="installments"
+          />
+        </label>
+        <label
+          >{{ t('fvoStartMonth') }}
+          <input
+            name="startMonth"
+            type="month"
+            required
+            [min]="voucherDate.slice(0, 7)"
+            [(ngModel)]="startMonth"
+          />
+        </label>
+      }
+
+      <!-- Who: supplier, contractor, partner, custody holder, or the other party of a debt -->
+      @if (showParty()) {
+        <label class="wide"
+          >{{ partyLabel() }}
+          <select name="party" required [ngModel]="partyId" (ngModelChange)="setParty($event)">
+            <option [ngValue]="0">{{ t('finChoose') }}</option>
+            @for (party of partyOptions(); track party.id) {
+              <option [ngValue]="party.id">{{ party.name }}</option>
+            }
+          </select>
+        </label>
+      }
+
+      @if (is('debt')) {
+        <div class="wide fin-field">
+          {{ t('fvoDebtWhich') }}
+          <div class="seg" role="group">
+            @if (type === 'receipt') {
+              <button
+                type="button"
+                [class.on]="debtDirection === 'we_owe'"
+                (click)="debtDirection = 'we_owe'"
+              >
+                {{ t('fvoDebtBorrow') }}
+              </button>
+              <button
+                type="button"
+                [class.on]="debtDirection === 'owed_to_us'"
+                (click)="debtDirection = 'owed_to_us'"
+              >
+                {{ t('fvoDebtCollect') }}
+              </button>
+            } @else {
+              <button
+                type="button"
+                [class.on]="debtDirection === 'we_owe'"
+                (click)="debtDirection = 'we_owe'"
+              >
+                {{ t('fvoDebtRepay') }}
+              </button>
+              <button
+                type="button"
+                [class.on]="debtDirection === 'owed_to_us'"
+                (click)="debtDirection = 'owed_to_us'"
+              >
+                {{ t('fvoDebtLend') }}
+              </button>
+            }
+          </div>
+        </div>
+      }
+
+      @if (is('partner_deposit')) {
+        <div class="wide fin-field">
+          {{ t('fvoDepositTo') }}
+          <div class="seg" role="group">
+            <button
+              type="button"
+              [class.on]="partnerAccount === 'partners_current'"
+              (click)="partnerAccount = 'partners_current'"
+            >
+              {{ t('fvoPartnersCurrent') }}
+            </button>
+            <button
+              type="button"
+              [class.on]="partnerAccount === 'partners_capital'"
+              (click)="partnerAccount = 'partners_capital'"
+            >
+              {{ t('fvoPartnersCapital') }}
+            </button>
+          </div>
+        </div>
+      }
+
+      @if (is('partner_drawing')) {
+        <div class="wide fin-field">
+          {{ t('fvoDrawingWhat') }}
+          <div class="seg" role="group">
+            <button
+              type="button"
+              [class.on]="classification === 'partner_personal'"
+              (click)="classification = 'partner_personal'"
+            >
+              {{ t('fvoDrawingPersonal') }}
+            </button>
+            <button
+              type="button"
+              [class.on]="classification === 'company_expense'"
+              (click)="classification = 'company_expense'"
+            >
+              {{ t('fvoDrawingCompany') }}
+            </button>
+          </div>
+        </div>
+      }
+
+      <!-- Contractor: an open agreement, when the contractor works by agreements -->
+      @if (contractor() && partyId && (agreements().length || agreementMode())) {
+        <label class="wide"
+          >{{ t('fvoAgreement') }}
+          <select
+            name="agreement"
+            [required]="agreementMode()"
+            [ngModel]="agreementId"
+            (ngModelChange)="setAgreement($event)"
+          >
+            <option [ngValue]="0">
+              {{ agreementMode() ? t('finChoose') : t('fvoNoAgreement') }}
+            </option>
+            @for (row of agreements(); track row.id) {
+              <option [ngValue]="row.id">{{ agreementLabel(row) }}</option>
+            }
+          </select>
+          @if (agreementMode() && !agreements().length) {
+            <small class="soft">{{ t('fvoNoAgreements') }}</small>
+          }
+          @if (agreement(); as row) {
+            @if (positive(row.advances_outstanding) && is('contractor_payment')) {
+              <small class="soft"
+                >{{ t('fvoOpenAdvances') }}
+                <bdi class="num">{{ money(row.advances_outstanding, row.currency_id) }}</bdi></small
+              >
+            }
+          }
+        </label>
+      }
+
+      @if (showProject()) {
+        <label
+          >{{ t('finProject') }}
+          <select name="project" [ngModel]="projectId" (ngModelChange)="setProject($event)">
+            <option [ngValue]="0">
+              {{
+                is('contractor_payment') || otherAccount()?.requires_project
+                  ? t('finChoose')
+                  : custodyIssue()
+                    ? t('fvoGeneralCustody')
+                    : t('finNone')
+              }}
+            </option>
+            @for (project of finance.openProjects(); track project.project_id) {
+              <option [ngValue]="project.project_id">
+                {{ finance.projectName(project.project_id) }}
+              </option>
+            }
+          </select>
+        </label>
+      }
+      @if (showCostCategory()) {
+        <label
+          >{{ t('finCostCategory') }}
+          <select name="costCategory" required [(ngModel)]="costCategoryId">
+            <option [ngValue]="0">{{ t('finChoose') }}</option>
+            @for (item of finance.activeCostCategories(); track item.id) {
+              <option [ngValue]="item.id">{{ item.name }}</option>
+            }
+          </select>
+        </label>
+      }
+      @if (showExpenseCategory()) {
+        <label
+          >{{ t('finExpenseCategory') }}
+          <select name="expenseCategory" required [(ngModel)]="expenseCategoryId">
+            <option [ngValue]="0">{{ t('finChoose') }}</option>
+            @for (item of finance.expenseLeaves(); track item.id) {
+              <option [ngValue]="item.id">{{ item.label }}</option>
+            }
+          </select>
+        </label>
+      }
+
+      <!-- Receipt or payment "other": the account on the other side -->
+      @if (is('other')) {
+        <label class="wide"
+          >{{ type === 'receipt' ? t('fvoCounterIn') : t('fvoCounterOut') }}
+          <select name="account" required [(ngModel)]="accountId">
+            <option [ngValue]="0">{{ t('finChoose') }}</option>
+            @for (group of accountGroups(); track group.label) {
+              <optgroup [label]="group.label">
+                @for (account of group.accounts; track account.id) {
+                  <option [ngValue]="account.id">{{ account.code }} · {{ account.name }}</option>
+                }
+              </optgroup>
+            }
+          </select>
+        </label>
+      }
+
+      <!-- The box, its currency and the amount -->
+      @if (needsBox()) {
+        <label
+          >{{ type === 'transfer' || type === 'exchange' ? t('fvoFromBox') : t('finBox') }}
+          <select name="box" required [ngModel]="boxId" (ngModelChange)="setBox($event)">
+            <option [ngValue]="0">{{ t('finChoose') }}</option>
+            @for (box of boxOptions(); track box.id) {
+              <option [ngValue]="box.id">{{ box.name }}</option>
+            }
+          </select>
+          @if (!boxOptions().length) {
+            <small class="soft">{{ t('fvoNoBoxForCurrency') }}</small>
+          }
+        </label>
+        <label
+          >{{ t('finCurrency') }}
+          <select
+            name="currency"
+            required
+            [ngModel]="currency"
+            (ngModelChange)="setCurrency($event)"
+          >
+            @if (!currencyOptions().length) {
+              <option value="">—</option>
+            }
+            @for (code of currencyOptions(); track code) {
+              <option [value]="code">{{ code }}</option>
+            }
+          </select>
+        </label>
+      } @else if (currency && type !== 'manual_journal') {
+        <p class="fin-hint">
+          {{ t('finCurrency') }}: <bdi class="strong">{{ currency }}</bdi>
+        </p>
+      }
+
+      @if (needsAmount()) {
+        <label
+          >{{ type === 'exchange' ? t('fvoAmountGiven') : t('finAmount') }}
+          <input
+            name="amount"
+            type="number"
+            min="0"
+            step="any"
+            inputmode="decimal"
+            required
+            [ngModel]="amount"
+            (ngModelChange)="setAmount($event)"
+          />
+          @if (type !== 'receipt' && needsBox() && boxBalance(); as row) {
+            <small class="soft"
+              >{{ t('finBalance') }} <bdi class="num">{{ money(row.balance, currency) }}</bdi>
+              @if (row.available !== null) {
+                · {{ t('fvoAvailable') }}
+                <bdi class="num">{{ money(row.available, currency) }}</bdi>
+              }
+            </small>
+          }
+          @if (drawsOnCustody() && custody(); as row) {
+            <small class="soft"
+              >{{ t('fvoCustodyBalance') }}
+              <bdi class="num">{{
+                money(row.balance, row.currency ?? row.currency_id)
+              }}</bdi></small
+            >
+          }
+        </label>
+      }
+
+      <!-- Transfer and exchange: where the money goes -->
+      @if (type === 'transfer' || type === 'exchange') {
+        <label
+          >{{ t('fvoToBox') }}
+          <select name="toBox" required [ngModel]="toBoxId" (ngModelChange)="setToBox($event)">
+            <option [ngValue]="0">{{ t('finChoose') }}</option>
+            @for (box of toBoxOptions(); track box.id) {
+              <option [ngValue]="box.id">{{ box.name }}</option>
+            }
+          </select>
+        </label>
+      }
+      @if (type === 'exchange') {
+        <label
+          >{{ t('fvoToCurrency') }}
+          <select
+            name="toCurrency"
+            required
+            [ngModel]="toCurrency"
+            (ngModelChange)="setToCurrency($event)"
+          >
+            @if (!toCurrencyOptions().length) {
+              <option value="">—</option>
+            }
+            @for (code of toCurrencyOptions(); track code) {
+              <option [value]="code">{{ code }}</option>
+            }
+          </select>
+        </label>
+        <label
+          >{{ t('fvoAmountReceived') }}
+          <input
+            name="counterAmount"
+            type="number"
+            min="0"
+            step="any"
+            inputmode="decimal"
+            [ngModel]="counterAmount"
+            (ngModelChange)="setCounter($event)"
+          />
+        </label>
+        <label
+          >{{ t('finRate') }}
+          <input
+            name="rate"
+            type="number"
+            min="0"
+            step="any"
+            inputmode="decimal"
+            [ngModel]="rate"
+            (ngModelChange)="setRate($event)"
+          />
+          @if (suggested(); as bulletin) {
+            <small class="soft"
+              >{{ t('fvoBulletin') }} <bdi class="num">{{ qtyRate(bulletin) }}</bdi></small
+            >
+          }
+        </label>
+        @if (impliedRate(); as implied) {
+          <p class="fin-hint wide">
+            {{ t('fvoImpliedRate') }} <bdi class="num strong">{{ implied }}</bdi>
+          </p>
+        }
+      }
+
+      <label
+        >{{ t('finDate') }}
+        <input
+          name="date"
+          type="date"
+          required
+          [ngModel]="voucherDate"
+          (ngModelChange)="setDate($event)"
+        />
+      </label>
+
+      @if (hasLines()) {
+        <div class="wide fin-field">
+          {{
+            type === 'manual_journal'
+              ? t('fvoJournalLines')
+              : type === 'custody_settlement'
+                ? t('fvoInvoices')
+                : t('fvoExpenseLines')
+          }}
+          <app-voucher-lines
+            [mode]="type === 'manual_journal' ? 'journal' : 'expense'"
+            [currency]="currency"
+            [more]="more()"
+            [withParty]="type === 'custody_settlement'"
+            [assets]="assets()"
+            [disabled]="busy()"
+            [(lines)]="lines"
+          />
+        </div>
+      }
+
+      <label class="wide"
+        >{{ t('finDescription') }}
+        <input name="description" type="text" maxlength="500" [(ngModel)]="description" />
+      </label>
+
+      <!-- Extra details: rarely needed, so tucked away -->
+      <div class="wide">
+        <button
+          class="link-button"
+          type="button"
+          [attr.aria-expanded]="more()"
+          (click)="toggleMore()"
+        >
+          <i
+            class="fa-solid"
+            [class.fa-chevron-down]="!more()"
+            [class.fa-chevron-up]="more()"
+            aria-hidden="true"
+          ></i>
+          {{ t('fvoMore') }}
+        </button>
+      </div>
+      @if (more()) {
+        <label
+          >{{ t('finReference') }}
+          <input name="reference" type="text" maxlength="60" [(ngModel)]="reference" />
+        </label>
+        @if (optionalParty() && !showParty()) {
+          <label
+            >{{ t('finParty') }}
+            <select name="optionalParty" [(ngModel)]="partyId">
+              <option [ngValue]="0">{{ t('finNone') }}</option>
+              @for (party of finance.partiesWith(); track party.id) {
+                <option [ngValue]="party.id">{{ party.name }}</option>
+              }
+            </select>
+          </label>
+        }
+        @if (is('debt') && hasProjects()) {
+          <label
+            >{{ t('finProject') }}
+            <select name="debtProject" [(ngModel)]="projectId">
+              <option [ngValue]="0">{{ t('finNone') }}</option>
+              @for (project of finance.openProjects(); track project.project_id) {
+                <option [ngValue]="project.project_id">
+                  {{ finance.projectName(project.project_id) }}
+                </option>
+              }
+            </select>
+          </label>
+        }
+        @if (type === 'transfer' || type === 'exchange') {
+          <label
+            >{{ t('fvoFee') }}
+            @if (currency) {
+              <bdi>({{ currency }})</bdi>
+            }
+            <input
+              name="fee"
+              type="number"
+              min="0"
+              step="any"
+              inputmode="decimal"
+              [(ngModel)]="feeAmount"
+            />
+          </label>
+        }
+        @if (is('contractor_payment')) {
+          <label
+            >{{ t('fvoAdvanceDeduction') }}
+            <input
+              name="deduction"
+              type="number"
+              min="0"
+              step="any"
+              inputmode="decimal"
+              [(ngModel)]="advanceDeduction"
+            />
+          </label>
+        }
+        @if (type === 'manual_journal') {
+          <label
+            >{{ t('finBranch') }}
+            <select name="branch" [(ngModel)]="branchId">
+              <option [ngValue]="0">{{ t('fvoBranchAuto') }}</option>
+              @for (branch of finance.branches(); track branch.id) {
+                <option [ngValue]="branch.id">{{ branch.name }}</option>
+              }
+            </select>
+          </label>
+        }
+      }
+
+      <!-- The server's questions, asked in place -->
+      @if (confirmMessage()) {
+        <div class="wide fvo-ask">
+          <p class="fin-warn">
+            <i class="fa-solid fa-circle-question" aria-hidden="true"></i> {{ confirmMessage() }}
+          </p>
+          <div class="fin-actions">
+            <button class="text" type="button" (click)="confirmMessage.set('')">
+              {{ t('finCancel') }}
+            </button>
+            <button class="text" type="button" (click)="confirmExisting()">
+              {{ t('fvoConfirmExisting') }}
+            </button>
+          </div>
+        </div>
+      }
+      @if (overrideMessage()) {
+        <div class="wide fvo-ask">
+          <p class="fin-warn">
+            <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
+            {{ overrideMessage() }}
+          </p>
+          <label class="fin-field"
+            >{{ t('fvoOverrideReason') }}
+            <textarea
+              name="override"
+              rows="2"
+              maxlength="500"
+              required
+              [(ngModel)]="overrideReason"
+            ></textarea>
+          </label>
+        </div>
+      }
+
+      <div class="fin-actions wide">
+        <button class="text" type="button" (click)="closed.emit()">{{ t('finCancel') }}</button>
+        <button class="text" type="button" (click)="send(false)">{{ t('fvoSaveDraft') }}</button>
+        <button class="primary" type="submit">{{ t('fvoSaveApprove') }}</button>
+      </div>
+    </fieldset>
+  </form>
+}

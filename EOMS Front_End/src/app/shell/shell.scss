@@ -7,6 +7,7 @@
   grid-template-columns: var(--rail) minmax(0, 1fr);
   align-items: start;
   min-height: 100dvh;
+  transition: grid-template-columns 320ms ease-out;
 }
 
 /* The rail is a quiet white column; indigo shows the screen you are on and what waits for you. */
@@ -20,6 +21,11 @@
   border-inline-end: 1px solid var(--line);
   padding: 20px 14px 14px;
   padding-bottom: calc(14px + env(safe-area-inset-bottom));
+  transition:
+    width 320ms ease-out,
+    background-color 320ms ease-out,
+    border-color 320ms ease-out,
+    box-shadow 320ms ease-out;
 }
 
 .mark {
@@ -133,6 +139,11 @@
   padding: 0 36px;
   background: var(--surface);
   border-bottom: 1px solid var(--line);
+  transition:
+    height 320ms ease-out,
+    padding 320ms ease-out,
+    opacity 220ms ease-out,
+    border-color 320ms ease-out;
 }
 
 /* The menu button belongs to the bar and only shows where the rail is tucked away. */
@@ -350,6 +361,157 @@
 
   .me-text {
     display: none;
+  }
+}
+
+/* A task board keeps the rail as icons on the side. Hovering an icon slides the names back out; leaving returns to icons. */
+@media (min-width: 901px) {
+  .app.board-focus {
+    grid-template-columns: 72px minmax(0, 1fr);
+    background: var(--board-fill, var(--ground));
+  }
+
+  .app.board-focus .stage {
+    background: var(--board-fill, var(--ground));
+  }
+
+  .app.board-focus .top {
+    height: 0;
+    padding-block: 0;
+    opacity: 0;
+    overflow: hidden;
+    border-bottom-width: 0;
+    pointer-events: none;
+  }
+
+  .app.board-focus .rail {
+    width: 72px;
+    justify-self: start;
+    z-index: 8;
+    padding-inline: 8px;
+    overflow-x: hidden;
+    background: transparent;
+    border-inline-end-color: transparent;
+  }
+
+  .app.board-focus .mark,
+  .app.board-focus .group {
+    max-height: 0;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    opacity: 0;
+    border: 0;
+    transition:
+      max-height 320ms ease-out,
+      opacity 200ms ease-out,
+      margin 320ms ease-out,
+      padding 320ms ease-out;
+  }
+
+  .app.board-focus .nav a > span,
+  .app.board-focus .badge,
+  .app.board-focus .count {
+    max-width: 0;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    opacity: 0;
+    white-space: nowrap;
+    transition:
+      max-width 320ms ease-out,
+      opacity 200ms ease-out,
+      padding 320ms ease-out;
+  }
+
+  .app.board-focus .nav a,
+  .app.board-focus .nav a i {
+    color: #fff;
+  }
+
+  .app.board-focus .nav a {
+    justify-content: center;
+    gap: 0;
+    padding-inline: 0;
+  }
+
+  .app.board-focus .nav a:hover,
+  .app.board-focus .nav a.is-on,
+  .app.board-focus .nav a.is-on i {
+    background: rgb(255 255 255 / 0.18);
+    color: #fff;
+  }
+
+  .app.board-focus .rail:hover,
+  .app.board-focus .rail:focus-within {
+    width: var(--rail);
+    overflow-x: auto;
+    background: var(--surface);
+    border-inline-end-color: var(--line);
+    box-shadow: var(--shadow-pop);
+  }
+
+  .app.board-focus .rail:hover .mark,
+  .app.board-focus .rail:focus-within .mark {
+    max-height: 140px;
+    margin-bottom: 8px;
+    padding: 0 10px 16px;
+    opacity: 1;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .app.board-focus .rail:hover .group,
+  .app.board-focus .rail:focus-within .group {
+    max-height: 48px;
+    margin: 16px 12px 6px;
+    opacity: 1;
+  }
+
+  .app.board-focus .rail:hover .nav a > span,
+  .app.board-focus .rail:focus-within .nav a > span {
+    max-width: 11rem;
+    opacity: 1;
+  }
+
+  .app.board-focus .rail:hover .badge,
+  .app.board-focus .rail:focus-within .badge,
+  .app.board-focus .rail:hover .count,
+  .app.board-focus .rail:focus-within .count {
+    max-width: 4rem;
+    min-width: 22px;
+    padding: 0 7px;
+    opacity: 1;
+  }
+
+  .app.board-focus .rail:hover .nav a,
+  .app.board-focus .rail:focus-within .nav a {
+    justify-content: flex-start;
+    gap: 12px;
+    padding-inline: 12px;
+    color: var(--muted);
+  }
+
+  .app.board-focus .rail:hover .nav a i,
+  .app.board-focus .rail:focus-within .nav a i {
+    color: var(--soft);
+  }
+
+  .app.board-focus .rail:hover .nav a:hover,
+  .app.board-focus .rail:focus-within .nav a:hover {
+    background: var(--hover);
+    color: var(--ink);
+  }
+
+  .app.board-focus .rail:hover .nav a.is-on,
+  .app.board-focus .rail:focus-within .nav a.is-on {
+    background: var(--mark-tint);
+    color: var(--mark-ink);
+  }
+
+  .app.board-focus .rail:hover .nav a.is-on i,
+  .app.board-focus .rail:focus-within .nav a.is-on i {
+    color: var(--mark);
   }
 }
 

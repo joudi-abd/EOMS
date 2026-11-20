@@ -69,7 +69,7 @@
   @if (showWallet()) {
     <label>
       <span>{{ t('wallet') }}</span>
-      <input name="wallet" type="text" autocomplete="off" maxlength="30" dir="ltr" [value]="person()?.wallet ?? ''" />
+      <input name="wallet" type="text" inputmode="numeric" pattern="[0-9]{16}" maxlength="16" autocomplete="off" dir="ltr" [value]="person()?.wallet ?? ''" />
     </label>
   }
   @if (person()) {

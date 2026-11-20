@@ -12,24 +12,11 @@
     } @else {
       <header class="heading">
         <div>
+          <p class="crumb">{{ t('navPeople') }} <i class="fa-solid fa-chevron-left crumb-sep" aria-hidden="true"></i> {{ t('attendance') }}</p>
           <h1>{{ t('attendance') }}</h1>
           <p class="lede">{{ t('ledeAttendance') }}</p>
         </div>
       </header>
-      <div class="facts">
-        <p>
-          <i class="fa-solid fa-clock" aria-hidden="true"></i>
-          <span>
-            {{ t('policyLine') }} {{ t('rangeFrom') }} {{ office.policy().start }} {{ t('rangeTo') }} {{ office.policy().end }} ·
-            {{ t('graceLabel') }} {{ num(office.policy().grace) }} {{ t('minutesUnit') }} ·
-            {{ t('noDeduction') }}
-          </span>
-        </p>
-        <p>
-          <i class="fa-solid fa-fingerprint" aria-hidden="true"></i>
-          <span>{{ t('deviceSource') }} {{ t('lastPunch') }} {{ lastRecord() }}</span>
-        </p>
-      </div>
 
       <nav class="views" [attr.aria-label]="t('reportViews')">
         @for (item of views; track item.id) {

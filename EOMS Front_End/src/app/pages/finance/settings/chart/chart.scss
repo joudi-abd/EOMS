@@ -1,0 +1,36 @@
+/* The chart: role chips, checkbox rows, the role select. */
+
+.fst-chip {
+  display: inline-block;
+  margin-inline-end: 6px;
+  padding: 1px 10px;
+  border-radius: 999px;
+  background: var(--action-tint);
+  color: var(--action-ink);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.fin-form label.fst-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink);
+}
+
+label.fst-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.fst-gap {
+  margin-inline-start: 8px;
+  font-size: 15px;
+}
+
+td select {
+  width: 100%;
+  max-width: 420px;
+}

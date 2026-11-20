@@ -1,0 +1,152 @@
+<div class="fin-toolbar">
+  <div class="seg" role="group" [attr.aria-label]="t('fstTabCategories')">
+    <button type="button" [class.on]="view() === 'expense'" [attr.aria-pressed]="view() === 'expense'" (click)="pick('expense')">{{ t('fstPartExpense') }}</button>
+    @if (mayCost) {
+      <button type="button" [class.on]="view() === 'cost'" [attr.aria-pressed]="view() === 'cost'" (click)="pick('cost')">{{ t('fstPartCost') }}</button>
+    }
+    <button type="button" [class.on]="view() === 'asset'" [attr.aria-pressed]="view() === 'asset'" (click)="pick('asset')">{{ t('fstPartAsset') }}</button>
+  </div>
+  @if (!editing()) {
+    <button class="text" type="button" (click)="startNew()">{{ t('fstNewCategory') }}</button>
+  }
+</div>
+
+@if (editing() && form; as f) {
+  <form class="fin-sheet narrow" (ngSubmit)="submit()">
+    <header>
+      <h2>{{ f.id ? t('fstEditCategory') : t('fstNewCategory') }}</h2>
+      <button class="quiet-x" type="button" (click)="close()" [attr.aria-label]="t('dismiss')"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+    </header>
+    <fieldset class="fin-form" [disabled]="busy()">
+      <label class="wide">{{ t('finName') }}<input name="name" required maxlength="150" [(ngModel)]="f.name" /></label>
+      @if (f.list !== 'cost') {
+        <label class="wide">{{ t('fstParentCategory') }}
+          <select name="parent" [(ngModel)]="f.parent_id">
+            <option [ngValue]="null">{{ t('fstNoParent') }}</option>
+            @for (item of parents(f.list); track item.id) { <option [ngValue]="item.id">{{ item.label }}</option> }
+          </select>
+        </label>
+      }
+      @if (f.list === 'expense') {
+        <label class="wide">{{ t('fstExpenseAccount') }}
+          <select name="account" [(ngModel)]="f.account_id">
+            <option [ngValue]="null">{{ t('finChoose') }}</option>
+            @for (item of expenseAccounts(); track item.id) { <option [ngValue]="item.id">{{ item.code }} · {{ item.name }}</option> }
+          </select>
+        </label>
+        <p class="fin-hint wide">{{ t('fstExpenseAccountHint') }}</p>
+        <label class="fst-check wide"><input name="overhead" type="checkbox" [(ngModel)]="f.is_overhead_allocatable" /> {{ t('fstOverhead') }}</label>
+      }
+      @if (f.list === 'cost') {
+        <label class="fst-check wide"><input name="billable" type="checkbox" [(ngModel)]="f.is_billable" /> {{ t('fstBillable') }}</label>
+        <label>{{ t('fstSort') }}<input name="sort" type="number" min="0" step="1" [(ngModel)]="f.sort" /></label>
+      }
+      <div class="fin-actions wide">
+        <button class="text" type="button" (click)="close()">{{ t('finCancel') }}</button>
+        <button class="primary" type="submit">{{ t('finSave') }}</button>
+      </div>
+    </fieldset>
+  </form>
+}
+
+@switch (view()) {
+  @case ('expense') {
+    <div class="sheet">
+      <table>
+        <thead>
+          <tr>
+            <th>{{ t('finName') }}</th>
+            <th>{{ t('fstExpenseAccount') }}</th>
+            <th>{{ t('fstOverheadShort') }}</th>
+            <th>{{ t('finStatus') }}</th>
+            <th><span class="vh">{{ t('finActions') }}</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (row of expenseRows(); track row.item.id) {
+            <tr>
+              <td [style.padding-inline-start.px]="18 + row.depth * 22" [class.strong]="row.item.children?.length">{{ row.item.name }}</td>
+              <td>@if (row.item.account_code) { <bdi class="num">{{ row.item.account_code }}</bdi> · {{ row.item.account_name }} } @else { <span class="soft">—</span> }</td>
+              <td>{{ row.item.is_overhead_allocatable ? t('fstYes') : '—' }}</td>
+              <td [class]="row.item.is_active ? 'ok' : 'mute'">{{ row.item.is_active ? t('finActive') : t('finInactive') }}</td>
+              <td class="fin-row-actions">
+                @if (row.item.is_active) {
+                  <button class="text small" type="button" (click)="startNew(row.item.id)">{{ t('fstAddChild') }}</button>
+                }
+                <button class="text small" type="button" (click)="editExpense(row.item)">{{ t('finEdit') }}</button>
+                <button [class]="row.item.is_active ? 'quiet small' : 'text small'" type="button" [disabled]="busy()" (click)="toggleExpense(row.item)">
+                  {{ row.item.is_active ? t('finDeactivate') : t('finActivate') }}
+                </button>
+              </td>
+            </tr>
+          } @empty {
+            <tr><td colspan="5" class="empty">{{ t('fstNoCategories') }}</td></tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+  @case ('cost') {
+    <div class="sheet">
+      <table>
+        <thead>
+          <tr>
+            <th class="end">{{ t('fstSort') }}</th>
+            <th>{{ t('finName') }}</th>
+            <th>{{ t('fstBillableShort') }}</th>
+            <th>{{ t('finStatus') }}</th>
+            <th><span class="vh">{{ t('finActions') }}</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (item of costRows(); track item.id) {
+            <tr>
+              <td class="num end">{{ num(item.sort) }}</td>
+              <td>{{ item.name }} @if (item.system_key) { <span class="fst-chip">{{ t('fstSystemItem') }}</span> }</td>
+              <td>{{ item.is_billable ? t('fstYes') : t('fstNo') }}</td>
+              <td [class]="item.is_active ? 'ok' : 'mute'">{{ item.is_active ? t('finActive') : t('finInactive') }}</td>
+              <td class="fin-row-actions">
+                <button class="text small" type="button" (click)="editCost(item)">{{ t('finEdit') }}</button>
+                <button [class]="item.is_active ? 'quiet small' : 'text small'" type="button" [disabled]="busy()" (click)="toggleCost(item)">
+                  {{ item.is_active ? t('finDeactivate') : t('finActivate') }}
+                </button>
+              </td>
+            </tr>
+          } @empty {
+            <tr><td colspan="5" class="empty">{{ t('fstNoCategories') }}</td></tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+  @default {
+    <div class="sheet">
+      <table>
+        <thead>
+          <tr>
+            <th>{{ t('finName') }}</th>
+            <th class="end">{{ t('fstAssetsCount') }}</th>
+            <th><span class="vh">{{ t('finActions') }}</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (row of assetRows(); track row.item.id) {
+            <tr>
+              <td [style.padding-inline-start.px]="18 + row.depth * 22" [class.strong]="row.item.children_count">{{ row.item.name }}</td>
+              <td class="num end">{{ num(row.item.assets_count ?? 0) }}</td>
+              <td class="fin-row-actions">
+                <button class="text small" type="button" (click)="startNew(row.item.id)">{{ t('fstAddChild') }}</button>
+                <button class="text small" type="button" (click)="editAsset(row.item)">{{ t('finEdit') }}</button>
+                @if (emptyAsset(row.item)) {
+                  <button class="quiet small" type="button" [disabled]="busy()" (click)="removeAsset(row.item)">{{ t('finDelete') }}</button>
+                }
+              </td>
+            </tr>
+          } @empty {
+            <tr><td colspan="3" class="empty">{{ t('fstNoCategories') }}</td></tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+}

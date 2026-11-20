@@ -1,0 +1,258 @@
+<form class="fin-sheet" (ngSubmit)="submit()">
+  <header>
+    <h2>{{ t('fstObTitle') }}</h2>
+    <button class="quiet-x" type="button" (click)="closed.emit()" [attr.aria-label]="t('dismiss')"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+  </header>
+  <p class="fin-hint">{{ t('fstObHint') }}</p>
+
+  <fieldset class="fin-form" [disabled]="busy()">
+    <label>{{ t('fstStartDate') }}<input name="obDate" type="date" required [ngModel]="start()" (ngModelChange)="start.set($event)" /></label>
+    <label>{{ t('finBranch') }}
+      <select name="obBranch" [ngModel]="branchId()" (ngModelChange)="branch.set($event)">
+        @for (item of finance.branches(); track item.id) {
+          @if (item.is_active) { <option [ngValue]="item.id">{{ item.name }}</option> }
+        }
+      </select>
+    </label>
+    <label class="wide">{{ t('finDescription') }} <small class="soft">({{ t('finOptional') }})</small>
+      <input name="obDescription" maxlength="500" [(ngModel)]="description" />
+    </label>
+  </fieldset>
+
+  @for (section of sections; track section) {
+    @if (available(section)) {
+      <section class="fst-part" [class.on]="isOpen(section)">
+        <button class="fst-toggle" type="button" [attr.aria-expanded]="isOpen(section)" (click)="toggle(section)">
+          <i class="fa-solid" [class.fa-minus]="isOpen(section)" [class.fa-plus]="!isOpen(section)" aria-hidden="true"></i>
+          <span>{{ t(sectionTitle[section]) }}</span>
+          @if (count(section)) { <bdi class="soft num">{{ num(count(section)) }}</bdi> }
+        </button>
+
+        @if (isOpen(section)) {
+          <p class="fin-hint">{{ t(sectionHint[section]) }}</p>
+          <fieldset [disabled]="busy()">
+            @switch (section) {
+              @case ('boxes') {
+                <div class="fin-lines">
+                  <table>
+                    <thead><tr><th>{{ t('finBox') }}</th><th>{{ t('finCurrency') }}</th><th>{{ t('finBalance') }}</th><th><span class="vh">{{ t('finDelete') }}</span></th></tr></thead>
+                    <tbody>
+                      @for (row of boxes; track $index) {
+                        <tr>
+                          <td>
+                            <select [ngModel]="row.box" (ngModelChange)="pickBox(row, $event)" [ngModelOptions]="{ standalone: true }" [attr.aria-label]="t('finBox')">
+                              <option [ngValue]="null">{{ t('finChoose') }}</option>
+                              @for (item of branchBoxes(); track item.id) { <option [ngValue]="item.id">{{ item.name }}</option> }
+                            </select>
+                          </td>
+                          <td>
+                            <select [(ngModel)]="row.currency" [ngModelOptions]="{ standalone: true }" [attr.aria-label]="t('finCurrency')">
+                              @for (item of box(row.box)?.currencies ?? []; track item.currency_id) { <option [value]="item.code">{{ item.code }}</option> }
+                            </select>
+                          </td>
+                          <td><input type="number" step="any" [(ngModel)]="row.amount" [ngModelOptions]="{ standalone: true }" [attr.aria-label]="t('finBalance')" /></td>
+                          <td><button class="quiet small" type="button" (click)="remove(boxes, $index)">{{ t('finDelete') }}</button></td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+                <div class="fin-actions"><button class="text small" type="button" (click)="add('boxes')">{{ t('fstAddLine') }}</button></div>
+              }
+
+              @case ('projects') {
+                <div class="fin-lines">
+                  <table>
+                    <thead><tr><th>{{ t('finProject') }}</th><th>{{ t('finCurrency') }}</th><th>{{ t('fstObReceipts') }}</th><th>{{ t('fstObBilled') }}</th><th><span class="vh">{{ t('finDelete') }}</span></th></tr></thead>
+                    <tbody>
+                      @for (row of projects; track $index) {
+                        <tr>
+                          <td>
+                            <select [ngModel]="row.project" (ngModelChange)="pickProject(row, $event)" [ngModelOptions]="{ standalone: true }" [attr.aria-label]="t('finProject')">
+                              <option [ngValue]="null">{{ t('finChoose') }}</option>
+                              @for (item of branchProjects(); track item.id) { <option [ngValue]="item.project_id">{{ finance.projectName(item.project_id) }}</option> }
+                            </select>
+                          </td>
+                          <td>
+                            <select [(ngModel)]="row.currency" [ngModelOptions]="{ standalone: true }" [attr.aria-label]="t('finCurrency')">
+                              @for (item of finance.activeCurrencies(); track item.id) { <option [value]="item.code">{{ item.code }}</option> }
+                            </select>
+                          </td>
+                          <td><input type="number" min="0" step="any" [(ngModel)]="row.receipts" [ngModelOptions]="{ standalone: true }" [attr.aria-label]="t('fstObReceipts')" /></td>
+                          <td><input type="number" min="0" step="any" [(ngModel)]="row.billed" [ngModelOptions]="{ standalone: true }" [attr.aria-label]="t('fstObBilled')" /></td>
+                          <td><button class="quiet small" type="button" (click)="remove(projects, $index)">{{ t('finDelete') }}</button></td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+                <div class="fin-actions"><button class="text small" type="button" (click)="add('projects')">{{ t('fstAddLine') }}</button></div>
+
+                <p class="fin-hint">{{ t('fstObCostsHint') }}</p>
+                <div class="fin-lines">
+                  <table>
+                    <thead><tr><th>{{ t('finProject') }}</th><th>{{ t('finCostCategory') }}</th><th>{{ t('finAmount') }}</th><th><span class="vh">{{ t('finDelete') }}</span></th></tr></thead>
+                    <tbody>
+                      @for (row of costs; track $index) {
+                        <tr>
+                          <td>
+                            <select [(ngModel)]="row.project" [ngModelOptions]="{ standalone: true }" [attr.aria-label]="t('finProject')">
+                              <option [ngValue]="null">{{ t('finChoose') }}</option>
+                              @for (item of branchProjects(); track item.id) { <option [ngValue]="item.project_id">{{ finance.projectName(item.project_id) }}</option> }
+                            </select>
+                          </td>
+                          <td>
+                            <select [(ngModel)]="row.category" [ngModelOptions]="{ standalone: true }" [attr.aria-label]="t('finCostCategory')">
+                              <option [ngValue]="null">{{ t('finChoose') }}</option>
+                              @for (item of finance.activeCostCategories(); track item.id) { <option [ngValue]="item.id">{{ item.name }}</option> }
+                            </select>
+                          </td>
+                          <td><input type="number" min="0" step="any" [(ngModel)]="row.amount" [ngModelOptions]="{ standalone: true }" [attr.aria-label]="t('finAmount')" /></td>
+                          <td><button class="quiet small" type="button" (click)="remove(costs, $index)">{{ t('finDelete') }}</button></td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+                <div class="fin-actions"><button class="text small" type="button" (click)="addCost()">{{ t('fstObAddCost') }}</button></div>
+              }
+
+              @case ('agreements') {
+                <div class="fin-lines">
+                  <table>
+                    <thead><tr><th>{{ t('fstObAgreement') }}</th><th>{{ t('fstObPaid') }}</th><th><span class="vh">{{ t('finDelete') }}</span></th></tr></thead>
+                    <tbody>
+                      @for (row of agreementRows; track $index) {
+                        <tr>
+                          <td>
+                            <select [(ngModel)]="row.agreement" [ngModelOptions]="{ standalone: true }" [attr.aria-label]="t('fstObAgreement')">
+                              <option [ngValue]="null">{{ t('finChoose') }}</option>
+                              @for (item of branchAgreements(); track item.id) { <option [ngValue]="item.id">{{ agreementLabel(item) }}</option> }
+                            </select>
+                          </td>
+                          <td>
+                            <input type="number" min="0" step="any" [(ngModel)]="row.paid" [ngModelOptions]="{ standalone: true }" [attr.aria-label]="t('fstObPaid')" />
+                            @if (agreementCurrency(row.agreement)) { <small class="soft"><bdi>{{ agreementCurrency(row.agreement) }}</bdi></small> }
+                          </td>
+                          <td><button class="quiet small" type="button" (click)="remove(agreementRows, $index)">{{ t('finDelete') }}</button></td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+                <div class="fin-actions"><button class="text small" type="button" (click)="add('agreements')">{{ t('fstAddLine') }}</button></div>
+              }
+
+              @case ('employee_advances') {
+                <div class="fin-lines">
+                  <table>
+                    <thead><tr><th>{{ t('finEmployee') }}</th><th>{{ t('finCurrency') }}</th><th>{{ t('fstObRemaining') }}</th><th>{{ t('fstObInstallments') }}</th><th>{{ t('fstObFirstMonth') }}</th><th><span class="vh">{{ t('finDelete') }}</span></th></tr></thead>
+                    <tbody>
+                      @for (row of advances; track $index) {
+                        <tr>
+                          <td>
+                            <select [(ngModel)]="row.employee" [ngModelOptions]="{ standalone: true }" [attr.aria-label]="t('finEmployee')">
+                              <option [ngValue]="null">{{ t('finChoose') }}</option>
+                              @for (item of employees(); track item.id) { <option [ngValue]="item.id">{{ item.name }}</option> }
+                            </select>
+                          </td>
+                          <td>
+                            <select [(ngModel)]="row.currency" [ngModelOptions]="{ standalone: true }" [attr.aria-label]="t('finCurrency')">
+                              @for (item of finance.activeCurrencies(); track item.id) { <option [value]="item.code">{{ item.code }}</option> }
+                            </select>
+                          </td>
+                          <td><input type="number" min="0" step="any" [(ngModel)]="row.remaining" [ngModelOptions]="{ standalone: true }" [attr.aria-label]="t('fstObRemaining')" /></td>
+                          <td><input type="number" min="1" max="120" step="1" [(ngModel)]="row.count" [ngModelOptions]="{ standalone: true }" [attr.aria-label]="t('fstObInstallments')" /></td>
+                          <td><input type="month" [(ngModel)]="row.start" [ngModelOptions]="{ standalone: true }" [attr.aria-label]="t('fstObFirstMonth')" /></td>
+                          <td><button class="quiet small" type="button" (click)="remove(advances, $index)">{{ t('finDelete') }}</button></td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+                <div class="fin-actions"><button class="text small" type="button" (click)="add('employee_advances')">{{ t('fstAddLine') }}</button></div>
+              }
+
+              @case ('custodies') {
+                <div class="fin-lines">
+                  <table>
+                    <thead><tr><th>{{ t('fstObHolder') }}</th><th>{{ t('finProject') }}</th><th>{{ t('finCurrency') }}</th><th>{{ t('finBalance') }}</th><th>{{ t('fstObOpenedOn') }}</th><th><span class="vh">{{ t('finDelete') }}</span></th></tr></thead>
+                    <tbody>
+                      @for (row of custodies; track $index) {
+                        <tr>
+                          <td>
+                            <select [(ngModel)]="row.holder" [ngModelOptions]="{ standalone: true }" [attr.aria-label]="t('fstObHolder')">
+                              <option [ngValue]="null">{{ t('finChoose') }}</option>
+                              @for (item of allParties(); track item.id) { <option [ngValue]="item.id">{{ item.name }}</option> }
+                            </select>
+                          </td>
+                          <td>
+                            <select [(ngModel)]="row.project" [ngModelOptions]="{ standalone: true }" [attr.aria-label]="t('finProject')">
+                              <option [ngValue]="null">{{ t('finNone') }}</option>
+                              @for (item of branchProjects(); track item.id) { <option [ngValue]="item.project_id">{{ finance.projectName(item.project_id) }}</option> }
+                            </select>
+                          </td>
+                          <td>
+                            <select [(ngModel)]="row.currency" [ngModelOptions]="{ standalone: true }" [attr.aria-label]="t('finCurrency')">
+                              @for (item of finance.activeCurrencies(); track item.id) { <option [value]="item.code">{{ item.code }}</option> }
+                            </select>
+                          </td>
+                          <td><input type="number" min="0" step="any" [(ngModel)]="row.balance" [ngModelOptions]="{ standalone: true }" [attr.aria-label]="t('finBalance')" /></td>
+                          <td><input type="date" [(ngModel)]="row.opened" [ngModelOptions]="{ standalone: true }" [attr.aria-label]="t('fstObOpenedOn')" /></td>
+                          <td><button class="quiet small" type="button" (click)="remove(custodies, $index)">{{ t('finDelete') }}</button></td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+                <div class="fin-actions"><button class="text small" type="button" (click)="add('custodies')">{{ t('fstAddLine') }}</button></div>
+              }
+
+              @default {
+                <!-- parties and partners: who, currency, which side, amount -->
+                @let rows = section === 'partners' ? partners : parties;
+                <div class="fin-lines">
+                  <table>
+                    <thead><tr><th>{{ t('finParty') }}</th><th>{{ t('finCurrency') }}</th><th>{{ t('fstObSide') }}</th><th>{{ t('finAmount') }}</th><th><span class="vh">{{ t('finDelete') }}</span></th></tr></thead>
+                    <tbody>
+                      @for (row of rows; track $index) {
+                        <tr>
+                          <td>
+                            <select [(ngModel)]="row.party" [ngModelOptions]="{ standalone: true }" [attr.aria-label]="t('finParty')">
+                              <option [ngValue]="null">{{ t('finChoose') }}</option>
+                              @for (item of section === 'partners' ? partnerParties() : allParties(); track item.id) { <option [ngValue]="item.id">{{ item.name }}</option> }
+                            </select>
+                          </td>
+                          <td>
+                            <select [(ngModel)]="row.currency" [ngModelOptions]="{ standalone: true }" [attr.aria-label]="t('finCurrency')">
+                              @for (item of finance.activeCurrencies(); track item.id) { <option [value]="item.code">{{ item.code }}</option> }
+                            </select>
+                          </td>
+                          <td>
+                            <select [(ngModel)]="row.direction" [ngModelOptions]="{ standalone: true }" [attr.aria-label]="t('fstObSide')">
+                              <option value="owed_to_us">{{ t('finOursSide') }}</option>
+                              <option value="we_owe">{{ t('finTheirsSide') }}</option>
+                            </select>
+                          </td>
+                          <td><input type="number" min="0" step="any" [(ngModel)]="row.amount" [ngModelOptions]="{ standalone: true }" [attr.aria-label]="t('finAmount')" /></td>
+                          <td><button class="quiet small" type="button" (click)="remove(rows, $index)">{{ t('finDelete') }}</button></td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+                <div class="fin-actions"><button class="text small" type="button" (click)="add(section)">{{ t('fstAddLine') }}</button></div>
+              }
+            }
+          </fieldset>
+        }
+      </section>
+    }
+  }
+
+  <p class="fin-hint">{{ t('fstObOnce') }}</p>
+  <div class="fin-actions">
+    <button class="text" type="button" (click)="closed.emit()">{{ t('finCancel') }}</button>
+    <button class="primary" type="submit" [disabled]="busy()">{{ t('fstObPost') }}</button>
+  </div>
+</form>

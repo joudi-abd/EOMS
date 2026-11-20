@@ -41,6 +41,7 @@ export class AccessTable extends Ui {
 
   protected async toggle(account: Account): Promise<void> {
     if (this.locked(account) || this.busy()) return;
+    if (account.enabled && !(await this.askConfirm({ message: 'confirmSensitiveBody', tone: 'danger', confirm: 'confirmProceed' }))) return;
     this.busy.set(account.id);
     await this.office.setEnabled(account.id, !account.enabled, this.session.account().id);
     this.busy.set('');

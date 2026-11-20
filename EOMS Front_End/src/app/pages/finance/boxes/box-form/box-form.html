@@ -1,0 +1,84 @@
+<form class="fin-sheet" (ngSubmit)="submit()">
+  <header>
+    <h2>{{ box() ? t('fbxEditBox') : t('fbxNewBox') }}</h2>
+    <button class="quiet-x" type="button" (click)="closed.emit()" [attr.aria-label]="t('finClose')"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+  </header>
+  <fieldset [disabled]="busy()">
+    <div class="fin-form">
+      <label>{{ t('finName') }}<input name="boxName" required maxlength="150" [(ngModel)]="name" /></label>
+      <label>{{ t('finType') }}
+        <select name="boxType" [(ngModel)]="type">
+          @for (item of types; track item) { <option [ngValue]="item">{{ boxTypeLabel(item) }}</option> }
+        </select>
+      </label>
+      <label>{{ t('finBranch') }}
+        <select name="boxBranch" required [(ngModel)]="branchId">
+          @if (!branchId) { <option [ngValue]="0">{{ t('finChoose') }}</option> }
+          @for (item of branches(); track item.id) { <option [ngValue]="item.id">{{ item.name }}</option> }
+        </select>
+      </label>
+    </div>
+
+    <div class="fin-lines">
+      <table>
+        <thead>
+          <tr>
+            <th>{{ t('finCurrency') }}</th>
+            <th>{{ t('fbxAllowNegative') }}</th>
+            <th>{{ t('fbxNegativeLimit') }}</th>
+            <th><span class="vh">{{ t('finActions') }}</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (row of rows; track $index) {
+            <tr>
+              <td>
+                <select [name]="'cur' + $index" [attr.aria-label]="t('finCurrency')" [disabled]="held(row)" [(ngModel)]="row.currency_id">
+                  @for (item of choices(row); track item.id) { <option [ngValue]="item.id">{{ item.code }} · {{ item.name }}</option> }
+                </select>
+              </td>
+              <td>
+                <label class="fbx-check"><input type="checkbox" [name]="'neg' + $index" [(ngModel)]="row.allow_negative" /> {{ t('fbxAllowed') }}</label>
+              </td>
+              <td>
+                @if (row.allow_negative) {
+                  <input type="number" min="0" step="any" [name]="'limit' + $index" [attr.aria-label]="t('fbxNegativeLimit')" [placeholder]="t('fbxNoLimit')" [(ngModel)]="row.negative_limit" />
+                } @else {
+                  <span class="soft">—</span>
+                }
+              </td>
+              <td class="end">
+                <button class="text small remove" type="button" [disabled]="rows.length < 2 || held(row)" [attr.title]="held(row) ? t('fbxCurrencyHint') : null" (click)="removeRow(row)">{{ t('finDelete') }}</button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    <div class="fbx-row">
+      @if (canAdd()) {
+        <button class="text small" type="button" (click)="addRow()"><i class="fa-solid fa-plus" aria-hidden="true"></i> {{ t('fbxAddCurrency') }}</button>
+      }
+      <p class="fin-hint">{{ t('fbxCurrencyHint') }}</p>
+    </div>
+
+    <button class="link-button" type="button" [attr.aria-expanded]="more()" (click)="more.set(!more())">{{ t('fbxMore') }}</button>
+    @if (more()) {
+      <div class="fin-form">
+        <label>{{ t('fbxCustodian') }}
+          <select name="boxCustodian" [(ngModel)]="custodian">
+            <option [ngValue]="0">{{ t('finNone') }}</option>
+            @if (unlisted()) { <option [ngValue]="custodian">{{ t('fbxCurrentCustodian') }}</option> }
+            @for (item of people(); track item.userId) { <option [ngValue]="item.userId">{{ text(item.name) }}</option> }
+          </select>
+        </label>
+        <label class="wide">{{ t('fbxContact') }}<textarea name="boxContact" rows="2" maxlength="2000" [(ngModel)]="contact"></textarea></label>
+      </div>
+    }
+
+    <div class="fin-actions">
+      <button class="text" type="button" (click)="closed.emit()">{{ t('finCancel') }}</button>
+      <button class="primary" type="submit">{{ t('finSave') }}</button>
+    </div>
+  </fieldset>
+</form>

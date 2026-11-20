@@ -1,0 +1,54 @@
+<form class="fin-sheet" (ngSubmit)="store(true)">
+  <header>
+    <h2>{{ count() ? t('fbxEditCount') : t('fbxNewCount') }}</h2>
+    <button class="quiet-x" type="button" (click)="closed.emit()" [attr.aria-label]="t('finClose')"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+  </header>
+  <fieldset [disabled]="busy()">
+    <div class="fin-form">
+      <label>{{ t('finBox') }}
+        <select name="cBox" required [disabled]="!!count()" [(ngModel)]="boxId" (ngModelChange)="pickBox()">
+          @if (!boxId) { <option [ngValue]="0">{{ t('finChoose') }}</option> }
+          @for (box of boxes(); track box.id) { <option [ngValue]="box.id">{{ box.name }}</option> }
+        </select>
+      </label>
+      <label>{{ t('finDate') }}<input name="cDate" type="date" required [max]="maxDate" [(ngModel)]="countDate" /></label>
+    </div>
+
+    @if (rows.length) {
+      <div class="fin-lines">
+        <table>
+          <thead>
+            <tr>
+              <th>{{ t('finCurrency') }}</th>
+              <th>{{ t('fbxCounted') }}</th>
+              <th>{{ t('fbxExplanation') }} <small class="soft">({{ t('finOptional') }})</small></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of rows; track row.currency_id) {
+              <tr>
+                <td><bdi class="strong">{{ row.code }}</bdi></td>
+                <td><input type="number" step="any" [name]="'counted' + row.currency_id" [attr.aria-label]="t('fbxCounted') + ' ' + row.code" [(ngModel)]="row.counted" /></td>
+                <td><input [name]="'why' + row.currency_id" maxlength="500" [attr.aria-label]="t('fbxExplanation')" [(ngModel)]="row.explanation" /></td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      <p class="fin-hint">{{ t('fbxCountHint') }}</p>
+    } @else if (boxId) {
+      <p class="fin-hint">{{ t('fbxBoxNoCurrency') }}</p>
+    }
+
+    <button class="link-button" type="button" [attr.aria-expanded]="more()" (click)="more.set(!more())">{{ t('fbxMore') }}</button>
+    @if (more()) {
+      <label class="fin-field">{{ t('finNotes') }}<textarea name="cNotes" rows="2" maxlength="1000" [(ngModel)]="notes"></textarea></label>
+    }
+
+    <div class="fin-actions">
+      <button class="text" type="button" (click)="closed.emit()">{{ t('finCancel') }}</button>
+      <button class="text" type="button" (click)="store(false)">{{ t('fbxSaveDraft') }}</button>
+      <button class="primary" type="submit">{{ t('fbxSaveSend') }}</button>
+    </div>
+  </fieldset>
+</form>

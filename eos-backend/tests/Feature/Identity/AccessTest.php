@@ -187,7 +187,7 @@ class AccessTest extends TestCase
         Sanctum::actingAs($this->user([DefaultRoles::ADMIN]));
 
         $created = $this->postJson('/api/v1/access/roles', [
-            'name' => 'site_supervisor', 'label_ar' => 'مشرف موقع', 'label_en' => 'Site supervisor',
+            'name' => 'site_foreman', 'label_ar' => 'رئيس ورشة', 'label_en' => 'Site foreman',
             'grants' => ['tasks.view' => 'all', 'tasks.manage' => 'own', 'employees.view' => 'all'],
         ])->assertCreated()->assertJsonPath('data.kind', 'standard')->json('data');
         $this->assertSame('all', $created['grants']['tasks.view']);
@@ -197,18 +197,18 @@ class AccessTest extends TestCase
         $this->postJson('/api/v1/access/roles', ['name' => 'bad', 'label_ar' => 'س', 'grants' => ['projects.view' => 'all']])
             ->assertUnprocessable(); // not in the catalogue
 
-        $this->patchJson('/api/v1/access/roles/site_supervisor', ['version' => $created['version'], 'grants' => ['tasks.view' => 'own']])
+        $this->patchJson('/api/v1/access/roles/site_foreman', ['version' => $created['version'], 'grants' => ['tasks.view' => 'own']])
             ->assertOk();
-        $this->assertSame(['tasks.view' => 'own'], $this->getJson('/api/v1/access/roles')->collect('data')->firstWhere('name', 'site_supervisor')['grants']);
-        $this->patchJson('/api/v1/access/roles/site_supervisor', ['version' => $created['version'], 'label_ar' => 'قديم'])
+        $this->assertSame(['tasks.view' => 'own'], $this->getJson('/api/v1/access/roles')->collect('data')->firstWhere('name', 'site_foreman')['grants']);
+        $this->patchJson('/api/v1/access/roles/site_foreman', ['version' => $created['version'], 'label_ar' => 'قديم'])
             ->assertConflict();
 
-        $holder = $this->user(['site_supervisor']);
+        $holder = $this->user(['site_foreman']);
         $version = $created['version'] + 1;
-        $this->deleteJson('/api/v1/access/roles/site_supervisor', ['version' => $version])->assertUnprocessable();
+        $this->deleteJson('/api/v1/access/roles/site_foreman', ['version' => $version])->assertUnprocessable();
         $holder->syncRoles(['employee']);
-        $this->deleteJson('/api/v1/access/roles/site_supervisor', ['version' => $version])->assertOk();
-        $this->assertDatabaseMissing('usr_roles', ['name' => 'site_supervisor']);
+        $this->deleteJson('/api/v1/access/roles/site_foreman', ['version' => $version])->assertOk();
+        $this->assertDatabaseMissing('usr_roles', ['name' => 'site_foreman']);
         $this->assertDatabaseHas('usr_audit_logs', ['action' => 'role.deleted']);
     }
 

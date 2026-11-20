@@ -1,0 +1,63 @@
+@if (sheetOpen()) {
+  <app-fin-count-form [count]="editing()" (saved)="saved($event)" (closed)="closeSheet()" />
+}
+
+@if (openId(); as id) {
+  <app-fin-count-detail [countId]="id" (changed)="load(page())" (edit)="edit($event)" (removed)="removed()" />
+}
+
+<form class="filters" (ngSubmit)="load(1)">
+  <label>{{ t('finBox') }}
+    <select name="fBox" [(ngModel)]="filters.box_id" (change)="load(1)">
+      <option [ngValue]="0">{{ t('finAll') }}</option>
+      @for (box of finance.boxes(); track box.id) { <option [ngValue]="box.id">{{ box.name }}</option> }
+    </select>
+  </label>
+  <label>{{ t('finStatus') }}
+    <select name="fStatus" [(ngModel)]="filters.status" (change)="load(1)">
+      <option value="">{{ t('finAll') }}</option>
+      @for (status of statuses; track status) { <option [value]="status">{{ statusLabel(status) }}</option> }
+    </select>
+  </label>
+  <label>{{ t('finFrom') }}<input name="fFrom" type="date" [(ngModel)]="filters.from" (change)="load(1)" /></label>
+  <label>{{ t('finTo') }}<input name="fTo" type="date" [(ngModel)]="filters.to" (change)="load(1)" /></label>
+  @if (filters.box_id || filters.status || filters.from || filters.to) {
+    <div class="fin-filter-actions"><button class="text small" type="button" (click)="reset()">{{ t('finReset') }}</button></div>
+  }
+</form>
+
+@if (loading() && !counts().length) {
+  <p class="empty">{{ t('finLoading') }}</p>
+} @else if (!counts().length) {
+  <p class="empty">{{ t('fbxNoCounts') }}</p>
+} @else {
+  <div class="sheet">
+    <table>
+      <thead>
+        <tr>
+          <th>{{ t('finBox') }}</th>
+          <th>{{ t('finDate') }}</th>
+          <th>{{ t('finStatus') }}</th>
+          <th>{{ t('fbxCountedBy') }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (count of counts(); track count.id) {
+          <tr [class.picked]="openId() === count.id">
+            <td><button class="link-button" type="button" [attr.aria-expanded]="openId() === count.id" (click)="open(count)">{{ finance.boxName(count.cash_box_id) || '—' }}</button></td>
+            <td class="num">{{ short(count.count_date) }}</td>
+            <td [class]="tone(count.status)">{{ statusLabel(count.status) }}</td>
+            <td class="sm">{{ who(count.counted_by) }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+  @if (lastPage() > 1) {
+    <nav class="fin-pager" [attr.aria-label]="t('finPages')">
+      <button class="text small" type="button" [disabled]="page() <= 1 || loading()" (click)="load(page() - 1)">{{ t('finPrev') }}</button>
+      <span class="num">{{ num(page()) }} / {{ num(lastPage()) }}</span>
+      <button class="text small" type="button" [disabled]="page() >= lastPage() || loading()" (click)="load(page() + 1)">{{ t('finNext') }}</button>
+    </nav>
+  }
+}

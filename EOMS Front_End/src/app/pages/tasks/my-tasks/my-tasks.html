@@ -46,12 +46,12 @@
           </td>
           <td><span class="tk-dot" [style.background]="c.board.color || 'var(--action)'" aria-hidden="true"></span> {{ c.board.name }}</td>
           <td>
-            {{ c.list.name }}
+            {{ listLabel(c.list.name) }}
             @if (c.list.kind === 'done') { <span class="wait"> · {{ t('tkKindDone') }}</span> }
           </td>
           <td [class.late]="c.priority === 'urgent'" [class.wait]="c.priority === 'high'">{{ priorityLabel(c.priority) }}</td>
           <td [class.late]="overdue(c)">{{ c.due_date ? short(c.due_date) : t('tkNoDue') }}</td>
-          <td class="end"><a class="text small" [routerLink]="[]" [queryParams]="{ view: null, board: c.board.id, card: c.id }">{{ t('tkOpenInBoard') }}</a></td>
+          <td class="end"><a class="text small" [routerLink]="[]" [queryParams]="{ view: null, board: c.board.id, card: c.id }" queryParamsHandling="merge">{{ t('tkOpenInBoard') }}</a></td>
         </tr>
       }
     </tbody>

@@ -6,6 +6,7 @@ use App\Modules\HR\Models\Employee;
 use App\Modules\HR\Models\EmploymentContract;
 use App\Modules\Identity\Database\Seeders\RolePermissionSeeder;
 use App\Modules\Identity\Models\User;
+use App\Modules\Settings\Database\Seeders\CurrencySeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
@@ -17,7 +18,7 @@ class EmploymentContractTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->seed(RolePermissionSeeder::class);
+        $this->seed([RolePermissionSeeder::class, CurrencySeeder::class]);
     }
 
     private function login(string $role): void

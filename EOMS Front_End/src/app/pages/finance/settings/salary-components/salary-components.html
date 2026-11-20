@@ -1,0 +1,114 @@
+@if (!editing()) {
+  <div class="fin-toolbar"><button class="text" type="button" (click)="startNew()">{{ t('fstNewComponent') }}</button></div>
+}
+
+@if (editing() && form; as f) {
+  <form class="fin-sheet narrow" (ngSubmit)="submit()">
+    <header>
+      <h2>{{ f.id ? t('fstEditComponent') : t('fstNewComponent') }}</h2>
+      <button class="quiet-x" type="button" (click)="close()" [attr.aria-label]="t('dismiss')"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+    </header>
+    @if (f.is_system) { <p class="fin-hint">{{ t('fstSystemComponentHint') }}</p> }
+    <fieldset class="fin-form" [disabled]="busy()">
+      <label>{{ t('finCode') }}
+        <input name="code" required maxlength="30" pattern="[a-z][a-z0-9_]*" [(ngModel)]="f.code" [disabled]="!!f.id" dir="ltr" />
+      </label>
+      <label>{{ t('finName') }}<input name="name" required maxlength="150" [(ngModel)]="f.name" /></label>
+      @if (!f.id) { <p class="fin-hint wide">{{ t('fstCodeHint') }}</p> }
+
+      @if (!f.is_system) {
+        <div class="fin-field">
+          {{ t('fstComponentKind') }}
+          <div class="seg" role="group">
+            <button type="button" [class.on]="f.kind === 'earning'" (click)="f.kind = 'earning'; f.expense_account_id = null">{{ t('fstEarning') }}</button>
+            <button type="button" [class.on]="f.kind === 'deduction'" (click)="f.kind = 'deduction'; f.expense_account_id = null">{{ t('fstDeduction') }}</button>
+          </div>
+        </div>
+        <div class="fin-field">
+          {{ t('fstCalc') }}
+          <div class="seg" role="group">
+            <button type="button" [class.on]="f.calc_method === 'fixed'" (click)="f.calc_method = 'fixed'">{{ t('fstFixed') }}</button>
+            <button type="button" [class.on]="f.calc_method === 'percentage'" (click)="f.calc_method = 'percentage'">{{ t('fstPercentage') }}</button>
+          </div>
+        </div>
+        @if (f.calc_method === 'percentage') {
+          <label>{{ t('fstPercentBase') }}
+            <select name="base" [ngModel]="f.percentage_base" (ngModelChange)="pickBase(f, $event)">
+              <option value="basic_salary">{{ t('fstBaseSalary') }}</option>
+              <option value="project_fee">{{ t('fstBaseProjectFee') }}</option>
+            </select>
+          </label>
+          <label>{{ t('fstPercentValue') }} <small class="soft">({{ t('finOptional') }})</small>
+            <input name="percentage" type="number" min="0" max="100" step="any" [(ngModel)]="f.percentage" />
+          </label>
+        }
+        <label class="fst-check wide">
+          <input name="linked" type="checkbox" [(ngModel)]="f.is_project_linked" [disabled]="f.calc_method === 'percentage' && f.percentage_base === 'project_fee'" />
+          {{ t('fstProjectLinked') }}
+        </label>
+        <label class="fst-check wide">
+          <input name="recurring" type="checkbox" [(ngModel)]="f.is_recurring" [disabled]="f.calc_method === 'percentage' && f.percentage_base === 'project_fee'" />
+          {{ t('fstRecurring') }}
+        </label>
+      }
+
+      <label class="wide">{{ t('fstComponentAccount') }} <small class="soft">({{ t('finOptional') }})</small>
+        <select name="account" [(ngModel)]="f.expense_account_id">
+          <option [ngValue]="null">{{ t('fstDefaultSalaries') }}</option>
+          @for (item of f.kind === 'earning' ? accountsFor().earning : accountsFor().deduction; track item.id) {
+            <option [ngValue]="item.id">{{ item.code }} · {{ item.name }}</option>
+          }
+        </select>
+      </label>
+      @if (f.id && !f.is_system) {
+        <label class="fst-check wide"><input name="active" type="checkbox" [(ngModel)]="f.is_active" /> {{ t('finActive') }}</label>
+      }
+      <div class="fin-actions wide">
+        <button class="text" type="button" (click)="close()">{{ t('finCancel') }}</button>
+        <button class="primary" type="submit">{{ t('finSave') }}</button>
+      </div>
+    </fieldset>
+  </form>
+}
+
+@if (!mayRead) {
+  <p class="empty">{{ t('fstComponentsNoRead') }}</p>
+} @else {
+  <div class="sheet">
+    <table>
+      <thead>
+        <tr>
+          <th>{{ t('finName') }}</th>
+          <th>{{ t('fstComponentKind') }}</th>
+          <th>{{ t('fstCalc') }}</th>
+          <th>{{ t('fstTraits') }}</th>
+          <th>{{ t('finAccount') }}</th>
+          <th>{{ t('finStatus') }}</th>
+          <th><span class="vh">{{ t('finActions') }}</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (item of items(); track item.id) {
+          <tr>
+            <td>
+              <span class="strong">{{ item.name }}</span>
+              <bdi class="soft code">{{ item.code }}</bdi>
+            </td>
+            <td>{{ item.kind === 'earning' ? t('fstEarning') : t('fstDeduction') }}</td>
+            <td>{{ method(item) }}</td>
+            <td>
+              @if (item.is_system) { <span class="fst-chip">{{ t('fstSystemItem') }}</span> }
+              @if (item.is_project_linked) { <span class="fst-chip">{{ t('fstProjectLinkedShort') }}</span> }
+              @if (item.is_recurring) { <span class="fst-chip">{{ t('fstRecurringShort') }}</span> }
+            </td>
+            <td>{{ item.expense_account_id ? finance.accountLabel(item.expense_account_id) : t('fstDefaultSalaries') }}</td>
+            <td [class]="item.is_active ? 'ok' : 'mute'">{{ item.is_active ? t('finActive') : t('finInactive') }}</td>
+            <td class="fin-row-actions"><button class="text small" type="button" (click)="edit(item)">{{ t('finEdit') }}</button></td>
+          </tr>
+        } @empty {
+          <tr><td colspan="7" class="empty">{{ loaded() ? t('fstNoComponents') : t('finLoading') }}</td></tr>
+        }
+      </tbody>
+    </table>
+  </div>
+}

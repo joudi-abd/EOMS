@@ -69,8 +69,10 @@ export class RequestFile extends Ui {
     }
   }
 
-  protected decide(approve: boolean): void {
+  protected async decide(approve: boolean): Promise<void> {
     const row = this.row();
-    if (row) this.office.decideRequest(row.id, this.session.account().id, approve);
+    if (!row) return;
+    if (!(await this.askConfirm({ message: 'confirmSensitiveBody', tone: approve ? 'action' : 'danger', confirm: 'confirmProceed' }))) return;
+    this.office.decideRequest(row.id, this.session.account().id, approve);
   }
 }

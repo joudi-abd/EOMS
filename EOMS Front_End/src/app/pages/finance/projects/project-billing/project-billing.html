@@ -1,0 +1,79 @@
+@if (suggestion(); as s) {
+  <section class="panel">
+    <div class="panel-head">
+      <div>
+        <h2>{{ t('fpjSuggested') }}</h2>
+        <p>{{ t('fpjAsOf') }} {{ date(s.date) }}</p>
+      </div>
+      @if (mayWrite() && !creating()) {
+        <button class="primary" type="button" (click)="startNew()">{{ t('fpjNewBilling') }}</button>
+      }
+    </div>
+    <p class="fpj-big">
+      <bdi class="num">{{ s.suggested !== null ? money(s.suggested, s.currency) : t('fpjManual') }}</bdi>
+    </p>
+    <p class="fin-hint">{{ explain(s) }}</p>
+    @if (positive(s.available_advances)) {
+      <p class="fin-hint">{{ t('fpjAdvancesFirst') }} <bdi class="strong">{{ money(s.available_advances, s.currency) }}</bdi></p>
+    }
+  </section>
+} @else if (mayWrite() && !creating() && !loading()) {
+  <div class="fin-toolbar"><button class="text" type="button" (click)="startNew()">{{ t('fpjNewBilling') }}</button></div>
+}
+
+@if (creating()) {
+  <form class="fin-sheet narrow" (ngSubmit)="submit()">
+    <header>
+      <h2>{{ t('fpjNewBilling') }}</h2>
+      <button class="quiet-x" type="button" (click)="creating.set(false)" [attr.aria-label]="t('finClose')"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+    </header>
+    <fieldset class="fin-form" [disabled]="busy()">
+      <label>{{ t('finAmount') }} <bdi>({{ file().contract_currency }})</bdi>
+        <input name="amount" type="number" min="0" step="any" required [max]="suggestion()?.max ?? null" [(ngModel)]="billAmount" />
+      </label>
+      <label>{{ t('finDate') }}<input name="date" type="date" required [(ngModel)]="billDate" /></label>
+      <div class="wide">
+        <button class="text small" type="button" [attr.aria-expanded]="more()" (click)="more.set(!more())">
+          <i class="fa-solid" [class.fa-chevron-down]="!more()" [class.fa-chevron-up]="more()" aria-hidden="true"></i> {{ t('fpjMore') }}
+        </button>
+      </div>
+      @if (more()) {
+        <label class="wide">{{ t('finDescription') }}<input name="description" maxlength="500" [(ngModel)]="description" /></label>
+        <label>{{ t('finReference') }}<input name="reference" maxlength="60" [(ngModel)]="reference" /></label>
+        <label class="fpj-check"><input name="approve" type="checkbox" [(ngModel)]="approve" /> {{ t('fpjApproveNow') }}</label>
+      }
+      <p class="fin-hint wide">{{ t('fpjBillingHint') }}</p>
+      <div class="fin-actions wide">
+        <button class="text" type="button" (click)="creating.set(false)">{{ t('finCancel') }}</button>
+        <button class="primary" type="submit" [disabled]="!billAmount">{{ t('fpjIssueBilling') }}</button>
+      </div>
+    </fieldset>
+  </form>
+}
+
+<div class="sheet">
+  <table>
+    <thead>
+      <tr>
+        <th>{{ t('finNumber') }}</th>
+        <th>{{ t('finDate') }}</th>
+        <th class="end">{{ t('finAmount') }}</th>
+        <th>{{ t('finStatus') }}</th>
+        <th>{{ t('finDescription') }}</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (row of billings(); track row.id) {
+        <tr>
+          <td><a class="name" routerLink="/modules/finVouchers" [queryParams]="{ id: row.id }"><bdi>{{ row.display_number ?? row.number ?? '#' + row.id }}</bdi></a></td>
+          <td>{{ short(row.voucher_date) }}</td>
+          <td class="num end"><bdi>{{ money(row.amount, row.currency_id) }}</bdi></td>
+          <td><span [class]="tone(row.status)">{{ statusLabel(row.status) }}</span></td>
+          <td class="sm">{{ row.description ?? '' }}</td>
+        </tr>
+      } @empty {
+        <tr><td colspan="5" class="soft">{{ loading() ? t('finLoading') : t('fpjNoBillings') }}</td></tr>
+      }
+    </tbody>
+  </table>
+</div>

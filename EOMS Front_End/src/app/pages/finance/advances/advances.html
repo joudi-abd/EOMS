@@ -1,0 +1,48 @@
+<main class="work" id="content">
+  @if (!allowed()) {
+    <h1>{{ t('finAdvances') }}</h1>
+    <p class="empty">{{ t('finNoAccess') }}</p>
+  } @else {
+    <app-notice />
+    <header class="heading">
+      <div>
+        <h1>{{ t('finAdvances') }}</h1>
+        <p class="lede">{{ t('ledeFinAdvances') }}</p>
+      </div>
+      @if (mayVoucher()) {
+        <div class="actions">
+          @if (view() === 'advances') {
+            <a class="primary" routerLink="/modules/finVouchers" [queryParams]="{ new: 'advance_issue' }">
+              <i class="fa-solid fa-plus" aria-hidden="true"></i> {{ t('fadNewAdvance') }}
+            </a>
+          } @else {
+            <a class="primary" routerLink="/modules/finVouchers" [queryParams]="{ new: 'custody_issue' }">
+              <i class="fa-solid fa-plus" aria-hidden="true"></i> {{ t('fadIssueCustody') }}
+            </a>
+          }
+        </div>
+      }
+    </header>
+    <nav class="tabs" [attr.aria-label]="t('finAdvances')">
+      <a [routerLink]="[]" [queryParams]="{ view: null, id: null }" [class.active]="view() === 'advances'" [attr.aria-current]="view() === 'advances' ? 'page' : null">
+        {{ t('fadTabAdvances') }}
+      </a>
+      <a [routerLink]="[]" [queryParams]="{ view: 'custody', id: null }" [class.active]="view() === 'custody'" [attr.aria-current]="view() === 'custody' ? 'page' : null">
+        {{ t('fadTabCustody') }}
+      </a>
+    </nav>
+    @if (view() === 'advances') {
+      @if (id()) {
+        <app-fin-advance-detail [id]="id()" />
+      } @else {
+        <app-fin-advance-list />
+      }
+    } @else {
+      @if (id()) {
+        <app-fin-custody-detail [id]="id()" />
+      } @else {
+        <app-fin-custody-list />
+      }
+    }
+  }
+</main>

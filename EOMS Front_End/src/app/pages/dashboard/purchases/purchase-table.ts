@@ -29,7 +29,8 @@ export class PurchaseTable extends Ui {
     form.reset();
   }
 
-  protected decide(id: string, approve: boolean): void {
+  protected async decide(id: string, approve: boolean): Promise<void> {
+    if (!(await this.askConfirm({ message: 'confirmSensitiveBody', tone: approve ? 'action' : 'danger', confirm: 'confirmProceed' }))) return;
     const actor = this.session.account().id;
     if (approve) this.office.approvePurchase(id, actor);
     else this.office.rejectPurchase(id, actor);

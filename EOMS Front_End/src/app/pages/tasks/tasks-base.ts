@@ -28,8 +28,36 @@ export const priorityKey: Record<Priority, CopyKey> = {
 
 export const dayKeys: CopyKey[] = ['tkDay0', 'tkDay1', 'tkDay2', 'tkDay3', 'tkDay4', 'tkDay5', 'tkDay6'];
 
-/** The colours offered for boards and labels; the server accepts any `#rrggbb`. */
-export const swatches = ['#2f6f9f', '#3f8f5f', '#b7791f', '#c0392b', '#7b5ea7', '#1f8a8a', '#8a6d3b', '#5f6b7a'];
+/** The four lists a new board starts with. Their stored names are Arabic; English reads the matching label. */
+const stockLists: Record<string, CopyKey> = {
+  'للقيام': 'tkListTodo',
+  'قيد التنفيذ': 'tkListDoing',
+  'منجز': 'tkListDone',
+  'منتهية': 'tkListDoneColumn',
+};
+
+/** Board and label colours. Each one keeps white text at 4.5:1 or better. The server accepts any `#rrggbb`. */
+export const swatches = ['#2f6f9f', '#398256', '#9f691b', '#c0392b', '#7b5ea7', '#1d8080', '#8a6d3b', '#5f6b7a'];
+
+/** Darkens a stored colour until white text on it reaches 4.5:1. The hue stays the same. */
+export function readableBoard(color: string | null | undefined): string {
+  const raw = /^#[0-9a-fA-F]{6}$/.test(color ?? '') ? (color as string) : swatches[0];
+  let [r, g, b] = [1, 3, 5].map((i) => parseInt(raw.slice(i, i + 2), 16));
+  const whiteOn = (rr: number, gg: number, bb: number) => {
+    const channel = (c: number) => {
+      const x = c / 255;
+      return x <= 0.04045 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4;
+    };
+    const lum = 0.2126 * channel(rr) + 0.7152 * channel(gg) + 0.0722 * channel(bb);
+    return 1.05 / (lum + 0.05);
+  };
+  for (let step = 0; step < 40 && whiteOn(r, g, b) < 4.6; step++) {
+    r = Math.round(r * 0.96);
+    g = Math.round(g * 0.96);
+    b = Math.round(b * 0.96);
+  }
+  return `#${[r, g, b].map((n) => n.toString(16).padStart(2, '0')).join('')}`;
+}
 
 /** Shared helpers for the task screens: wording for types, roles and priorities, and one way to run a server action. */
 @Directive()
@@ -39,6 +67,7 @@ export abstract class TasksBase extends Ui {
   protected readonly office = inject(Office);
   protected readonly busy = signal(false);
   protected readonly swatches = swatches;
+  protected readonly readable = readableBoard;
 
   protected get me(): number {
     return this.session.account().userId;
@@ -47,6 +76,12 @@ export abstract class TasksBase extends Ui {
   /** Avatar initials for a plain name (the server sends names as one string). */
   protected ini(name: string): string {
     return this.initials({ ar: name, en: name });
+  }
+
+  /** A list title. A renamed list keeps the name its owner wrote; a stock list follows the interface language. */
+  protected listLabel(name: string): string {
+    const key = stockLists[name];
+    return key ? this.t(key) : name;
   }
 
   protected typeLabel(type: BoardType): string {

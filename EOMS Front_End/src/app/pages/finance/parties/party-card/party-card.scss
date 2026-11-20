@@ -1,0 +1,43 @@
+/* One party: balances, facts, statement. Roles are small neutral chips, as in the list. */
+
+.summary {
+  margin: 0;
+}
+
+.panel {
+  display: grid;
+  gap: 14px;
+}
+
+.panel-head {
+  margin: 0;
+}
+
+.fpa-roles {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.fpa-role {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: var(--hover);
+  color: var(--muted);
+  font-size: 15px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.fpa-currency {
+  margin: 4px 0 0;
+  font-size: 17px;
+}
+
+/* The side word (لنا / علينا) sits after the figure; Angular drops the space between the two elements. */
+td.end bdi + small {
+  margin-inline-start: 6px;
+}

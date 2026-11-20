@@ -55,7 +55,10 @@ function setup(initial = empty) {
   TestBed.configureTestingModule({
     providers: [
       { provide: Api, useValue: { get, all, post } },
-      { provide: Office, useValue: { done: vi.fn(), fail: vi.fn(() => ({})), refreshEmployee } },
+      {
+        provide: Office,
+        useValue: { done: vi.fn(), fail: vi.fn(() => ({})), refreshEmployee, person: () => undefined },
+      },
     ],
   });
   return {
@@ -173,13 +176,58 @@ describe('Enrollment integration', () => {
     expect(all).not.toHaveBeenCalled();
     expect(service.bindings()).toEqual([]);
   });
-  it('does not resume a retired PIN binding after a return to service', async () => {
-    const { service, all } = setup(view('awaiting_physical_verification'));
-    const retired = { id: 2, employee_id: 1, device_user_id: '00900002', valid_from: '2020-01-01', valid_to: null, revoked_from: '2020-02-01' };
-    all.mockResolvedValueOnce([retired]);
+  it('does not resume a retired PIN binding and auto-links a new device user id', async () => {
+    const { service, all, post } = setup();
+    const retired = {
+      id: 2,
+      employee_id: 1,
+      device_user_id: '00900002',
+      valid_from: '2020-01-01',
+      valid_to: null,
+      revoked_from: '2020-02-01',
+    };
+    const linked = {
+      id: 9,
+      employee_id: 1,
+      device_user_id: '900003',
+      valid_from: '2020-03-01',
+      valid_to: null,
+    };
+    all
+      .mockResolvedValueOnce([retired])
+      .mockResolvedValueOnce([retired])
+      .mockResolvedValueOnce([retired, linked]);
+    post.mockResolvedValueOnce({ data: empty });
     await service.open('1');
-    expect(service.bindings()).toEqual([]);
+    expect(post).toHaveBeenCalledWith('/attendance/devices/1/bindings', {
+      employee_id: 1,
+      device_user_id: '900003',
+      valid_from: expect.any(String),
+    });
+    expect(service.bindings()).toEqual([
+      expect.objectContaining({ id: 9, pin: '900003' }),
+    ]);
     expect(service.status().state).toBe('none');
+  });
+
+  it('assigns device user id 1000 when auto-linking the first employee', async () => {
+    const { service, all, post } = setup();
+    const linked = {
+      id: 9,
+      employee_id: 1,
+      device_user_id: '1000',
+      valid_from: '2020-03-01',
+      valid_to: null,
+    };
+    all.mockResolvedValueOnce([]).mockResolvedValueOnce([]).mockResolvedValueOnce([linked]);
+    post.mockResolvedValueOnce({ data: empty });
+    await service.open('1');
+    expect(post).toHaveBeenCalledWith('/attendance/devices/1/bindings', {
+      employee_id: 1,
+      device_user_id: '1000',
+      valid_from: expect.any(String),
+    });
+    expect(service.bindings()[0]?.pin).toBe('1000');
   });
 
 });

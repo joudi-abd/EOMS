@@ -68,6 +68,7 @@ export class SettingsList extends Ui {
   protected async remove(id: string): Promise<void> {
     const list = this.list();
     if (list !== 'departments' && list !== 'titles') return;
+    if (!(await this.askDelete())) return;
     await this.run(() => this.office.removeNamed(list, id, this.session.account().id));
   }
 

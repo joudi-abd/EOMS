@@ -1,0 +1,33 @@
+<form class="fin-sheet narrow" (submit)="$event.preventDefault(); run()">
+  <header>
+    <h2>{{ t('fpaImportTitle') }}</h2>
+    <button class="quiet-x" type="button" (click)="closed.emit()" [attr.aria-label]="t('finClose')"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+  </header>
+  <p class="fin-hint">{{ t('fpaImportHint') }} <code dir="ltr">name,phone,role,trade</code></p>
+  <p class="fin-hint">{{ t('fpaImportRoles') }}</p>
+  <p class="fin-hint">{{ t('fpaImportMatch') }}</p>
+  <fieldset class="fin-form" [disabled]="busy()">
+    <label class="wide">{{ t('fpaFile') }}<input name="file" type="file" accept=".csv,text/csv,text/plain" (change)="chose($event)" /></label>
+    <div class="fin-actions wide">
+      <button class="text" type="button" (click)="closed.emit()">{{ t('finClose') }}</button>
+      <button class="primary" type="submit" [disabled]="!file()">{{ t('fpaImportRun') }}</button>
+    </div>
+  </fieldset>
+
+  @if (result(); as r) {
+    <p class="fpa-done">
+      <i class="fa-solid fa-check" aria-hidden="true"></i>
+      {{ t('fpaImportCreated') }} <bdi class="strong">{{ num(r.created) }}</bdi> ·
+      {{ t('fpaImportUpdated') }} <bdi class="strong">{{ num(r.updated) }}</bdi> ·
+      {{ t('fpaImportSkipped') }} <bdi class="strong">{{ num(r.skipped) }}</bdi>
+    </p>
+  }
+  @if (errors().length) {
+    <div class="fin-warn fpa-errors" role="alert">
+      <p>{{ t('fpaImportErrors') }}</p>
+      <ul>
+        @for (line of errors(); track $index) { <li>{{ line }}</li> }
+      </ul>
+    </div>
+  }
+</form>

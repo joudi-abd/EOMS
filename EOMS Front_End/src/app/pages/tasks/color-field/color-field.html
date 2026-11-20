@@ -1,0 +1,18 @@
+<div class="tk-color">
+  <span class="tk-label">{{ label() }}</span>
+  <div class="tk-swatches" role="radiogroup" [attr.aria-label]="label()">
+    @for (c of swatches(); track c) {
+      <button type="button" role="radio" [attr.aria-checked]="hex() === c.toLowerCase()" [class.on]="hex() === c.toLowerCase()" [style.background]="c" [attr.aria-label]="c" (click)="choose(c)"></button>
+    }
+    <button class="tk-palette" type="button" [class.on]="custom()" [attr.aria-label]="t('tkPickColor')" (click)="picker.click()">
+      <i class="fa-solid fa-palette" aria-hidden="true"></i>
+    </button>
+    <input #picker class="tk-picker" type="color" [value]="hex()" tabindex="-1" [attr.aria-label]="t('tkPickColor')" (input)="choose($any($event.target).value)" />
+  </div>
+  @if (custom()) {
+    <div class="tk-custom">
+      <span class="tk-custom-name">{{ t('tkCustomColor') }}</span>
+      <span class="tk-chosen" [style.background]="hex()" role="img" [attr.aria-label]="hex()"></span>
+    </div>
+  }
+</div>

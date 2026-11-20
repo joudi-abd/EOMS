@@ -1,0 +1,50 @@
+@if (totals().length) {
+  <section class="summary" [attr.aria-label]="t('fovLiquidity')">
+    @for (item of totals(); track item.code) {
+      <p>
+        <span>{{ t('fovLiquidity') }} · <bdi>{{ item.code }}</bdi></span>
+        <strong [class.late]="negative(item.total)"><bdi class="num">{{ figure(item.total, item.code) }}</bdi></strong>
+      </p>
+    }
+  </section>
+}
+
+@if (alerts().length) {
+  <section class="panel">
+    <div class="panel-head"><div><h2>{{ t('fovAttention') }}</h2></div></div>
+    <ul class="fin-list">
+      @for (item of alerts(); track item.box.id + item.row.code) {
+        <li>
+          <a routerLink="/modules/finBoxes" [queryParams]="{ id: item.box.id }">{{ item.box.name }}</a>
+          <span [class]="item.row.near_limit ? 'wait' : 'late'">{{ item.row.near_limit ? t('fovNearLimit') : t('fovNegative') }}</span>
+          <bdi class="num end late">{{ money(item.row.balance, item.row.code) }}</bdi>
+        </li>
+      }
+    </ul>
+  </section>
+}
+
+<section class="panel">
+  <div class="panel-head"><div><h2>{{ t('finBoxes') }}</h2></div><a class="text small" routerLink="/modules/finBoxes">{{ t('finOpen') }}</a></div>
+  @if (loading() && !finance.boxes().length) {
+    <p class="empty">{{ t('finLoading') }}</p>
+  } @else {
+    <ul class="fin-list">
+      @for (box of finance.activeBoxes(); track box.id) {
+        <li>
+          <span>
+            <a routerLink="/modules/finBoxes" [queryParams]="{ id: box.id }">{{ box.name }}</a>
+            <small class="soft block-line">{{ boxTypeLabel(box.type) }} · {{ finance.branchName(box.branch_id) || '—' }}</small>
+          </span>
+          <span class="end">
+            @for (row of box.currencies; track row.currency_id) {
+              <bdi class="num block-line" [class.late]="row.negative">{{ money(row.balance, row.code) }}</bdi>
+            }
+          </span>
+        </li>
+      } @empty {
+        <li class="soft">{{ t('finNoBoxes') }}</li>
+      }
+    </ul>
+  }
+</section>

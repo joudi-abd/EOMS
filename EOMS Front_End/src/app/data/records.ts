@@ -1,5 +1,5 @@
 import { effect, inject, Injectable, signal, untracked, WritableSignal } from '@angular/core';
-import { Api, statusOf } from '../core/api/api';
+import { Api, saveFile, statusOf } from '../core/api/api';
 import { Auth } from '../core/api/auth';
 import { ApiContract, ApiContractStatus, ApiContractType, ApiCurrency, ApiDocument, ApiItem, ApiJobChange } from '../core/api/types';
 import { CopyKey } from '../core/copy';
@@ -242,13 +242,7 @@ export class Records {
 
   async download(employeeId: string, document: EmployeeDocument): Promise<void> {
     try {
-      const blob = await this.file(employeeId, document.id);
-      const url = URL.createObjectURL(blob);
-      const link = globalThis.document.createElement('a');
-      link.href = url;
-      link.download = document.fileName;
-      link.click();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      saveFile(await this.file(employeeId, document.id), document.fileName);
     } catch (error) {
       this.office.fail(error);
     }

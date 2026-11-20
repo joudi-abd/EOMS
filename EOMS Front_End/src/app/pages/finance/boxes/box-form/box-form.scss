@@ -1,0 +1,16 @@
+/* The box sheet: inline checkboxes in the currency table and the add-row line. */
+
+.fbx-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.fbx-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}

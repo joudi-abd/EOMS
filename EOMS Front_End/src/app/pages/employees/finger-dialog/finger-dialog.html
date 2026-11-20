@@ -96,20 +96,23 @@
 
   @if (state() === 'none' && enrollment.available() && enrollment.bindings().length > 0) {
     <form class="setup" (submit)="begin($event)">
-      <label>
-        <span>{{ t('enrollDevice') }}</span>
-        <select name="binding" required>
-          @for (binding of enrollment.bindings(); track binding.id) {
-            <option [value]="binding.id">{{ binding.deviceName }} · {{ binding.pin }}</option>
-          }
-        </select>
-      </label>
+      @if (enrollment.bindings().length === 1) {
+        <input type="hidden" name="binding" [value]="enrollment.bindings()[0].id" />
+      } @else {
+        <label>
+          <span>{{ t('enrollDevice') }}</span>
+          <select name="binding" required>
+            @for (binding of enrollment.bindings(); track binding.id) {
+              <option [value]="binding.id">{{ binding.deviceName }} · {{ binding.pin }}</option>
+            }
+          </select>
+        </label>
+      }
       <label>
         <span>{{ t('enrollFinger') }}</span>
         <select name="finger" required>
-          @for (finger of [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]; track finger) {
-            <option [value]="finger">{{ num(finger) }}</option>
-          }
+          <option value="4" selected>{{ t('enrollFingerLeftThumb') }}</option>
+          <option value="5">{{ t('enrollFingerRightThumb') }}</option>
         </select>
       </label>
       <label class="check">
@@ -125,10 +128,6 @@
 
   @if (state() === 'verify') {
     <form class="setup" (submit)="confirmTest($event)">
-      <label>
-        <span>{{ t('enrollVerify') }}</span>
-        <input name="note" type="text" autocomplete="off" minlength="5" required />
-      </label>
       <button class="primary" type="submit" [disabled]="enrollment.saving()">
         <i class="fa-solid fa-check" aria-hidden="true"></i>
         {{ t('enrollConfirm') }}

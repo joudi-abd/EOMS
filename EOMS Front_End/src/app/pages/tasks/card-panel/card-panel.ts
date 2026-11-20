@@ -176,7 +176,8 @@ export class CardPanel extends TasksBase {
   }
 
   protected listName(listId: unknown): string {
-    return this.lists().find((row) => row.id === Number(listId))?.name ?? '—';
+    const name = this.lists().find((row) => row.id === Number(listId))?.name;
+    return name ? this.listLabel(name) : '—';
   }
 
   // ── Fields ────────────────────────────────────────────────────────────────
@@ -258,7 +259,8 @@ export class CardPanel extends TasksBase {
     if (done) void this.move(done.id, 'bottom');
   }
 
-  protected approve(): void {
+  protected async approve(): Promise<void> {
+    if (!(await this.askConfirm({ message: 'confirmSensitiveBody', confirm: 'confirmProceed' }))) return;
     void this.apply(() => this.tasks.approve(this.cardId()), 'tkDone');
   }
 
@@ -276,6 +278,7 @@ export class CardPanel extends TasksBase {
   }
 
   protected async archive(archived: boolean): Promise<void> {
+    if (archived && !(await this.askConfirm({ message: 'confirmSensitiveBody', confirm: 'confirmProceed' }))) return;
     if (await this.apply(() => this.tasks.archiveCard(this.cardId(), archived), archived ? 'tkDone' : 'tkRestoredCard')) {
       if (archived) this.closed.emit();
     }
@@ -331,7 +334,8 @@ export class CardPanel extends TasksBase {
     if (title && (await this.touch(() => this.tasks.addChecklist(this.cardId(), title)))) this.newChecklist = '';
   }
 
-  protected deleteChecklist(list: Checklist): void {
+  protected async deleteChecklist(list: Checklist): Promise<void> {
+    if (!(await this.askDelete())) return;
     void this.touch(() => this.tasks.deleteChecklist(list.id));
   }
 
@@ -344,7 +348,8 @@ export class CardPanel extends TasksBase {
     void this.touch(() => this.tasks.updateItem(itemId, { done }));
   }
 
-  protected deleteItem(itemId: number): void {
+  protected async deleteItem(itemId: number): Promise<void> {
+    if (!(await this.askDelete())) return;
     void this.touch(() => this.tasks.deleteItem(itemId));
   }
 
@@ -385,7 +390,8 @@ export class CardPanel extends TasksBase {
     if (await this.touch(() => this.tasks.editComment(row.id, body))) this.editingComment = 0;
   }
 
-  protected deleteComment(row: CommentRow): void {
+  protected async deleteComment(row: CommentRow): Promise<void> {
+    if (!(await this.askDelete())) return;
     void this.touch(() => this.tasks.deleteComment(row.id));
   }
 
@@ -408,7 +414,8 @@ export class CardPanel extends TasksBase {
     if (blob) saveFile(blob, row.original_name);
   }
 
-  protected detach(row: AttachmentRow): void {
+  protected async detach(row: AttachmentRow): Promise<void> {
+    if (!(await this.askDelete('confirmRemoveBody'))) return;
     void this.touch(() => this.tasks.detach(row.id));
   }
 

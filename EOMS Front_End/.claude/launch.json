@@ -1,0 +1,28 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "backend",
+      "runtimeExecutable": "php",
+      "runtimeArgs": [
+        "../eos-backend/artisan",
+        "serve",
+        "--host=127.0.0.1",
+        "--port=8088"
+      ],
+      "port": 8088
+    },
+    {
+      "name": "frontend",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "ng",
+        "serve",
+        "--port",
+        "4200"
+      ],
+      "port": 4200,
+      "url": "http://localhost:4200"
+    }
+  ]
+}

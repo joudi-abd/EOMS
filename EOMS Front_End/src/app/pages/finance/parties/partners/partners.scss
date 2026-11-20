@@ -1,0 +1,42 @@
+/* Partners: the shares table, the total line, and the sheet that edits several shares at once. */
+
+.fpa-total {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+}
+
+.fin-form .fpa-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  color: var(--ink);
+}
+
+.fpa-others {
+  display: grid;
+  gap: 8px;
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.fpa-others legend {
+  margin-bottom: 6px;
+  padding: 0;
+  font-size: 15px;
+  color: var(--muted);
+}
+
+.fin-form .fpa-other {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 140px;
+  align-items: center;
+  gap: 12px;
+  font-size: 16px;
+  color: var(--ink);
+}

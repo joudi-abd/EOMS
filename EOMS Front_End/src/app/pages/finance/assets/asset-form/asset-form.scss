@@ -1,0 +1,18 @@
+/* The approve-now switch sits on one line with its word; the status choice keeps its caption above. */
+.fas-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink);
+}
+
+.fas-check input {
+  width: auto;
+}
+
+.fas-field {
+  display: grid;
+  gap: 6px;
+  font-size: 15px;
+  color: var(--muted);
+}

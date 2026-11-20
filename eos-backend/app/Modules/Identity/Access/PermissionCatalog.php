@@ -14,6 +14,8 @@ final class PermissionCatalog
 {
     private const ALL = [Scope::ALL];
 
+    private const OWN_OR_ALL = [Scope::ALL, Scope::OWN];
+
     /**
      * @return array<string, array{ar: string, en: string, permissions: array<string, array{ar: string, en: string, hint_ar: string, hint_en: string, scopes: list<string>, sensitive?: bool}>}>
      */
@@ -61,9 +63,21 @@ final class PermissionCatalog
             'finance' => [
                 'ar' => 'المالية', 'en' => 'Finance',
                 'permissions' => [
-                    'finance.view' => self::p('عرض المالية', 'View finance', 'الصناديق والقيود والفواتير والتقارير المالية.', 'Boxes, entries, invoices and financial reports.', sensitive: true),
-                    'finance.manage' => self::p('إدارة المالية', 'Manage finance', 'إدخال القيود والفواتير والعمليات وإعدادات العملات.', 'Enter entries, invoices, operations and currency settings.'),
-                    'finance.approve' => self::p('اعتماد العمليات المالية', 'Approve finance', 'اعتماد العمليات المالية وإلغاؤها.', 'Approve and cancel financial operations.'),
+                    'finance.view' => self::p('عرض المالية', 'View finance', 'الصناديق والسندات والقيود والحسابات. الذات: الفروع المسندة إليه فقط.', 'Boxes, vouchers, entries and accounts. Own: only the branches assigned to the account.', self::OWN_OR_ALL, sensitive: true),
+                    'finance.settings' => self::p('إعدادات المالية', 'Finance settings', 'العملات والفروع ودليل الحسابات والحسابات الإلزامية والصناديق والتصنيفات وإسناد الفروع للمستخدمين.', 'Currencies, branches, chart of accounts, system-account roles, boxes, categories and user↔branch assignments.'),
+                    'finance.rates' => self::p('نشرة الأسعار', 'Rate bulletin', 'إدخال أسعار الصرف اليومية مقابل الدولار.', 'Enter the daily exchange rates against USD.', self::OWN_OR_ALL),
+                    'finance.vouchers' => self::p('السندات', 'Vouchers', 'إنشاء السندات وتعديل مسوداتها واعتمادها ورفضها. الذات: في فروعه فقط.', 'Create vouchers, edit drafts, approve and reject them. Own: in the assigned branches only.', self::OWN_OR_ALL),
+                    'finance.reverse' => self::p('عكس السندات', 'Reverse vouchers', 'عكس السندات المعتمدة بقيد معاكس. الذات: في فروعه فقط.', 'Reverse approved vouchers with a mirror entry. Own: in the assigned branches only.', self::OWN_OR_ALL),
+                    'finance.projects' => self::p('مالية المشاريع', 'Project finance', 'إنشاء المشاريع وعقودها وموازناتها واتفاقيات المقاولين والمطالبات. الذات: مشاريع فروعه.', 'Create projects, contracts, budgets, contractor agreements and billing. Own: projects of the assigned branches.', self::OWN_OR_ALL),
+                    'finance.projects.view' => self::p('عرض مالية المشاريع', 'View project finance', 'عرض المشاريع وأرقامها المالية. الذات: المشاريع التي يديرها.', 'View projects and their figures. Own: the projects the account manages.', self::OWN_OR_ALL, sensitive: true),
+                    'finance.site_requests' => self::p('طلبات مصروف الموقع', 'Site expense requests', 'تقديم طلبات مصروف الموقع وعرض عهدته وطلباته. الذات: المشاريع التي يشرف عليها.', 'Submit site expense requests and see own custody and requests. Own: the projects the account supervises.', self::OWN_OR_ALL),
+                    'finance.allocations' => self::p('التوزيع على المشاريع', 'Project allocations', 'نسب وقت الموظفين وتوزيع الرواتب والمصاريف العامة على المشاريع.', 'Employee time shares and allocation of payroll and overhead to projects.'),
+                    'finance.counts' => self::p('جرد الصناديق', 'Cash counts', 'إدخال جرد الصناديق وإرساله. الذات: صناديق فروعه.', 'Enter and submit box counts. Own: boxes of the assigned branches.', self::OWN_OR_ALL),
+                    'finance.counts.approve' => self::p('اعتماد فروقات الجرد', 'Approve count differences', 'اعتماد الجرد وترحيل فرقه أو رفضه. لا يعتمد من أجرى الجرد.', 'Approve a count and post its difference, or reject it. The counter never approves.'),
+                    'finance.assets' => self::p('الأصول', 'Assets', 'سجل الأصول والشراء ونقل العهدة والصيانة والاستبعاد. الذات: أصول فروعه.', 'Asset register, purchase, custody transfer, maintenance and disposal. Own: assets of the assigned branches.', self::OWN_OR_ALL),
+                    'finance.periods' => self::p('إقفال الفترات', 'Close periods', 'إقفال الأشهر المالية وإعادة فتحها بسبب.', 'Close fiscal months and reopen them with a reason.'),
+                    'finance.reports' => self::p('التقارير المالية', 'Finance reports', 'التقارير ولوحة المدير. الذات: فروعه.', 'Reports and the dashboard. Own: the assigned branches.', self::OWN_OR_ALL, sensitive: true),
+                    'finance.audit' => self::p('سجل التدقيق المالي', 'Finance audit log', 'سجل كل عمليات المالية والأسعار والإعدادات.', 'The trail of every finance, rate and settings change.', sensitive: true),
                 ],
             ],
             'tasks' => [

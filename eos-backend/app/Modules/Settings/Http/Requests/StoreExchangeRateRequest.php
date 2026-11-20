@@ -4,6 +4,7 @@ namespace App\Modules\Settings\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 
+/** One day's bulletin: `rates` maps a currency code to how many units buy one base unit (USD). */
 class StoreExchangeRateRequest extends FormRequest
 {
     public function authorize(): bool
@@ -14,10 +15,9 @@ class StoreExchangeRateRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'from' => ['required', 'exists:sys_currencies,code'],
-            'to' => ['required', 'exists:sys_currencies,code', 'different:from'],
-            'rate' => ['required', 'numeric', 'gt:0'],
-            'rate_date' => ['nullable', 'date'],
+            'date' => ['required', 'date_format:Y-m-d'],
+            'rates' => ['required', 'array', 'min:1'],
+            'rates.*' => ['required', 'numeric', 'gt:0'],
         ];
     }
 }

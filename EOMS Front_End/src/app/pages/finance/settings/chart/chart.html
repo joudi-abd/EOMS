@@ -1,0 +1,140 @@
+<div class="fin-toolbar">
+  <div class="seg" role="group" [attr.aria-label]="t('fstTabChart')">
+    <button type="button" [class.on]="view() === 'tree'" [attr.aria-pressed]="view() === 'tree'" (click)="view.set('tree')">{{ t('fstPartTree') }}</button>
+    <button type="button" [class.on]="view() === 'roles'" [attr.aria-pressed]="view() === 'roles'" (click)="view.set('roles')">
+      {{ t('fstPartRoles') }}
+      @if (unmapped()) { <bdi class="late num">({{ num(unmapped()) }})</bdi> }
+    </button>
+  </div>
+  @if (view() === 'tree' && mayEdit && !editing()) {
+    <button class="text" type="button" (click)="startNew(null)">{{ t('fstNewRootAccount') }}</button>
+  }
+</div>
+
+@if (view() === 'tree') {
+  @if (editing() && form; as f) {
+    <form class="fin-sheet narrow" (ngSubmit)="submit()">
+      <header>
+        <h2>{{ f.id ? t('fstEditAccount') : t('fstNewAccount') }}</h2>
+        <button class="quiet-x" type="button" (click)="close()" [attr.aria-label]="t('dismiss')"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+      </header>
+      <dl class="fin-kv">
+        <dt>{{ t('fstParentAccount') }}</dt><dd>{{ parentLabel(f.parent_id) }}</dd>
+        @if (f.id || f.parent_id) { <dt>{{ t('finType') }}</dt><dd>{{ accountTypeLabel(f.type) }}</dd> }
+      </dl>
+      <fieldset class="fin-form" [disabled]="busy()">
+        <label>{{ t('finCode') }}<input name="code" required maxlength="30" [(ngModel)]="f.code" dir="ltr" /></label>
+        <label>{{ t('finName') }}<input name="name" required maxlength="150" [(ngModel)]="f.name" /></label>
+        @if (!f.id && !f.parent_id) {
+          <label>{{ t('finType') }}
+            <select name="type" [(ngModel)]="f.type">
+              @for (type of types; track type) { <option [value]="type">{{ accountTypeLabel(type) }}</option> }
+            </select>
+          </label>
+        }
+        <label class="fst-check wide"><input name="postable" type="checkbox" [(ngModel)]="f.is_postable" /> {{ t('fstPostable') }}</label>
+        <p class="fin-hint wide">{{ t('fstPostableHint') }}</p>
+        <button class="link-button wide" type="button" (click)="details = !details">{{ t('fstMoreDetails') }}</button>
+        @if (details) {
+          <label class="fst-check wide"><input name="needsParty" type="checkbox" [(ngModel)]="f.requires_party" /> {{ t('fstRequiresParty') }}</label>
+          <label class="fst-check wide"><input name="needsProject" type="checkbox" [(ngModel)]="f.requires_project" /> {{ t('fstRequiresProject') }}</label>
+        }
+        <div class="fin-actions wide">
+          <button class="text" type="button" (click)="close()">{{ t('finCancel') }}</button>
+          <button class="primary" type="submit">{{ t('finSave') }}</button>
+        </div>
+      </fieldset>
+    </form>
+  }
+
+  <form class="filters" (submit)="$event.preventDefault()">
+    <label>{{ t('finSearch') }}<input name="search" type="search" [ngModel]="search()" (ngModelChange)="search.set($event)" /></label>
+  </form>
+
+  <div class="sheet">
+    <table>
+      <thead>
+        <tr>
+          <th>{{ t('finCode') }}</th>
+          <th>{{ t('finName') }}</th>
+          <th>{{ t('finType') }}</th>
+          <th>{{ t('fstKind') }}</th>
+          <th>{{ t('fstRolesCol') }}</th>
+          <th>{{ t('finStatus') }}</th>
+          @if (mayEdit) { <th><span class="vh">{{ t('finActions') }}</span></th> }
+        </tr>
+      </thead>
+      <tbody>
+        @for (row of rows(); track row.account.id) {
+          <tr>
+            <td class="num"><bdi>{{ row.account.code }}</bdi></td>
+            <td [style.padding-inline-start.px]="18 + row.depth * 22" [class.strong]="!row.account.is_postable">{{ row.account.name }}</td>
+            <td>{{ accountTypeLabel(row.account.type) }}</td>
+            <td class="soft">{{ row.account.is_postable ? t('fstPostableShort') : t('fstGroup') }}</td>
+            <td>
+              @for (role of row.account.roles ?? []; track role) { <span class="fst-chip">{{ systemRoleLabel(role) }}</span> }
+              @if (row.account.cash_box_id) { <span class="fst-chip">{{ t('finBox') }}</span> }
+            </td>
+            <td [class]="row.account.is_active ? 'ok' : 'mute'">{{ row.account.is_active ? t('finActive') : t('finInactive') }}</td>
+            @if (mayEdit) {
+              <td class="fin-row-actions">
+                @if (row.account.is_active && !row.account.cash_box_id) {
+                  <button class="text small" type="button" (click)="startNew(row.account)">{{ t('fstAddChild') }}</button>
+                }
+                @if (!row.account.is_system) {
+                  <button class="text small" type="button" (click)="edit(row.account)">{{ t('finEdit') }}</button>
+                }
+                @if (canDeactivate(row.account)) {
+                  <button class="quiet small" type="button" [disabled]="busy()" (click)="deactivate(row.account)">{{ t('finDeactivate') }}</button>
+                } @else if (!row.account.is_active) {
+                  <button class="text small" type="button" [disabled]="busy()" (click)="activate(row.account)">{{ t('finActivate') }}</button>
+                }
+              </td>
+            }
+          </tr>
+        } @empty {
+          <tr><td [attr.colspan]="mayEdit ? 7 : 6" class="empty">{{ search() ? t('fstNoMatch') : t('fstChartEmpty') }}</td></tr>
+        }
+      </tbody>
+    </table>
+  </div>
+} @else {
+  <p class="fin-hint">{{ t('fstRolesHint') }}</p>
+  <div class="sheet">
+    <table>
+      <thead>
+        <tr>
+          <th>{{ t('fstRoleCol') }}</th>
+          <th>{{ t('finAccount') }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (role of roleRows(); track role.role) {
+          <tr [class.attention]="role.unmapped">
+            <td>
+              {{ role.label }}
+              @if (role.unmapped) { <span class="wait fst-gap">{{ t('fstUnmapped') }}</span> }
+            </td>
+            <td>
+              @if (mayEdit) {
+                <select [name]="'role-' + role.role" [ngModel]="mapping()[role.role]" (ngModelChange)="setMapping(role.role, $event)" [attr.aria-label]="role.label">
+                  <option [ngValue]="null">{{ t('finChoose') }}</option>
+                  @for (item of choices(role.role); track item.id) { <option [ngValue]="item.id">{{ item.code }} · {{ item.name }}</option> }
+                </select>
+              } @else {
+                {{ role.account ? role.account.code + ' · ' + role.account.name : '—' }}
+              }
+            </td>
+          </tr>
+        } @empty {
+          <tr><td colspan="2" class="empty">{{ t('finLoading') }}</td></tr>
+        }
+      </tbody>
+    </table>
+  </div>
+  @if (mayEdit && roles().length) {
+    <div class="fin-actions">
+      <button class="primary" type="button" [disabled]="busy()" (click)="saveRoles()">{{ t('finSave') }}</button>
+    </div>
+  }
+}

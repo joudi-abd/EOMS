@@ -1,0 +1,145 @@
+@if (mayWrite() && editing() === null) {
+  <div class="fin-toolbar">
+    <button class="text" type="button" (click)="startNew()"><i class="fa-solid fa-plus" aria-hidden="true"></i> {{ t('fpjNewAgreement') }}</button>
+  </div>
+}
+
+@if (editing() !== null) {
+  <form class="fin-sheet" (ngSubmit)="submit()">
+    <header>
+      <h2>{{ editing() ? t('fpjEditAgreement') : t('fpjNewAgreement') }}</h2>
+      <button class="quiet-x" type="button" (click)="editing.set(null)" [attr.aria-label]="t('finClose')"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+    </header>
+    <fieldset [disabled]="busy()">
+      <div class="fin-form">
+        <label>{{ t('fpjContractor') }}
+          <select name="party" required [(ngModel)]="partyId">
+            <option [ngValue]="0">{{ t('finChoose') }}</option>
+            @for (item of contractors(); track item.id) { <option [ngValue]="item.id">{{ item.name }}</option> }
+            @if (partyId && !finance.party(partyId)) { <option [ngValue]="partyId">{{ partyLabel() || partyId }}</option> }
+          </select>
+        </label>
+        <label>{{ t('finCurrency') }}
+          <select name="currency" required [(ngModel)]="currencyId">
+            @for (item of finance.activeCurrencies(); track item.id) { <option [ngValue]="item.id">{{ item.code }}</option> }
+          </select>
+        </label>
+        <label class="wide">{{ t('fpjScope') }}<input name="scope" required maxlength="300" [(ngModel)]="scope" [placeholder]="t('fpjScopeHint')" /></label>
+        <label>{{ t('fpjAgreed') }}<input name="agreed" type="number" min="0" step="any" required [(ngModel)]="agreed" /></label>
+        <label>{{ t('fpjDiscount') }}<input name="discount" type="number" min="0" step="any" [(ngModel)]="discount" [placeholder]="t('finOptional')" /></label>
+        <p class="fin-hint wide">{{ t('fpjNet') }}: <bdi class="strong">{{ money(net(), currencyId) }}</bdi></p>
+        @if (editing()) {
+          <label>{{ t('finStatus') }}
+            <select name="status" [(ngModel)]="status">
+              @for (item of statuses; track item) { <option [value]="item">{{ statusName(item) }}</option> }
+            </select>
+          </label>
+        }
+        <div class="wide">
+          <button class="text small" type="button" [attr.aria-expanded]="more()" (click)="more.set(!more())">
+            <i class="fa-solid" [class.fa-chevron-down]="!more()" [class.fa-chevron-up]="more()" aria-hidden="true"></i> {{ t('fpjMore') }}
+          </button>
+        </div>
+        @if (more()) {
+          <label>{{ t('finCostCategory') }}
+            <select name="category" [(ngModel)]="categoryId">
+              @if (!editing()) { <option [ngValue]="0">{{ t('fpjDefaultLabor') }}</option> }
+              @for (item of finance.activeCostCategories(); track item.id) { <option [ngValue]="item.id">{{ item.name }}</option> }
+            </select>
+          </label>
+          <label class="wide">{{ t('finNotes') }}<textarea name="notes" rows="2" maxlength="1000" [(ngModel)]="notes"></textarea></label>
+        }
+        @if (editing()) { <p class="fin-hint wide">{{ t('fpjAgreementFixedHint') }}</p> }
+      </div>
+      <div class="fin-actions">
+        @if (editing()) {
+          <button class="quiet fpj-start" type="button" (click)="remove()">{{ t('finDelete') }}</button>
+          @if (status !== 'cancelled') { <button class="quiet" type="button" (click)="cancelAgreement()">{{ t('fpjCancelAgreement') }}</button> }
+        }
+        <button class="text" type="button" (click)="editing.set(null)">{{ t('finCancel') }}</button>
+        <button class="primary" type="submit" [disabled]="!partyId || !scope.trim() || agreed === null">{{ t('finSave') }}</button>
+      </div>
+    </fieldset>
+  </form>
+}
+
+<div class="sheet">
+  <table>
+    <thead>
+      <tr>
+        <th>{{ t('fpjContractor') }}</th>
+        <th class="end">{{ t('fpjAgreed') }}</th>
+        <th class="end">{{ t('fpjDiscount') }}</th>
+        <th class="end">{{ t('fpjNet') }}</th>
+        <th class="end">{{ t('fpjPaid') }}</th>
+        <th class="end">{{ t('fpjRemaining') }}</th>
+        <th>{{ t('finStatus') }}</th>
+        <th><span class="vh">{{ t('finActions') }}</span></th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (row of rows(); track row.id) {
+        <tr [class.picked]="open()?.id === row.id || editing() === row.id" [class.attention]="row.overrun">
+          <td>
+            <button class="link-button" type="button" [attr.aria-expanded]="open()?.id === row.id" (click)="toggle(row)">{{ row.contractor?.name ?? finance.partyName(row.contractor_party_id) }}</button>
+            <small class="soft block-line">{{ row.scope }} @if (row.category) { · {{ row.category.name }} }</small>
+          </td>
+          <td class="num end"><bdi>{{ money(row.agreed_value, code(row)) }}</bdi></td>
+          <td class="num end"><bdi>{{ figure(row.discount, code(row)) }}</bdi></td>
+          <td class="num end strong"><bdi>{{ figure(row.net_value, code(row)) }}</bdi></td>
+          <td class="num end"><bdi>{{ figure(row.gross_paid, code(row)) }}</bdi></td>
+          <td class="num end" [class.late]="row.overrun">
+            <bdi>{{ figure(row.remaining, code(row)) }}</bdi>
+            @if (row.overrun) { <small class="block-line">{{ t('fpjOverrun') }}</small> }
+          </td>
+          <td><span [class]="agTone(row.status)">{{ statusName(row.status) }}</span></td>
+          <td class="fin-row-actions">
+            @if (mayPay() && row.status === 'open') {
+              <a class="text small" routerLink="/modules/finVouchers" [queryParams]="voucherLink(row, 'contractor_payment')">{{ t('fpjPayment') }}</a>
+              <a class="text small" routerLink="/modules/finVouchers" [queryParams]="voucherLink(row, 'contractor_advance')">{{ t('fpjAdvance') }}</a>
+            }
+            @if (mayWrite()) { <button class="text small" type="button" (click)="startEdit(row)">{{ t('finEdit') }}</button> }
+          </td>
+        </tr>
+        @if (open(); as card) {
+          @if (card.id === row.id) {
+            <tr class="sub">
+              <td colspan="8">
+                <p class="fpj-card-line">
+                  {{ t('fpjCashPaid') }} <bdi class="strong">{{ money(card.cash_paid, card.currency) }}</bdi>
+                  · {{ t('fpjAdvancesDeducted') }} <bdi class="strong">{{ money(card.advances_deducted, card.currency) }}</bdi>
+                  · {{ t('fpjAdvancesOutstanding') }} <bdi class="strong">{{ money(card.advances_outstanding, card.currency) }}</bdi>
+                </p>
+                @for (group of moveGroups(card); track group.label) {
+                  <h3 class="fpj-sub-title">{{ group.label }}</h3>
+                  <ul class="fin-list">
+                    @for (move of group.rows; track move.voucher_id) {
+                      <li>
+                        <span>
+                          <a class="name" routerLink="/modules/finVouchers" [queryParams]="{ id: move.voucher_id }"><bdi>{{ move.number ?? '#' + move.voucher_id }}</bdi></a>
+                          <small class="soft"> · {{ short(move.date) }} @if (move.cash_box) { · {{ move.cash_box }} } @if (move.description) { · {{ move.description }} }</small>
+                          @if (move.override_reason) { <small class="wait block-line">{{ move.override_reason }}</small> }
+                        </span>
+                        <span class="end num">
+                          <bdi>{{ money(move.gross, card.currency) }}</bdi>
+                          @if (positive(move.advance_deduction)) {
+                            <small class="soft block-line">{{ t('fpjDeducted') }} <bdi>{{ figure(move.advance_deduction, card.currency) }}</bdi> · {{ t('fpjCash') }} <bdi>{{ figure(move.cash, card.currency) }}</bdi></small>
+                          }
+                        </span>
+                      </li>
+                    } @empty {
+                      <li class="soft">{{ t('fpjNoMoves') }}</li>
+                    }
+                  </ul>
+                }
+              </td>
+            </tr>
+          }
+        }
+      } @empty {
+        <tr><td colspan="8" class="soft">{{ loading() ? t('finLoading') : t('fpjNoAgreements') }}</td></tr>
+      }
+    </tbody>
+  </table>
+</div>
+<p class="fin-hint">{{ t('fpjAgreementsHint') }}</p>

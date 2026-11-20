@@ -1,0 +1,98 @@
+@if (loading() && !advance()) {
+  <p class="empty">{{ t('finLoading') }}</p>
+} @else if (advance(); as a) {
+  <section class="fin-sheet">
+    <header>
+      <h2>{{ t('fadAdvanceOf') }} {{ a.party?.name ?? finance.partyName(a.party_id) }}</h2>
+      <a class="quiet-x" [routerLink]="[]" [queryParams]="{ id: null }" [attr.aria-label]="t('finClose')"><i class="fa-solid fa-xmark" aria-hidden="true"></i></a>
+    </header>
+    <dl class="fin-kv">
+      <dt>{{ t('finAmount') }}</dt>
+      <dd><bdi class="num">{{ money(a.amount, code()) }}</bdi></dd>
+      <dt>{{ t('fadRemaining') }}</dt>
+      <dd><bdi class="num strong">{{ money(a.remaining, code()) }}</bdi></dd>
+      <dt>{{ t('fadDeducted') }}</dt>
+      <dd><bdi class="num">{{ money(a.deducted_total, code()) }}</bdi></dd>
+      <dt>{{ t('fadSchedule') }}</dt>
+      <dd>{{ num(a.installments_count) }} {{ t('fadInstallmentsWord') }} · {{ t('fadFrom') }} <bdi>{{ a.start_month }}</bdi></dd>
+      <dt>{{ t('fadNextDue') }}</dt>
+      <dd><bdi>{{ a.next_due_month ?? '—' }}</bdi></dd>
+      <dt>{{ t('finStatus') }}</dt>
+      <dd [class]="tone(a.status)">{{ advanceStatus(a.status) }}</dd>
+      @if (a.voucher) {
+        <dt>{{ t('fadVoucher') }}</dt>
+        <dd>
+          <a class="link-button" routerLink="/modules/finVouchers" [queryParams]="{ id: a.voucher.id }"><bdi>{{ a.voucher.number ?? '—' }}</bdi></a>
+          · {{ short(a.voucher.voucher_date) }}
+        </dd>
+      }
+      @if (a.party_id) {
+        <dt>{{ t('finParty') }}</dt>
+        <dd><a class="link-button" routerLink="/modules/finParties" [queryParams]="{ id: a.party_id }">{{ t('fadStatement') }}</a></dd>
+      }
+      @if (a.notes) {
+        <dt>{{ t('finDescription') }}</dt>
+        <dd>{{ a.notes }}</dd>
+      }
+    </dl>
+  </section>
+
+  @if (postponing(); as item) {
+    <form class="fin-sheet narrow" (ngSubmit)="postpone()">
+      <header>
+        <h2>{{ t('fadPostpone') }} · <bdi>{{ item.due_month }}</bdi></h2>
+        <button class="quiet-x" type="button" (click)="postponing.set(null)" [attr.aria-label]="t('finClose')"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+      </header>
+      <p class="fin-hint">{{ t('fadPostponeHint') }}</p>
+      <label class="fin-field">{{ t('finReason') }}
+        <textarea name="reason" rows="2" minlength="3" maxlength="500" required [(ngModel)]="reason"></textarea>
+      </label>
+      <div class="fin-actions">
+        <button class="text" type="button" (click)="postponing.set(null)">{{ t('finCancel') }}</button>
+        <button class="primary" type="submit" [disabled]="busy()">{{ t('fadPostpone') }}</button>
+      </div>
+    </form>
+  }
+
+  <div class="sheet">
+    <table>
+      <thead>
+        <tr>
+          <th>{{ t('finMonth') }}</th>
+          <th class="end">{{ t('finAmount') }}</th>
+          <th>{{ t('finStatus') }}</th>
+          <th>{{ t('fadPayRun') }}</th>
+          @if (mayPostpone()) { <th class="end"><span class="vh">{{ t('finActions') }}</span></th> }
+        </tr>
+      </thead>
+      <tbody>
+        @for (item of a.installments; track item.id) {
+          <tr [class.picked]="postponing()?.id === item.id">
+            <td><bdi>{{ item.due_month }}</bdi></td>
+            <td class="end"><bdi class="num">{{ figure(item.amount, code()) }}</bdi></td>
+            <td>
+              <span [class]="tone(item.status)">{{ installmentStatus(item.status) }}</span>
+              @if (item.postponed_reason) { <small class="soft block-line">{{ item.postponed_reason }}</small> }
+            </td>
+            <td>
+              @if (item.pay_run_id) {
+                <a class="link-button" routerLink="/modules/payroll">{{ t('fadPayRunOf') }} <bdi>{{ item.due_month }}</bdi></a>
+              } @else {
+                <span class="soft">—</span>
+              }
+            </td>
+            @if (mayPostpone()) {
+              <td class="fin-row-actions">
+                @if (item.status === 'pending') {
+                  <button class="text small" type="button" [disabled]="busy()" (click)="startPostpone(item)">{{ t('fadPostpone') }}</button>
+                }
+              </td>
+            }
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+} @else {
+  <p class="empty">{{ t('fadNotFound') }}</p>
+}

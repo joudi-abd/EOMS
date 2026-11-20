@@ -1,0 +1,54 @@
+<main class="work" id="content">
+  @if (!supervisor() && !decider()) {
+    <h1>{{ t('finSite') }}</h1>
+    <p class="empty">{{ t('finNoAccess') }}</p>
+  } @else {
+    <app-notice />
+    <header class="heading">
+      <div>
+        <h1>{{ t('finSite') }}</h1>
+        <p class="lede">{{ view() === 'inbox' ? t('fsrLedeInbox') : t('fsrLedeMine') }}</p>
+      </div>
+      @if (view() === 'mine' && !composing() && myCustody()?.party) {
+        <div class="actions">
+          <a class="primary" [routerLink]="[]" [queryParams]="{ view: null, new: 1 }"><i class="fa-solid fa-plus" aria-hidden="true"></i> {{ t('fsrNew') }}</a>
+        </div>
+      }
+    </header>
+    @if (tabCount() > 1) {
+      <nav class="tabs" [attr.aria-label]="t('finSite')">
+        @if (supervisor()) {
+          <a [routerLink]="[]" [queryParams]="{ view: null, id: null, new: null }" [class.active]="view() === 'mine'" [attr.aria-current]="view() === 'mine' ? 'page' : null">{{ t('fsrTabMine') }}</a>
+          <a [routerLink]="[]" [queryParams]="{ view: 'custody', id: null, new: null }" [class.active]="view() === 'custody'" [attr.aria-current]="view() === 'custody' ? 'page' : null">{{ t('fsrTabCustody') }}</a>
+        }
+        @if (decider()) {
+          <a [routerLink]="[]" [queryParams]="{ view: 'inbox', id: null, new: null }" [class.active]="view() === 'inbox'" [attr.aria-current]="view() === 'inbox' ? 'page' : null">{{ t('fsrTabInbox') }}</a>
+        }
+      </nav>
+    }
+
+    @if (view() !== 'inbox' && myCustody(); as mc) {
+      @if (!mc.party) {
+        <p class="fin-warn fsr-unlinked"><i class="fa-solid fa-link-slash" aria-hidden="true"></i>
+          <span>{{ t('fsrUnlinked') }} <span class="strong">{{ t('fsrAskFinance') }}</span></span>
+        </p>
+      }
+    }
+
+    @switch (view()) {
+      @case ('mine') {
+        <app-fin-site-mine [composing]="composing()" [myCustody]="myCustody()" />
+      }
+      @case ('custody') {
+        <app-fin-site-custody [myCustody]="myCustody()" />
+      }
+      @case ('inbox') {
+        @if (id()) {
+          <app-fin-site-review [id]="id()" />
+        } @else {
+          <app-fin-site-inbox />
+        }
+      }
+    }
+  }
+</main>

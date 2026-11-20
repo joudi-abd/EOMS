@@ -1,46 +1,5 @@
 :host { display: block; }
 
-/* Whose requests: a segmented choice above the register. */
-.scopes {
-  display: flex;
-  gap: 2px;
-  width: fit-content;
-  max-width: 100%;
-  margin: 28px 0 0;
-  padding: 3px;
-  background: var(--hover);
-  border: 0;
-  border-radius: var(--r-control);
-}
-
-.scopes button {
-  display: inline-flex;
-  align-items: center;
-  min-height: 36px;
-  padding: 6px 16px;
-  color: var(--muted);
-  background: transparent;
-  border: 0;
-  border-radius: 6px;
-  white-space: nowrap;
-  font-size: 16px;
-  cursor: pointer;
-  transition:
-    background-color 140ms ease-out,
-    color 140ms ease-out;
-}
-
-.scopes button:hover:not(:disabled) { color: var(--ink); }
-
-.scopes button.active {
-  background: var(--surface);
-  color: var(--mark-ink);
-  font-weight: 600;
-  box-shadow: 0 0 0 1px var(--line-strong);
-}
-
-.scopes button:disabled { cursor: not-allowed; }
-
 .filters button {
   align-self: end;
   justify-self: start;
@@ -76,24 +35,100 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* The list beside the chosen request, as in the design. */
+/* Full-width list; the request card slides in on the left. */
 .reg-split {
-  display: grid;
-  grid-template-columns: minmax(0, 1.6fr) minmax(320px, 1fr);
-  gap: 16px;
+  display: flex;
+  flex-direction: row-reverse;
   align-items: start;
+  gap: 16px;
+  width: 100%;
+  min-width: 0;
   margin-top: 16px;
 }
 
-@container work (max-width: 1240px) {
-  .reg-split {
-    grid-template-columns: minmax(0, 1fr);
+:host-context([dir='rtl']) .reg-split {
+  flex-direction: row;
+}
+
+.reg-main {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.reg-card {
+  flex: 0 0 min(420px, 42%);
+  max-width: 420px;
+  min-width: 0;
+  animation: lv-card-in 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.reg-card.out {
+  animation: lv-card-out 280ms cubic-bezier(0.4, 0, 1, 1) both;
+  pointer-events: none;
+}
+
+@keyframes lv-card-in {
+  from {
+    opacity: 0.55;
+    transform: translateX(-100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
   }
 }
 
-.reg-main,
-.reg-side {
-  min-width: 0;
+@keyframes lv-card-out {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0.4;
+    transform: translateX(-100%);
+  }
+}
+
+@media (max-width: 900px) {
+  .reg-split,
+  :host-context([dir='rtl']) .reg-split {
+    flex-direction: column;
+  }
+
+  .reg-card {
+    flex-basis: auto;
+    max-width: none;
+    width: 100%;
+  }
+
+  @keyframes lv-card-in {
+    from {
+      opacity: 0.55;
+      transform: translateY(-12px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes lv-card-out {
+    from {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    to {
+      opacity: 0.4;
+      transform: translateY(-12px);
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reg-card,
+  .reg-card.out {
+    animation: none;
+  }
 }
 
 .end {
@@ -156,23 +191,6 @@ tr.picked td {
   padding: 18px 20px 20px;
   display: grid;
   gap: 14px;
-}
-
-.detail.placeholder {
-  justify-items: center;
-  text-align: center;
-  color: var(--muted);
-  padding: 40px 20px;
-}
-
-.detail.placeholder i {
-  font-size: 30px;
-  color: var(--soft);
-}
-
-.detail.placeholder p {
-  margin: 0;
-  max-width: 280px;
 }
 
 .detail-head {

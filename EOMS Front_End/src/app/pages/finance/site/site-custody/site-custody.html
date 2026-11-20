@@ -1,0 +1,52 @@
+@if (!myCustody()) {
+  <p class="empty">{{ t('finLoading') }}</p>
+} @else if (myCustody(); as data) {
+  @if (data.party) {
+    @if (data.balances.length) {
+      <section class="summary" [attr.aria-label]="t('fsrTabCustody')">
+        @for (item of data.balances; track item.currency) {
+          <p><span>{{ t('fsrInHand') }} <bdi>{{ item.currency }}</bdi></span><strong><bdi class="num">{{ figure(item.balance, item.currency) }}</bdi></strong></p>
+        }
+      </section>
+    } @else {
+      <p class="empty">{{ t('fsrNoCustody') }}</p>
+    }
+
+    @if (openOnes(data).length) {
+      <section class="panel">
+        <div class="panel-head"><div><h2>{{ t('fsrOpenCustodies') }}</h2></div></div>
+        <ul class="fin-list">
+          @for (item of openOnes(data); track item.id) {
+            <li>
+              <span>
+                <span class="strong">{{ item.project_name ?? t('fsrGeneralCustody') }}</span>
+                <small class="soft block-line">{{ t('fsrSince') }} {{ short(item.opened_on ?? '') }}</small>
+              </span>
+              <span class="end"><bdi class="num strong">{{ money(item.balance, item.currency) }}</bdi></span>
+            </li>
+          }
+        </ul>
+      </section>
+    }
+
+    <section class="panel">
+      <div class="panel-head"><div><h2>{{ t('fsrMovements') }}</h2></div></div>
+      <ul class="fin-list">
+        @for (item of data.movements; track item.voucher_id) {
+          <li>
+            <span>
+              <span class="strong">{{ kind(item.kind) }}</span>
+              <small class="soft block-line">{{ short(item.voucher_date) }} · <bdi>{{ item.number ?? '' }}</bdi></small>
+              @if (item.description) { <small class="soft block-line">{{ item.description }}</small> }
+            </span>
+            <span class="end">
+              <bdi class="num">{{ item.kind === 'issue' ? '' : '−' }}{{ money(item.amount, item.currency) }}</bdi>
+            </span>
+          </li>
+        } @empty {
+          <li class="soft">{{ t('fsrNoMovements') }}</li>
+        }
+      </ul>
+    </section>
+  }
+}

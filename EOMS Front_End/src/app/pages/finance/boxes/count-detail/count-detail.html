@@ -1,0 +1,129 @@
+@if (count(); as c) {
+  <section class="panel" [attr.aria-label]="t('fbxCount')">
+    <div class="panel-head">
+      <div>
+        <h2>{{ t('fbxCount') }} · {{ finance.boxName(c.cash_box_id) || '—' }}</h2>
+        <p>
+          {{ date(c.count_date) }} · <span [class]="tone(c.status)">{{ statusLabel(c.status) }}</span>
+          · {{ t('fbxCountedBy') }}: {{ who(c.counted_by) }}
+          @if (c.approved_by) { · {{ t('fbxDecidedBy') }}: {{ who(c.approved_by) }} }
+        </p>
+      </div>
+      <a class="quiet-x fbx-x" [routerLink]="[]" [queryParams]="{ view: 'counts', id: null }" [attr.aria-label]="t('finClose')">
+        <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+      </a>
+    </div>
+
+    <div class="fbx-body">
+      @if (c.stale) {
+        <p class="fin-warn">
+          <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
+          <span>{{ t('fbxStale') }}</span>
+          @if (may('finance.counts')) {
+            <button class="text small fbx-push" type="button" [disabled]="busy()" (click)="resnapshot(c)">{{ t('fbxResnapshot') }}</button>
+          }
+        </p>
+      }
+      @if (c.status === 'rejected' && c.rejected_reason) {
+        <p class="fin-hint"><span class="late">{{ t('vsRejected') }}</span> · {{ c.rejected_reason }}</p>
+      }
+
+      <div class="sheet">
+        <table>
+          <thead>
+            <tr>
+              <th>{{ t('finCurrency') }}</th>
+              <th class="end">{{ t('fbxCounted') }}</th>
+              @if (captured()) {
+                <th class="end">{{ t('fbxSystem') }}</th>
+                <th class="end">{{ t('fbxDifference') }}</th>
+              }
+              <th>{{ t('fbxExplanation') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (line of c.lines; track line.id) {
+              <tr>
+                <td><bdi class="strong">{{ code(line.currency_id) }}</bdi></td>
+                <td class="num end">{{ figure(line.counted_amount, code(line.currency_id)) }}</td>
+                @if (captured()) {
+                  <td class="num end">{{ line.system_balance === null ? '—' : figure(line.system_balance, code(line.currency_id)) }}</td>
+                  <td class="end" [class]="diffTone(line.difference)">
+                    <bdi class="num">{{ line.difference === null ? '—' : figure(line.difference, code(line.currency_id)) }}</bdi>
+                    <small class="block-line">{{ diffLabel(line.difference) }}</small>
+                  </td>
+                }
+                <td class="sm">{{ line.explanation || '—' }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      @if (c.notes) { <p class="fin-hint">{{ t('finNotes') }}: {{ c.notes }}</p> }
+      @if (c.status === 'approved') {
+        @if (c.voucher_id) {
+          <p class="fin-hint">{{ t('fbxPostedAs') }} <a routerLink="/modules/finVouchers" [queryParams]="{ id: c.voucher_id }">{{ t('fbxOpenVoucher') }}</a></p>
+        } @else {
+          <p class="fin-hint">{{ t('fbxNoDifference') }}</p>
+        }
+      }
+
+      <div class="fbx-files">
+        <h3>{{ t('finAttachments') }}</h3>
+        <ul class="fin-list">
+          @for (file of c.attachments ?? []; track file.id) {
+            <li>
+              <i class="fa-solid fa-paperclip soft" aria-hidden="true"></i>
+              <span>{{ file.original_name }}</span>
+              <span class="end"><button class="text small" type="button" (click)="download(c, file)">{{ t('fbxDownload') }}</button></span>
+            </li>
+          } @empty {
+            <li class="soft">{{ t('fbxNoFiles') }}</li>
+          }
+        </ul>
+        @if (may('finance.counts') && (c.status === 'draft' || c.status === 'submitted')) {
+          <label class="text small fbx-upload">
+            <i class="fa-solid fa-plus" aria-hidden="true"></i> {{ t('fbxAttachSheet') }}
+            <input class="vh" type="file" accept=".jpg,.jpeg,.png,.webp,.pdf" [disabled]="busy()" (change)="attach(c, $event)" />
+          </label>
+        }
+      </div>
+
+      @if (step() === 'reject') {
+        <form class="fbx-step" (ngSubmit)="reject(c)">
+          <label class="fin-field">{{ t('fbxRejectReason') }}<textarea name="rejectReason" rows="2" minlength="3" maxlength="500" required [(ngModel)]="reason"></textarea></label>
+          <div class="fin-actions">
+            <button class="text" type="button" (click)="step.set('none')">{{ t('finCancel') }}</button>
+            <button class="quiet" type="submit" [disabled]="busy() || reason.trim().length < 3">{{ t('fbxReject') }}</button>
+          </div>
+        </form>
+      } @else if (step() === 'delete') {
+        <p class="fin-warn">
+          <span>{{ t('fbxDeleteAsk') }}</span>
+          <span class="fbx-push">
+            <button class="quiet small" type="button" [disabled]="busy()" (click)="remove(c)">{{ t('finDelete') }}</button>
+            <button class="text small" type="button" (click)="step.set('none')">{{ t('finCancel') }}</button>
+          </span>
+        </p>
+      } @else {
+        @if (c.status === 'draft' && may('finance.counts')) {
+          <div class="fin-actions">
+            <button class="quiet" type="button" (click)="step.set('delete')">{{ t('finDelete') }}</button>
+            @if (mine()) { <button class="text" type="button" (click)="edit.emit(c)">{{ t('finEdit') }}</button> }
+            <button class="primary" type="button" [disabled]="busy()" (click)="submit(c)">{{ t('fbxSend') }}</button>
+          </div>
+        }
+        @if (c.status === 'submitted' && may('finance.counts.approve')) {
+          @if (mine()) {
+            <p class="fin-hint">{{ t('fbxOwnCount') }}</p>
+          } @else {
+            <div class="fin-actions">
+              <button class="quiet" type="button" (click)="step.set('reject')">{{ t('fbxReject') }}</button>
+              <button class="primary" type="button" [disabled]="busy() || c.stale" (click)="approve(c)">{{ t('fbxApprove') }}</button>
+            </div>
+          }
+        }
+      }
+    </div>
+  </section>
+}

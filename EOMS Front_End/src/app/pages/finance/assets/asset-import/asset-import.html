@@ -1,0 +1,71 @@
+<form class="fin-sheet" (ngSubmit)="submit()">
+  <header>
+    <h2>{{ t('fasImportTitle') }}</h2>
+    <button class="quiet-x" type="button" (click)="closed.emit()" [attr.aria-label]="t('finClose')"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+  </header>
+  <p class="fin-hint">{{ t('fasImportHint') }}</p>
+
+  <fieldset class="fin-form" [disabled]="busy()">
+    <label class="wide">{{ t('fasFile') }}
+      <input name="file" type="file" accept=".csv,text/csv" required (change)="picked($event)" />
+    </label>
+    <label>{{ t('fasOpeningDate') }}
+      <input name="date" type="date" required [(ngModel)]="openingDate" />
+    </label>
+    @if (branchList().length !== 1) {
+      <label>{{ t('finBranch') }}
+        <select name="branch" required [ngModel]="branchId()" (ngModelChange)="branchId.set($event)">
+          @for (item of branchList(); track item.id) { <option [ngValue]="item.id">{{ item.name }}</option> }
+        </select>
+      </label>
+    }
+  </fieldset>
+
+  @if (rowErrors().length) {
+    <div class="fas-errors" role="alert">
+      <p class="fin-warn"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> {{ t('fasRowErrors') }}</p>
+      <ul class="fin-list">
+        @for (item of rowErrors(); track $index) {
+          <li>
+            @if (item.line) { <span class="strong">{{ t('fasRow') }} <bdi class="num">{{ item.line }}</bdi></span> }
+            <span>{{ item.messages.join(' · ') }}</span>
+          </li>
+        }
+      </ul>
+    </div>
+  }
+
+  @if (result(); as done) {
+    <p class="fin-hint">
+      <span class="ok">{{ t('fasImportedCount') }} <bdi class="num strong">{{ num(done.count) }}</bdi></span>
+      @if (done.voucher) {
+        · <a class="link-button" routerLink="/modules/finVouchers" [queryParams]="{ id: done.voucher.id }"><bdi>{{ done.voucher.number || done.voucher.display_number }}</bdi></a>
+      }
+    </p>
+  }
+
+  <details class="fas-headers" open>
+    <summary>{{ t('fasHeaders') }}</summary>
+    <div class="fin-lines">
+      <table>
+        <thead>
+          <tr><th>{{ t('fasField') }}</th><th>{{ t('fasHeaderNames') }}</th><th>{{ t('finNotes') }}</th></tr>
+        </thead>
+        <tbody>
+          @for (column of columns; track column.field) {
+            <tr>
+              <td>{{ label(column.field) }}@if (column.required) { <span class="late"> · {{ t('fasRequired') }}</span> }</td>
+              <td><bdi dir="auto">{{ column.headers }}</bdi></td>
+              <td class="soft">{{ note(column.field) }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </details>
+
+  <div class="fin-actions">
+    <button class="text" type="button" (click)="closed.emit()">{{ t(result() ? 'finClose' : 'finCancel') }}</button>
+    <button class="primary" type="submit" [disabled]="busy() || !file() || !branchId() || !openingDate">{{ t('fasImportRun') }}</button>
+  </div>
+</form>

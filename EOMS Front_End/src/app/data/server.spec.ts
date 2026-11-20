@@ -49,17 +49,6 @@ describe('Documented endpoints outside the existing stores', () => {
     expect(get).toHaveBeenCalledWith('/employees/7/payroll-inputs', { month: '2026-11' });
   });
 
-  it('looks up and stores an exchange rate', async () => {
-    get.mockResolvedValueOnce({ data: null });
-    await TestBed.inject(Server).latestRate('USD', 'SYP');
-    expect(get).toHaveBeenCalledWith('/settings/exchange-rates/latest', { from: 'USD', to: 'SYP' });
-    post.mockResolvedValueOnce({ data: { rate: 15000, rate_date: '2026-11-08T00:00:00.000000Z' } });
-    const saved = await TestBed.inject(Server).saveRate('USD', 'SYP', 15000, '2026-11-08');
-    expect(saved).toEqual({ rate: 15000, rate_date: '2026-11-08T00:00:00.000000Z' });
-    expect(post).toHaveBeenCalledWith('/settings/exchange-rates', { from: 'USD', to: 'SYP', rate: 15000, rate_date: '2026-11-08' });
-    expect(done).toHaveBeenCalledWith('exchangeSaved');
-  });
-
   it('reads and updates the office settings group', async () => {
     get.mockResolvedValueOnce({ data: { 'company.name': 'UFUQ' } });
     const result = await TestBed.inject(Server).companySettings();

@@ -105,13 +105,17 @@ export class LeaveFile extends Ui {
     void this.router.navigate([], { queryParams: { req: id }, queryParamsHandling: 'merge' });
   }
 
-  protected approve(): void {
+  protected async approve(): Promise<void> {
     const id = this.row()?.id;
-    if (id) this.office.approveLeave(id, this.session.account().id);
+    if (!id) return;
+    if (!(await this.askConfirm({ message: 'confirmSensitiveBody', confirm: 'confirmProceed' }))) return;
+    this.office.approveLeave(id, this.session.account().id);
   }
 
-  protected reject(): void {
+  protected async reject(): Promise<void> {
     const id = this.row()?.id;
-    if (id) this.office.rejectLeave(id, this.session.account().id);
+    if (!id) return;
+    if (!(await this.askConfirm({ message: 'confirmSensitiveBody', tone: 'danger', confirm: 'confirmProceed' }))) return;
+    this.office.rejectLeave(id, this.session.account().id);
   }
 }

@@ -143,8 +143,8 @@ export class FingerDialog extends Ui implements OnDestroy {
 
   protected async confirmTest(event: Event): Promise<void> {
     event.preventDefault();
-    const data = new FormData(event.target as HTMLFormElement);
-    await this.enrollment.confirm(String(data.get('note') ?? '').trim());
+    const note = this.t('enrollConfirmAuto').replace('{name}', this.text(this.person().name));
+    await this.enrollment.confirm(note);
   }
 
   protected async cancelTask(event: Event): Promise<void> {

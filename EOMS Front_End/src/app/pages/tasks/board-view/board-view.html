@@ -1,11 +1,12 @@
 @if (loading()) {
   <p class="empty">{{ t('loading') }}</p>
 } @else if (missing() || !snapshot()) {
-  <a class="text" [routerLink]="[]" [queryParams]="{}"><i class="fa-solid fa-arrow-right flip" aria-hidden="true"></i> {{ t('tkBackToBoards') }}</a>
+  <a class="text" [routerLink]="[]" [queryParams]="{ board: null, card: null }" queryParamsHandling="merge"><i class="fa-solid fa-arrow-right flip" aria-hidden="true"></i> {{ t('tkBackToBoards') }}</a>
 }
 @if (!loading() && !missing() && snapshot(); as s) {
-  <header class="tk-head" [style.--board]="s.board.color || 'var(--action)'">
-    <a class="text small" [routerLink]="[]" [queryParams]="{}"><i class="fa-solid fa-arrow-right flip" aria-hidden="true"></i> {{ t('tkBackToBoards') }}</a>
+  <div class="tk-canvas" [style.--board]="readable(s.board.color)">
+  <header class="tk-head">
+    <a class="text small" [routerLink]="[]" [queryParams]="{ board: null, card: null }" queryParamsHandling="merge"><i class="fa-solid fa-arrow-right flip" aria-hidden="true"></i> {{ t('tkBackToBoards') }}</a>
     <div class="tk-title">
       <h1>{{ s.board.name }}</h1>
       <span class="tk-chip">{{ typeLabel(s.board.type) }}</span>
@@ -103,7 +104,7 @@
       <ul class="fin-list">
         @for (l of labels(); track l.id) {
           <li>
-            <span class="tk-label-chip" [style.background]="l.color">{{ l.name }}</span>
+            <span class="tk-label-chip" [style.background]="readable(l.color)">{{ l.name }}</span>
             @if (canWork()) {
               <span class="end">
                 <button class="text small" type="button" (click)="editLabel(l)">{{ t('tkEdit') }}</button>
@@ -116,11 +117,7 @@
       @if (canWork()) {
         <form class="fin-form" (ngSubmit)="saveLabel()">
           <label class="wide">{{ t('tkLabelName') }}<input name="labelName" maxlength="50" required [(ngModel)]="labelForm.name" /></label>
-          <div class="tk-swatches wide" role="radiogroup" [attr.aria-label]="t('tkBoardColor')">
-            @for (c of swatches; track c) {
-              <button type="button" role="radio" [attr.aria-checked]="labelForm.color === c" [class.on]="labelForm.color === c" [style.background]="c" [attr.aria-label]="c" (click)="labelForm.color = c"></button>
-            }
-          </div>
+          <app-color-field class="wide" [swatches]="swatches" [(value)]="labelForm.color" [label]="t('tkBoardColor')" />
           <div class="fin-actions wide">
             @if (labelForm.id) { <button class="text" type="button" (click)="labelForm = { id: 0, name: '', color: swatches[0] }">{{ t('cancel') }}</button> }
             <button class="primary" type="submit" [disabled]="busy() || !labelForm.name.trim()">{{ labelForm.id ? t('save') : t('tkAddLabel') }}</button>
@@ -158,7 +155,7 @@
           <label class="wide">{{ t('tkCardTitle') }}<input name="rTitle" maxlength="200" required [(ngModel)]="recurring.title" /></label>
           <label>{{ t('tkLists') }}
             <select name="rList" [(ngModel)]="recurring.list_id">
-              @for (l of lists(); track l.id) { @if (l.kind === 'normal') { <option [ngValue]="l.id">{{ l.name }}</option> } }
+              @for (l of lists(); track l.id) { @if (l.kind === 'normal') { <option [ngValue]="l.id">{{ listLabel(l.name) }}</option> } }
             </select>
           </label>
           <label>{{ t('tkPriority') }}
@@ -215,7 +212,7 @@
       <ul class="fin-list">
         @for (l of archivedLists(); track l.id) {
           <li>
-            <span><i class="fa-solid fa-table-columns soft" aria-hidden="true"></i> {{ l.name }}</span>
+            <span><i class="fa-solid fa-table-columns soft" aria-hidden="true"></i> {{ listLabel(l.name) }}</span>
             @if (isOwner()) { <span class="end"><button class="text small" type="button" [disabled]="busy()" (click)="restoreList(l)">{{ t('tkRestore') }}</button></span> }
           </li>
         }
@@ -240,11 +237,7 @@
         @if (!archived()) {
           <label class="wide">{{ t('tkBoardName') }}<input name="sName" required maxlength="150" [(ngModel)]="settings.name" /></label>
           <label class="wide">{{ t('tkBoardDescription') }}<textarea name="sDescription" rows="2" maxlength="2000" [(ngModel)]="settings.description"></textarea></label>
-          <div class="tk-swatches wide" role="radiogroup" [attr.aria-label]="t('tkBoardColor')">
-            @for (c of swatches; track c) {
-              <button type="button" role="radio" [attr.aria-checked]="settings.color === c" [class.on]="settings.color === c" [style.background]="c" [attr.aria-label]="c" (click)="settings.color = c"></button>
-            }
-          </div>
+          <app-color-field class="wide" [swatches]="swatches" [(value)]="settings.color" [label]="t('tkBoardColor')" />
         }
         <div class="fin-actions wide">
           @if (archived()) {
@@ -263,7 +256,7 @@
   <div class="tk-board" [class.dragging]="dragging() !== null" (dragend)="dragEnd()">
     @for (list of lists(); track list.id; let i = $index) {
       <section class="tk-list" [class.done]="list.kind === 'done'" [class.finished]="list.kind === 'finished'"
-               [attr.aria-label]="list.name" (dragover)="overList($event, list)" (drop)="drop($event)">
+               [attr.aria-label]="listLabel(list.name)" (dragover)="overList($event, list)" (drop)="drop($event)">
         <header class="tk-list-head">
           @if (renaming() === list.id) {
             <form (ngSubmit)="rename(list)">
@@ -272,7 +265,7 @@
               </label>
             </form>
           } @else {
-            <h2>{{ list.name }} <bdi class="soft">{{ num(cardsIn(list.id).length) }}</bdi></h2>
+            <h2>{{ listLabel(list.name) }} <bdi class="soft">{{ num(cardsIn(list.id).length) }}</bdi></h2>
           }
           @if (list.kind === 'done') { <span class="tk-kind wait">{{ t('tkKindDone') }}</span> }
           @if (list.kind === 'finished') { <span class="tk-kind ok">{{ t('tkKindFinished') }}</span> }
@@ -332,7 +325,7 @@
             </li>
           }
           @if (showGap(list.id, null)) { <li class="tk-gap" aria-hidden="true">{{ t('tkDropHere') }}</li> }
-          @if (!cardsIn(list.id).length && !showGap(list.id, null)) { <li class="tk-none">{{ t('tkEmptyList') }}</li> }
+          @if (!cardsIn(list.id).length && !showGap(list.id, null) && !(canWork() && list.kind === 'normal')) { <li class="tk-none">{{ t('tkEmptyList') }}</li> }
         </ol>
 
         @if (canWork() && list.kind === 'normal') {
@@ -353,6 +346,7 @@
         <button class="text small" type="submit" [disabled]="busy() || !newList.trim()">{{ t('tkAddList') }}</button>
       </form>
     }
+  </div>
   </div>
 
   @if (cardId()) {

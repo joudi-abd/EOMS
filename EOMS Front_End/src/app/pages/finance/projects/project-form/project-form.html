@@ -1,0 +1,100 @@
+<form class="fin-sheet" (ngSubmit)="submit()">
+  <header>
+    <h2>{{ project() ? t('fpjEditProject') : t('fpjNewProject') }}</h2>
+    <button class="quiet-x" type="button" (click)="closed.emit()" [attr.aria-label]="t('finClose')"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+  </header>
+  <fieldset [disabled]="busy()">
+    <div class="fin-form">
+      <label class="wide">{{ t('finName') }}<input name="name" required maxlength="200" [(ngModel)]="name" /></label>
+
+      <div class="wide fpj-choice">
+        <span>{{ t('fpjContractType') }}</span>
+        <div class="seg" role="radiogroup" [attr.aria-label]="t('fpjContractType')">
+          @for (item of types; track item) {
+            <button type="button" role="radio" [attr.aria-checked]="type === item" [class.on]="type === item" [disabled]="locked()" (click)="pickType(item)">
+              {{ contractTypeLabel(item) }}
+            </button>
+          }
+        </div>
+        <small class="fin-hint">{{ t(typeHint()) }}</small>
+      </div>
+
+      @if (type !== 'internal') {
+        <label>{{ t('fpjClient') }}
+          <select name="client" required [(ngModel)]="clientId" [disabled]="locked()">
+            <option [ngValue]="0">{{ t('finChoose') }}</option>
+            @for (party of clients(); track party.id) { <option [ngValue]="party.id">{{ party.name }}</option> }
+            @if (clientId && !finance.party(clientId)) { <option [ngValue]="clientId">{{ project()?.client?.name ?? clientId }}</option> }
+          </select>
+        </label>
+      }
+      <label>{{ t('fpjContractCurrency') }}
+        <select name="currency" required [(ngModel)]="currencyId" [disabled]="locked()">
+          @for (item of finance.activeCurrencies(); track item.id) { <option [ngValue]="item.id">{{ item.code }} · {{ item.name }}</option> }
+        </select>
+      </label>
+      @if (needsValue()) {
+        <label>{{ t('fpjContractValue') }}<input name="value" type="number" min="0" step="any" required [(ngModel)]="value" /></label>
+      }
+      @if (needsFee()) {
+        <label>{{ t('fpjFeePct') }}<input name="fee" type="number" min="0" max="100" step="any" required [(ngModel)]="fee" [disabled]="locked()" /></label>
+      }
+      <label>{{ t('finBranch') }}
+        <select name="branch" [(ngModel)]="branchId">
+          @for (item of finance.branches(); track item.id) {
+            @if (item.is_active || item.id === branchId) { <option [ngValue]="item.id">{{ item.name }}</option> }
+          }
+        </select>
+      </label>
+      @if (managers().length) {
+        <label>{{ t('fpjManager') }}
+          <select name="manager" [(ngModel)]="managerId">
+            <option [ngValue]="0">{{ t('finOptional') }}</option>
+            @for (item of managers(); track item.id) { <option [ngValue]="item.id">{{ item.name }}</option> }
+          </select>
+        </label>
+      }
+      <label>{{ t('fpjStartDate') }}<input name="start" type="date" [(ngModel)]="startDate" /></label>
+      @if (!project()) {
+        <label>{{ t('finStatus') }}
+          <select name="status" [(ngModel)]="status">
+            @for (item of statuses; track item) {
+              @if (item !== 'closed') { <option [value]="item">{{ projectStatusLabel(item) }}</option> }
+            }
+          </select>
+        </label>
+      }
+
+      @if (locked()) {
+        <p class="fin-warn wide"><i class="fa-solid fa-lock" aria-hidden="true"></i> {{ t('fpjLockedHint') }}</p>
+      }
+
+      <div class="wide">
+        <button class="text small" type="button" [attr.aria-expanded]="more()" (click)="more.set(!more())">
+          <i class="fa-solid" [class.fa-chevron-down]="!more()" [class.fa-chevron-up]="more()" aria-hidden="true"></i> {{ t('fpjMore') }}
+        </button>
+      </div>
+      @if (more()) {
+        <label>{{ t('fpjEndDate') }}<input name="end" type="date" [min]="startDate" [(ngModel)]="endDate" /></label>
+        <label class="wide">{{ t('finNotes') }}<textarea name="notes" rows="2" maxlength="2000" [(ngModel)]="notes"></textarea></label>
+        @if (type === 'cost_plus') {
+          <div class="wide fpj-base" role="group" [attr.aria-label]="t('fpjFeeBase')">
+            <span>{{ t('fpjFeeBase') }}</span>
+            <p class="fin-hint">{{ t('fpjFeeBaseHint') }}</p>
+            @for (item of billable(); track item.id) {
+              <label class="fpj-check">
+                <input type="checkbox" [name]="'base' + item.id" [ngModel]="feeBase.includes(item.id)" (ngModelChange)="toggleBase(item.id, $event)" />
+                {{ item.name }}
+              </label>
+            }
+          </div>
+        }
+      }
+    </div>
+
+    <div class="fin-actions">
+      <button class="text" type="button" (click)="closed.emit()">{{ t('finCancel') }}</button>
+      <button class="primary" type="submit">{{ project() ? t('finSave') : t('fpjCreate') }}</button>
+    </div>
+  </fieldset>
+</form>

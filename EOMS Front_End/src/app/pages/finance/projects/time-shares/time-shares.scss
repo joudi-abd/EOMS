@@ -1,0 +1,35 @@
+.panel {
+  display: grid;
+  gap: 12px;
+}
+
+.panel-head {
+  margin-bottom: 0;
+}
+
+.fin-lines table {
+  min-width: 0;
+}
+
+.fpj-pct {
+  min-width: 80px;
+  max-width: 110px;
+}
+
+.fpj-adders {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.fpj-adders label {
+  display: grid;
+  gap: 6px;
+  font-size: 15px;
+  color: var(--muted);
+}
+
+.fpj-push {
+  margin-inline-start: auto;
+}

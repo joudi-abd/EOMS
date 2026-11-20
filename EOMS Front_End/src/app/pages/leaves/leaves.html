@@ -1,8 +1,4 @@
 <main class="work" id="content">
-  <button class="menu" type="button" (click)="chrome.toggle()">
-    <i class="fa-solid" [class.fa-bars]="!chrome.menuOpen()" [class.fa-xmark]="chrome.menuOpen()" aria-hidden="true"></i>
-    {{ chrome.menuOpen() ? t('closeMenu') : t('menu') }}
-  </button>
   <header class="heading">
     <div>
       <p class="crumb">{{ t('navPeople') }} <i class="fa-solid fa-chevron-left crumb-sep" aria-hidden="true"></i> {{ l('الإجازات', 'Leave') }}</p>
@@ -10,9 +6,6 @@
       <p class="lede">{{ t('ledeLeave') }}</p>
     </div>
     <div class="actions">
-      @if (options()?.can_configure) {
-        <a class="text" routerLink="/modules/hrSettings" [queryParams]="{tab: 'leaves'}">{{ l('إعدادات الأنواع والأرصدة والعطلات', 'Leave types, balances and holidays') }}</a>
-      }
       <button class="text" type="button" [disabled]="busy() || exporting()" (click)="exportExcel()">
         <i class="fa-solid fa-file-excel" aria-hidden="true"></i>
         {{ exporting() ? t('exporting') : t('exportExcel') }}
@@ -33,9 +26,20 @@
         <p>
           <span>{{ t('lvWaiting') }}</span>
           <strong [class.wait]="(reviewPending() ?? 0) > 0">{{ reviewPending() === null ? '—' : num(reviewPending()!) }}</strong>
-          <small><button class="text small inline" type="button" (click)="openReview()">{{ t('lvOpenQueue') }}</button></small>
         </p>
       }
+      <p>
+        <span>{{ t('lvOnLeaveToday') }}</span>
+        <strong>{{ onLeaveToday() === null ? '—' : num(onLeaveToday()!) }}</strong>
+      </p>
+      <p>
+        <span>{{ t('lvPendingRequests') }}</span>
+        <strong [class.wait]="(pendingCount() ?? 0) > 0">{{ pendingCount() === null ? '—' : num(pendingCount()!) }}</strong>
+      </p>
+      <p>
+        <span>{{ t('lvApprovedMonth') }}</span>
+        <strong>{{ approvedMonth() === null ? '—' : num(approvedMonth()!) }}</strong>
+      </p>
       @if (settings.can_submit) {
         @for (type of settings.types; track type.id) {
           <p>
@@ -46,26 +50,21 @@
         }
       }
     </div>
-    @if (settings.can_configure) {
-      <app-leave-periods [halves]="halves" [busy]="busy()" (save)="saveHalves()" />
-    }
-    @if (settings.can_submit) {
-      <app-leave-form
-        [settings]="settings"
-        [form]="form"
-        [editing]="editing"
-        [quote]="quote()"
-        [busy]="busy()"
-        [forEmployee]="forEmployee"
-        [(consent)]="consent"
-        [(approveNow)]="approveNow"
-        (employeeChange)="pickEmployee($event)"
-        (preview)="preview()"
-        (confirm)="submit()"
-        (clear)="reset()"
-        (invalidate)="invalidate()" />
-    }
-    @if (session.has('leaves.view')) {
+
+    <nav class="tabs scopes" [attr.aria-label]="l('عرض الإجازات', 'Leave view')">
+      <button type="button" [class.active]="view() === 'mine'" [attr.aria-current]="view() === 'mine' ? 'true' : null" [disabled]="busy()" (click)="showRequests('mine')">{{ l('طلباتي', 'My requests') }}</button>
+      @if (settings.can_review) {
+        <button type="button" [class.active]="view() === 'review'" [attr.aria-current]="view() === 'review' ? 'true' : null" [disabled]="busy()" (click)="showRequests('review')">{{ l('مراجعة الطلبات', 'Review requests') }}</button>
+      }
+      @if (session.has('leaves.view')) {
+        <button type="button" [class.active]="view() === 'all'" [attr.aria-current]="view() === 'all' ? 'true' : null" [disabled]="busy()" (click)="showRequests('all')">{{ l('كل الطلبات', 'Every request') }}</button>
+      }
+      @if (session.reach('leaves.view')) {
+        <button type="button" [class.active]="view() === 'away'" [attr.aria-current]="view() === 'away' ? 'true' : null" [disabled]="busy()" (click)="showAway()">{{ l('من في إجازة', 'Who is away') }}</button>
+      }
+    </nav>
+
+    @if (view() === 'away') {
       <app-leave-calendar
         [(from)]="calendarFrom"
         [(to)]="calendarTo"
@@ -74,22 +73,38 @@
         [board]="calendar()"
         [busy]="busy()"
         (show)="loadCalendar()" />
+    } @else {
+      @if (settings.can_submit && (view() === 'mine' || editing)) {
+        <app-leave-form
+          [settings]="settings"
+          [form]="form"
+          [editing]="editing"
+          [quote]="quote()"
+          [busy]="busy()"
+          [forEmployee]="forEmployee"
+          [(consent)]="consent"
+          [(approveNow)]="approveNow"
+          (employeeChange)="pickEmployee($event)"
+          (preview)="preview()"
+          (confirm)="submit()"
+          (clear)="reset()"
+          (invalidate)="invalidate()" />
+      }
+      <app-leave-register
+        [settings]="settings"
+        [rows]="rows()"
+        [filters]="filters"
+        [busy]="busy()"
+        [scope]="scope"
+        [page]="page"
+        [lastPage]="lastPage"
+        [decision]="decision"
+        (apply)="applyFilters()"
+        (turn)="turnPage($event)"
+        (edit)="edit($event)"
+        (choose)="choose($event.row, $event.action)"
+        (confirm)="applyDecision($event)"
+        (dismiss)="decision = null" />
     }
-    <app-leave-register
-      [settings]="settings"
-      [rows]="rows()"
-      [filters]="filters"
-      [busy]="busy()"
-      [scope]="scope"
-      [page]="page"
-      [lastPage]="lastPage"
-      [decision]="decision"
-      (scopeChange)="changeScope($event)"
-      (apply)="applyFilters()"
-      (turn)="turnPage($event)"
-      (edit)="edit($event)"
-      (choose)="choose($event.row, $event.action)"
-      (confirm)="applyDecision($event)"
-      (dismiss)="decision = null" />
   }
 </main>

@@ -57,6 +57,7 @@ export class EmployeeDocuments extends Ui {
 
   protected async remove(document: EmployeeDocument): Promise<void> {
     if (this.removing()) return;
+    if (!(await this.askDelete())) return;
     this.removing.set(document.id);
     await this.records.removeDocument(this.person().id, document.id);
     this.removing.set('');

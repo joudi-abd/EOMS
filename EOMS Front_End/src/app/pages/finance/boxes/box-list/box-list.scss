@@ -1,0 +1,11 @@
+/* The boxes list: the deactivate confirm sits inline in the row. */
+
+.fbx-confirm {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  color: var(--muted);
+  white-space: normal;
+}

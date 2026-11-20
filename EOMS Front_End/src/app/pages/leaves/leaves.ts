@@ -1,37 +1,39 @@
 import { Component, inject, signal } from '@angular/core';
-import { RouterLink } from '@angular/router';
 import { Ui } from '../../core/ui';
 import { serverMessage } from '../../core/api/api';
 import { Reporter, ReportDraft } from '../../core/reports/reporter';
-import { Chrome } from '../../shell/chrome';
 import { Session } from '../../core/access/session';
-import { Leaves, LeaveCalendar as LeaveBoard, LeaveInput, LeaveListQuery, LeaveOptions, LeaveQuote, LeaveRecord, HalfDays } from '../../data/leaves';
+import { Leaves, LeaveCalendar as LeaveBoard, LeaveInput, LeaveListQuery, LeaveOptions, LeaveQuote, LeaveRecord } from '../../data/leaves';
 import { leaveClock, leaveLabel, leaveShift } from './leave-format';
 import { LeaveCalendar } from './leave-calendar/leave-calendar';
 import { LeaveForm } from './leave-form/leave-form';
-import { LeavePeriods } from './leave-periods/leave-periods';
 import { LeaveFilters, LeaveRegister } from './leave-register/leave-register';
 
 @Component({
   selector: 'app-leaves',
-  imports: [RouterLink, LeavePeriods, LeaveForm, LeaveCalendar, LeaveRegister],
+  imports: [LeaveForm, LeaveCalendar, LeaveRegister],
   templateUrl: './leaves.html',
   styleUrl: './leaves.scss',
 })
 export class LeavesPage extends Ui {
-  protected readonly chrome = inject(Chrome);
   private readonly api = inject(Leaves);
   private readonly reporter = inject(Reporter);
   protected readonly session = inject(Session);
   protected readonly options = signal<LeaveOptions | null>(null);
   /** Requests waiting in this reviewer's queue; null until counted (or for a non-reviewer). */
   protected readonly reviewPending = signal<number | null>(null);
+  /** People away today, pending requests, and approvals this month — null while loading or if the count is out of reach. */
+  protected readonly onLeaveToday = signal<number | null>(null);
+  protected readonly pendingCount = signal<number | null>(null);
+  protected readonly approvedMonth = signal<number | null>(null);
   protected readonly rows = signal<LeaveRecord[]>([]);
   protected readonly quote = signal<LeaveQuote | null>(null);
   protected readonly busy = signal(false);
   protected readonly exporting = signal(false);
   protected readonly error = signal('');
   protected readonly success = signal('');
+  /** One surface at a time: request scopes, or who is away. */
+  protected readonly view = signal<'mine' | 'review' | 'all' | 'away'>('mine');
   protected scope: 'mine' | 'review' | 'all' = 'mine';
   protected page = 1;
   protected lastPage = 1;
@@ -41,7 +43,6 @@ export class LeavesPage extends Ui {
   protected editing?: LeaveRecord;
   protected consent = false;
   protected form: LeaveInput = {leave_type_id: 0, start_date: '', end_date: '', unit: 'day', reason: ''};
-  protected halves: HalfDays = {first_start: '09:00', first_end: '12:30', second_start: '12:30', second_end: '16:00'};
   protected readonly calendar = signal<LeaveBoard | null>(null);
   protected calendarFrom = '';
   protected calendarTo = '';
@@ -72,31 +73,46 @@ export class LeavesPage extends Ui {
       this.calendarTo = leaveShift(data.today, 13);
     }
     await this.loadRows();
-    if (data?.can_review) void this.loadReviewCount();
+    if (data) void this.loadStats(data);
   }
-  /** One page-1 request on the review queue, read for its total. */
-  private async loadReviewCount(): Promise<void> {
-    try {
-      const result = await this.api.list({scope: 'review', page: 1, status: 'pending'});
-      const meta = result.meta as {total?: number};
-      this.reviewPending.set(meta.total ?? result.data.length);
-    } catch {
-      this.reviewPending.set(null);
+  /** Fills the summary strip from page-1 totals and today's calendar; a count the account may not see stays blank. */
+  private async loadStats(settings: LeaveOptions): Promise<void> {
+    const total = async (query: LeaveListQuery): Promise<number | null> => {
+      try {
+        const result = await this.api.list(query);
+        return result.meta.total ?? result.data.length;
+      } catch {
+        return null;
+      }
+    };
+    const monthStart = `${settings.today.slice(0, 7)}-01`;
+    const listScope: LeaveListQuery['scope'] = this.session.has('leaves.view') ? 'all' : settings.can_review ? 'review' : 'mine';
+    const jobs: Promise<void>[] = [
+      settings.can_review
+        ? total({scope: 'review', page: 1, status: 'pending'}).then((value) => this.reviewPending.set(value))
+        : Promise.resolve(this.reviewPending.set(null)),
+      total({scope: listScope, page: 1, status: 'pending'}).then((value) => this.pendingCount.set(value)),
+      total({scope: listScope, page: 1, status: 'approved', from: monthStart, to: settings.today}).then((value) => this.approvedMonth.set(value)),
+    ];
+    if (this.session.reach('leaves.view')) {
+      jobs.push(
+        this.api
+          .calendar(settings.today, settings.today)
+          .then((result) => {
+            const people = new Set(result.data.days.filter((day) => day.status === 'approved').map((day) => day.employee_id));
+            this.onLeaveToday.set(people.size);
+          })
+          .catch(() => this.onLeaveToday.set(null)),
+      );
+    } else {
+      this.onLeaveToday.set(null);
     }
-  }
-  protected openReview(): void {
-    this.changeScope('review');
+    await Promise.all(jobs);
   }
   protected balanceDays(units: number | null): string { return units === null ? '—' : this.days(units); }
   private async loadOptions(employeeId?: number): Promise<void> {
     const {data} = await this.api.options(employeeId);
     this.options.set(data);
-    if (data.half_days?.first_start) {
-      this.halves = {
-        first_start: leaveClock(data.half_days.first_start), first_end: leaveClock(data.half_days.first_end),
-        second_start: leaveClock(data.half_days.second_start), second_end: leaveClock(data.half_days.second_end),
-      };
-    }
     if (!data.types.some((type) => type.id === this.form.leave_type_id)) this.form.leave_type_id = data.types[0]?.id ?? 0;
   }
   private subjectId(): number | undefined {
@@ -123,8 +139,17 @@ export class LeavesPage extends Ui {
     this.rows.set(result.data);
     this.lastPage = result.meta.last_page;
   }
-  protected changeScope(scope: 'mine' | 'review' | 'all'): void {
-    this.scope = scope; this.page = 1; void this.run(() => this.loadRows());
+  protected showRequests(scope: 'mine' | 'review' | 'all'): void {
+    this.view.set(scope);
+    this.scope = scope;
+    this.page = 1;
+    this.decision = null;
+    void this.run(() => this.loadRows());
+  }
+  protected showAway(): void {
+    this.view.set('away');
+    this.decision = null;
+    if (!this.calendar()) this.loadCalendar();
   }
   protected applyFilters(): void {
     this.page = 1; void this.run(() => this.loadRows());
@@ -158,8 +183,12 @@ export class LeavesPage extends Ui {
     });
   }
   protected edit(row: LeaveRecord): void {
-    this.editing = row; this.form = {...row.input, leave_type_id: row.leave_type_id};
-    this.invalidate(); this.success.set(''); this.decision = null;
+    this.editing = row;
+    this.form = {...row.input, leave_type_id: row.leave_type_id};
+    this.invalidate();
+    this.success.set('');
+    this.decision = null;
+    if (this.view() === 'away') this.view.set(this.scope);
     window.scrollTo({top: 0, behavior: 'smooth'});
   }
   protected reset(): void {
@@ -198,14 +227,6 @@ export class LeavesPage extends Ui {
       const department = Number(this.calendarDepartment);
       const result = await this.api.calendar(this.calendarFrom, this.calendarTo, department || undefined, this.includePending);
       this.calendar.set(result.data);
-    });
-  }
-  protected saveHalves(): void {
-    void this.run(async () => {
-      await this.api.saveHalves(this.halves);
-      this.invalidate();
-      this.options.update(value => value ? {...value, half_days: {...this.halves}} : value);
-      this.success.set(this.l('تم حفظ فترتي نصف اليوم.', 'Half-day periods saved.'));
     });
   }
   private async matching(): Promise<LeaveRecord[]> {

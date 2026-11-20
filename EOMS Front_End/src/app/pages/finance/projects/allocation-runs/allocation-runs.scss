@@ -1,0 +1,36 @@
+.panel {
+  display: grid;
+  gap: 14px;
+}
+
+.panel-head {
+  margin-bottom: 0;
+}
+
+.fpj-choice {
+  display: grid;
+  gap: 6px;
+  font-size: 15px;
+  color: var(--muted);
+}
+
+.fpj-push {
+  margin-inline-start: auto;
+}
+
+.fpj-preview {
+  display: grid;
+  gap: 10px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.fpj-preview h3 {
+  margin: 0;
+  font-size: 17px;
+}
+
+.fpj-preview.stale .sheet,
+.fpj-preview.stale .fin-totals {
+  opacity: 0.55;
+}

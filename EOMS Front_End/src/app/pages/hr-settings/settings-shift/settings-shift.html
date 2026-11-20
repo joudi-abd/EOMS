@@ -22,7 +22,7 @@
       </label>
       <label>
         <span>{{ t('policyEffectiveFrom') }}</span>
-        <input name="effective" type="date" required [min]="office.nextPolicyDay()" [value]="office.nextPolicyDay()" />
+        <input name="effective" type="date" required [min]="office.policyVersions().length ? office.nextPolicyDay() : '1970-01-01'" [value]="office.policyStart()" />
       </label>
       <fieldset class="wide">
         <legend>{{ t('workdaysLabel') }}</legend>
@@ -33,7 +33,7 @@
           </label>
         }
       </fieldset>
-      @if (current(); as now) {
+      @if (rules(); as now) {
         <fieldset class="wide rules">
           <legend>{{ t('policyRulesLegend') }}</legend>
           <label>

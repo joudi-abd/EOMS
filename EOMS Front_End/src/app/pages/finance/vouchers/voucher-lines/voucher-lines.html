@@ -1,0 +1,272 @@
+<div class="fin-lines">
+  <table>
+    <thead>
+      <tr>
+        @if (mode() === 'expense') {
+          <th>{{ t('finExpenseCategory') }}</th>
+          @if (hasProjects()) {
+            <th>{{ t('finProject') }}</th>
+            <th>{{ t('finCostCategory') }}</th>
+          }
+          @if (more()) {
+            <th>{{ t('fvoAsset') }}</th>
+          }
+          @if (withParty()) {
+            <th>{{ t('fvoSupplier') }}</th>
+          }
+          <th>{{ t('finAmount') }}</th>
+        } @else {
+          <th>{{ t('finAccount') }}</th>
+          <th>{{ t('finCurrency') }}</th>
+          <th>{{ t('finDebit') }}</th>
+          <th>{{ t('finCredit') }}</th>
+          @if (journalExtras()) {
+            <th>{{ t('finParty') }}</th>
+            @if (hasProjects()) {
+              <th>{{ t('finProject') }}</th>
+            }
+          }
+        }
+        <th>{{ t('fvoMemo') }}</th>
+        <th>
+          <span class="vh">{{ t('finActions') }}</span>
+        </th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (row of lines(); track row.key; let i = $index) {
+        <tr>
+          @if (mode() === 'expense') {
+            <td>
+              <select
+                [attr.aria-label]="t('finExpenseCategory')"
+                [disabled]="disabled()"
+                [(ngModel)]="row.expense_category_id"
+              >
+                <option [ngValue]="0">
+                  {{ row.project_id ? t('finOptional') : t('finChoose') }}
+                </option>
+                @for (item of finance.expenseLeaves(); track item.id) {
+                  <option [ngValue]="item.id">{{ item.label }}</option>
+                }
+              </select>
+            </td>
+            @if (hasProjects()) {
+              <td>
+                <select
+                  [attr.aria-label]="t('finProject')"
+                  [disabled]="disabled()"
+                  [ngModel]="row.project_id"
+                  (ngModelChange)="setProject(row, $event)"
+                >
+                  <option [ngValue]="0">{{ t('finNone') }}</option>
+                  @for (project of finance.openProjects(); track project.project_id) {
+                    <option [ngValue]="project.project_id">
+                      {{ finance.projectName(project.project_id) }}
+                    </option>
+                  }
+                </select>
+              </td>
+              <td>
+                @if (row.project_id) {
+                  <select
+                    [attr.aria-label]="t('finCostCategory')"
+                    [disabled]="disabled()"
+                    [(ngModel)]="row.project_cost_category_id"
+                  >
+                    <option [ngValue]="0">
+                      {{ row.asset_id ? t('finOptional') : t('finChoose') }}
+                    </option>
+                    @for (item of finance.activeCostCategories(); track item.id) {
+                      <option [ngValue]="item.id">{{ item.name }}</option>
+                    }
+                  </select>
+                } @else {
+                  <span class="soft">—</span>
+                }
+              </td>
+            }
+            @if (more()) {
+              <td>
+                <select
+                  [attr.aria-label]="t('fvoAsset')"
+                  [disabled]="disabled()"
+                  [(ngModel)]="row.asset_id"
+                >
+                  <option [ngValue]="0">{{ t('finNone') }}</option>
+                  @for (asset of assets(); track asset.id) {
+                    <option [ngValue]="asset.id">{{ assetLabel(asset) }}</option>
+                  }
+                </select>
+              </td>
+            }
+            @if (withParty()) {
+              <td>
+                <select
+                  [attr.aria-label]="t('fvoSupplier')"
+                  [disabled]="disabled()"
+                  [(ngModel)]="row.party_id"
+                >
+                  <option [ngValue]="0">{{ t('finNone') }}</option>
+                  @for (party of finance.partiesWith(); track party.id) {
+                    <option [ngValue]="party.id">{{ party.name }}</option>
+                  }
+                </select>
+              </td>
+            }
+            <td>
+              <input
+                type="number"
+                min="0"
+                step="any"
+                inputmode="decimal"
+                [attr.aria-label]="t('finAmount')"
+                [disabled]="disabled()"
+                [(ngModel)]="row.debit"
+              />
+            </td>
+          } @else {
+            <td>
+              <select
+                [attr.aria-label]="t('finAccount')"
+                [disabled]="disabled()"
+                [(ngModel)]="row.account_id"
+              >
+                <option [ngValue]="0">{{ t('finChoose') }}</option>
+                @for (account of accounts(); track account.id) {
+                  <option [ngValue]="account.id">{{ account.code }} · {{ account.name }}</option>
+                }
+              </select>
+            </td>
+            <td>
+              <select
+                [attr.aria-label]="t('finCurrency')"
+                [disabled]="disabled()"
+                [(ngModel)]="row.currency"
+              >
+                <option value="">—</option>
+                @for (code of currencies(); track code) {
+                  <option [value]="code">{{ code }}</option>
+                }
+              </select>
+            </td>
+            <td>
+              <input
+                type="number"
+                min="0"
+                step="any"
+                inputmode="decimal"
+                [attr.aria-label]="t('finDebit')"
+                [disabled]="disabled()"
+                [ngModel]="row.debit"
+                (ngModelChange)="setDebit(row, $event)"
+              />
+            </td>
+            <td>
+              <input
+                type="number"
+                min="0"
+                step="any"
+                inputmode="decimal"
+                [attr.aria-label]="t('finCredit')"
+                [disabled]="disabled()"
+                [ngModel]="row.credit"
+                (ngModelChange)="setCredit(row, $event)"
+              />
+            </td>
+            @if (journalExtras()) {
+              <td>
+                <select
+                  [attr.aria-label]="t('finParty')"
+                  [disabled]="disabled()"
+                  [(ngModel)]="row.party_id"
+                >
+                  <option [ngValue]="0">{{ t('finNone') }}</option>
+                  @for (party of finance.partiesWith(); track party.id) {
+                    <option [ngValue]="party.id">{{ party.name }}</option>
+                  }
+                </select>
+              </td>
+              @if (hasProjects()) {
+                <td>
+                  <select
+                    [attr.aria-label]="t('finProject')"
+                    [disabled]="disabled()"
+                    [(ngModel)]="row.project_id"
+                  >
+                    <option [ngValue]="0">{{ t('finNone') }}</option>
+                    @for (project of finance.openProjects(); track project.project_id) {
+                      <option [ngValue]="project.project_id">
+                        {{ finance.projectName(project.project_id) }}
+                      </option>
+                    }
+                  </select>
+                </td>
+              }
+            }
+          }
+          <td>
+            <input
+              type="text"
+              maxlength="500"
+              [attr.aria-label]="t('fvoMemo')"
+              [disabled]="disabled()"
+              [(ngModel)]="row.memo"
+            />
+          </td>
+          <td>
+            @if (lines().length > 1) {
+              <button
+                class="quiet-x remove"
+                type="button"
+                [disabled]="disabled()"
+                [attr.aria-label]="t('fvoRemoveLine') + ' ' + (i + 1)"
+                (click)="remove(row.key)"
+              >
+                <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+              </button>
+            }
+          </td>
+        </tr>
+      }
+    </tbody>
+  </table>
+</div>
+
+<div class="fvo-lines-foot">
+  <button class="text small" type="button" [disabled]="disabled()" (click)="add()">
+    <i class="fa-solid fa-plus" aria-hidden="true"></i> {{ t('fvoAddLine') }}
+  </button>
+  @if (mode() === 'expense') {
+    <div class="fin-totals">
+      <div class="grand">
+        <span>{{ t('finTotal') }}</span
+        ><bdi class="num">{{ money(total(), currency() || null) }}</bdi>
+      </div>
+    </div>
+  } @else {
+    <div class="fin-totals">
+      @for (row of balances(); track row.currency) {
+        <div>
+          <span
+            ><bdi>{{ row.currency }}</bdi> · {{ t('finDebit') }}
+            <bdi class="num">{{ figure(row.debit, row.currency) }}</bdi> · {{ t('finCredit') }}
+            <bdi class="num">{{ figure(row.credit, row.currency) }}</bdi></span
+          >
+          @if (row.even) {
+            <span class="fin-balanced">{{ t('fvoBalanced') }}</span>
+          } @else {
+            <span class="fin-unbalanced"
+              >{{ t('fvoDifference') }}
+              <bdi class="num">{{ figure(row.debit - row.credit, row.currency) }}</bdi></span
+            >
+          }
+        </div>
+      } @empty {
+        <div>
+          <span class="soft">{{ t('fvoNoLinesYet') }}</span>
+        </div>
+      }
+    </div>
+  }
+</div>

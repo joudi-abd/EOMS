@@ -1,0 +1,9 @@
+<div class="fin-toolbar">
+  <label class="fpj-month">{{ t('finMonth') }}
+    <input name="month" type="month" required [ngModel]="month()" (ngModelChange)="pick($event)" />
+  </label>
+  <p class="fin-hint">{{ t('fpjAllocLede') }}</p>
+</div>
+
+<app-fpj-time-shares [year]="year()" [month]="monthNo()" />
+<app-fpj-allocation-runs [year]="year()" [month]="monthNo()" />

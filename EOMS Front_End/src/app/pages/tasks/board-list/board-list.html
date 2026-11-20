@@ -35,14 +35,7 @@
       }
       <label class="wide">{{ t('tkBoardName') }}<input name="name" required maxlength="150" [(ngModel)]="form.name" /></label>
       <label class="wide">{{ t('tkBoardDescription') }}<textarea name="description" rows="2" maxlength="2000" [(ngModel)]="form.description"></textarea></label>
-      <div class="wide">
-        <span class="tk-label">{{ t('tkBoardColor') }}</span>
-        <div class="tk-swatches" role="radiogroup" [attr.aria-label]="t('tkBoardColor')">
-          @for (c of swatches; track c) {
-            <button type="button" role="radio" [attr.aria-checked]="form.color === c" [class.on]="form.color === c" [style.background]="c" [attr.aria-label]="c" (click)="form.color = c"></button>
-          }
-        </div>
-      </div>
+      <app-color-field class="wide" [swatches]="swatches" [(value)]="form.color" [label]="t('tkBoardColor')" />
       @if (form.type !== 'personal' && form.type !== 'department') { <p class="fin-hint wide">{{ t('tkMembersHint') }}</p> }
       <div class="fin-actions wide">
         <button class="text" type="button" (click)="creating.set(false)">{{ t('cancel') }}</button>
@@ -63,7 +56,7 @@
       <ul class="tk-tiles">
         @for (b of group.boards; track b.id) {
           <li>
-            <a class="tk-tile" [routerLink]="[]" [queryParams]="{ board: b.id }" [style.--board]="b.color || 'var(--action)'">
+            <a class="tk-tile" [routerLink]="[]" [queryParams]="{ board: b.id, card: null, view: null }" queryParamsHandling="merge" [style.--board]="b.color || 'var(--action)'">
               <strong>{{ b.name }}</strong>
               @if (b.description) { <span class="soft">{{ b.description }}</span> }
               <span class="tk-tile-foot">
@@ -90,7 +83,7 @@
           <li>
             <span><strong>{{ b.name }}</strong> <span class="soft">· {{ typeLabel(b.type) }}</span></span>
             <span class="end">
-              <a class="text small" [routerLink]="[]" [queryParams]="{ board: b.id }">{{ t('tkShow') }}</a>
+              <a class="text small" [routerLink]="[]" [queryParams]="{ board: b.id, card: null, view: null }" queryParamsHandling="merge">{{ t('tkShow') }}</a>
               @if (b.role === 'owner') {
                 <button class="text small" type="button" [disabled]="busy()" (click)="restore(b)">{{ t('tkRestore') }}</button>
               }

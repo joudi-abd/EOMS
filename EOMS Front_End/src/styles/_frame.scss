@@ -13,6 +13,14 @@
   padding-bottom: calc(64px + env(safe-area-inset-bottom));
 }
 
+.app.board-focus .work {
+  padding: 0;
+}
+
+html:has(.app.board-focus) {
+  overflow-x: clip;
+}
+
 /* The datum: every page title sits on a hairline that carries an indigo segment at its start. */
 .heading {
   position: relative;
@@ -37,6 +45,19 @@
 
 .heading > div:first-child {
   min-width: 0;
+}
+
+.crumb {
+  margin: 0 0 6px;
+  color: var(--soft);
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.crumb-sep {
+  margin: 0 6px;
+  font-size: 11px;
+  opacity: 0.7;
 }
 
 .heading .sub,

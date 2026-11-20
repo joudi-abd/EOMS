@@ -2,9 +2,13 @@
 
 namespace Tests\Feature\Payroll;
 
-use App\Modules\Finance\Models\Account;
-use App\Modules\Finance\Models\Box;
-use App\Modules\Finance\Services\CashService;
+use App\Modules\Finance\Database\Seeders\FinanceChartSeeder;
+use App\Modules\Finance\Models\CashBox;
+use App\Modules\Finance\Models\Voucher;
+use App\Modules\Finance\Services\Core\LedgerService;
+use App\Modules\Finance\Services\Core\SystemAccounts;
+use App\Modules\Finance\Services\Core\VoucherService;
+use App\Modules\Finance\Services\Treasury\CashBoxService;
 use App\Modules\HR\Models\AttendanceDay;
 use App\Modules\HR\Models\Employee;
 use App\Modules\HR\Models\EmployeeServicePeriod;
@@ -16,7 +20,10 @@ use App\Modules\Payroll\Models\PayExport;
 use App\Modules\Payroll\Models\PayPayment;
 use App\Modules\Payroll\Models\PayRunItem;
 use App\Modules\Payroll\Models\PayRunLine;
+use App\Modules\Settings\Database\Seeders\BranchSeeder;
 use App\Modules\Settings\Database\Seeders\CurrencySeeder;
+use App\Modules\Settings\Models\Branch;
+use App\Modules\Settings\Models\Currency;
 use App\Modules\Settings\Services\ExchangeRateService;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\QueryException;
@@ -40,16 +47,19 @@ class PayrollTest extends TestCase
 
     private User $finance;
 
-    private User $director;
+    /** A second finance account that reviews and approves runs (the company manager no longer approves payroll, OP-1). */
+    private User $reviewer;
 
     private EmploymentContract $contract;
 
     protected function setUp(): void
     {
         $this->setUpFixture();
-        $this->seed(CurrencySeeder::class);
+        $this->seed([CurrencySeeder::class, BranchSeeder::class, FinanceChartSeeder::class]);
+        // Approval posts the October accrual: the bulletin needs an SYP rate on or before the month's last day.
+        app(ExchangeRateService::class)->setRates('2026-10-01', ['SYP' => 13000]);
         $this->finance = $this->actor('finance_manager');
-        $this->director = $this->actor('company_manager');
+        $this->reviewer = $this->actor('finance_manager');
         // All leave of this type is unpaid, and October is still inside the retroactive window.
         $this->policy->update(['annual_days' => 0, 'retroactive_days' => 60]);
         $this->contract = EmploymentContract::create(['employee_id' => $this->employee->id, 'contract_number' => 'C-PAY-1',
@@ -76,15 +86,32 @@ class PayrollTest extends TestCase
         $this->assertSame([], $result['skipped']);
     }
 
-    /** A finance box holding enough money, funded from a capital account. */
-    private function box(string $currency, float $funds): Box
+    /** A finance box holding enough money in one currency, funded by a posted receipt from the opening balances account. */
+    private function box(string $currency, float $funds): CashBox
     {
-        $box = app(CashService::class)->createBox(['name' => 'Main '.$currency, 'kind' => 'cash', 'currency_code' => $currency], $this->finance);
-        $capital = Account::firstOrCreate(['code' => '3100'], ['name' => 'Capital', 'type' => 'equity']);
-        app(CashService::class)->receipt(['box_id' => $box->id, 'amount' => $funds, 'date' => '2026-11-01',
-            'description' => 'Opening cash', 'account_id' => $capital->id], $this->finance);
+        $box = app(CashBoxService::class)->create(['name' => 'Main '.$currency, 'type' => 'cash_safe', 'branch_id' => Branch::value('id'),
+            'currencies' => [['currency' => $currency]]], $this->finance);
+        $this->fund($box, $currency, $funds, '2026-11-01');
 
         return $box;
+    }
+
+    private function fund(CashBox $box, string $currency, float $amount, string $date): void
+    {
+        app(VoucherService::class)->create(['type' => 'receipt', 'purpose' => 'other', 'voucher_date' => $date, 'cash_box_id' => $box->id,
+            'currency' => $currency, 'amount' => $amount, 'account_id' => app(SystemAccounts::class)->id('opening_balance_equity'),
+            'description' => 'Opening cash', 'approve' => true], $this->finance);
+    }
+
+    private function balance(CashBox $box, string $currency): float
+    {
+        return (float) app(CashBoxService::class)->balance($box, $currency);
+    }
+
+    /** Balance (debit − credit) of a system-role account in a currency. */
+    private function roleBalance(string $role, string $currency): string
+    {
+        return app(LedgerService::class)->balance(app(SystemAccounts::class)->id($role), Currency::where('code', $currency)->value('id'));
     }
 
     /** HR prepares the run (payroll.manage); finance reviews, approves and pays it. */
@@ -159,7 +186,7 @@ class PayrollTest extends TestCase
         $this->postJson('/api/v1/payroll/runs/'.$run['id'].'/approve')->assertForbidden();
         $this->postJson('/api/v1/payroll/runs/'.$run['id'].'/submit')->assertOk()->assertJsonPath('data.status', 'submitted');
         $this->assertSame(1, $this->finance->notifications()->count());
-        $this->assertSame(1, $this->director->notifications()->count());
+        $this->assertSame(1, $this->reviewer->notifications()->count());
 
         // Finance decides: it cannot edit HR's draft, and reviews proposed and manual items.
         Sanctum::actingAs($this->finance);
@@ -177,6 +204,10 @@ class PayrollTest extends TestCase
         $this->postJson('/api/v1/payroll/runs/'.$run['id'].'/review-remaining', ['decision' => 'approve'])
             ->assertOk()->assertJsonPath('data.decided', 2)->assertJsonPath('data.run.undecided_items', 0);
         $this->postJson('/api/v1/payroll/runs/'.$run['id'].'/approve')->assertOk()->assertJsonPath('data.status', 'approved');
+        // Approval posts the accrual on 31 October: the net salary is owed to the employee (SYP has no decimals).
+        $accrual = Voucher::where('type', 'payroll_accrual')->sole();
+        $this->assertSame(['approved', '2026-10-31'], [$accrual->status, $accrual->voucher_date->toDateString()]);
+        $this->assertSame('-2507143', $this->roleBalance('salaries_payable', 'SYP'));
 
         $line->refresh();
         // 2,600,000 + 57,142.86 + 50,000 − 100,000 unpaid − 100,000 absence (approved explicitly) − 0 late.
@@ -193,7 +224,7 @@ class PayrollTest extends TestCase
         $usd = $this->box('USD', 1000);
         $this->postJson('/api/v1/payroll/lines/'.$line->id.'/payment', ['currency' => 'USD', 'method' => 'cash', 'paid_at' => '2026-11-03', 'box_id' => $usd->id])
             ->assertUnprocessable()->assertJsonValidationErrors('currency');
-        app(ExchangeRateService::class)->setRate('USD', 'SYP', 13000, '2026-11-03');
+        app(ExchangeRateService::class)->setRates('2026-11-03', ['SYP' => 13000]);
         $this->postJson('/api/v1/payroll/lines/'.$line->id.'/payment', ['currency' => 'USD', 'method' => 'sham_cash', 'paid_at' => '2026-11-03', 'box_id' => $usd->id])
             ->assertUnprocessable()->assertJsonValidationErrors('reference');
         $syp = $this->box('SYP', 10_000_000);
@@ -201,9 +232,13 @@ class PayrollTest extends TestCase
             ->assertUnprocessable()->assertJsonValidationErrors('box_id');
         $payment = $this->postJson('/api/v1/payroll/lines/'.$line->id.'/payment', ['currency' => 'USD', 'method' => 'cash', 'paid_at' => '2026-11-03', 'box_id' => $usd->id])
             ->assertCreated()->json('data');
-        // The salary left the USD box through a posted journal entry against the salaries account.
-        $this->assertSame(807.0, app(CashService::class)->balance($usd));
-        $this->assertNotNull($payment['finance_transaction_id']);
+        // The salary left the USD box through a posted payroll_payment voucher: the SYP payable is cleared through
+        // fx_position and the USD rounding goes to rounding_differences.
+        $this->assertSame(807.0, $this->balance($usd, 'USD'));
+        $voucher = Voucher::findOrFail($payment['finance_voucher_id']);
+        $this->assertSame(['payroll_payment', 'approved'], [$voucher->type, $voucher->status]);
+        $this->assertSame('0', $this->roleBalance('salaries_payable', 'SYP'));
+        $this->assertSame('0.14', $this->roleBalance('rounding_differences', 'USD'));
         $this->assertSame('192.86', $payment['converted_amount']);
         $this->assertSame('193.00', $payment['paid_amount'], 'USD rounded to the dollar');
         $this->assertSame('0.14', $payment['rounding_difference']);
@@ -220,7 +255,7 @@ class PayrollTest extends TestCase
         $this->october();
         $run = $this->createRun();
         $this->postJson('/api/v1/payroll/runs/'.$run['id'].'/submit')->assertOk();
-        Sanctum::actingAs($this->director);
+        Sanctum::actingAs($this->reviewer);
         $this->postJson('/api/v1/payroll/runs/'.$run['id'].'/review-remaining', ['decision' => 'approve'])->assertOk();
         $this->postJson('/api/v1/payroll/runs/'.$run['id'].'/approve')->assertOk();
         $line = PayRunLine::query()->firstOrFail();
@@ -232,11 +267,12 @@ class PayrollTest extends TestCase
         $this->postJson('/api/v1/payroll/lines/'.$line->id.'/payment', ['currency' => 'SYP', 'method' => 'cash', 'paid_at' => '2026-11-03', 'box_id' => $box->id])
             ->assertUnprocessable()->assertJsonValidationErrors('amount');
         $this->assertSame(0, PayPayment::count());
-        app(CashService::class)->receipt(['box_id' => $box->id, 'amount' => 1_000_000, 'date' => '2026-11-02',
-            'description' => 'Top up', 'account_id' => Account::where('code', '3100')->value('id')], $this->finance);
+        $this->fund($box, 'SYP', 1_000_000, '2026-11-02');
         $payment = $this->postJson('/api/v1/payroll/lines/'.$line->id.'/payment', ['currency' => 'SYP', 'method' => 'cash', 'paid_at' => '2026-11-03', 'box_id' => $box->id])
             ->assertCreated()->json('data');
-        $this->assertSame(557_000.0, app(CashService::class)->balance($box));
+        $this->assertSame(557_000.0, $this->balance($box, 'SYP'));
+        // Net 2,442,857 (SYP has no decimals) paid as 2,443,000: the 143 above the net is a rounding difference.
+        $this->assertSame('143', $this->roleBalance('rounding_differences', 'SYP'));
         $this->assertSame('2443000.00', $payment['paid_amount']);
         $this->assertSame('142.85', $payment['rounding_difference']);
     }
@@ -260,7 +296,7 @@ class PayrollTest extends TestCase
         Sanctum::actingAs($this->hr);
         $this->postJson('/api/v1/payroll/runs/'.$run['id'].'/recalculate')->assertOk()->assertJsonPath('data.not_ready', 1);
         $this->postJson('/api/v1/payroll/runs/'.$run['id'].'/submit')->assertOk();
-        Sanctum::actingAs($this->director);
+        Sanctum::actingAs($this->reviewer);
         $errors = $this->postJson('/api/v1/payroll/runs/'.$run['id'].'/approve')->assertUnprocessable()->json('errors.run');
         $this->assertStringContainsString('غير جاهز', $errors[0]);
     }
@@ -277,7 +313,7 @@ class PayrollTest extends TestCase
         EmploymentContract::create(['employee_id' => $hire->id, 'contract_number' => 'C-PAY-2', 'type' => 'indefinite',
             'status' => 'active', 'start_date' => '2025-01-01', 'base_salary' => 2_600_000, 'currency_code' => 'SYP', 'pay_type' => 'monthly']);
 
-        Sanctum::actingAs($this->director);
+        Sanctum::actingAs($this->reviewer);
         $errors = $this->postJson('/api/v1/payroll/runs/'.$run['id'].'/approve')->assertUnprocessable()->json('errors.run');
         $this->assertTrue(collect($errors)->contains(fn ($message) => str_contains($message, 'غير موجود في الكشف')));
 
@@ -296,7 +332,7 @@ class PayrollTest extends TestCase
         $this->october();
         $october = $this->createRun();
         $this->postJson('/api/v1/payroll/runs/'.$october['id'].'/submit')->assertOk();
-        Sanctum::actingAs($this->director);
+        Sanctum::actingAs($this->reviewer);
         $this->postJson('/api/v1/payroll/runs/'.$october['id'].'/review-remaining', ['decision' => 'approve'])->assertOk();
         $this->postJson('/api/v1/payroll/runs/'.$october['id'].'/approve')->assertOk();
 
@@ -340,7 +376,7 @@ class PayrollTest extends TestCase
         $this->october();
         $october = $this->createRun();
         $this->postJson('/api/v1/payroll/runs/'.$october['id'].'/submit')->assertOk();
-        Sanctum::actingAs($this->director);
+        Sanctum::actingAs($this->reviewer);
         $this->postJson('/api/v1/payroll/runs/'.$october['id'].'/review-remaining', ['decision' => 'approve'])->assertOk();
         $this->postJson('/api/v1/payroll/runs/'.$october['id'].'/approve')->assertOk();
 
@@ -404,7 +440,7 @@ class PayrollTest extends TestCase
         $this->postJson('/api/v1/payroll/runs', ['month' => '2026-09'])->assertForbidden();
         Sanctum::actingAs($this->employeeUser);
         $this->getJson('/api/v1/payroll/runs')->assertForbidden();
-        Sanctum::actingAs($this->director);
+        Sanctum::actingAs($this->reviewer);
         $this->getJson('/api/v1/payroll/runs')->assertOk();
         $this->postJson('/api/v1/payroll/runs', ['month' => '2026-09'])->assertForbidden();
     }
@@ -451,7 +487,7 @@ class PayrollTest extends TestCase
         $this->october();
         $run = $this->createRun();
         $this->postJson('/api/v1/payroll/runs/'.$run['id'].'/submit')->assertOk();
-        Sanctum::actingAs($this->director);
+        Sanctum::actingAs($this->reviewer);
         $this->postJson('/api/v1/payroll/runs/'.$run['id'].'/review-remaining', ['decision' => 'waive', 'kinds' => [], 'reason' => 'All of it'])
             ->assertUnprocessable()->assertJsonValidationErrors('kinds');
         $this->assertSame('proposed', $this->items($run['id'])['absence']->status);
@@ -462,7 +498,7 @@ class PayrollTest extends TestCase
         $this->october();
         $run = $this->createRun();
         $this->postJson('/api/v1/payroll/runs/'.$run['id'].'/submit')->assertOk();
-        Sanctum::actingAs($this->director);
+        Sanctum::actingAs($this->reviewer);
         $this->postJson('/api/v1/payroll/runs/'.$run['id'].'/review-remaining', ['decision' => 'approve'])->assertOk();
         $this->postJson('/api/v1/payroll/runs/'.$run['id'].'/approve')->assertOk();
         Sanctum::actingAs($this->finance);
@@ -476,14 +512,13 @@ class PayrollTest extends TestCase
         $box = $this->box('SYP', 5_000_000);
         $first = $this->postJson('/api/v1/payroll/lines/'.$line->id.'/payment', ['currency' => 'SYP', 'method' => 'cash', 'paid_at' => '2026-11-03', 'box_id' => $box->id])
             ->assertCreated()->json('data');
-        // Finance cannot undo a salary payment from its side, not even the company manager who may reverse operations.
-        Sanctum::actingAs($this->director);
-        $this->postJson('/api/v1/finance/transactions/'.$first['finance_transaction_id'].'/reverse', ['date' => '2026-11-04', 'reason' => 'x x'])->assertStatus(409);
-        Sanctum::actingAs($this->finance);
+        // Finance cannot undo a salary payment from the voucher screen, even holding finance.reverse: payroll voids it.
+        $this->postJson('/api/v1/finance/vouchers/'.$first['finance_voucher_id'].'/reverse', ['date' => '2026-11-04', 'reason' => 'x x'])->assertStatus(409);
 
         $this->postJson('/api/v1/payroll/payments/'.$first['id'].'/void', ['date' => '2026-11-04', 'reason' => 'Wrong box'])->assertOk();
         $this->postJson('/api/v1/payroll/payments/'.$first['id'].'/void', ['date' => '2026-11-04', 'reason' => 'Again'])->assertStatus(409);
-        $this->assertSame(5_000_000.0, app(CashService::class)->balance($box));
+        $this->assertSame(5_000_000.0, $this->balance($box, 'SYP'));
+        $this->assertSame('reversed', Voucher::findOrFail($first['finance_voucher_id'])->status);
         $this->getJson('/api/v1/payroll/runs/'.$line->pay_run_id)->assertOk()->assertJsonPath('data.paid', 0);
         $this->postJson('/api/v1/payroll/lines/'.$line->id.'/payment', ['currency' => 'SYP', 'method' => 'cash', 'paid_at' => '2026-11-04', 'box_id' => $box->id])
             ->assertCreated();
@@ -498,7 +533,7 @@ class PayrollTest extends TestCase
         $run = $this->postJson('/api/v1/payroll/runs', ['month' => '2026-10'])->assertCreated()->json('data');
         $this->postJson('/api/v1/payroll/runs/'.$run['id'].'/submit')->assertOk();
         $this->postJson('/api/v1/payroll/runs/'.$run['id'].'/approve')->assertForbidden();
-        Sanctum::actingAs($this->director);
+        Sanctum::actingAs($this->reviewer);
         $this->postJson('/api/v1/payroll/runs/'.$run['id'].'/review-remaining', ['decision' => 'approve'])->assertOk();
         $this->postJson('/api/v1/payroll/runs/'.$run['id'].'/approve')->assertOk();
     }
@@ -512,7 +547,7 @@ class PayrollTest extends TestCase
         Sanctum::actingAs($this->finance);
         $this->postJson('/api/v1/payroll/items/'.$absence->id.'/review', ['decision' => 'waive', 'reason' => 'First absence forgiven'])
             ->assertOk()->assertJsonPath('data.amount', '0.00');
-        Sanctum::actingAs($this->director);
+        Sanctum::actingAs($this->reviewer);
         $this->postJson('/api/v1/payroll/runs/'.$october['id'].'/review-remaining', ['decision' => 'approve'])->assertOk();
         $this->postJson('/api/v1/payroll/runs/'.$october['id'].'/approve')->assertOk();
         $this->assertSame('0.00', $absence->refresh()->amount);
@@ -555,7 +590,7 @@ class PayrollTest extends TestCase
         $this->postJson('/api/v1/payroll/items/'.$absence->id.'/review', [
             'decision' => 'modify', 'amount' => 40000, 'reason' => 'Partial penalty',
         ])->assertOk()->assertJsonPath('data.amount', '40000.00');
-        Sanctum::actingAs($this->director);
+        Sanctum::actingAs($this->reviewer);
         $this->postJson('/api/v1/payroll/runs/'.$october['id'].'/review-remaining', ['decision' => 'approve'])->assertOk();
         $this->postJson('/api/v1/payroll/runs/'.$october['id'].'/approve')->assertOk();
 
@@ -687,7 +722,7 @@ class PayrollTest extends TestCase
         $this->postJson('/api/v1/payroll/shamcash-exports/'.$export->id.'/confirm', ['box_id' => $box->id])->assertOk();
         $payment = PayPayment::query()->sole();
         $this->assertSame(['sham_cash', $second, '2443000.00', '0012345678901234'], [$payment->method, $payment->reference, $payment->paid_amount, $payment->wallet]);
-        $this->assertSame(2_557_000.0, app(CashService::class)->balance($box));
+        $this->assertSame(2_557_000.0, $this->balance($box, 'SYP'));
         $this->postJson('/api/v1/payroll/shamcash-exports/'.$export->id.'/confirm', ['box_id' => $box->id])->assertStatus(409);
         $this->postJson('/api/v1/payroll/shamcash-exports/'.$export->id.'/cancel')->assertStatus(409);
         $this->postJson($url, ['currency' => 'SYP'])->assertUnprocessable(); // nothing left to pay
@@ -700,7 +735,7 @@ class PayrollTest extends TestCase
         $line = $this->approvedOctober();
         $this->employee->update(['sham_cash_wallet' => '1234567890123456']);
         $url = '/api/v1/payroll/runs/'.$line->pay_run_id.'/shamcash';
-        app(ExchangeRateService::class)->setRate('USD', 'SYP', 13000, '2026-11-03');
+        app(ExchangeRateService::class)->setRates('2026-11-03', ['SYP' => 13000]);
         // Chosen lines are converted at the date's rate, USD rounded to the dollar.
         $response = $this->post($url, ['currency' => 'USD', 'date' => '2026-11-03', 'line_ids' => [$line->id]])->assertOk();
         $sheet = $this->xlsx($response->baseResponse->getFile()->getPathname())['sheet'];
@@ -708,7 +743,7 @@ class PayrollTest extends TestCase
         $this->assertStringContainsString('<t>دولار</t>', $sheet);
         $this->postJson($url, ['currency' => 'USD', 'line_ids' => [999]])->assertUnprocessable()->assertJsonValidationErrors('line_ids');
         // If the rate is changed after the file was produced, confirmation refuses to pay a different sum.
-        app(ExchangeRateService::class)->setRate('USD', 'SYP', 12000, '2026-11-03');
+        app(ExchangeRateService::class)->setRates('2026-11-03', ['SYP' => 12000]);
         $box = $this->box('USD', 1000);
         $export = PayExport::query()->sole();
         $this->postJson('/api/v1/payroll/shamcash-exports/'.$export->id.'/confirm', ['box_id' => $box->id])

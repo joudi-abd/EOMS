@@ -27,7 +27,8 @@ export class SettingsHolidays extends Ui {
     }
   }
 
-  protected remove(id: string): void {
+  protected async remove(id: string): Promise<void> {
+    if (!(await this.askDelete())) return;
     this.office.removeHoliday(id, this.session.account().id);
   }
 }

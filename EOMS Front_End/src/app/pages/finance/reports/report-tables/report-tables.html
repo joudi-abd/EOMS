@@ -1,0 +1,66 @@
+@let v = view();
+@if (v.figures.length) {
+  <section class="summary" [attr.aria-label]="t('frpHeadlines')">
+    @for (figure of v.figures; track $index) {
+      <p>
+        <span><bdi>{{ figure.label }}</bdi></span>
+        <strong [class.late]="figure.late"><bdi class="num">{{ figure.value }}</bdi></strong>
+        @if (figure.note) { <small><bdi>{{ figure.note }}</bdi></small> }
+      </p>
+    }
+  </section>
+}
+@for (note of v.notes; track $index) {
+  <p class="fin-warn"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> {{ note }}</p>
+}
+@for (table of v.tables; track $index) {
+  <section class="frp-block">
+    <h2><bdi>{{ table.title }}</bdi></h2>
+    @if (table.note) { <p class="fin-hint">{{ table.note }}</p> }
+    @if (table.rows.length) {
+      <div class="sheet">
+        <table>
+          <thead>
+            <tr>
+              @for (column of table.columns; track $index) { <th scope="col"><bdi>{{ column }}</bdi></th> }
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of table.rows; track $index) {
+              <tr [class.sub]="row.sub" [class.attention]="row.attention" [class.frp-strong]="row.strong">
+                @for (cell of row.cells; track $index) {
+                  <ng-container *ngTemplateOutlet="cellTpl; context: { $implicit: cell }" />
+                }
+              </tr>
+            }
+          </tbody>
+          @if (table.foot?.length) {
+            <tfoot>
+              @for (row of table.foot; track $index) {
+                <tr>
+                  @for (cell of row.cells; track $index) {
+                    <ng-container *ngTemplateOutlet="cellTpl; context: { $implicit: cell }" />
+                  }
+                </tr>
+              }
+            </tfoot>
+          }
+        </table>
+      </div>
+    } @else {
+      <p class="fin-hint">{{ t('frpNoRows') }}</p>
+    }
+  </section>
+}
+
+<ng-template #cellTpl let-cell>
+  <td [attr.colspan]="cell.span ?? null" [class]="cell.tone ?? ''" [class.soft]="cell.soft" [style.padding-inline-start.px]="cell.depth ? 18 + cell.depth * 20 : null">
+    @if (cell.voucher) {
+      <a class="name" routerLink="/modules/finVouchers" [queryParams]="{ id: cell.voucher }"><bdi>{{ cell.text }}</bdi></a>
+    } @else if (cell.num) {
+      <bdi class="num" [class.late]="cell.neg">{{ cell.text }}</bdi>
+    } @else {
+      {{ cell.text }}
+    }
+  </td>
+</ng-template>

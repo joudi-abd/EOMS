@@ -1,0 +1,36 @@
+<main class="work" id="content">
+  <app-notice />
+  <header class="heading">
+    <div>
+      <h1>{{ t('finProjects') }}</h1>
+      <p class="lede">{{ t('ledeFinProjects') }}</p>
+    </div>
+    @if (mayWrite() && mayRead() && top() === 'projects' && !projectId()) {
+      <div class="actions">
+        <a class="primary" [routerLink]="[]" [queryParams]="{ new: 1 }"><i class="fa-solid fa-plus" aria-hidden="true"></i> {{ t('fpjNewProject') }}</a>
+      </div>
+    }
+  </header>
+
+  @if (!mayRead() && !mayAllocate()) {
+    <p class="empty">{{ t('finNoAccess') }}</p>
+  } @else {
+    @if (mayRead() && mayAllocate()) {
+      <nav class="tabs" [attr.aria-label]="t('finProjects')">
+        <a [routerLink]="[]" [queryParams]="{}" [class.active]="top() === 'projects'" [attr.aria-current]="top() === 'projects' ? 'page' : null">{{ t('fpjTabProjects') }}</a>
+        <a [routerLink]="[]" [queryParams]="{ view: 'allocations' }" [class.active]="top() === 'allocations'" [attr.aria-current]="top() === 'allocations' ? 'page' : null">{{ t('fpjTabAllocations') }}</a>
+      </nav>
+    }
+
+    @if (top() === 'allocations') {
+      <app-fpj-allocations />
+    } @else if (projectId()) {
+      <app-fpj-project-file [projectId]="projectId()" [view]="subView()" />
+    } @else {
+      @if (creating()) {
+        <app-fpj-project-form (saved)="opened($event)" (closed)="closeForm()" />
+      }
+      <app-fpj-project-list />
+    }
+  }
+</main>

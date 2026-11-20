@@ -1,0 +1,118 @@
+@if (opening()) {
+  <app-fst-opening (closed)="opening.set(false)" (saved)="saved($event)" />
+}
+
+@if (status(); as s) {
+  <p class="fin-hint">
+    @if (s.completed) {
+      {{ t('fstSetupComplete') }}
+    } @else {
+      {{ t('fstSetupProgress') }} <bdi class="strong num">{{ num(s.done) }} / {{ num(s.total) }}</bdi>
+    }
+  </p>
+
+  <ol class="fst-steps panel">
+    @for (step of s.steps; track step.key) {
+      <li [class.done]="step.done">
+        <span class="mark" aria-hidden="true">
+          @if (step.done) { <i class="fa-solid fa-check"></i> } @else { {{ num(step.step) }} }
+        </span>
+        <div class="body">
+          <strong>{{ title(step) }}</strong>
+          @if (step.done) {
+            <span class="ok-line">{{ t('fstStepDone') }}</span>
+            @if (step.key === 'opening_balances' && startDate(step)) {
+              <span class="soft">{{ t('fstStartDate') }} {{ date(startDate(step)) }}</span>
+            }
+          } @else {
+            @if (step.missing.length) {
+              <span class="missing clamp">{{ plain(step.missing[0]) }}</span>
+            }
+            @if (step.missing.length > 1 || plain(step.missing[0] ?? '').length > 140) {
+              <details class="more">
+                <summary>{{ t('fstShowMissing') }}</summary>
+                @for (line of step.missing; track $index) {
+                  <span class="missing">{{ plain(line) }}</span>
+                }
+              </details>
+            }
+          }
+        </div>
+        <div class="go">
+          @switch (step.key) {
+            @case ('chart') {
+              @if (step.details.starter_chart_available && may('finance.settings')) {
+                <button class="text small" type="button" [disabled]="busy()" (click)="starterChart()">{{ t('fstStarterChart') }}</button>
+              } @else if (!step.done && link(step); as go) {
+                <a class="text small" [routerLink]="go.path" [queryParams]="go.params">{{ t(go.label) }}</a>
+              }
+            }
+            @case ('opening_balances') {
+              @if (may('finance.settings') && !opening()) {
+                <button class="text small" type="button" (click)="opening.set(true)">{{ t('fstEnterOpening') }}</button>
+              }
+            }
+            @case ('opening_check') {
+              <button class="text small" type="button" [disabled]="checking()" (click)="runCheck()">{{ t('fstRunCheck') }}</button>
+            }
+            @default {
+              @if (!step.done && link(step); as go) {
+                <a class="text small" [routerLink]="go.path" [queryParams]="go.params">{{ t(go.label) }}</a>
+              }
+            }
+          }
+        </div>
+      </li>
+    }
+  </ol>
+} @else {
+  <p class="empty">{{ t('finLoading') }}</p>
+}
+
+@if (check(); as c) {
+  <section class="panel">
+    <div class="panel-head">
+      <div>
+        <h2>{{ t('fstCheckTitle') }}</h2>
+        @if (c.date) { <p>{{ t('fstCheckOn') }} {{ date(c.date) }}</p> }
+      </div>
+      <button class="quiet-x" type="button" (click)="check.set(null)" [attr.aria-label]="t('dismiss')"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+    </div>
+    @if (!c.date) {
+      <p class="empty">{{ t('fstCheckNone') }}</p>
+    } @else {
+      <p [class]="c.balanced && c.equity_matches ? 'ok' : 'late'">
+        @if (c.balanced && c.equity_matches) {
+          {{ t('fstCheckAllGood') }}
+        } @else {
+          @if (!c.balanced) { {{ t('fstCheckNotBalanced') }} }
+          @if (!c.equity_matches) { {{ t('fstCheckEquityOff') }} }
+        }
+      </p>
+      <div class="sheet">
+        <table>
+          <thead>
+            <tr>
+              <th>{{ t('finCurrency') }}</th>
+              <th class="end">{{ t('fstTotalDebit') }}</th>
+              <th class="end">{{ t('fstTotalCredit') }}</th>
+              <th>{{ t('fstBalancedCol') }}</th>
+              <th>{{ t('fstEquityCol') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of c.currencies; track row.currency_id) {
+              <tr [class.attention]="!row.balanced || !row.equity_matches">
+                <td><bdi>{{ row.currency }}</bdi></td>
+                <td class="num end"><bdi>{{ figure(row.total_debit, row.currency) }}</bdi></td>
+                <td class="num end"><bdi>{{ figure(row.total_credit, row.currency) }}</bdi></td>
+                <td [class]="row.balanced ? 'ok' : 'late'">{{ row.balanced ? t('fstBalancedYes') : t('fstBalancedNo') }}</td>
+                <td [class]="row.equity_matches ? 'ok' : 'late'">{{ row.equity_matches ? t('fstEquityYes') : t('fstEquityNo') }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </section>
+}

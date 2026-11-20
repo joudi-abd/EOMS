@@ -1,0 +1,199 @@
+<main class="work" id="content">
+  <app-notice />
+  @if (def(); as d) {
+    <header class="heading">
+      <div>
+        <h1>{{ t(d.title) }}</h1>
+        <p class="lede">{{ t(d.ask) }}</p>
+      </div>
+      <div class="actions">
+        <a class="text" routerLink="/modules/finReports">{{ t('frpAll') }}</a>
+        @if (d.csv) {
+          <button class="text" type="button" [disabled]="!view() || exporting()" (click)="excel()"><i class="fa-solid fa-file-excel" aria-hidden="true"></i> {{ t('finExportExcel') }}</button>
+        }
+        <button class="text" type="button" [disabled]="!view() || empty()" (click)="pdf()"><i class="fa-solid fa-file-pdf" aria-hidden="true"></i> {{ t('finExportPdf') }}</button>
+      </div>
+    </header>
+
+    <div class="ledger">
+      @if (d.filters.length || d.view) {
+        <form class="filters" (submit)="$event.preventDefault()">
+          @if (picker('box')) {
+            <label>{{ t('finBox') }}
+              <select name="box" [(ngModel)]="draft.box_id" (ngModelChange)="filterChanged()" [required]="required('box')">
+                <option [ngValue]="0">{{ required('box') ? t('finChoose') : t('finAll') }}</option>
+                @for (box of finance.boxes(); track box.id) { <option [ngValue]="box.id">{{ box.name }}</option> }
+              </select>
+            </label>
+          }
+          @if (picker('account')) {
+            <label>{{ t('finAccount') }}
+              <select name="account" [(ngModel)]="draft.account_id" (ngModelChange)="filterChanged()">
+                <option [ngValue]="0">{{ required('account') ? t('finChoose') : t('finAll') }}</option>
+                @for (account of accountOptions(); track account.id) { <option [ngValue]="account.id">{{ account.label }}</option> }
+              </select>
+            </label>
+          }
+          @if (picker('party')) {
+            <label>{{ d.roles?.includes('contractor') ? t('frpContractor') : d.roles?.includes('partner') ? t('frpPartner') : t('finParty') }}
+              <select name="party" [(ngModel)]="draft.party_id" (ngModelChange)="filterChanged()">
+                <option [ngValue]="0">{{ required('party') ? t('finChoose') : t('finAll') }}</option>
+                @for (party of partyOptions(); track party.id) { <option [ngValue]="party.id">{{ party.name }}</option> }
+              </select>
+            </label>
+          }
+          @if (picker('project')) {
+            <label>{{ t('finProject') }}
+              <select name="project" [(ngModel)]="draft.project_id" (ngModelChange)="filterChanged()">
+                <option [ngValue]="0">{{ required('project') ? t('finChoose') : t('finAll') }}</option>
+                @for (project of projectOptions(); track project.id) { <option [ngValue]="project.id">{{ project.label }}</option> }
+              </select>
+            </label>
+          }
+          @if (has('period')) {
+            <label>{{ t('finFrom') }}<input name="from" type="date" [(ngModel)]="draft.from" (ngModelChange)="filterChanged()" /></label>
+            <label>{{ t('finTo') }}<input name="to" type="date" [(ngModel)]="draft.to" (ngModelChange)="filterChanged()" /></label>
+          }
+          @if (has('asOf')) {
+            <label>{{ t('finAsOf') }}<input name="asOf" type="date" [(ngModel)]="draft.as_of" (ngModelChange)="filterChanged()" /></label>
+          }
+          @if (has('months')) {
+            <label>{{ t('frpMonthsAhead') }}<input name="months" type="number" min="1" max="24" [(ngModel)]="draft.months" (ngModelChange)="filterChanged()" /></label>
+          }
+          @if (has('side')) {
+            <label>{{ t('frpSide') }}
+              <select name="side" [(ngModel)]="draft.side" (ngModelChange)="filterChanged()">
+                <option value="">{{ t('finAll') }}</option>
+                <option value="receivable">{{ t('frpReceivable') }}</option>
+                <option value="payable">{{ t('frpPayable') }}</option>
+              </select>
+            </label>
+          }
+          @if (has('countStatus')) {
+            <label>{{ t('finStatus') }}
+              <select name="countStatus" [(ngModel)]="draft.status" (ngModelChange)="filterChanged()">
+                <option value="">{{ t('finAll') }}</option>
+                @for (status of countStatuses; track status) { <option [value]="status">{{ statusLabel(status) }}</option> }
+              </select>
+            </label>
+          }
+          @if (has('projectStatus')) {
+            <label>{{ t('finStatus') }}
+              <select name="projectStatus" [(ngModel)]="draft.status" (ngModelChange)="filterChanged()">
+                <option value="">{{ t('finAll') }}</option>
+                @for (status of projectStatuses; track status) { <option [value]="status">{{ projectStatusLabel(status) }}</option> }
+              </select>
+            </label>
+          }
+          @if (has('variant')) {
+            <label>{{ t('frpCopy') }}
+              <select name="variant" [(ngModel)]="draft.variant" (ngModelChange)="filterChanged()">
+                <option value="internal">{{ t('frpInternalCopy') }}</option>
+                <option value="client">{{ t('frpClientCopy') }}</option>
+              </select>
+            </label>
+          }
+          @if (has('groupBy')) {
+            <label>{{ t('frpGroupBy') }}
+              <select name="groupBy" [(ngModel)]="draft.group_by" (ngModelChange)="filterChanged()">
+                <option value="status">{{ t('finStatus') }}</option>
+                <option value="holder">{{ t('frpHolder') }}</option>
+                <option value="category">{{ t('finCategory') }}</option>
+                <option value="branch">{{ t('finBranch') }}</option>
+              </select>
+            </label>
+          }
+          @if (has('currency')) {
+            <label>{{ t('finCurrency') }}
+              <select name="currency" [(ngModel)]="draft.currency" (ngModelChange)="filterChanged()">
+                <option value="">{{ t('finAll') }}</option>
+                @for (currency of finance.activeCurrencies(); track currency.id) { <option [value]="currency.code">{{ currency.code }}</option> }
+              </select>
+            </label>
+          }
+          @if (has('branch') && showBranches()) {
+            <label>{{ t('finBranch') }}
+              <select name="branch" [(ngModel)]="draft.branch_id" (ngModelChange)="filterChanged()">
+                <option [ngValue]="0">{{ t('finAll') }}</option>
+                @for (branch of finance.branches(); track branch.id) { <option [ngValue]="branch.id">{{ branch.name }}</option> }
+              </select>
+            </label>
+          }
+          @if (has('search')) {
+            <label>{{ t('finSearch') }}<input name="search" type="search" [(ngModel)]="draft.search" (ngModelChange)="searchChanged()" [placeholder]="t('frpSearchHint')" /></label>
+          }
+          @if (has('action')) {
+            <label>{{ t('frpAction') }}<input name="action" type="search" dir="ltr" [(ngModel)]="draft.action" (ngModelChange)="searchChanged()" placeholder="finance.voucher_approved" /></label>
+          }
+          @if (has('byBranch') && showBranches()) {
+            <label class="frp-check"><input name="byBranch" type="checkbox" [(ngModel)]="draft.by_branch" (ngModelChange)="filterChanged()" /> {{ t('frpByBranch') }}</label>
+          }
+          @if (d.view) {
+            <div class="fin-filter-actions">
+              <div class="seg frp-seg" role="group" [attr.aria-label]="t('frpShown')">
+                <button type="button" [class.on]="draft.view === 'separate'" [attr.aria-pressed]="draft.view === 'separate'" (click)="setView('separate')">{{ t('frpViewSeparate') }}</button>
+                <button type="button" [class.on]="draft.view === 'consolidated'" [attr.aria-pressed]="draft.view === 'consolidated'" (click)="setView('consolidated')">{{ t('frpViewConsolidated') }}</button>
+              </div>
+            </div>
+          }
+        </form>
+      }
+
+      @if (missing(); as hint) {
+        <p class="fin-hint">{{ t(hint) }}</p>
+      } @else if (busy() && !view()) {
+        <p class="fin-hint">{{ t('finLoading') }}</p>
+      } @else if (view(); as v) {
+        @if (ratesLine()) {
+          <p class="fin-hint frp-rates">{{ t('frpRatesUsed') }}: <bdi>{{ ratesLine() }}</bdi></p>
+        }
+        @if (v.subtitle) {
+          <p class="frp-subject"><bdi>{{ v.subtitle }}</bdi></p>
+        }
+        @if (empty()) {
+          <p class="fin-hint">{{ t('frpEmpty') }}</p>
+        } @else {
+          <app-report-tables [view]="v" [class.frp-busy]="busy()" />
+        }
+        @if (meta(); as m) {
+          @if (m.last_page > 1) {
+            <nav class="fin-pager" [attr.aria-label]="t('finPages')">
+              <button class="text small" type="button" [disabled]="busy() || m.current_page <= 1" (click)="go(m.current_page - 1)">{{ t('finPrev') }}</button>
+              <span><bdi class="num">{{ m.current_page }} / {{ m.last_page }}</bdi></span>
+              <button class="text small" type="button" [disabled]="busy() || m.current_page >= m.last_page" (click)="go(m.current_page + 1)">{{ t('finNext') }}</button>
+            </nav>
+          }
+        }
+      }
+    </div>
+  } @else {
+    <header class="heading">
+      <div>
+        <h1>{{ t('finReports') }}</h1>
+        <p class="lede">{{ t('ledeFinReports') }}</p>
+      </div>
+    </header>
+    <div class="ledger">
+      @if (!reachable() || requested()) {
+        <p class="fin-hint">{{ t('finNoAccess') }}</p>
+      }
+      @if (reachable()) {
+        <div class="frp-groups">
+          @for (group of groups(); track group.key) {
+            <section class="panel">
+              <div class="panel-head"><h2>{{ t(group.title) }}</h2></div>
+              <ul class="fin-list frp-list">
+                @for (report of group.reports; track report.key) {
+                  <li>
+                    <a class="name" routerLink="/modules/finReports" [queryParams]="{ report: report.key }">{{ t(report.title) }}</a>
+                    <span class="soft">{{ t(report.ask) }}</span>
+                  </li>
+                }
+              </ul>
+            </section>
+          }
+        </div>
+      }
+    </div>
+  }
+</main>

@@ -1,0 +1,241 @@
+<main class="work" id="content">
+  <app-notice />
+  <header class="heading">
+    <div>
+      <h1>{{ t('finOverview') }}</h1>
+      <p class="lede">{{ t('ledeFinOverview') }}</p>
+    </div>
+  </header>
+
+  @if (!may('finance.reports') && !may('finance.view')) {
+    <p class="empty">{{ t('finNoAccess') }}</p>
+  } @else {
+    <div class="ledger">
+      @if (setup(); as s) {
+        @if (!s.completed) {
+          <p class="fin-hint fov-setup">
+            {{ t('fovSetupLead') }} <bdi class="strong">{{ num(s.done) }}</bdi> {{ t('fovOf') }} <bdi class="strong">{{ num(s.total) }}</bdi> {{ t('fovSetupSteps') }}
+            <a routerLink="/modules/finSettings" [queryParams]="{ view: 'setup' }">{{ t('fovSetupLink') }}</a>
+          </p>
+        }
+      }
+
+      @if (!may('finance.reports')) {
+        <app-fin-overview-boxes />
+      } @else if (board(); as d) {
+        <!-- Liquidity: the base-currency total, then each currency on its own. -->
+        <section class="summary" [attr.aria-label]="t('fovLiquidity')">
+          <p>
+            <span>{{ t('fovLiquidity') }} · <bdi>{{ d.consolidation.base_currency }}</bdi></span>
+            <strong><a routerLink="/modules/finBoxes" [class.late]="negative(d.liquidity.total_base)"><bdi class="num">{{ figure(d.liquidity.total_base, d.consolidation.base_currency) }}</bdi></a></strong>
+            <small>{{ t('fovAllBoxes') }}</small>
+          </p>
+          @for (row of d.liquidity.currencies; track row.currency) {
+            <p>
+              <span><bdi>{{ row.currency }}</bdi></span>
+              <strong><a routerLink="/modules/finBoxes" [class.late]="negative(row.balance)"><bdi class="num">{{ figure(row.balance, row.currency) }}</bdi></a></strong>
+              @if (row.currency !== d.consolidation.base_currency) {
+                <small>≈ <bdi class="num">{{ money(row.balance_base, d.consolidation.base_currency) }}</bdi></small>
+              }
+            </p>
+          }
+        </section>
+
+        <div class="grid-2">
+          <!-- Needs attention -->
+          <section class="panel">
+            <div class="panel-head"><div><h2>{{ t('fovAttention') }}</h2></div></div>
+            <ul class="fin-list">
+              @for (alert of d.box_alerts; track alert.cash_box_id + alert.currency) {
+                <li>
+                  <a routerLink="/modules/finBoxes" [queryParams]="{ id: alert.cash_box_id }">{{ alert.box }}</a>
+                  <span [class]="alert.near_limit ? 'wait' : 'late'">{{ alert.near_limit ? t('fovNearLimit') : t('fovNegative') }}</span>
+                  <bdi class="num end late">{{ money(alert.balance, alert.currency) }}</bdi>
+                </li>
+              }
+              @for (item of d.cash_counts_pending.items; track item.id) {
+                <li>
+                  <a routerLink="/modules/finBoxes" [queryParams]="{ view: 'counts', id: item.id }">{{ t('fovCountWaiting') }} · {{ item.box || '—' }}</a>
+                  <span class="end soft num">{{ short(item.count_date) }}</span>
+                </li>
+              }
+              @if (d.custodies.count > 0) {
+                <li>
+                  <a routerLink="/modules/finAdvances" [queryParams]="{ view: 'custody' }">
+                    {{ t('fovOverdueCustody') }} <bdi class="num">({{ num(d.custodies.count) }})</bdi>
+                  </a>
+                  <small class="soft">{{ t('fovOlderThan') }} {{ num(d.custodies.overdue_days) }} {{ t('finDays') }}</small>
+                  <span class="end">
+                    @for (row of d.custodies.currencies; track row.currency) {
+                      <bdi class="num block-line">{{ money(row.balance, row.currency) }}</bdi>
+                    }
+                  </span>
+                </li>
+              }
+              @for (project of d.projects.over_budget; track project.project_id) {
+                <li>
+                  <a routerLink="/modules/finProjects" [queryParams]="{ id: project.project_id, view: 'budget' }">
+                    {{ t('fovOverBudget') }} · {{ project.code ? project.code + ' · ' : '' }}{{ project.name || '—' }}
+                  </a>
+                  <span class="end late">{{ num(project.exceeded_lines) }} {{ t('fovLines') }}</span>
+                </li>
+              }
+              @if (!attention()) {
+                <li class="soft">{{ t('fovAllClear') }}</li>
+              }
+            </ul>
+          </section>
+
+          <!-- Most profitable projects -->
+          <section class="panel">
+            <div class="panel-head"><div><h2>{{ t('fovTopProjects') }}</h2><p>{{ t('fovTopProjectsHint') }}</p></div></div>
+            <ul class="fin-list">
+              @for (project of d.projects.top_profit; track project.project_id) {
+                <li>
+                  <a routerLink="/modules/finProjects" [queryParams]="{ id: project.project_id }">{{ project.code ? project.code + ' · ' : '' }}{{ project.name }}</a>
+                  <small class="soft">{{ projectStatusLabel(project.status) }}</small>
+                  <a class="end fov-figure" routerLink="/modules/finProjects" [queryParams]="{ id: project.project_id, view: 'statement' }" [class.late]="negative(project.net_profit)">
+                    <bdi class="num">{{ money(project.net_profit, project.currency) }}</bdi>
+                  </a>
+                </li>
+              } @empty {
+                <li class="soft">{{ t('fovNoProjects') }}</li>
+              }
+            </ul>
+          </section>
+        </div>
+
+        <!-- Money in and out -->
+        <section class="panel">
+          <div class="panel-head">
+            <div><h2>{{ t('fovFlow') }}</h2><p>{{ t('fovFlowHint') }}</p></div>
+            <a class="text small" routerLink="/modules/finBoxes">{{ t('finBoxes') }}</a>
+          </div>
+          @if (hasFlow()) {
+            <app-bar-chart [data]="flowData()" [series]="flowSeries()" [label]="t('fovFlow') + ' · ' + d.consolidation.base_currency" [height]="200" />
+            <p class="fin-hint">{{ t('fovChartIn') }} <bdi>{{ d.consolidation.base_currency }}</bdi></p>
+          }
+          @if (d.cash_flow.currencies.length) {
+            <div class="sheet fov-flow">
+              <table>
+                <thead>
+                  <tr>
+                    <th rowspan="2">{{ t('finCurrency') }}</th>
+                    <th colspan="3" class="fov-group">{{ t('fovThisMonth') }} · <bdi>{{ d.cash_flow.this_month }}</bdi></th>
+                    <th colspan="3" class="fov-group">{{ t('fovLastMonth') }} · <bdi>{{ d.cash_flow.last_month }}</bdi></th>
+                  </tr>
+                  <tr>
+                    <th class="end">{{ t('finIn') }}</th><th class="end">{{ t('finOut') }}</th><th class="end">{{ t('finNet') }}</th>
+                    <th class="end">{{ t('finIn') }}</th><th class="end">{{ t('finOut') }}</th><th class="end">{{ t('finNet') }}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (row of d.cash_flow.currencies; track row.currency) {
+                    <tr>
+                      <td><bdi class="strong">{{ row.currency }}</bdi></td>
+                      <td class="num end">{{ figure(row.this_month.in, row.currency) }}</td>
+                      <td class="num end">{{ figure(row.this_month.out, row.currency) }}</td>
+                      <td class="num end strong" [class.late]="negative(row.this_month.net)">{{ figure(row.this_month.net, row.currency) }}</td>
+                      <td class="num end soft">{{ figure(row.last_month.in, row.currency) }}</td>
+                      <td class="num end soft">{{ figure(row.last_month.out, row.currency) }}</td>
+                      <td class="num end" [class.late]="negative(row.last_month.net)">{{ figure(row.last_month.net, row.currency) }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          } @else {
+            <p class="empty">{{ t('fovNoFlow') }}</p>
+          }
+        </section>
+
+        <div class="grid-2">
+          <!-- Owed both ways -->
+          <section class="panel">
+            <div class="panel-head"><div><h2>{{ t('fovOwed') }}</h2></div></div>
+            <h3 class="fov-sub">{{ t('fovToContractors') }}</h3>
+            <ul class="fin-list">
+              @for (row of d.contractors.payables.currencies; track row.currency) {
+                <li>
+                  <span>{{ t('fovPayable') }}</span>
+                  <a class="end fov-figure" routerLink="/modules/finReports" [queryParams]="{ report: 'contractor-balances' }"><bdi class="num">{{ money(row.amount, row.currency) }}</bdi></a>
+                </li>
+              }
+              @for (row of d.contractors.agreements_remaining; track row.currency) {
+                <li>
+                  <span>{{ t('fovAgreementsLeft') }}</span>
+                  <a class="end fov-figure" routerLink="/modules/finReports" [queryParams]="{ report: 'contractor-balances' }"><bdi class="num">{{ money(row.amount, row.currency) }}</bdi></a>
+                </li>
+              }
+              @if (!d.contractors.payables.currencies.length && !d.contractors.agreements_remaining.length) {
+                <li class="soft">{{ t('fovNothingOwed') }}</li>
+              }
+            </ul>
+            <h3 class="fov-sub">{{ t('fovFromClients') }}</h3>
+            <ul class="fin-list">
+              @for (row of d.clients.currencies; track row.currency) {
+                <li>
+                  <span>{{ t('fovReceivable') }}</span>
+                  <a class="end fov-figure" routerLink="/modules/finReports" [queryParams]="{ report: 'aging' }" [class.late]="negative(row.amount)"><bdi class="num">{{ money(row.amount, row.currency) }}</bdi></a>
+                </li>
+              } @empty {
+                <li class="soft">{{ t('fovNothingOwed') }}</li>
+              }
+            </ul>
+          </section>
+
+          <!-- Partner drawings this month -->
+          <section class="panel">
+            <div class="panel-head"><div><h2>{{ t('fovDrawings') }}</h2><p><bdi>{{ d.partner_drawings.month }}</bdi></p></div></div>
+            @if (d.partner_drawings.currencies.length) {
+              <div class="sheet">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>{{ t('finCurrency') }}</th>
+                      <th class="end">{{ t('fovPersonal') }}</th>
+                      <th class="end">{{ t('fovCompanyExpense') }}</th>
+                      <th class="end">{{ t('fovVouchers') }}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (row of d.partner_drawings.currencies; track row.currency) {
+                      <tr>
+                        <td><bdi class="strong">{{ row.currency }}</bdi></td>
+                        <td class="num end"><a class="fov-figure" routerLink="/modules/finReports" [queryParams]="{ report: 'partners' }">{{ figure(row.personal, row.currency) }}</a></td>
+                        <td class="num end">{{ figure(row.company_expense, row.currency) }}</td>
+                        <td class="num end">{{ num(row.vouchers) }}</td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            } @else {
+              <p class="empty">{{ t('fovNoDrawings') }}</p>
+            }
+          </section>
+        </div>
+
+        <p class="fin-hint fov-rates">
+          {{ t('fovRatesUsed') }}:
+          @if (historical()) {
+            {{ t('fovHistorical') }}
+          } @else {
+            @for (item of rates(); track item.currency; let last = $last) {
+              <bdi dir="ltr">1 {{ d.consolidation.base_currency }} = {{ rate(item.rate, item.currency) }}</bdi>
+              @if (item.date) { <span class="soft"> ({{ short(item.date) }})</span> }
+              @if (!last) { · }
+            } @empty {
+              {{ t('fovBaseOnly') }}
+            }
+          }
+        </p>
+      } @else if (loading()) {
+        <p class="empty">{{ t('finLoading') }}</p>
+      } @else if (may('finance.view')) {
+        <!-- The dashboard failed (a missing rate answers 422, shown in the notice): the boxes still show. -->
+        <app-fin-overview-boxes />
+      }
+    </div>
+  }
+</main>

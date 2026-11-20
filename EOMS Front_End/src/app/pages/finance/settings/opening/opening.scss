@@ -1,0 +1,39 @@
+/* The opening sheet: collapsible sections, each a small line table. */
+
+.fst-part {
+  border: 1px solid var(--line);
+  border-radius: var(--r-control);
+  padding: 4px 14px;
+  display: grid;
+  gap: 12px;
+}
+
+.fst-part.on {
+  padding-bottom: 14px;
+}
+
+.fst-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+  text-align: start;
+}
+
+.fst-toggle i {
+  color: var(--soft);
+  font-size: 14px;
+}
+
+.fin-lines td small {
+  display: block;
+  margin-top: 4px;
+}

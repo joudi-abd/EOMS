@@ -126,7 +126,7 @@
 | الإعدادات | `GET /settings/config/public` **بلا مصادقة** (لعرض اسم الشركة في صفحة الدخول) | اطلبه قبل الدخول. |
 | الإعدادات | المجموعة الفارغة تعود `{}` (كائن) لا `[]`؛ `PUT /settings/config/{key}` يحفظ المجموعة الحالية إن لم تُرسل؛ المفتاح بصيغة `group.name` بأحرف إنجليزية صغيرة | — |
 | أسعار الصرف | `rate_date` يعود `YYYY-MM-DD` | لا تحوّله بـ Date. |
-| المالية | **عكس القيد، عكس العملية، إلغاء الفاتورة** صارت تتطلب `finance.approve` (مدير الشركة) لا `finance.manage` | أظهر هذه الأزرار لمن يملك `finance.approve` فقط. |
+| المالية | (أُعيد بناؤها لاحقاً) عكس السندات يتطلب `finance.reverse` | انظر `docs/finance/CHANGELOG.md`. |
 | المالية | القيد اليدوي **لا يمس حساب صندوق** (422) | الصناديق عبر القبض/الصرف/التحويل/الصرافة فقط؛ استبعد حسابات الصناديق من منتقي حسابات القيد اليدوي. |
 | المالية | صرف العملة قد يعود `status: "pending"` (فوق حد الاعتماد، أو السعر يبعد >5% عن سعر اليوم المسجل، أو لا سعر مسجل لذلك اليوم) | اعرض "بانتظار الاعتماد" كما للمدفوعات. |
 | المالية | لا يعتمد الفاتورة من أنشأها **أو أرسلها** (403)؛ لا يوافق على إقفال الشهر من طلبه (403) | — |
@@ -185,10 +185,13 @@
 | `GET /settings/config/public` | **بلا مصادقة** | — | `{"company.name": "..."}` |
 | `GET /settings/config/{group}` | `settings.view` | — | `{key: value}` |
 | `PUT /settings/config/{key}` | `settings.manage` | `value` (≤1000)، `group?` | `{key, value, group}` |
-| `GET /settings/currencies` | مسجّل | — | `[{id, code, name, symbol}]` |
-| `GET /settings/exchange-rates/latest` | مسجّل | `from`, `to` | `{rate:"13000.000000", rate_date:"YYYY-MM-DD", ...}` أو `null` |
-| `GET /settings/exchange-rates` | مسجّل | `from`, `to`, `limit?` (≤365) | `[{rate, rate_date}]` الأحدث أولاً |
-| `POST /settings/exchange-rates` | `finance.manage` | `from`, `to`, `rate>0`, `rate_date?` | 201 (نفس الزوج واليوم يُحدَّث) |
+| `GET /settings/currencies` | مسجّل | `active?` | `[{id, code, name, symbol, decimals, rounding_step, is_base, is_payroll_currency, is_active}]` |
+| `POST /settings/currencies`، `PATCH /settings/currencies/{id}` | `finance.settings` | الحقول أعلاه | العملة الأساسية (USD) لا تتغير ولا تُعطَّل |
+| `GET /settings/exchange-rates` | مسجّل | `date?` | النشرة: `{date, base, rates:[{code, rate_to_base}], missing:[]}` |
+| `GET /settings/exchange-rates/history` | مسجّل | `currency`, `limit?` (≤365) | `[{rate_to_base, rate_date, source}]` الأحدث أولاً |
+| `POST /settings/exchange-rates` | `finance.rates` | `date`, `rates: {CODE: rate}` (وحدات لكل 1 دولار) | 201 النشرة (نفس اليوم يُستبدل) |
+| `POST /settings/exchange-rates/copy-previous` | `finance.rates` | `date` | النشرة |
+| `GET /settings/branches`، `POST`، `PATCH /settings/branches/{id}` | مسجّل / `finance.settings` | `name, code, is_head_office?, is_active?` | الفرع |
 
 قواعد التصعيد: لا يمنح أحد صلاحية أو نطاقاً أوسع مما يملك؛ دور مدير النظام لا يُعدَّل ولا يُسند إلا من مدير نظام؛ لا يُزال آخر مدير نظام نشط.
 
@@ -276,24 +279,7 @@
 
 ## 8. المالية (`/finance`)
 
-**عرض (`finance.view`)**: `GET accounts`، `entries?currency&from&to&source_type`، `periods`، `approval-limits`، `boxes` (مع `balance`)، `transactions?status&kind&box_id&party_id&from&to`، `parties?kind&search`، `items`، `items/{id}/moves`، `invoices?type&status&party_id&overdue`، `invoices/{id}` (مع `lines[], payments[], attachments[]`)، `invoices/{id}/attachments/{aid}` (blob)، `reports/{box|ledger|party|trial-balance|income-statement|balance-sheet}`.
-
-**إدخال (`finance.manage`)**:
-- `POST accounts {code≤20, name≤150, type: asset|liability|equity|revenue|expense, parent_id?}`، `PATCH accounts/{id} {code?, name?, parent_id?, active?}`
-- `POST entries {date, currency_code, description≤500, lines[1..100]{account_id, debit|credit, party_id?, memo?}}` — قيد غير متوازن يُوازن تلقائياً في "فروقات القيود" (`difference`). **حسابات الصناديق ممنوعة.**
-- `POST periods/close-request {month: YYYY-MM}`
-- `POST boxes {name, kind: cash|sham_cash, currency_code, parent_account_id?, opening_amount?, opening_date?, opening_account_id?}`، `PATCH boxes/{id} {name?, active?}`
-- `POST transactions/{receipt|payment|transfer|exchange}` — `{date, box_id, amount, description}` + للتحويل/الصرافة `counter_box_id` + للصرافة `counter_amount` + للقبض/الصرف `party_id` أو `account_id` (واحد فقط) و`invoice_id?`. النتيجة `status: posted|pending`.
-- `POST/PATCH parties`، `POST/PATCH items`، `POST items/{id}/adjust {date, quantity ±, unit_cost?, account_id, reason}`
-- `POST invoices`، `PUT invoices/{id}` (+`version`)، `POST invoices/{id}/submit` (→ `posted` برقم `S-/P-` أو `pending`)، `POST/DELETE invoices/{id}/attachments[/{aid}]` (jpg/png/webp/pdf ≤10MB، 10 كحد أقصى)
-
-**اعتماد وإلغاء (`finance.approve`)**:
-- `PUT approval-limits {currency_code, amount}`
-- `POST transactions/{id}/decision {decision: approve|reject, note?}`، `POST invoices/{id}/decision {…}`
-- `POST periods/{YYYY-MM}/decision {…}`، `POST periods/{YYYY-MM}/reopen {reason}`
-- **`POST entries/{id}/reverse {date, reason}`، `POST transactions/{id}/reverse {date, reason}`، `POST invoices/{id}/cancel {date, reason}`** (نُقلت إلى هنا)
-
-التقارير: كلها بعملة واحدة (`currency`) ولا تحويل بين العملات. ميزان المراجعة يعيد لكل حساب `opening_balance, debit, credit, balance, closing_balance`.
+أُعيد بناء المالية (المرحلتان 1–2): دفتر متعدد العملات، صناديق متعددة العملات، سندات بكل الأنواع، جرد، فترات، وصلاحيات جديدة بدل `finance.manage` و`finance.approve`. المرجع الكامل في `docs/FINANCE_API_AR.md`، والتغييرات التي تكسر الواجهة في `docs/finance/CHANGELOG.md`.
 
 ---
 

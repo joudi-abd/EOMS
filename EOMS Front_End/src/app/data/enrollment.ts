@@ -26,6 +26,8 @@ export interface EnrollStatus {
 const idle: EnrollStatus = { state: 'none', presses: 0, pin: '', message: '' };
 const live: readonly EnrollState[] = ['queued', 'sent', 'scanning'];
 const pollEvery = 2000;
+/** First device user id when auto-linking an employee who has no open binding. */
+const firstDeviceUserId = 1000;
 
 function stageOf(status: string): EnrollState {
   if (status === 'queued_user') return 'queued';
@@ -36,6 +38,31 @@ function stageOf(status: string): EnrollState {
   if (status === 'manually_confirmed') return 'enrolled';
   if (status === 'failed') return 'failed';
   return 'sent';
+}
+
+function bindingOpen(row: ApiBinding, today: string): boolean {
+  if (row.valid_from > today) return false;
+  if (row.valid_to && row.valid_to < today) return false;
+  if (row.revoked_from && row.revoked_from <= today) return false;
+  return true;
+}
+
+/** Next free numeric PIN on the device, starting at 1000. Reuses the employee's known pin when free. */
+function nextDeviceUserId(rows: ApiBinding[], today: string, preferred?: string): string {
+  const taken = new Set(
+    rows.filter((row) => bindingOpen(row, today)).map((row) => row.device_user_id),
+  );
+  const want = preferred?.trim();
+  if (want && !taken.has(want)) return want;
+
+  let max = firstDeviceUserId - 1;
+  for (const row of rows) {
+    const n = Number.parseInt(row.device_user_id, 10);
+    if (Number.isFinite(n) && n > max) max = n;
+  }
+  let next = Math.max(max + 1, firstDeviceUserId);
+  while (taken.has(String(next))) next += 1;
+  return String(next);
 }
 
 @Injectable({ providedIn: 'root' })
@@ -70,27 +97,28 @@ export class Enrollment {
     try {
       const result = await this.api.get<ApiItem<ApiDevice[]>>('/attendance/devices');
       if (generation !== this.generation) return;
-      const open: OpenBinding[] = [];
-      for (const device of result.data.filter(
+      const devices = result.data.filter(
         (item) => item.is_active && item.connection_mode === 'adms',
-      )) {
+      );
+      let open = await this.collectOpen(devices, employeeId, generation);
+      if (generation !== this.generation) return;
+
+      if (open.length === 0 && devices.length > 0) {
+        const device = devices[0];
         const rows = await this.api.all<ApiBinding>(`/attendance/devices/${device.id}/bindings`);
         if (generation !== this.generation) return;
         const today = dayIn(device.timezone);
-        for (const row of rows) {
-          if (String(row.employee_id) !== employeeId) continue;
-          if (row.valid_from > today) continue;
-          if (row.valid_to && row.valid_to < today) continue;
-          if (row.revoked_from && row.revoked_from <= today) continue;
-          open.push({
-            id: row.id,
-            deviceId: device.id,
-            deviceName: device.name,
-            pin: row.device_user_id,
-            mode: device.connection_mode,
-          });
-        }
+        const pin = nextDeviceUserId(rows, today, this.office.person(employeeId)?.pin);
+        await this.api.post(`/attendance/devices/${device.id}/bindings`, {
+          employee_id: Number(employeeId),
+          device_user_id: pin,
+          valid_from: today,
+        });
+        if (generation !== this.generation) return;
+        open = await this.collectOpen(devices, employeeId, generation);
+        if (generation !== this.generation) return;
       }
+
       this.bindings.set(open);
       this.deviceName.set(open[0]?.deviceName ?? '');
       if (open[0]) this.status.set({ ...idle, pin: open[0].pin });
@@ -219,6 +247,31 @@ export class Enrollment {
     if (this.timer) clearTimeout(this.timer);
     this.timer = null;
     this.watching = 0;
+  }
+
+  private async collectOpen(
+    devices: ApiDevice[],
+    employeeId: string,
+    generation: number,
+  ): Promise<OpenBinding[]> {
+    const open: OpenBinding[] = [];
+    for (const device of devices) {
+      const rows = await this.api.all<ApiBinding>(`/attendance/devices/${device.id}/bindings`);
+      if (generation !== this.generation) return open;
+      const today = dayIn(device.timezone);
+      for (const row of rows) {
+        if (String(row.employee_id) !== employeeId) continue;
+        if (!bindingOpen(row, today)) continue;
+        open.push({
+          id: row.id,
+          deviceId: device.id,
+          deviceName: device.name,
+          pin: row.device_user_id,
+          mode: device.connection_mode,
+        });
+      }
+    }
+    return open;
   }
 
   private apply(view: ApiEnrollmentView): void {

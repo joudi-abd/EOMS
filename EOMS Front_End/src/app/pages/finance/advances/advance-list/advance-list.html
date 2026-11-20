@@ -1,0 +1,93 @@
+@if (figures().length) {
+  <section class="summary" [attr.aria-label]="t('fadSummary')">
+    @for (item of figures(); track item.currency) {
+      <p>
+        <span>{{ t('fadOutstanding') }} <bdi>{{ item.currency }}</bdi></span>
+        <strong><bdi class="num">{{ figure(item.outstanding, item.currency) }}</bdi></strong>
+        <small>{{ t('fadDueThisMonth') }} <bdi class="num">{{ figure(item.due, item.currency) }}</bdi> · {{ num(item.people) }} {{ t('fadPeople') }}</small>
+      </p>
+    }
+  </section>
+}
+
+<div class="fin-grid">
+  <div class="fin-stack">
+    <form class="filters" (ngSubmit)="load(1)">
+      <label>{{ t('finStatus') }}
+        <select name="status" [(ngModel)]="status" (ngModelChange)="load(1)">
+          <option value="">{{ t('finAll') }}</option>
+          @for (item of statuses; track item) { <option [value]="item">{{ advanceStatus(item) }}</option> }
+        </select>
+      </label>
+      <label>{{ t('finEmployee') }}
+        <select name="employee" [(ngModel)]="employeeId" (ngModelChange)="load(1)">
+          <option [ngValue]="0">{{ t('finAll') }}</option>
+          @for (party of employees(); track party.id) { <option [ngValue]="party.employee_id">{{ party.name }}</option> }
+        </select>
+      </label>
+      @if (status !== 'active' || employeeId) {
+        <div class="fin-filter-actions"><button class="text" type="button" (click)="reset()">{{ t('finReset') }}</button></div>
+      }
+    </form>
+
+    @if (loading() && !rows().length) {
+      <p class="empty">{{ t('finLoading') }}</p>
+    } @else if (!rows().length) {
+      <p class="empty">{{ t('fadNoAdvances') }}</p>
+    } @else {
+      <div class="sheet">
+        <table>
+          <thead>
+            <tr>
+              <th>{{ t('finEmployee') }}</th>
+              <th class="end">{{ t('finAmount') }}</th>
+              <th>{{ t('finCurrency') }}</th>
+              <th class="end">{{ t('fadRemaining') }}</th>
+              <th>{{ t('fadNextDue') }}</th>
+              <th>{{ t('finStatus') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of rows(); track row.id) {
+              <tr>
+                <td>
+                  <button class="link-button" type="button" (click)="open(row)">{{ row.party?.name ?? finance.partyName(row.party_id) }}</button>
+                  <small class="soft block-line">{{ num(row.installments_count) }} {{ t('fadInstallmentsWord') }} · {{ t('fadFrom') }} <bdi>{{ row.start_month }}</bdi></small>
+                </td>
+                <td class="end"><bdi class="num">{{ figure(row.amount, code(row)) }}</bdi></td>
+                <td><bdi>{{ code(row) }}</bdi></td>
+                <td class="end"><bdi class="num" [class.strong]="positive(row.remaining)">{{ figure(row.remaining, code(row)) }}</bdi></td>
+                <td><bdi>{{ nextDue(row) }}</bdi></td>
+                <td [class]="tone(row.status)">{{ advanceStatus(row.status) }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      @if (pages() > 1) {
+        <nav class="fin-pager" [attr.aria-label]="t('finPages')">
+          <button class="text small" type="button" [disabled]="page() <= 1" (click)="load(page() - 1)">{{ t('finPrev') }}</button>
+          <span class="soft">{{ num(page()) }} / {{ num(pages()) }}</span>
+          <button class="text small" type="button" [disabled]="page() >= pages()" (click)="load(page() + 1)">{{ t('finNext') }}</button>
+        </nav>
+      }
+    }
+  </div>
+
+  <section class="panel">
+    <div class="panel-head"><div><h2>{{ t('fadUpcoming') }}</h2><p>{{ t('fadUpcomingHint') }}</p></div></div>
+    <ul class="fin-list">
+      @for (item of report()?.upcoming ?? []; track item.due_month + item.currency) {
+        <li>
+          <span>
+            <bdi class="strong">{{ item.due_month }}</bdi>
+            <small class="soft block-line">{{ num(item.installments) }} {{ t('fadInstallmentsWord') }}</small>
+          </span>
+          <span class="end"><bdi class="num">{{ money(item.amount, item.currency) }}</bdi></span>
+        </li>
+      } @empty {
+        <li class="soft">{{ t('fadNoUpcoming') }}</li>
+      }
+    </ul>
+  </section>
+</div>

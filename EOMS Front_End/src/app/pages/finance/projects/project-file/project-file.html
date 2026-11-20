@@ -1,0 +1,77 @@
+<div class="fin-toolbar">
+  <a class="text small" [routerLink]="[]" [queryParams]="{}"><i class="fa-solid fa-arrow-right fpj-back" aria-hidden="true"></i> {{ t('fpjAllProjects') }}</a>
+</div>
+
+@if (file(); as f) {
+  @if (editing()) {
+    <app-fpj-project-form [project]="f" (saved)="edited()" (closed)="editing.set(false)" />
+  } @else {
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <h2>{{ f.name }} @if (f.code) { <bdi class="soft">· {{ f.code }}</bdi> }</h2>
+          <p><span [class]="tone(f.status)">{{ projectStatusLabel(f.status) }}</span></p>
+        </div>
+        <div class="fpj-head-actions">
+          @if (may('finance.vouchers') && f.contract_type !== 'internal' && f.client_party_id) {
+            <a class="text" routerLink="/modules/finVouchers" [queryParams]="receiptLink(f)">{{ t('fpjReceiveClient') }}</a>
+          }
+          @if (mayWrite()) {
+            <button class="text" type="button" (click)="editing.set(true)">{{ t('finEdit') }}</button>
+          }
+        </div>
+      </div>
+      <dl class="fin-kv">
+        @if (f.contract_type !== 'internal') {
+          <dt>{{ t('fpjClient') }}</dt>
+          <dd>
+            @if (f.client && may('finance.view')) {
+              <a class="name" routerLink="/modules/finParties" [queryParams]="{ id: f.client.id }">{{ f.client.name }}</a>
+            } @else { {{ f.client?.name ?? '—' }} }
+          </dd>
+        }
+        <dt>{{ t('fpjContract') }}</dt>
+        <dd><bdi>{{ contract(f) }}</bdi></dd>
+        @if (finance.branchName(f.branch_id)) {
+          <dt>{{ t('finBranch') }}</dt>
+          <dd>{{ finance.branchName(f.branch_id) }}</dd>
+        }
+        @if (f.start_date) {
+          <dt>{{ t('fpjDates') }}</dt>
+          <dd>{{ date(f.start_date) }} @if (f.end_date) { – {{ date(f.end_date) }} }</dd>
+        }
+      </dl>
+      @if (mayWrite()) {
+        <form class="fpj-status" (ngSubmit)="saveStatus()">
+          <label>{{ t('fpjChangeStatus') }}
+            <select name="status" [(ngModel)]="status" [disabled]="busy()">
+              @for (item of statuses; track item) { <option [value]="item">{{ projectStatusLabel(item) }}</option> }
+            </select>
+          </label>
+          <button class="text small" type="submit" [disabled]="busy() || status === f.status">{{ t('finSave') }}</button>
+        </form>
+      }
+      @if (f.billing_locked) {
+        <p class="fin-hint"><i class="fa-solid fa-lock" aria-hidden="true"></i> {{ t('fpjLockedHint') }}</p>
+      }
+    </section>
+  }
+
+  <div class="seg" role="tablist" [attr.aria-label]="f.name">
+    @for (item of views(); track item) {
+      <button type="button" role="tab" [attr.aria-selected]="shown() === item" [class.on]="shown() === item" (click)="go(item)">{{ viewLabel(item) }}</button>
+    }
+  </div>
+
+  @switch (shown()) {
+    @case ('summary') { <app-fpj-project-summary [file]="f" /> }
+    @case ('budget') { <app-fpj-project-budget [file]="f" (changed)="load()" /> }
+    @case ('contractors') { <app-fpj-project-contractors [file]="f" /> }
+    @case ('billings') { <app-fpj-project-billing [file]="f" (changed)="load()" /> }
+    @case ('statement') { <app-fpj-project-statement [file]="f" /> }
+  }
+} @else if (missing()) {
+  <p class="empty">{{ t('fpjNotFound') }}</p>
+} @else {
+  <p class="soft">{{ t('finLoading') }}</p>
+}

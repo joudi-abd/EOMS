@@ -1,0 +1,71 @@
+:host {
+  display: block;
+}
+
+.tk-label,
+.tk-custom-name {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--muted);
+  font-size: 15px;
+}
+
+.tk-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.tk-swatches button,
+.tk-chosen {
+  width: 28px;
+  height: 28px;
+  min-height: 28px;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 50%;
+}
+
+.tk-swatches button {
+  cursor: pointer;
+}
+
+.tk-swatches button.on,
+.tk-chosen {
+  border-color: var(--ink);
+  box-shadow: 0 0 0 2px var(--surface) inset;
+}
+
+.tk-palette {
+  display: grid;
+  place-items: center;
+  background: var(--surface);
+  color: var(--ink);
+  border-color: var(--line);
+}
+
+.tk-palette i {
+  font-size: 13px;
+}
+
+.tk-custom {
+  margin-top: 12px;
+}
+
+:host-context(.fin-form) input.tk-picker,
+.tk-picker {
+  position: absolute;
+  width: 1px;
+  min-width: 0;
+  height: 1px;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.tk-chosen {
+  display: block;
+}

@@ -1,0 +1,41 @@
+/* One count opened in place. */
+
+.fbx-x {
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+
+.fbx-body {
+  display: grid;
+  gap: 14px;
+}
+
+.fbx-push {
+  margin-inline-start: auto;
+  display: inline-flex;
+  gap: 8px;
+}
+
+.fbx-files {
+  display: grid;
+  gap: 8px;
+}
+
+.fbx-files h3 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.fbx-upload {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  cursor: pointer;
+}
+
+.fbx-step {
+  display: grid;
+  gap: 12px;
+}

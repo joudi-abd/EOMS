@@ -1,0 +1,349 @@
+@if (voucher(); as v) {
+  <section class="fin-sheet" [attr.aria-label]="v.display_number ?? ''">
+    <header>
+      <h2>
+        {{ voucherKind(v.type, v.purpose) }} · <bdi>{{ v.display_number ?? v.number }}</bdi>
+      </h2>
+      <button
+        class="quiet-x"
+        type="button"
+        [attr.aria-label]="t('finClose')"
+        (click)="closed.emit()"
+      >
+        <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+      </button>
+    </header>
+
+    @if (v.warnings?.length) {
+      @for (warning of v.warnings; track $index) {
+        <p class="fin-warn">
+          <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> {{ warning }}
+        </p>
+      }
+    }
+    @if (v.status === 'rejected' && v.rejected_reason) {
+      <p class="fin-warn">
+        <i class="fa-solid fa-ban" aria-hidden="true"></i> {{ t('fvoRejectedBecause') }}
+        {{ v.rejected_reason }}
+      </p>
+    }
+    @if (v.status === 'reversed' && v.reversal_reason) {
+      <p class="fin-warn">
+        <i class="fa-solid fa-rotate-left" aria-hidden="true"></i> {{ t('fvoReversedBecause') }}
+        {{ v.reversal_reason }}
+      </p>
+    }
+
+    <dl class="fin-kv">
+      <dt>{{ t('finStatus') }}</dt>
+      <dd [class]="tone(v.status)">{{ statusLabel(v.status) }}</dd>
+      <dt>{{ t('finDate') }}</dt>
+      <dd>
+        <bdi>{{ date(v.voucher_date) }}</bdi>
+      </dd>
+      @for (fact of facts(v); track fact.key) {
+        <dt>{{ t(fact.key) }}</dt>
+        <dd>
+          @if (fact.link) {
+            <a [routerLink]="fact.link.path" [queryParams]="fact.link.params">{{ fact.value }}</a>
+          } @else if (fact.money) {
+            <bdi class="num">{{ fact.value }}</bdi>
+          } @else {
+            {{ fact.value }}
+          }
+        </dd>
+      }
+    </dl>
+
+    @if (v.lines?.length) {
+      <div class="fin-lines">
+        <table>
+          <thead>
+            <tr>
+              <th>{{ t('fvoLineOn') }}</th>
+              <th>{{ t('finParty') }}</th>
+              <th class="end">{{ t('finDebit') }}</th>
+              @if (v.type === 'manual_journal' || v.type === 'opening_balance') {
+                <th class="end">{{ t('finCredit') }}</th>
+              }
+              <th>{{ t('fvoMemo') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (line of v.lines; track $index) {
+              <tr>
+                <td>{{ lineTarget(line) }}</td>
+                <td>{{ finance.partyName(line.party_id) || '—' }}</td>
+                <td class="end">
+                  <bdi class="num">{{
+                    positive(line.debit) ? money(line.debit, lineCurrency(line)) : '—'
+                  }}</bdi>
+                </td>
+                @if (v.type === 'manual_journal' || v.type === 'opening_balance') {
+                  <td class="end">
+                    <bdi class="num">{{
+                      positive(line.credit) ? money(line.credit, lineCurrency(line)) : '—'
+                    }}</bdi>
+                  </td>
+                }
+                <td>{{ line.memo || '—' }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+
+    <!-- Attachments -->
+    @if (v.attachments?.length || mayAttach(v)) {
+      <div class="fin-field">
+        {{ t('finAttachments') }}
+        <ul class="fin-list">
+          @for (file of v.attachments ?? []; track file.id) {
+            <li>
+              <i class="fa-regular fa-file" aria-hidden="true"></i>
+              <span
+                ><bdi>{{ file.original_name }}</bdi>
+                <small class="soft">{{ size(file.size) }}</small></span
+              >
+              <span class="end">
+                <button
+                  class="text small"
+                  type="button"
+                  [disabled]="busy()"
+                  (click)="download(v, file)"
+                >
+                  {{ t('fvoDownload') }}
+                </button>
+                @if (v.status === 'draft' && may('finance.vouchers')) {
+                  <button
+                    class="quiet small"
+                    type="button"
+                    [disabled]="busy()"
+                    (click)="detach(v, file)"
+                  >
+                    {{ t('finDelete') }}
+                  </button>
+                }
+              </span>
+            </li>
+          } @empty {
+            <li class="soft">{{ t('fvoNoAttachments') }}</li>
+          }
+        </ul>
+        @if (mayAttach(v)) {
+          <label class="text small fvo-upload">
+            <i class="fa-solid fa-paperclip" aria-hidden="true"></i> {{ t('finAttach') }}
+            <input
+              type="file"
+              accept=".jpg,.jpeg,.png,.webp,.pdf"
+              [disabled]="busy()"
+              (change)="attach(v, $event)"
+            />
+          </label>
+        }
+      </div>
+    }
+
+    <!-- The posted entry, for whoever wants to see it -->
+    @if (v.entry?.lines?.length) {
+      <details class="fvo-entry">
+        <summary>
+          {{ t('fvoEntry') }}
+          @if (v.entry?.number) {
+            · <bdi>{{ v.entry?.number }}</bdi>
+          }
+        </summary>
+        <div class="fin-lines">
+          <table>
+            <thead>
+              <tr>
+                <th>{{ t('finAccount') }}</th>
+                <th>{{ t('finCurrency') }}</th>
+                <th class="end">{{ t('finDebit') }}</th>
+                <th class="end">{{ t('finCredit') }}</th>
+                <th>{{ t('fvoMemo') }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (line of v.entry?.lines ?? []; track line.id) {
+                <tr>
+                  <td>{{ finance.accountLabel(line.account_id) }}</td>
+                  <td>
+                    <bdi>{{ finance.code(line.currency_id) }}</bdi>
+                  </td>
+                  <td class="end">
+                    <bdi class="num">{{
+                      positive(line.debit) ? figure(line.debit, line.currency_id) : ''
+                    }}</bdi>
+                  </td>
+                  <td class="end">
+                    <bdi class="num">{{
+                      positive(line.credit) ? figure(line.credit, line.currency_id) : ''
+                    }}</bdi>
+                  </td>
+                  <td>{{ line.memo || '' }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        @if (v.reversal_entry?.lines?.length) {
+          <p class="fin-hint">
+            {{ t('fvoReversalEntry') }}
+            @if (v.reversal_entry?.number) {
+              · <bdi>{{ v.reversal_entry?.number }}</bdi>
+            }
+            · <bdi>{{ date(v.reversal_entry?.entry_date ?? '') }}</bdi>
+          </p>
+          <div class="fin-lines">
+            <table>
+              <thead>
+                <tr>
+                  <th>{{ t('finAccount') }}</th>
+                  <th>{{ t('finCurrency') }}</th>
+                  <th class="end">{{ t('finDebit') }}</th>
+                  <th class="end">{{ t('finCredit') }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (line of v.reversal_entry?.lines ?? []; track line.id) {
+                  <tr>
+                    <td>{{ finance.accountLabel(line.account_id) }}</td>
+                    <td>
+                      <bdi>{{ finance.code(line.currency_id) }}</bdi>
+                    </td>
+                    <td class="end">
+                      <bdi class="num">{{
+                        positive(line.debit) ? figure(line.debit, line.currency_id) : ''
+                      }}</bdi>
+                    </td>
+                    <td class="end">
+                      <bdi class="num">{{
+                        positive(line.credit) ? figure(line.credit, line.currency_id) : ''
+                      }}</bdi>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </details>
+    }
+
+    <!-- Decisions that need a word first -->
+    @if (panel() === 'reject') {
+      <form class="fvo-decide" (ngSubmit)="reject(v)">
+        <label class="fin-field"
+          >{{ t('fvoRejectReason') }}
+          <textarea
+            name="rejectReason"
+            rows="2"
+            minlength="3"
+            maxlength="500"
+            required
+            [(ngModel)]="reason"
+          ></textarea>
+        </label>
+        <div class="fin-actions">
+          <button class="text" type="button" (click)="panel.set('none')">
+            {{ t('finCancel') }}
+          </button>
+          <button class="quiet" type="submit" [disabled]="busy() || reason.trim().length < 3">
+            {{ t('fvoReject') }}
+          </button>
+        </div>
+      </form>
+    }
+    @if (panel() === 'reverse') {
+      <form class="fvo-decide" (ngSubmit)="reverse(v)">
+        <p class="fin-hint">{{ t('fvoReverseHint') }}</p>
+        <div class="fin-form">
+          <label
+            >{{ t('fvoReverseDate')
+            }}<input name="reverseDate" type="date" required [(ngModel)]="reverseDate"
+          /></label>
+          <label class="wide"
+            >{{ t('finReason') }}
+            <textarea
+              name="reverseReason"
+              rows="2"
+              minlength="3"
+              maxlength="500"
+              required
+              [(ngModel)]="reason"
+            ></textarea>
+          </label>
+        </div>
+        <div class="fin-actions">
+          <button class="text" type="button" (click)="panel.set('none')">
+            {{ t('finCancel') }}
+          </button>
+          <button
+            class="quiet"
+            type="submit"
+            [disabled]="busy() || !reverseDate || reason.trim().length < 3"
+          >
+            {{ t('fvoReverse') }}
+          </button>
+        </div>
+      </form>
+    }
+    @if (panel() === 'delete') {
+      <div class="fvo-decide">
+        <p class="fin-warn">
+          <i class="fa-solid fa-trash" aria-hidden="true"></i> {{ t('fvoDeleteAsk') }}
+        </p>
+        <div class="fin-actions">
+          <button class="text" type="button" (click)="panel.set('none')">
+            {{ t('finCancel') }}
+          </button>
+          <button class="quiet" type="button" [disabled]="busy()" (click)="remove(v)">
+            {{ t('fvoDeleteConfirm') }}
+          </button>
+        </div>
+      </div>
+    }
+
+    <!-- What can be done in this state -->
+    @if (panel() === 'none') {
+      <div class="fin-actions">
+        @if (v.status === 'draft' && may('finance.vouchers')) {
+          <button class="quiet" type="button" [disabled]="busy()" (click)="open('delete')">
+            {{ t('finDelete') }}
+          </button>
+          @if (editable(v)) {
+            <button class="text" type="button" [disabled]="busy()" (click)="edit.emit(v)">
+              {{ t('finEdit') }}
+            </button>
+          }
+          <button class="text" type="button" [disabled]="busy()" (click)="submit(v)">
+            {{ t('fvoSubmit') }}
+          </button>
+          <button class="primary" type="button" [disabled]="busy()" (click)="approve(v)">
+            {{ t('fvoApprove') }}
+          </button>
+        }
+        @if (v.status === 'submitted' && may('finance.vouchers')) {
+          <button class="quiet" type="button" [disabled]="busy()" (click)="open('reject')">
+            {{ t('fvoReject') }}
+          </button>
+          <button class="primary" type="button" [disabled]="busy()" (click)="approve(v)">
+            {{ t('fvoApprove') }}
+          </button>
+        }
+        @if (v.status === 'approved' && may('finance.reverse') && !isPayroll(v)) {
+          <button class="text" type="button" [disabled]="busy()" (click)="open('reverse')">
+            {{ t('fvoReverse') }}
+          </button>
+        }
+        @if (v.status === 'approved' && isPayroll(v)) {
+          <p class="fin-hint">{{ t('fvoPayrollHint') }}</p>
+        }
+      </div>
+    }
+  </section>
+} @else {
+  <p class="empty">{{ t('finLoading') }}</p>
+}

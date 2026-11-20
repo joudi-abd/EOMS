@@ -1,0 +1,83 @@
+@if (sheet(); as s) {
+  <form class="fin-sheet narrow" (ngSubmit)="confirm()">
+    <header>
+      <h2>{{ s.action === 'close' ? t('fstCloseMonth') : t('fstReopenMonth') }} · {{ monthName(s.month) }}</h2>
+      <button class="quiet-x" type="button" (click)="sheet.set(null)" [attr.aria-label]="t('dismiss')"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+    </header>
+    @if (s.action === 'close') {
+      <p class="fin-hint">{{ t('fstCloseHint') }}</p>
+      @for (item of failingWarnings(s.month); track item.key) {
+        <p class="fin-warn"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> {{ item.messages.join(' ') }}</p>
+      }
+    } @else {
+      <p class="fin-hint">{{ t('fstReopenHint') }}</p>
+    }
+    <fieldset class="fin-form" [disabled]="busy()">
+      @if (s.action === 'reopen') {
+        <label class="wide">{{ t('finReason') }}<input name="reason" required minlength="3" maxlength="500" [(ngModel)]="reason" /></label>
+      }
+      <div class="fin-actions wide">
+        <button class="text" type="button" (click)="sheet.set(null)">{{ t('finCancel') }}</button>
+        <button class="primary" type="submit">{{ s.action === 'close' ? t('fstCloseMonth') : t('fstReopenMonth') }}</button>
+      </div>
+    </fieldset>
+  </form>
+}
+
+<p class="fin-hint">{{ t('fstPeriodsHint') }}</p>
+
+<div class="sheet">
+  <table>
+    <thead>
+      <tr>
+        <th>{{ t('finMonth') }}</th>
+        <th>{{ t('finStatus') }}</th>
+        <th>{{ t('fstPeriodState') }}</th>
+        <th><span class="vh">{{ t('finActions') }}</span></th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (m of months(); track m.month) {
+        <tr [class.picked]="unfolded().has(m.month)">
+          <td class="strong">{{ monthName(m) }}</td>
+          <td [class]="m.status === 'closed' ? 'mute' : 'ok'">{{ m.status === 'closed' ? t('fstClosed') : t('fstOpen') }}</td>
+          <td>
+            @if (m.status === 'closed') {
+              {{ t('fstClosedOn') }} {{ stamp(m.closed_at) }}
+              @if (closedBy(m)) { · {{ closedBy(m) }} }
+            } @else {
+              @if (m.blockers) { <span class="late">{{ t('fstBlockers') }} {{ num(m.blockers) }}</span> }
+              @if (m.warnings) { <span class="wait fst-gap">{{ t('fstWarnings') }} {{ num(m.warnings) }}</span> }
+              @if (!m.blockers && !m.warnings) { <span class="ok">{{ t('fstReady') }}</span> }
+              @if (m.reopen_reason) { <span class="soft fst-gap">{{ t('fstReopenedFor') }} {{ m.reopen_reason }}</span> }
+            }
+          </td>
+          <td class="fin-row-actions">
+            @if (m.status === 'open') {
+              <button class="text small" type="button" [attr.aria-expanded]="unfolded().has(m.month)" (click)="toggle(m.month)">{{ t('fstChecks') }}</button>
+              <button [class]="m.can_close ? 'primary small' : 'text small'" type="button" [disabled]="busy() || !m.can_close" (click)="startClose(m)">{{ t('fstCloseMonth') }}</button>
+            } @else if (m.month === latestClosed()) {
+              <button class="text small" type="button" [disabled]="busy()" (click)="startReopen(m)">{{ t('fstReopenMonth') }}</button>
+            }
+          </td>
+        </tr>
+        @if (m.status === 'open' && unfolded().has(m.month)) {
+          <tr class="sub">
+            <td colspan="4">
+              <ul class="fst-checks">
+                @for (item of items(m); track item.key) {
+                  <li>
+                    <span [class]="itemTone(item)">{{ item.label }}</span>
+                    @for (line of item.messages; track $index) { <span class="soft">{{ line }}</span> }
+                  </li>
+                }
+              </ul>
+            </td>
+          </tr>
+        }
+      } @empty {
+        <tr><td colspan="4" class="empty">{{ loaded() ? t('fstNoMonths') : t('finLoading') }}</td></tr>
+      }
+    </tbody>
+  </table>
+</div>

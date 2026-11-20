@@ -1,0 +1,30 @@
+/* The CSV import sheet: format hints, the file, then the result or the rejected rows. */
+
+code {
+  font-size: 15px;
+  padding: 1px 6px;
+  border-radius: var(--r-chip);
+  background: var(--raised);
+  color: var(--ink);
+}
+
+.fpa-done {
+  margin: 0;
+  font-size: 16px;
+  color: var(--ontime);
+}
+
+.fpa-errors {
+  display: grid;
+  gap: 6px;
+  align-items: start;
+}
+
+.fpa-errors p,
+.fpa-errors ul {
+  margin: 0;
+}
+
+.fpa-errors ul {
+  padding-inline-start: 20px;
+}

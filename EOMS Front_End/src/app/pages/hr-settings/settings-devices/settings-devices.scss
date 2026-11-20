@@ -321,8 +321,15 @@ h3 {
 
 /* The add-device form stands on its own sheet; the forms inside a device card stay flat. */
 .devices > .form {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   padding: 22px 24px;
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius);
+}
+
+@media (max-width: 760px) {
+  .devices > .form {
+    grid-template-columns: 1fr;
+  }
 }

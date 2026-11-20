@@ -121,14 +121,14 @@ class AccountHardeningTest extends TestCase
     public function test_exchange_rate_date_is_returned_as_a_plain_date(): void
     {
         Currency::firstOrCreate(['code' => 'SYP'], ['name' => 'SYP', 'symbol' => 'ل.س']);
-        Currency::firstOrCreate(['code' => 'USD'], ['name' => 'USD', 'symbol' => '$']);
+        Currency::firstOrCreate(['code' => 'USD'], ['name' => 'USD', 'symbol' => '$', 'is_base' => true]);
         $admin = User::factory()->create();
         $admin->assignRole('system_admin');
         Sanctum::actingAs($admin, ['*']);
 
-        $this->postJson('/api/v1/settings/exchange-rates', ['from' => 'USD', 'to' => 'SYP', 'rate' => 13000, 'rate_date' => '2026-11-14'])
-            ->assertCreated()->assertJsonPath('data.rate_date', '2026-11-14');
-        $this->getJson('/api/v1/settings/exchange-rates/latest?from=USD&to=SYP')->assertJsonPath('data.rate_date', '2026-11-14');
+        $this->postJson('/api/v1/settings/exchange-rates', ['date' => '2026-11-14', 'rates' => ['SYP' => 13000]])
+            ->assertCreated()->assertJsonPath('data.date', '2026-11-14')->assertJsonPath('data.rates.0.rate_date', '2026-11-14');
+        $this->getJson('/api/v1/settings/exchange-rates/history?currency=SYP')->assertJsonPath('data.0.rate_date', '2026-11-14');
         $this->assertDatabaseHas('usr_audit_logs', ['action' => 'fx.rate_set']);
     }
 

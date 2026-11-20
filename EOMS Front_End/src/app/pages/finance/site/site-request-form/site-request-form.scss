@@ -1,0 +1,75 @@
+/* Phone first: one column, 48px targets, the send button full width on a narrow screen. */
+.fsr-sheet fieldset {
+  gap: 18px;
+}
+
+.fsr-field {
+  display: grid;
+  gap: 6px;
+  font-size: 16px;
+  color: var(--muted);
+}
+
+.fsr-field input,
+.fsr-field select,
+.fsr-field textarea {
+  width: 100%;
+  min-height: 48px;
+  font-size: 17px;
+}
+
+.fsr-money {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(96px, 1fr);
+  gap: 12px;
+}
+
+.fsr-seg {
+  width: 100%;
+}
+
+.fsr-seg button {
+  flex: 1 1 0;
+  min-height: 44px;
+}
+
+.fsr-pickers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.fsr-pick {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex: 1 1 140px;
+  min-height: 48px;
+  cursor: pointer;
+}
+
+.fsr-pick:focus-within {
+  outline: 2px solid var(--action);
+  outline-offset: 2px;
+}
+
+.fsr-thumb {
+  display: block;
+  max-width: 100%;
+  max-height: 220px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-control);
+  object-fit: contain;
+  background: var(--raised);
+}
+
+.fsr-send {
+  min-height: 48px;
+}
+
+@media (max-width: 560px) {
+  .fsr-send {
+    width: 100%;
+  }
+}

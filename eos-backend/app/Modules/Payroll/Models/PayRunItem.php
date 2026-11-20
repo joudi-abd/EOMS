@@ -13,7 +13,7 @@ class PayRunItem extends Model
 
     protected function casts(): array
     {
-        return ['pay_run_line_id' => 'integer', 'quantity' => 'decimal:4', 'proposed_amount' => 'decimal:2',
+        return ['pay_run_line_id' => 'integer', 'component_id' => 'integer', 'project_id' => 'integer', 'quantity' => 'decimal:4', 'proposed_amount' => 'decimal:2',
             'amount' => 'decimal:2', 'details' => 'array', 'created_by' => 'integer', 'decided_by' => 'integer',
             'decided_at' => 'datetime'];
     }
@@ -21,5 +21,10 @@ class PayRunItem extends Model
     public function line(): BelongsTo
     {
         return $this->belongsTo(PayRunLine::class, 'pay_run_line_id');
+    }
+
+    public function component(): BelongsTo
+    {
+        return $this->belongsTo(SalaryComponent::class, 'component_id');
     }
 }
