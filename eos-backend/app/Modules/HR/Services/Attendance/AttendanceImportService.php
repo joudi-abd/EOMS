@@ -36,7 +36,7 @@ class AttendanceImportService
         $result = DB::transaction(function () use ($device, $parsed, $marker) {
             $device = AttendanceDevice::query()->lockForUpdate()->findOrFail($device->getKey());
             abort_unless($device->is_active, 403, 'الجهاز معطل.');
-            $officeZone = AttendancePolicy::query()->orderBy('effective_from')->value('timezone');
+            $officeZone = AttendancePolicy::officeTimezone();
             $inserted = $duplicates = $unmatched = 0;
             $touched = []; // employee_id => [date => true]
             $previousMarker = $device->complete_through;
@@ -164,7 +164,11 @@ class AttendanceImportService
         $previous = null;
         $device = DB::transaction(function () use ($device, $marker, $note, $actorId, &$previous) {
             $device = AttendanceDevice::query()->lockForUpdate()->findOrFail($device->getKey());
-            abort_unless($device->is_active, 403, 'الجهاز معطل.');
+            // A disabled device can still be attested up to the moment it stopped: otherwise its last days could never
+            // be confirmed and approval would stay blocked. Punches it held but never sent must be resolved first.
+            abort_if(DB::table('hr_adms_quarantined_punches')->where('device_id', $device->id)->where('status', 'pending')
+                ->where('received_at', '<=', $marker->utc()->format('Y-m-d H:i:s'))->exists(), 409,
+                'للجهاز بصمات محجوزة بانتظار المراجعة قبل هذا الوقت؛ راجعها قبل تأكيد المزامنة.');
             $previous = $device->complete_through;
             if ($previous !== null && $marker->lessThan($previous)) {
                 throw ValidationException::withMessages([
@@ -209,7 +213,7 @@ class AttendanceImportService
         ?CarbonImmutable $previous,
         CarbonImmutable $marker,
     ): void {
-        $zone = AttendancePolicy::query()->orderBy('effective_from')->value('timezone') ?? 'UTC';
+        $zone = AttendancePolicy::officeTimezone();
         $to = $marker->setTimezone($zone)->startOfDay();
         if ($previous !== null) {
             $from = $previous->setTimezone($zone)->startOfDay();

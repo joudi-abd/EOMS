@@ -37,6 +37,8 @@ class AdmsGateway
         }
         $events = [];
         foreach ($lines as $line) {
+            // Some firmware prefixes the body with a UTF-8 byte-order mark; it is not part of the PIN.
+            $line = preg_replace('/^\x{FEFF}/u', '', $line) ?? $line;
             $fields = explode("\t", $line);
             if (count($fields) < 4 || ! preg_match('/^[A-Za-z0-9_-]{1,64}$/D', $fields[0])
                 || ! preg_match('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/D', $fields[1])
@@ -138,6 +140,11 @@ class AdmsGateway
             abort_if($this->activeEnrollment($device), 409, 'An enrollment is still active; wait for completion or timeout.');
             $old = $device->only(['connection_mode', 'adms_source_ip']);
             $data['adms_source_ip'] = ($data['connection_mode'] === 'adms') ? $data['adms_source_ip'] : null;
+            // ADMS identifies a device by serial number and source address: two active devices behind one address
+            // could each push as the other.
+            abort_if($data['adms_source_ip'] !== null && AttendanceDevice::query()->whereKeyNot($device->id)->where('is_active', true)
+                ->where('connection_mode', 'adms')->where('adms_source_ip', $data['adms_source_ip'])->exists(), 422,
+                'عنوان IP هذا مستخدم لجهاز ADMS فعّال آخر؛ لكل جهاز عنوان ثابت خاص به.');
             if ($old !== $data) {
                 $device->update($data + ['complete_through' => null]);
                 // An approved day keeps its historical snapshot and requires explicit review.
@@ -169,8 +176,8 @@ class AdmsGateway
                 'expires_at' => CarbonImmutable::now('UTC')->addMinutes(config('attendance.adms.command_timeout_minutes')),
                 'created_at' => $now, 'updated_at' => $now,
             ]);
-            // The device shows the employee name. Control characters cannot split the command.
             $pin = $binding->device_user_id;
+            // The device shows the employee name. Control characters cannot split the command.
             $employee = Employee::query()->findOrFail($binding->employee_id);
             $name = $this->deviceUserName($employee->full_name, $pin);
             $this->command($device->id, $id, 'DATA', "DATA UPDATE USERINFO PIN={$pin}\tName={$name}\tPri=0\tPasswd=\tCard=\tGrp=1\tTZ=0000000000000000\tVerify=-1\tViceCard=");

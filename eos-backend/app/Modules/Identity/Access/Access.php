@@ -53,6 +53,48 @@ class Access
         return Scope::covers($this->scope($user, $permission), $scope);
     }
 
+    /**
+     * True when `$actor` holds every grant `$target` holds, at the same scope or wider. An account that manages
+     * other accounts may only touch accounts that are not more powerful than itself (an administrator's account
+     * is therefore only reachable by an administrator).
+     */
+    public function outranksOrEquals(User $actor, User $target): bool
+    {
+        if ($actor->is($target) || $this->isAdmin($actor)) {
+            return true;
+        }
+        if ($this->isAdmin($target)) {
+            return false;
+        }
+        $own = $this->grants($actor);
+        foreach ($this->grants($target) as $permission => $scope) {
+            if (! Scope::covers($own[$permission] ?? null, $scope)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Naming someone a department manager hands them the department role's grants (capped at department scope), so
+     * only an account that already holds each of those grants at that reach may do it.
+     */
+    public function mayAppointDepartmentManager(User $actor): bool
+    {
+        if ($this->isAdmin($actor)) {
+            return true;
+        }
+        $own = $this->grants($actor);
+        foreach ($this->departmentRole() as $permission => $scope) {
+            if (! Scope::covers($own[$permission] ?? null, Scope::narrower($scope, Scope::DEPARTMENT))) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     public function isAdmin(User $user): bool
     {
         return $this->roleRows($user)->contains(fn ($role) => $role->kind === 'admin');

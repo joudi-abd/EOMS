@@ -19,7 +19,7 @@ class StoreEmploymentContractRequest extends FormRequest
             'type' => ['required', Rule::in(['fixed_term', 'indefinite'])],
             'start_date' => ['required', 'date'],
             'end_date' => ['nullable', 'date', 'after_or_equal:start_date', 'required_if:type,fixed_term', 'prohibited_if:type,indefinite'],
-            'base_salary' => ['nullable', 'numeric', 'min:0', 'decimal:0,2', 'required_with:currency_code'],
+            'base_salary' => ['nullable', 'numeric', 'min:0', 'max:999999999999', 'decimal:0,2', 'required_with:currency_code'],
             'currency_code' => ['nullable', 'string', 'size:3', 'required_with:base_salary', Rule::in(['SYP', 'USD', 'syp', 'usd'])],
             'pay_type' => ['sometimes', Rule::in(['monthly', 'daily', 'hourly'])],
         ];

@@ -25,7 +25,9 @@ class AttendanceCalculator
             [$serviceStart, $serviceEnd] = app(EmploymentPeriodService::class)->bounds($employee, $date);
             $inService = $date >= $serviceStart && ($serviceEnd === null || $date <= $serviceEnd);
             $policy = AttendancePolicy::query()->where('effective_from', '<=', $date)
-                ->orderByDesc('effective_from')->firstOrFail();
+                ->orderByDesc('effective_from')->first()
+                ?? AttendancePolicy::query()->orderBy('effective_from')->first();
+            abort_unless($policy !== null, 422, 'أضف سياسة دوام قبل عرض الحضور.');
             $day = AttendanceDay::query()->firstOrCreate([
                 'employee_id' => $employee->id, 'work_date' => $date,
             ], ['policy_id' => $policy->id, 'flags' => []]);

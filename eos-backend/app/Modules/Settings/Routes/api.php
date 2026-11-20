@@ -4,6 +4,10 @@ use App\Modules\Settings\Http\Controllers\ExchangeRateController;
 use App\Modules\Settings\Http\Controllers\SettingController;
 use Illuminate\Support\Facades\Route;
 
+// Public, read-only branding (company name) the login screen shows before anyone signs in.
+Route::prefix('api/v1/settings')->middleware(['api', 'throttle:60,1'])
+    ->get('config/public', [SettingController::class, 'publicSettings']);
+
 Route::prefix('api/v1/settings')
     ->middleware(['api', 'auth:sanctum'])
     ->group(function () {
@@ -23,10 +27,6 @@ Route::prefix('api/v1/settings')
         Route::post('exchange-rates', [
             ExchangeRateController::class, 'store',
         ])->middleware('perm:finance.manage');
-
-        Route::get('config/public', [
-            SettingController::class, 'publicSettings',
-        ]);
 
         Route::get('config/{group}', [
             SettingController::class, 'group',

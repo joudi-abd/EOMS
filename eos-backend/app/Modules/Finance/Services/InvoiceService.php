@@ -3,6 +3,7 @@
 namespace App\Modules\Finance\Services;
 
 use App\Modules\Finance\Models\Account;
+use App\Modules\Finance\Models\Box;
 use App\Modules\Finance\Models\Invoice;
 use App\Modules\Finance\Models\Item;
 use App\Modules\Finance\Models\JournalEntry;
@@ -12,6 +13,7 @@ use App\Modules\Identity\Models\User;
 use App\Modules\Identity\Services\AuditLogger;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -67,6 +69,7 @@ class InvoiceService
         return DB::transaction(function () use ($invoice, $actor) {
             $invoice = Invoice::query()->lockForUpdate()->findOrFail($invoice->id);
             abort_unless($invoice->status === 'draft', 409, 'الفاتورة ليست مسودة.');
+            $invoice->update(['submitted_by' => $actor->id]);
             // Lock items in id order (same as cancel/post) before the stock check so concurrent sales cannot oversell.
             if ($invoice->type === 'sale') {
                 $this->assertSaleStockAvailable($invoice, $this->lockItems($invoice));
@@ -89,7 +92,7 @@ class InvoiceService
         return DB::transaction(function () use ($invoice, $approve, $note, $actor) {
             $invoice = Invoice::query()->lockForUpdate()->findOrFail($invoice->id);
             abort_unless($invoice->status === 'pending', 409, 'الفاتورة ليست بانتظار الاعتماد.');
-            abort_if($invoice->created_by === $actor->id, 403, 'لا يعتمد أحد فاتورة أنشأها بنفسه.');
+            abort_if($invoice->created_by === $actor->id || $invoice->submitted_by === $actor->id, 403, 'لا يعتمد أحد فاتورة أنشأها أو أرسلها بنفسه.');
             $invoice->update(['approved_by' => $actor->id, 'decision_note' => $note]);
             if ($approve) {
                 $this->post($invoice, $actor);
@@ -162,14 +165,17 @@ class InvoiceService
             abort_if($quantity == 0, 422, 'أدخل فرق الكمية.');
             $counterpart = $this->ledger->stockAdjustmentCounterpart((int) $data['account_id']);
             $cost = $quantity > 0 ? (float) ($data['unit_cost'] ?? $item->average_cost) : (float) $item->average_cost;
+            $onHand = (float) $item->quantity;
             $move = $this->move($item, $quantity, $cost, $data['date'], 'adjustment', 0, $data['reason'], $actor);
-            $value = round(abs($quantity) * $cost, 2);
+            // A loss leaves at the drop in rounded stock value (same basis as a sale), a gain at its entered cost.
+            $value = $quantity > 0 ? round($quantity * $cost, 2)
+                : round(round($onHand * $cost, 2) - round(round($onHand + $quantity, 3) * $cost, 2), 2);
             if ($value > 0) {
                 $inventory = $this->ledger->systemAccount('inventory')->id;
                 $lines = $quantity > 0
                     ? [['account_id' => $inventory, 'debit' => $value], ['account_id' => $counterpart->id, 'credit' => $value]]
                     : [['account_id' => $counterpart->id, 'debit' => $value], ['account_id' => $inventory, 'credit' => $value]];
-                $this->ledger->post($item->currency_code, $data['date'], 'تسوية جرد: '.$item->name.' — '.$data['reason'], $lines, $actor, 'stock_move', $move->id);
+                $this->ledger->post($item->currency_code, $data['date'], Str::limit('تسوية جرد: '.$item->name.' — '.$data['reason'], 497), $lines, $actor, 'stock_move', $move->id);
             }
 
             return $move;
@@ -204,7 +210,12 @@ class InvoiceService
                 $lines[] = ['account_id' => $line->account_id, 'credit' => $amount, 'memo' => $line->description];
                 if ($line->item_id) {
                     $item = $items[$line->item_id];
-                    $cost = round((float) $line->quantity * (float) $item->average_cost, 2);
+                    // Cost as the drop in the item's rounded stock value, not quantity × average rounded per line: the
+                    // inventory account then always equals Σ round(quantity × average) and leaves no cents behind when
+                    // the stock is sold out in many small sales.
+                    $onHand = (float) $item->quantity;
+                    $average = (float) $item->average_cost;
+                    $cost = round(round($onHand * $average, 2) - round(round($onHand - (float) $line->quantity, 3) * $average, 2), 2);
                     $line->update(['cost_amount' => $cost]);
                     // Goods leave at the average (a sale never changes it); the entry carries that value rounded to cents.
                     $this->move($item, -(float) $line->quantity, (float) $item->average_cost, $date, 'invoice', $invoice->id, null, $actor);
@@ -368,6 +379,11 @@ class InvoiceService
                 // Free-text lines must not touch inventory GL without a catalogue item (stock move).
                 if ($posted->system_key === 'inventory') {
                     throw ValidationException::withMessages(["lines.$i.account_id" => ["البند $i: حساب المخزون يتحرك مع المواد فقط؛ اختر مادة من المخزون."]]);
+                }
+                // Nor a box (cash moves only through cash operations) or another control account (receivables,
+                // payables, FX clearing...), which only their own posting paths may move.
+                if ($posted->system_key !== null || Box::query()->where('account_id', $posted->id)->exists()) {
+                    throw ValidationException::withMessages(["lines.$i.account_id" => ["البند $i: لا تستخدم حساب صندوق أو حساب نظام في بند فاتورة."]]);
                 }
             }
 

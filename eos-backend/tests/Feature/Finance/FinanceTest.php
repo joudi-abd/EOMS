@@ -14,6 +14,7 @@ use App\Modules\Finance\Services\CashService;
 use App\Modules\Identity\Database\Seeders\RolePermissionSeeder;
 use App\Modules\Identity\Models\User;
 use App\Modules\Settings\Database\Seeders\CurrencySeeder;
+use App\Modules\Settings\Services\ExchangeRateService;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -53,7 +54,22 @@ class FinanceTest extends TestCase
 
     private function api(string $path, array $data, int $status = 201): ?array
     {
+        // Undoing posted money (reverse/cancel) is finance.approve: the company manager does it.
+        if (preg_match('#/(reverse|cancel)$#', $path) === 1) {
+            return $this->asDirector(fn () => $this->postJson('/api/v1/finance/'.$path, $data)->assertStatus($status)->json('data'));
+        }
+
         return $this->postJson('/api/v1/finance/'.$path, $data)->assertStatus($status)->json('data');
+    }
+
+    private function asDirector(callable $call): mixed
+    {
+        Sanctum::actingAs($this->director);
+        try {
+            return $call();
+        } finally {
+            Sanctum::actingAs($this->finance);
+        }
     }
 
     private function box(string $currency, float $capital = 0): Box
@@ -136,6 +152,10 @@ class FinanceTest extends TestCase
         $this->assertSame(1_000_000.0, $this->balance($other));
 
         // Currency exchange: 1,000 USD sold for 13,000,000 SYP; one balanced entry per currency through the clearing account.
+        // At the day's recorded rate and within the limit it posts at once; far from it, it waits for the manager.
+        app(ExchangeRateService::class)->setRate('USD', 'SYP', 13_000, '2026-11-07');
+        $this->assertSame('pending', $this->api('transactions/exchange', ['box_id' => $usd->id, 'counter_box_id' => $other->id, 'amount' => 1_000,
+            'counter_amount' => 1, 'date' => '2026-11-07', 'description' => 'Typo'])['status']);
         $exchange = $this->api('transactions/exchange', ['box_id' => $usd->id, 'counter_box_id' => $other->id, 'amount' => 1_000,
             'counter_amount' => 13_000_000, 'date' => '2026-11-07', 'description' => 'Sell dollars']);
         $this->assertSame('13000.000000', $exchange['rate']);
@@ -215,8 +235,8 @@ class FinanceTest extends TestCase
             'party_id' => $supplier['id'], 'invoice_id' => $first['id']]);
         $this->api('invoices/'.$first['id'].'/cancel', ['date' => '2026-11-08', 'reason' => 'Returned'], 409);
         $this->api('transactions/'.$pay['id'].'/reverse', ['date' => '2026-11-08', 'reason' => 'Refunded'], 200);
-        $this->postJson('/api/v1/finance/invoices/'.$first['id'].'/cancel', ['date' => '2026-11-08', 'reason' => 'Returned'])
-            ->assertUnprocessable()->assertJsonValidationErrors('invoice');
+        $this->asDirector(fn () => $this->postJson('/api/v1/finance/invoices/'.$first['id'].'/cancel', ['date' => '2026-11-08', 'reason' => 'Returned'])
+            ->assertUnprocessable()->assertJsonValidationErrors('invoice'));
         $cement->refresh();
         $this->assertSame(['15.000', '115.000000'], [$cement->quantity, $cement->average_cost]);
         $inventory = Account::where('system_key', 'inventory')->value('id');
@@ -262,7 +282,7 @@ class FinanceTest extends TestCase
 
             return $this->api('invoices/'.$invoice['id'].'/submit', [], 200);
         };
-        $cancel = fn (array $invoice) => $this->postJson('/api/v1/finance/invoices/'.$invoice['id'].'/cancel', ['date' => '2026-11-09', 'reason' => 'Entered by mistake']);
+        $cancel = fn (array $invoice) => $this->asDirector(fn () => $this->postJson('/api/v1/finance/invoices/'.$invoice['id'].'/cancel', ['date' => '2026-11-09', 'reason' => 'Entered by mistake']));
 
         // Only the latest purchase can be cancelled.
         $beam = $newItem('Beam');
@@ -391,6 +411,32 @@ class FinanceTest extends TestCase
         $this->assertEquals(50, $ledger['closing_balance']);
     }
 
+    public function test_four_eyes_hold_for_invoice_submitter_and_month_close_requester(): void
+    {
+        $admin = User::factory()->create();
+        $admin->assignRole('system_admin');
+        $customer = $this->api('parties', ['kind' => 'customer', 'name' => 'Buyer']);
+        // Finance drafts; the admin (manage + approve) submits it for approval and may not then approve it.
+        $draft = $this->api('invoices', ['type' => 'sale', 'party_id' => $customer['id'], 'date' => '2026-11-03', 'currency_code' => 'SYP',
+            'lines' => [['description' => 'Service', 'quantity' => 1, 'unit_price' => 50, 'account_id' => $this->sales->id]]]);
+        Sanctum::actingAs($admin);
+        $this->assertSame('pending', $this->api('invoices/'.$draft['id'].'/submit', [], 200)['status']);
+        $this->api('invoices/'.$draft['id'].'/decision', ['decision' => 'approve'], 403);
+        Sanctum::actingAs($this->director);
+        $this->api('invoices/'.$draft['id'].'/decision', ['decision' => 'approve'], 200);
+
+        // Months close in order, and the person who asked does not approve.
+        $this->travelTo(CarbonImmutable::parse('2027-01-05T10:00:00+03:00'));
+        Sanctum::actingAs($admin);
+        $this->api('periods/close-request', ['month' => '2026-12'], 422); // November is still open
+        $this->api('periods/close-request', ['month' => '2026-11'], 200);
+        $this->api('periods/2026-11/decision', ['decision' => 'approve'], 403);
+        Sanctum::actingAs($this->director);
+        $this->api('periods/2026-11/decision', ['decision' => 'approve'], 200);
+        Sanctum::actingAs($admin);
+        $this->api('periods/close-request', ['month' => '2026-12'], 200);
+    }
+
     public function test_month_close_needs_manager_approval_and_blocks_postings(): void
     {
         $box = $this->box('SYP', 1_000_000);
@@ -481,10 +527,14 @@ class FinanceTest extends TestCase
         $this->api('entries', $manual(Account::where('system_key', 'inventory')->value('id')), 422);
         $customer = $this->api('parties', ['kind' => 'customer', 'name' => 'C']);
         $this->api('entries', $manual(Account::where('system_key', 'receivables')->value('id'), ['party_id' => $customer['id']]));
-        // A manual correction of cash within the balance is allowed.
+        // Cash leaves a box only through cash operations (with their approval limit), never through a manual entry.
         $this->api('entries', ['date' => '2026-11-04', 'currency_code' => 'SYP', 'description' => 'Shortage',
-            'lines' => [['account_id' => $this->rent->id, 'debit' => 40], ['account_id' => $b->account_id, 'credit' => 40]]]);
-        $this->assertSame(60.0, $this->balance($b));
+            'lines' => [['account_id' => $this->rent->id, 'debit' => 40], ['account_id' => $b->account_id, 'credit' => 40]]], 422);
+        $this->assertSame(100.0, $this->balance($b));
+        // A back-dated payment that would overdraw the box's history is refused (B only received its money on 11-02).
+        $this->api('transactions/transfer', ['box_id' => $b->id, 'counter_box_id' => $a->id, 'amount' => 50, 'date' => '2026-11-01', 'description' => 'Early'], 422);
+        // `active: 0` is a deactivation too: a box with money cannot be switched off that way.
+        $this->patchJson('/api/v1/finance/boxes/'.$b->id, ['active' => 0])->assertStatus(422);
         // Zero invoices are refused when saved.
         $this->api('invoices', ['type' => 'sale', 'party_id' => $customer['id'], 'date' => '2026-11-05', 'currency_code' => 'SYP',
             'lines' => [['description' => 'Free', 'quantity' => 1, 'unit_price' => 0, 'account_id' => $this->sales->id]]], 422);

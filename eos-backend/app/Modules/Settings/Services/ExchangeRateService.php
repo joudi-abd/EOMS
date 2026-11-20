@@ -4,9 +4,11 @@ namespace App\Modules\Settings\Services;
 
 use App\Modules\Settings\Models\Currency;
 use App\Modules\Settings\Models\ExchangeRate;
+use App\Support\AuditableAction;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 
 class ExchangeRateService
 {
@@ -14,17 +16,25 @@ class ExchangeRateService
     {
         $rateDate = Carbon::parse($date)->startOfDay()->toDateTimeString();
 
-        $saved = ExchangeRate::updateOrCreate(
-            [
+        $saved = DB::transaction(function () use ($from, $to, $rate, $rateDate) {
+            $keys = [
                 'from_currency_id' => Currency::where('code', $from)->value('id'),
                 'to_currency_id' => Currency::where('code', $to)->value('id'),
-                'rate_date' => $rateDate,
-            ],
-            ['rate' => $rate]
-        );
+            ];
+            $existing = ExchangeRate::query()->where($keys)->whereDate('rate_date', substr($rateDate, 0, 10))->lockForUpdate()->first();
+            $old = $existing === null ? null : ['rate' => (string) $existing->rate];
+            $saved = $existing ?? new ExchangeRate($keys + ['rate_date' => $rateDate]);
+            $saved->rate = $rate;
+            $saved->save();
+            // Payroll and finance price with these rates, so every change leaves a trace.
+            event(new AuditableAction('fx.rate_set', $saved, $old === null ? null : ['pair' => "{$from}/{$to}", 'date' => substr($rateDate, 0, 10)] + $old,
+                ['pair' => "{$from}/{$to}", 'date' => substr($rateDate, 0, 10), 'rate' => (string) $saved->rate]));
+
+            return $saved;
+        }, 3);
 
         // السعر تغيّر، فنمسح الكاش ليُقرأ الجديد في المرة القادمة
-        Cache::forget($this->cacheKey($from, $to));
+        DB::afterCommit(fn () => Cache::forget($this->cacheKey($from, $to)));
 
         return $saved;
     }

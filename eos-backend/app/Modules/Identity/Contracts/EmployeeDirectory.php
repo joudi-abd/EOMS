@@ -21,6 +21,17 @@ interface EmployeeDirectory
 
     public function employeeIdForUser(int $userId): ?int;
 
+    /**
+     * Employee ids keyed by user id, for a page of accounts in one query.
+     *
+     * @param  list<int>  $userIds
+     * @return array<int, int>
+     */
+    public function employeeIdsForUsers(array $userIds): array;
+
+    /** True when the account belongs to an employee whose service has ended: it must stay disabled until rehire. */
+    public function accountBlocked(int $userId): bool;
+
     /** The signed-in user's own employee profile, already shaped for the API, or null. */
     public function profileForUser(int $userId): mixed;
 

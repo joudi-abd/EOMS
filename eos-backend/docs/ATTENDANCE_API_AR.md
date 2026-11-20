@@ -71,7 +71,7 @@ php artisan attendance:recalculate --date=2026-10-29
 | الطريقة والمسار | المدخلات أو النتيجة |
 | --- | --- |
 | GET `/attendance/devices` | قائمة دون token أو token_hash |
-| POST `/attendance/devices` | `name`, `serial_number`, و`model` اختياري وافتراضه `iFace 880 Plus`؛ يرجع `data.device` و`data.token` مرة واحدة |
+| POST `/attendance/devices` | `name`, `serial_number`، و`model` اختياري وافتراضه `iFace 880 Plus`، و`timezone` اختياري وإلا تُؤخذ من أول سياسة حضور؛ يرجع `data.device` و`data.token` مرة واحدة |
 | PATCH `/attendance/devices/{id}` | `is_active` فقط؛ لا تغيير لمعرّف الجهاز أو توقيته التاريخي |
 | POST `/attendance/devices/{id}/rotate-token` | إبطال القديم وإرجاع توكن جديد مرة واحدة |
 | GET `/attendance/devices/{id}/bindings` | روابط مرقمة؛ الموظف ورقم الجهاز وفترة الربط |

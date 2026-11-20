@@ -13,6 +13,7 @@ use App\Modules\Identity\Models\User;
 use App\Modules\Identity\Services\AuditLogger;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -65,9 +66,9 @@ class LedgerService
             if (count($rows) < 2 || abs($debit - $credit) >= 0.005) {
                 throw ValidationException::withMessages(['lines' => ['القيد غير متوازن: مجموع المدين يجب أن يساوي مجموع الدائن.']]);
             }
-            $this->guard($rows, $currency, $sourceType);
+            $this->guard($rows, $currency, $sourceType, $date, $reverses);
             $entry = JournalEntry::create(['number' => $this->number('JE', $date), 'date' => $date, 'currency_code' => strtoupper($currency),
-                'description' => $description, 'source_type' => $sourceType, 'source_id' => $sourceId,
+                'description' => Str::limit($description, 497), 'source_type' => $sourceType, 'source_id' => $sourceId,
                 'reverses_id' => $reverses, 'difference' => $difference, 'created_by' => $actor->id]);
             $entry->lines()->createMany($rows);
             $this->audit->log('finance.entry_posted', $entry, null, ['number' => $entry->number, 'total' => round($debit, 2)], $actor->id);
@@ -87,7 +88,7 @@ class LedgerService
                 'account_id' => $l->account_id, 'party_id' => $l->party_id, 'debit' => $l->credit, 'credit' => $l->debit, 'memo' => $l->memo,
             ])->all();
 
-            $reversal = $this->post($entry->currency_code, $date, 'عكس القيد '.$entry->number.': '.$reason, $lines, $actor,
+            $reversal = $this->post($entry->currency_code, $date, Str::limit('عكس القيد '.$entry->number.': '.$reason, 497), $lines, $actor,
                 $entry->source_type, $entry->source_id, $entry->id);
             if ($entry->difference !== null) {
                 $reversal->update(['difference' => -1 * (float) $entry->difference]);
@@ -99,9 +100,11 @@ class LedgerService
 
     /**
      * Ledger-wide invariants, enforced for every posting path (operations, invoices, reversals, manual entries):
-     * receivable/payable lines name their party; inventory moves only with stock documents; a box never goes negative.
+     * receivable/payable lines name their party; inventory moves only with stock documents; a box never goes negative,
+     * on the entry's date or on any later day of its statement; cash moves in and out of a box only through cash
+     * operations (receipt/payment/transfer/exchange/payroll), so the approval limit cannot be bypassed by a manual entry.
      */
-    private function guard(array $rows, string $currency, ?string $sourceType): void
+    private function guard(array $rows, string $currency, ?string $sourceType, string $date, ?int $reverses = null): void
     {
         $system = Account::query()->whereIn('id', array_column($rows, 'account_id'))->whereNotNull('system_key')->pluck('system_key', 'id');
         foreach ($rows as $i => $row) {
@@ -115,15 +118,38 @@ class LedgerService
         }
         $boxes = Box::query()->whereIn('account_id', array_column($rows, 'account_id'))->lockForUpdate()->get()->keyBy('account_id');
         foreach ($boxes as $accountId => $box) {
+            if ($sourceType === 'manual' && $reverses === null) {
+                throw ValidationException::withMessages(['lines' => ['حركة الصندوق '.$box->name.' تُسجَّل عبر عمليات القبض والصرف والتحويل فقط، لا بقيد يدوي.']]);
+            }
             abort_unless($box->currency_code === strtoupper($currency), 422, 'عملة القيد يجب أن تكون عملة الصندوق '.$box->name.'.');
             $change = collect($rows)->where('account_id', $accountId)->sum(fn ($r) => $r['debit'] - $r['credit']);
             if ($change < 0) {
-                $balance = (float) JournalLine::query()->where('account_id', $accountId)->sum(DB::raw('debit - credit'));
-                if ($balance + $change < -0.005) {
-                    throw ValidationException::withMessages(['amount' => ['رصيد الصندوق '.$box->name.' غير كافٍ (المتاح '.number_format($balance, 2).').']]);
+                $available = $this->lowestBalanceFrom((int) $accountId, $date);
+                if ($available + $change < -0.005) {
+                    throw ValidationException::withMessages(['amount' => ['رصيد الصندوق '.$box->name.' غير كافٍ (المتاح '.number_format($available, 2).').']]);
                 }
             }
         }
+    }
+
+    /**
+     * The lowest running balance the account reaches on `$date` or any later day: what can leave it on `$date`
+     * without its statement dipping below zero on some later day (a back-dated payment must not overdraw history).
+     */
+    public function lowestBalanceFrom(int $accountId, string $date): float
+    {
+        $lines = fn () => JournalLine::query()->join('fin_journal_entries as e', 'e.id', '=', 'fin_journal_lines.journal_entry_id')
+            ->where('fin_journal_lines.account_id', $accountId);
+        $running = (float) $lines()->where('e.date', '<=', $date)->sum(DB::raw('fin_journal_lines.debit - fin_journal_lines.credit'));
+        $lowest = $running;
+        $later = $lines()->where('e.date', '>', $date)->groupBy('e.date')->orderBy('e.date')
+            ->selectRaw('e.date as d, SUM(fin_journal_lines.debit - fin_journal_lines.credit) as net')->pluck('net');
+        foreach ($later as $net) {
+            $running += (float) $net;
+            $lowest = min($lowest, $running);
+        }
+
+        return round($lowest, 2);
     }
 
     /**
@@ -212,7 +238,11 @@ class LedgerService
     {
         return DB::transaction(function () use ($month, $actor) {
             abort_unless($month < now()->format('Y-m'), 422, 'يُقفل الشهر بعد انتهائه.');
-            $period = Period::query()->lockForUpdate()->firstOrNew(['month' => $month]);
+            $this->assertEarlierMonthsClosed($month);
+            // Create the row first (ignored when it exists) so two concurrent requests lock the same row instead of
+            // both inserting it and failing on the unique month.
+            Period::query()->insertOrIgnore(['month' => $month, 'status' => 'open', 'created_at' => now(), 'updated_at' => now()]);
+            $period = Period::query()->lockForUpdate()->where('month', $month)->firstOrFail();
             abort_if(in_array($period->status, ['closed', 'close_requested'], true), 409, 'الشهر مقفل أو بانتظار الموافقة.');
             $this->assertMonthSettled($month);
             $period->fill(['status' => 'close_requested', 'requested_by' => $actor->id, 'decided_by' => null, 'note' => null])->save();
@@ -228,6 +258,7 @@ class LedgerService
         return DB::transaction(function () use ($month, $approve, $note, $actor) {
             $period = Period::query()->lockForUpdate()->where('month', $month)->firstOrFail();
             abort_unless($period->status === 'close_requested', 409, 'لا يوجد طلب إقفال لهذا الشهر.');
+            abort_if($approve && $period->requested_by === $actor->id, 403, 'لا يوافق على إقفال الشهر من طلبه.');
             // Re-check under the period lock: activity may have arrived while approval was pending.
             if ($approve) {
                 $this->assertMonthSettled($month);
@@ -240,6 +271,22 @@ class LedgerService
 
             return $period;
         }, self::TX_ATTEMPTS);
+    }
+
+    /** Months are closed in order: every month with activity before `$month` must already be closed. */
+    private function assertEarlierMonthsClosed(string $month): void
+    {
+        $first = JournalEntry::query()->min('date');
+        if ($first === null || substr((string) $first, 0, 7) >= $month) {
+            return;
+        }
+        $open = [];
+        for ($m = CarbonImmutable::createFromFormat('!Y-m', substr((string) $first, 0, 7)); $m->format('Y-m') < $month; $m = $m->addMonth()) {
+            $open[] = $m->format('Y-m');
+        }
+        $closed = Period::query()->whereIn('month', $open)->where('status', 'closed')->pluck('month')->all();
+        $missing = array_values(array_diff($open, $closed));
+        abort_if($missing !== [], 422, 'أقفل الأشهر السابقة أولاً: '.implode('، ', array_slice($missing, 0, 6)).'.');
     }
 
     /** Pending payments and draft/pending invoices in the month must be cleared before close request or approval. */
@@ -256,6 +303,10 @@ class LedgerService
     {
         return DB::transaction(function () use ($month, $reason, $actor) {
             $period = Period::query()->lockForUpdate()->where('month', $month)->where('status', 'closed')->firstOrFail();
+            // Closed months stay a prefix of the calendar: reopening a month under a later closed one would change
+            // that month's opening balances behind its back.
+            abort_if(Period::query()->where('month', '>', $month)->where('status', 'closed')->exists(), 422,
+                'أعد فتح الأشهر اللاحقة المقفلة أولاً.');
             $period->update(['status' => 'open', 'decided_by' => $actor->id, 'closed_at' => null, 'note' => $reason]);
             $this->audit->log('finance.period_reopened', $period, null, ['month' => $month, 'reason' => $reason], $actor->id);
 

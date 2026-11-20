@@ -14,6 +14,15 @@ class AttendancePolicy extends Model
         'pairing_mode', 'duplicate_seconds', 'finalize_after_minutes',
     ];
 
+    /**
+     * The office time zone: fixed by the first policy version (later versions must keep it). Before any policy exists
+     * the application time zone stands in, so nothing ever runs with a null zone.
+     */
+    public static function officeTimezone(): string
+    {
+        return static::query()->orderBy('effective_from')->value('timezone') ?? config('app.timezone');
+    }
+
     protected function casts(): array
     {
         return ['effective_from' => 'date:Y-m-d', 'working_days' => 'array', 'grace_minutes' => 'integer', 'late_block_minutes' => 'integer', 'overtime_multiplier' => 'decimal:2', 'duplicate_seconds' => 'integer', 'finalize_after_minutes' => 'integer'];

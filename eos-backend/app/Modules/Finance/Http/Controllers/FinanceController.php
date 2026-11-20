@@ -25,6 +25,7 @@ use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class FinanceController extends Controller
@@ -64,6 +65,10 @@ class FinanceController extends Controller
             'name' => ['sometimes', 'string', 'max:150'], 'parent_id' => ['sometimes', 'nullable', 'integer', 'exists:fin_accounts,id'],
             'active' => ['sometimes', 'boolean'],
         ]);
+        // `boolean` accepts 0/"0"/"false"; the service compares with === false, so normalise first.
+        if (array_key_exists('active', $data)) {
+            $data['active'] = $request->boolean('active');
+        }
 
         return ApiResponse::ok($this->ledger->updateAccount($account, $data, $request->user()));
     }
@@ -87,8 +92,8 @@ class FinanceController extends Controller
         $data = $request->validate([
             'date' => ['required', 'date_format:Y-m-d'], 'currency_code' => ['required', 'string', 'exists:sys_currencies,code'],
             'description' => ['required', 'string', 'max:500'], 'lines' => ['required', 'array', 'min:1', 'max:100'],
-            'lines.*.account_id' => ['required', 'integer'], 'lines.*.debit' => ['nullable', 'numeric', 'min:0'],
-            'lines.*.credit' => ['nullable', 'numeric', 'min:0'], 'lines.*.party_id' => ['nullable', 'integer', 'exists:fin_parties,id'],
+            'lines.*.account_id' => ['required', 'integer'], 'lines.*.debit' => ['nullable', 'numeric', 'min:0', 'max:9999999999999'],
+            'lines.*.credit' => ['nullable', 'numeric', 'min:0', 'max:9999999999999'], 'lines.*.party_id' => ['nullable', 'integer', 'exists:fin_parties,id'],
             'lines.*.memo' => ['nullable', 'string', 'max:500'],
         ]);
 
@@ -140,7 +145,7 @@ class FinanceController extends Controller
 
     public function setLimit(Request $request): JsonResponse
     {
-        $data = $request->validate(['currency_code' => ['required', 'string', 'exists:sys_currencies,code'], 'amount' => ['required', 'numeric', 'min:0']]);
+        $data = $request->validate(['currency_code' => ['required', 'string', 'exists:sys_currencies,code'], 'amount' => ['required', 'numeric', 'min:0', 'max:9999999999999']]);
 
         return ApiResponse::ok($this->cash->setLimit($data['currency_code'], (float) $data['amount'], $request->user()));
     }
@@ -171,10 +176,15 @@ class FinanceController extends Controller
     public function updateBox(Request $request, Box $box): JsonResponse
     {
         $data = $request->validate(['name' => ['sometimes', 'string', 'max:100'], 'active' => ['sometimes', 'boolean']]);
+        if (array_key_exists('active', $data)) {
+            $data['active'] = $request->boolean('active');
+        }
         abort_if(($data['active'] ?? true) === false && $this->cash->balance($box) != 0, 422, 'لا يُوقف صندوق رصيده غير صفر.');
         abort_if(($data['active'] ?? true) === false && Transaction::query()->where('status', 'pending')
             ->where(fn ($q) => $q->where('box_id', $box->id)->orWhere('counter_box_id', $box->id))->exists(), 422, 'للصندوق عمليات بانتظار الاعتماد.');
+        $old = $box->only(array_keys($data));
         $box->update($data);
+        $this->audit->log('finance.box_updated', $box, $old, $data, $request->user()->id);
 
         return ApiResponse::ok($box->refresh());
     }
@@ -204,11 +214,14 @@ class FinanceController extends Controller
             'date' => ['required', 'date_format:Y-m-d'], 'box_id' => ['required', 'integer'],
             'amount' => ['required', 'numeric', 'gt:0', 'max:9999999999999'], 'description' => ['required', 'string', 'max:500'],
             'counter_box_id' => [Rule::requiredIf($twoBoxes), Rule::prohibitedIf(! $twoBoxes), 'integer'],
-            'counter_amount' => [Rule::requiredIf($kind === 'exchange'), Rule::prohibitedIf($kind !== 'exchange'), 'numeric', 'gt:0'],
+            'counter_amount' => [Rule::requiredIf($kind === 'exchange'), Rule::prohibitedIf($kind !== 'exchange'), 'numeric', 'gt:0', 'max:9999999999999'],
             'party_id' => [Rule::prohibitedIf($twoBoxes), 'nullable', 'integer'], 'account_id' => [Rule::prohibitedIf($twoBoxes), 'nullable', 'integer'],
             'invoice_id' => [Rule::prohibitedIf($twoBoxes), 'nullable', 'integer'],
         ]);
         $data['invoice_id'] ??= null;
+        if ($kind === 'exchange' && (float) $data['counter_amount'] / (float) $data['amount'] >= 1e11) {
+            throw ValidationException::withMessages(['counter_amount' => ['سعر الصرف الناتج غير معقول؛ راجع المبلغين.']]);
+        }
         $tx = match ($kind) {
             'receipt' => $this->cash->receipt($data, $request->user()),
             'payment' => $this->cash->payment($data, $request->user()),
@@ -250,7 +263,10 @@ class FinanceController extends Controller
             // Sham Cash accounts are 16 digits.
             'sham_cash_wallet' => ['nullable', 'digits:16'], 'sham_cash_name' => ['nullable', 'string', 'max:150']]);
 
-        return ApiResponse::created(Party::create($data));
+        $party = Party::create($data);
+        $this->audit->log('finance.party_created', $party, null, $data, $request->user()->id);
+
+        return ApiResponse::created($party);
     }
 
     public function updateParty(Request $request, Party $party): JsonResponse
@@ -262,13 +278,16 @@ class FinanceController extends Controller
             $data['active'] = $request->boolean('active');
         }
 
-        $party = DB::transaction(function () use ($party, $data) {
+        $party = DB::transaction(function () use ($party, $data, $request) {
             $party = Party::query()->lockForUpdate()->findOrFail($party->id);
             if (($data['active'] ?? true) === false) {
                 abort_if(Transaction::query()->where('status', 'pending')->where('party_id', $party->id)->lockForUpdate()->first(['id']) !== null,
                     422, 'للطرف عمليات بانتظار الاعتماد.');
             }
+            $old = $party->only(array_keys($data));
             $party->update($data);
+            // A changed payout wallet redirects money: always on the record.
+            $this->audit->log('finance.party_updated', $party, $old, $data, $request->user()->id);
 
             return $party->refresh();
         }, self::TX_ATTEMPTS);
@@ -290,17 +309,25 @@ class FinanceController extends Controller
             abort_unless($this->ledger->postable((int) $data['revenue_account_id'], 'revenue_account_id')->type === 'revenue', 422, 'حساب الإيراد يجب أن يكون من نوع إيرادات.');
         }
 
-        return ApiResponse::created(Item::create([...$data, 'currency_code' => strtoupper($data['currency_code'])]));
+        $item = Item::create([...$data, 'currency_code' => strtoupper($data['currency_code'])]);
+        $this->audit->log('finance.item_created', $item, null, $item->getAttributes(), $request->user()->id);
+
+        return ApiResponse::created($item);
     }
 
     public function updateItem(Request $request, Item $item): JsonResponse
     {
         $data = $request->validate(['name' => ['sometimes', 'string', 'max:150', Rule::unique('fin_items', 'name')->ignore($item->id)],
             'unit' => ['sometimes', 'string', 'max:20'], 'revenue_account_id' => ['sometimes', 'nullable', 'integer'], 'active' => ['sometimes', 'boolean']]);
+        if (array_key_exists('active', $data)) {
+            $data['active'] = $request->boolean('active');
+        }
         if (! empty($data['revenue_account_id'])) {
             abort_unless($this->ledger->postable((int) $data['revenue_account_id'], 'revenue_account_id')->type === 'revenue', 422, 'حساب الإيراد يجب أن يكون من نوع إيرادات.');
         }
+        $old = $item->only(array_keys($data));
         $item->update($data);
+        $this->audit->log('finance.item_updated', $item, $old, $data, $request->user()->id);
 
         return ApiResponse::ok($item->refresh());
     }
@@ -312,8 +339,8 @@ class FinanceController extends Controller
 
     public function adjustStock(Request $request, Item $item): JsonResponse
     {
-        $data = $request->validate(['date' => ['required', 'date_format:Y-m-d'], 'quantity' => ['required', 'numeric'],
-            'unit_cost' => ['nullable', 'numeric', 'min:0'], 'account_id' => ['required', 'integer'], 'reason' => ['required', 'string', 'min:3', 'max:500']]);
+        $data = $request->validate(['date' => ['required', 'date_format:Y-m-d'], 'quantity' => ['required', 'numeric', 'between:-999999999,999999999'],
+            'unit_cost' => ['nullable', 'numeric', 'min:0', 'max:999999999999'], 'account_id' => ['required', 'integer'], 'reason' => ['required', 'string', 'min:3', 'max:500']]);
 
         return ApiResponse::created($this->invoices->adjustStock($item, $data, $request->user()));
     }
@@ -387,9 +414,16 @@ class FinanceController extends Controller
             'version' => [Rule::requiredIf((bool) $invoice), 'integer'],
             'lines' => ['required', 'array', 'min:1', 'max:200'], 'lines.*.item_id' => ['nullable', 'integer'],
             'lines.*.account_id' => ['nullable', 'integer'], 'lines.*.description' => ['required_without:lines.*.item_id', 'nullable', 'string', 'max:300'],
-            'lines.*.quantity' => ['required', 'numeric', 'gt:0'], 'lines.*.unit_price' => ['required', 'numeric', 'min:0'],
+            'lines.*.quantity' => ['required', 'numeric', 'gt:0', 'max:999999999'], 'lines.*.unit_price' => ['required', 'numeric', 'min:0', 'max:999999999999'],
             'lines.*.unit' => ['nullable', 'string', 'max:20'],
         ]);
+        foreach ($data['lines'] as $i => $line) {
+            $amount = round((float) $line['quantity'] * (float) $line['unit_price'], 2);
+            // A zero line can never post (the ledger refuses zero lines), and an oversized one overflows the column.
+            if ($amount <= 0 || $amount > 9999999999999) {
+                throw ValidationException::withMessages(["lines.$i.unit_price" => [$amount <= 0 ? 'قيمة السطر صفر؛ احذفه أو أدخل سعراً.' : 'قيمة السطر أكبر من الحد المسموح.']]);
+            }
+        }
         $saved = $this->invoices->save($data, $request->user(), $invoice);
 
         return $invoice ? ApiResponse::ok($saved) : ApiResponse::created($saved);

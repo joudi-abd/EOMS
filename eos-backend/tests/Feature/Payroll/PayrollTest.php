@@ -7,6 +7,7 @@ use App\Modules\Finance\Models\Box;
 use App\Modules\Finance\Services\CashService;
 use App\Modules\HR\Models\AttendanceDay;
 use App\Modules\HR\Models\Employee;
+use App\Modules\HR\Models\EmployeeServicePeriod;
 use App\Modules\HR\Models\EmploymentContract;
 use App\Modules\HR\Services\Attendance\AttendanceReviewService;
 use App\Modules\HR\Services\EmployeeTerminationService;
@@ -430,6 +431,32 @@ class PayrollTest extends TestCase
             ->pluck('pay_type', 'contract_number')->all());
     }
 
+    public function test_a_line_kept_only_for_manual_items_loses_its_salary_on_recalculation(): void
+    {
+        $this->october();
+        $run = $this->createRun();
+        $this->postJson('/api/v1/payroll/runs/'.$run['id'].'/items', ['employee_id' => $this->employee->id, 'category' => 'earning',
+            'amount' => 1000, 'reason' => 'Project bonus'])->assertCreated();
+        // The service period turns out to have ended before October: no salary is due for the month.
+        EmployeeServicePeriod::query()->where('employee_id', $this->employee->id)->update(['end_date' => '2026-09-30']);
+        $this->postJson('/api/v1/payroll/runs/'.$run['id'].'/recalculate')->assertOk();
+
+        $items = $this->items($run['id']);
+        $this->assertArrayNotHasKey('salary', $items->all());
+        $this->assertSame(['bonus'], $items->keys()->all());
+    }
+
+    public function test_bulk_review_needs_at_least_one_kind_when_kinds_are_sent(): void
+    {
+        $this->october();
+        $run = $this->createRun();
+        $this->postJson('/api/v1/payroll/runs/'.$run['id'].'/submit')->assertOk();
+        Sanctum::actingAs($this->director);
+        $this->postJson('/api/v1/payroll/runs/'.$run['id'].'/review-remaining', ['decision' => 'waive', 'kinds' => [], 'reason' => 'All of it'])
+            ->assertUnprocessable()->assertJsonValidationErrors('kinds');
+        $this->assertSame('proposed', $this->items($run['id'])['absence']->status);
+    }
+
     private function approvedOctober(): PayRunLine
     {
         $this->october();
@@ -449,8 +476,10 @@ class PayrollTest extends TestCase
         $box = $this->box('SYP', 5_000_000);
         $first = $this->postJson('/api/v1/payroll/lines/'.$line->id.'/payment', ['currency' => 'SYP', 'method' => 'cash', 'paid_at' => '2026-11-03', 'box_id' => $box->id])
             ->assertCreated()->json('data');
-        // Finance cannot undo a salary payment from its side.
+        // Finance cannot undo a salary payment from its side, not even the company manager who may reverse operations.
+        Sanctum::actingAs($this->director);
         $this->postJson('/api/v1/finance/transactions/'.$first['finance_transaction_id'].'/reverse', ['date' => '2026-11-04', 'reason' => 'x x'])->assertStatus(409);
+        Sanctum::actingAs($this->finance);
 
         $this->postJson('/api/v1/payroll/payments/'.$first['id'].'/void', ['date' => '2026-11-04', 'reason' => 'Wrong box'])->assertOk();
         $this->postJson('/api/v1/payroll/payments/'.$first['id'].'/void', ['date' => '2026-11-04', 'reason' => 'Again'])->assertStatus(409);

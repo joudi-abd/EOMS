@@ -34,9 +34,16 @@ class RecurrenceService
                 'list_id' => (int) $data['list_id'], 'template' => $data['template'], 'frequency' => $data['frequency'],
                 'weekdays' => $data['frequency'] === 'weekly' ? array_values(array_unique(array_map('intval', $data['weekdays']))) : null,
                 'month_day' => $data['frequency'] === 'monthly' ? (int) $data['month_day'] : null,
-                'due_in_days' => $data['due_in_days'] ?? null, 'active' => $data['active'] ?? true,
+                'due_in_days' => $data['due_in_days'] ?? null,
+                // Editing keeps a stopped recurrence stopped unless `active` is sent.
+                'active' => $data['active'] ?? ($recurrence?->active ?? true),
             ];
-            $start = $data['starts_on'] ?? $this->calendar->today();
+            $today = $this->calendar->today();
+            $start = max($data['starts_on'] ?? $today, $today);
+            // A card already made for a day is never made again because the rule was edited later that day.
+            if ($recurrence?->last_run_on !== null) {
+                $start = max($start, $recurrence->last_run_on->copy()->addDay()->format('Y-m-d'));
+            }
             $values['next_run_on'] = $this->firstOnOrAfter($values, $start);
             $recurrence = $recurrence
                 ? tap($recurrence)->update($values)
@@ -68,14 +75,16 @@ class RecurrenceService
             try {
                 $created += DB::transaction(function () use ($id, $today) {
                     $recurrence = Recurrence::query()->lockForUpdate()->find($id);
-                    if (! $recurrence || ! $recurrence->active || $recurrence->next_run_on->format('Y-m-d') > $today) {
+                    if (! $recurrence || ! $recurrence->active || $recurrence->next_run_on->format('Y-m-d') > $today
+                        || $recurrence->last_run_on?->format('Y-m-d') === $today) {
                         return 0;
                     }
                     $board = Board::find($recurrence->board_id);
                     $made = 0;
-                    $runDay = $recurrence->next_run_on->format('Y-m-d');
-                    // Missed days (server down) are not back-filled: only today's occurrence is created.
-                    if ($board && $board->archived_at === null && $runDay === $today && $this->calendar->isWorkingDay($today)) {
+                    // Missed days (server down) are not back-filled, but today's occurrence is still made when the
+                    // stored next day lies in the past.
+                    $dueToday = $this->firstOnOrAfter($recurrence->only(['frequency', 'weekdays', 'month_day']), $today) === $today;
+                    if ($board && $board->archived_at === null && $dueToday && $this->calendar->isWorkingDay($today)) {
                         $this->createCard($board, $recurrence, $today);
                         $made = 1;
                     }

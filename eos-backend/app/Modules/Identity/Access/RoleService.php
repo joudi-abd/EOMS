@@ -66,7 +66,15 @@ class RoleService
             if (array_key_exists('grants', $data)) {
                 $grants = $this->checkedGrants($actor, $data['grants'], $before);
                 if ($role->kind === 'department') {
-                    $grants = array_map(fn ($scope) => Scope::narrower($scope, Scope::DEPARTMENT), $grants);
+                    // The department role only ever applies at department scope (or narrower); a permission
+                    // that cannot be held at that scope would look granted in the editor but reach nobody.
+                    foreach ($grants as $permission => $scope) {
+                        $narrowed = Scope::narrower($scope, Scope::DEPARTMENT);
+                        if (! in_array($narrowed, PermissionCatalog::scopes($permission), true)) {
+                            throw ValidationException::withMessages(['grants' => ["الصلاحية «{$permission}» لا تُمنح على مستوى القسم."]]);
+                        }
+                        $grants[$permission] = $narrowed;
+                    }
                 }
                 DB::table('usr_role_permissions')->where('role_id', $role->id)->delete();
                 $this->writeGrants($role->id, $grants);
@@ -161,8 +169,9 @@ class RoleService
             if (! PermissionCatalog::has($permission)) {
                 throw ValidationException::withMessages([$field => ["صلاحية غير معروفة: {$permission}"]]);
             }
-            if (! in_array($scope, PermissionCatalog::scopes($permission), true)) {
-                throw ValidationException::withMessages([$field => ["النطاق «{$scope}» غير متاح للصلاحية {$permission}."]]);
+            if (! is_string($scope) || ! in_array($scope, PermissionCatalog::scopes($permission), true)) {
+                $shown = is_string($scope) ? $scope : json_encode($scope);
+                throw ValidationException::withMessages([$field => ["النطاق «{$shown}» غير متاح للصلاحية {$permission}."]]);
             }
             $unchanged = ($before[$permission] ?? null) !== null && Scope::covers($before[$permission], $scope);
             if (! $unchanged && ! Scope::covers($own[$permission] ?? null, $scope)) {

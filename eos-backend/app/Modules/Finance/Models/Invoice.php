@@ -13,7 +13,7 @@ class Invoice extends Model
 
     protected function casts(): array
     {
-        return ['party_id' => 'integer', 'date' => 'date:Y-m-d', 'due_date' => 'date:Y-m-d', 'total' => 'decimal:2', 'paid' => 'decimal:2', 'created_by' => 'integer', 'approved_by' => 'integer', 'version' => 'integer'];
+        return ['party_id' => 'integer', 'date' => 'date:Y-m-d', 'due_date' => 'date:Y-m-d', 'total' => 'decimal:2', 'paid' => 'decimal:2', 'created_by' => 'integer', 'submitted_by' => 'integer', 'approved_by' => 'integer', 'version' => 'integer'];
     }
 
     public function lines(): HasMany

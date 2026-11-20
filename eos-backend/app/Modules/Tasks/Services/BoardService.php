@@ -59,7 +59,7 @@ class BoardService
 
     public function update(Board $board, array $data, User $actor): Board
     {
-        $this->access->authorize($actor, $board, 'owner');
+        $this->writable($actor, $board, 'owner');
 
         return DB::transaction(function () use ($board, $data, $actor) {
             $board = Board::query()->lockForUpdate()->findOrFail($board->id);
@@ -86,16 +86,31 @@ class BoardService
         }, self::TX_ATTEMPTS);
     }
 
+    /** An archived board is read-only: only restoring it (archive(false)) is allowed. */
+    private function writable(User $actor, Board $board, string $atLeast): string
+    {
+        $role = $this->access->authorize($actor, $board, $atLeast);
+        abort_if($board->archived_at !== null, 409, 'اللوحة مؤرشفة؛ يستعيدها المالك أولاً.');
+
+        return $role;
+    }
+
     // ── Members ───────────────────────────────────────────────────────────────
 
     public function addMember(Board $board, int $userId, string $role, User $actor, bool $notify = true, bool $log = true): BoardMember
     {
-        $this->access->authorize($actor, $board, 'owner');
+        $this->writable($actor, $board, 'owner');
         abort_if($board->type === 'personal', 422, 'اللوحة الشخصية لصاحبها فقط.');
         $user = User::query()->whereKey($userId)->where('status', 'active')->first();
         abort_unless($user, 422, 'المستخدم غير موجود أو معطّل.');
 
         return DB::transaction(function () use ($board, $user, $role, $actor, $notify, $log) {
+            // Membership changes serialise on the board row, so two owners cannot demote each other at once.
+            Board::query()->lockForUpdate()->findOrFail($board->id);
+            $existing = BoardMember::query()->where('board_id', $board->id)->where('user_id', $user->id)->lockForUpdate()->first();
+            if ($existing?->role === 'owner' && $role !== 'owner') {
+                $this->keepAnOwner($board, $user->id);
+            }
             $member = BoardMember::query()->updateOrCreate(['board_id' => $board->id, 'user_id' => $user->id], ['role' => $role, 'added_by' => $actor->id]);
             if ($log) {
                 $this->activity->record($board, null, $actor, 'member.added', ['user_id' => $user->id, 'role' => $role]);
@@ -111,9 +126,10 @@ class BoardService
 
     public function changeRole(Board $board, int $userId, string $role, User $actor): BoardMember
     {
-        $this->access->authorize($actor, $board, 'owner');
+        $this->writable($actor, $board, 'owner');
 
         return DB::transaction(function () use ($board, $userId, $role, $actor) {
+            Board::query()->lockForUpdate()->findOrFail($board->id);
             $member = BoardMember::query()->where('board_id', $board->id)->where('user_id', $userId)->lockForUpdate()->firstOrFail();
             if ($member->role === 'owner' && $role !== 'owner') {
                 $this->keepAnOwner($board, $userId);
@@ -128,8 +144,9 @@ class BoardService
     /** Removes an explicit member and takes them off the board's open cards. */
     public function removeMember(Board $board, int $userId, User $actor): void
     {
-        $this->access->authorize($actor, $board, 'owner');
+        $this->writable($actor, $board, 'owner');
         DB::transaction(function () use ($board, $userId, $actor) {
+            Board::query()->lockForUpdate()->findOrFail($board->id);
             $member = BoardMember::query()->where('board_id', $board->id)->where('user_id', $userId)->lockForUpdate()->firstOrFail();
             if ($member->role === 'owner') {
                 $this->keepAnOwner($board, $userId);
@@ -165,7 +182,7 @@ class BoardService
 
     public function createList(Board $board, string $name, User $actor): TaskList
     {
-        $this->access->authorize($actor, $board, 'owner');
+        $this->writable($actor, $board, 'owner');
 
         return DB::transaction(function () use ($board, $name, $actor) {
             Board::query()->lockForUpdate()->findOrFail($board->id);
@@ -186,7 +203,7 @@ class BoardService
     public function updateList(TaskList $list, array $data, User $actor): TaskList
     {
         $board = $list->board;
-        $this->access->authorize($actor, $board, 'owner');
+        $this->writable($actor, $board, 'owner');
 
         return DB::transaction(function () use ($list, $data, $actor, $board) {
             $list = TaskList::query()->lockForUpdate()->findOrFail($list->id);
@@ -194,6 +211,10 @@ class BoardService
                 $list->name = $data['name'];
             }
             if (isset($data['position'])) {
+                // Normal lists stay before the fixed "done"/"finished" lists, and those two never move.
+                abort_unless($list->kind === 'normal', 422, 'قائمتا «تم» و«منتهية» ثابتتان في آخر اللوحة.');
+                $done = (float) TaskList::query()->where('board_id', $list->board_id)->where('kind', 'done')->min('position');
+                abort_if($done > 0 && (float) $data['position'] >= $done, 422, 'القوائم العادية تبقى قبل قائمة «تم».');
                 $list->position = (float) $data['position'];
             }
             $list->save();
@@ -206,7 +227,7 @@ class BoardService
     public function archiveList(TaskList $list, bool $archived, User $actor): TaskList
     {
         $board = $list->board;
-        $this->access->authorize($actor, $board, 'owner');
+        $this->writable($actor, $board, 'owner');
         abort_if($list->kind !== 'normal', 422, 'قائمتا "منجز" و"منتهية" ثابتتان في كل لوحة.');
 
         return DB::transaction(function () use ($list, $archived, $actor, $board) {
@@ -224,7 +245,7 @@ class BoardService
 
     public function saveLabel(Board $board, ?Label $label, array $data, User $actor): Label
     {
-        $this->access->authorize($actor, $board, 'member');
+        $this->writable($actor, $board, 'member');
 
         return DB::transaction(function () use ($board, $label, $data, $actor) {
             $label = $label ? tap($label)->update($data) : Label::create(['board_id' => $board->id] + $data);
@@ -237,7 +258,7 @@ class BoardService
     public function deleteLabel(Label $label, User $actor): void
     {
         $board = Board::findOrFail($label->board_id);
-        $this->access->authorize($actor, $board, 'member');
+        $this->writable($actor, $board, 'member');
         DB::transaction(function () use ($label, $board, $actor) {
             $label->delete();
             $this->activity->record($board, null, $actor, 'label.deleted', ['label_id' => $label->id]);

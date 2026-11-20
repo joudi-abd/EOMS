@@ -26,8 +26,15 @@ class EmployeeController extends Controller
      */
     public function index(Request $request)
     {
+        $filters = $request->validate([
+            'q' => ['sometimes', 'nullable', 'string', 'max:120'],
+            'department_id' => ['sometimes', 'nullable', 'integer'],
+            'job_title_id' => ['sometimes', 'nullable', 'integer'],
+            'status' => ['sometimes', 'nullable', 'in:active,terminated'],
+        ]);
+
         return ApiResponse::paginated(
-            $this->employees->search($request->query())
+            $this->employees->search($filters)
                 ->through(fn (Employee $employee) => new EmployeeResource($employee))
         );
     }

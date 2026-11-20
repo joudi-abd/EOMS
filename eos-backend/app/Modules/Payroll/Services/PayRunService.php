@@ -46,17 +46,18 @@ class PayRunService
         if ($month >= substr($today, 0, 7)) {
             throw ValidationException::withMessages(['month' => ['يُنشأ كشف الشهر بعد انتهائه فقط.']]);
         }
-        $run = DB::transaction(function () use ($month, $actor) {
+
+        // Creation and first calculation are one unit: a calculation error (e.g. no attendance policy) must not leave
+        // an empty run behind that blocks a retry with "a run already exists".
+        return DB::transaction(function () use ($month, $actor) {
             if (PayRun::query()->where('month', $month)->lockForUpdate()->first(['id']) !== null) {
                 throw ValidationException::withMessages(['month' => ['يوجد كشف لهذا الشهر مسبقاً.']]);
             }
             $run = PayRun::create(['month' => $month, 'prepared_by' => $actor->id]);
             $this->audit->log('payroll.run_created', $run, null, ['month' => $month], $actor->id);
 
-            return $run;
+            return $this->recalculate($run, $actor);
         }, self::TX_ATTEMPTS);
-
-        return $this->recalculate($run, $actor);
     }
 
     /** Recomputes automatic, proposed and adjustment items; manual items entered by finance are kept. */
@@ -70,6 +71,14 @@ class PayRunService
             $employees = $employees->concat($former);
             PayRunLine::query()->where('pay_run_id', $run->id)->whereNotIn('employee_id', $employees->pluck('id'))
                 ->whereDoesntHave('items', fn ($q) => $q->where('origin', 'manual'))->delete();
+            // A line kept only for HR's manual items no longer earns salary for the month: drop its computed items so
+            // a stale salary is never carried into approval and payment.
+            foreach (PayRunLine::query()->where('pay_run_id', $run->id)->whereNotIn('employee_id', $employees->pluck('id'))->get() as $orphan) {
+                $orphan->items()->whereIn('origin', ['auto', 'proposed', 'adjustment'])->delete();
+                $orphan->fill(['working_days' => 0, 'attendance_ready' => true, 'blocked_days' => 0, 'issues' => [],
+                    'source_hash' => null])->save();
+                $this->totals($orphan);
+            }
             foreach ($employees as $employee) {
                 $result = $this->calculator->forEmployee($employee, $run->month);
                 $line = PayRunLine::query()->firstOrNew(['pay_run_id' => $run->id, 'employee_id' => $employee->id]);
@@ -192,6 +201,7 @@ class PayRunService
             $line = PayRunLine::query()->findOrFail($item->pay_run_line_id);
             $run = $this->lock($line->run, 'submitted');
             abort_unless(in_array($item->origin, ['proposed', 'manual'], true), 409, 'البند ليس مقترحاً للمراجعة.');
+            abort_if($item->created_by !== null && $item->created_by === $actor->id, 403, 'لا يراجع أحد بنداً أدخله بنفسه.');
             $proposed = (float) $item->proposed_amount;
             $value = match ($decision) {
                 'approve' => $proposed,
@@ -222,7 +232,10 @@ class PayRunService
         return DB::transaction(function () use ($run, $decision, $kinds, $reason, $actor) {
             $run = $this->lock($run, 'submitted');
             $items = $this->items($run)->whereIn('origin', ['proposed', 'manual'])->where('status', 'proposed')
-                ->when($kinds, fn ($q) => $q->whereIn('kind', $kinds))->orderBy('id')->lockForUpdate()->get();
+                ->when($kinds !== null, fn ($q) => $q->whereIn('kind', $kinds))
+                // Items a reviewer entered themselves stay for another reviewer.
+                ->where(fn ($q) => $q->whereNull('created_by')->orWhere('created_by', '!=', $actor->id))
+                ->orderBy('id')->lockForUpdate()->get();
             foreach ($items as $item) {
                 $item->update(['amount' => $decision === 'approve' ? $item->proposed_amount : 0,
                     'status' => $decision === 'approve' ? 'approved' : 'waived', 'reason' => $reason,
@@ -251,6 +264,8 @@ class PayRunService
         return DB::transaction(function () use ($run, $actor) {
             $run = $this->lock($run, 'submitted');
             abort_if($run->prepared_by === $actor->id, 403, 'لا يعتمد أحد كشفاً أنشأه بنفسه.');
+            abort_if($this->items($run)->where('origin', 'manual')->where('created_by', $actor->id)->exists(), 403,
+                'لا يعتمد أحد كشفاً أضاف إليه بنوداً بنفسه.');
             abort_if($this->items($run)->where('origin', 'adjustment')->where('status', 'proposed')->exists(), 409,
                 'قرّر في تسويات الأشهر المقفلة قبل الاعتماد.');
 
@@ -294,6 +309,10 @@ class PayRunService
             abort_unless((float) $line->net > 0, 409, 'لا يوجد مبلغ مستحق.');
             $paidCurrency = strtoupper($data['currency']);
             ['rate' => $rate, 'converted' => $converted, 'paid' => $paid] = $this->quote($line, $paidCurrency, $data['paid_at']);
+            // SYP pays in whole thousands: a tiny balance can round to nothing, which no box can pay out.
+            if ($paid <= 0) {
+                throw ValidationException::withMessages(['currency' => ['المبلغ المستحق بعد التقريب صفر بهذه العملة؛ ادفعه بعملة أخرى أو أضفه لكشف لاحق.']]);
+            }
             // A bulk file fixes the amount when it is produced; a later rate change must not pay a different sum.
             if (isset($data['expected_amount']) && abs($paid - (float) $data['expected_amount']) >= 0.005) {
                 throw ValidationException::withMessages(['currency' => ['تغيّر المبلغ المستحق أو سعر الصرف بعد إصدار الملف؛ ألغِ الملف وأصدر ملفاً جديداً.']]);
@@ -304,8 +323,10 @@ class PayRunService
                 $wallet = isset($data['wallet']) && $data['wallet'] !== ''
                     ? (string) $data['wallet']
                     : Employee::query()->whereKey($line->employee_id)->value('sham_cash_wallet');
-                if (! $wallet) {
-                    throw ValidationException::withMessages(['method' => ['لا توجد محفظة شام كاش مسجّلة للموظف.']]);
+                // Same rule as the bulk file: a Sham Cash wallet is exactly 16 digits.
+                $wallet = preg_replace('/\s+/', '', (string) $wallet);
+                if (preg_match('/^\d{16}$/', $wallet) !== 1) {
+                    throw ValidationException::withMessages(['method' => ['لا توجد محفظة شام كاش صحيحة (16 رقماً) مسجّلة للموظف.']]);
                 }
             }
             $payment = $line->payment()->create([
@@ -362,6 +383,9 @@ class PayRunService
         return DB::transaction(function () use ($payment, $date, $reason, $actor) {
             $payment = PayPayment::query()->lockForUpdate()->findOrFail($payment->id);
             abort_if($payment->voided_at !== null, 409, 'الدفعة ملغاة مسبقاً.');
+            if ($date < $payment->paid_at->format('Y-m-d')) {
+                throw ValidationException::withMessages(['date' => ['تاريخ الإلغاء لا يسبق تاريخ الدفع.']]);
+            }
             if ($payment->finance_transaction_id) {
                 $this->cash->reverse(Transaction::query()->findOrFail($payment->finance_transaction_id),
                     $date, 'إلغاء دفعة راتب: '.$reason, $actor, fromPayroll: true);

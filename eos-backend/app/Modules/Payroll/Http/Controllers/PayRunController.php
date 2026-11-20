@@ -3,6 +3,7 @@
 namespace App\Modules\Payroll\Http\Controllers;
 
 use App\Modules\HR\Models\Employee;
+use App\Modules\Identity\Services\AuditLogger;
 use App\Modules\Payroll\Models\PayExport;
 use App\Modules\Payroll\Models\PayPayment;
 use App\Modules\Payroll\Models\PayRun;
@@ -49,6 +50,9 @@ class PayRunController extends Controller
 
     public function shamCashFile(PayExport $export): BinaryFileResponse
     {
+        // The file carries wallets and amounts: every download is on the record.
+        app(AuditLogger::class)->log('payroll.shamcash_downloaded', $export, null, ['doc_id' => $export->doc_id]);
+
         return $this->download($export);
     }
 
@@ -109,7 +113,7 @@ class PayRunController extends Controller
     {
         $data = $request->validate([
             'employee_id' => ['required', 'integer'], 'category' => ['required', Rule::in(['earning', 'deduction'])],
-            'amount' => ['required', 'numeric', 'gt:0', 'decimal:0,2', 'max:9999999999999'],
+            'amount' => ['required', 'numeric', 'gt:0', 'decimal:0,2', 'max:999999999'],
             'reason' => ['required', 'string', 'min:3', 'max:1000'],
         ]);
 
@@ -147,7 +151,7 @@ class PayRunController extends Controller
     {
         $data = $request->validate([
             'decision' => ['required', Rule::in(['approve', 'waive'])],
-            'kinds' => ['nullable', 'array'], 'kinds.*' => ['string', Rule::in(['late', 'early_exit', 'absence', 'bonus', 'manual_deduction'])],
+            'kinds' => ['nullable', 'array', 'min:1'], 'kinds.*' => ['string', Rule::in(['late', 'early_exit', 'absence', 'bonus', 'manual_deduction'])],
             'reason' => [Rule::requiredIf($request->input('decision') === 'waive'), 'nullable', 'string', 'min:3', 'max:1000'],
         ]);
         $count = $this->runs->reviewRemaining($run, $data['decision'], $data['kinds'] ?? null,
@@ -189,7 +193,7 @@ class PayRunController extends Controller
 
     public function voidPayment(PayPayment $payment, Request $request): JsonResponse
     {
-        $data = $request->validate(['date' => ['required', 'date_format:Y-m-d'], 'reason' => ['required', 'string', 'min:3', 'max:500']]);
+        $data = $request->validate(['date' => ['required', 'date_format:Y-m-d', 'before_or_equal:today'], 'reason' => ['required', 'string', 'min:3', 'max:500']]);
 
         return ApiResponse::ok($this->runs->voidPayment($payment, $data['date'], $data['reason'], $request->user()));
     }
@@ -197,6 +201,7 @@ class PayRunController extends Controller
     /** Finance-only payslip sheet: one row per employee with totals and payment. */
     public function export(PayRun $run): StreamedResponse
     {
+        app(AuditLogger::class)->log('payroll.run_exported', $run, null, ['month' => $run->month]);
         $lines = PayRunLine::query()->where('pay_run_id', $run->id)->with(['items', 'payment'])->orderBy('employee_id')->get();
         $employees = Employee::query()->whereIn('id', $lines->pluck('employee_id'))->get()->keyBy('id');
         $sum = fn ($line, $kind) => $line->items->where('kind', $kind)->sum(fn ($i) => (float) $i->amount);

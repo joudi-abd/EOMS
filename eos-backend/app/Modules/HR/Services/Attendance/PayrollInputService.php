@@ -66,7 +66,8 @@ class PayrollInputService
                 'late_minutes' => $day->late_minutes, 'early_minutes' => $day->early_minutes,
                 'extra_minutes' => $day->extra_minutes, 'leave_minutes' => $day->leave_minutes,
                 // Schedule facts payroll needs to price the day; independent of whether the employee worked.
-                'scheduled_working_day' => in_array($start->dayOfWeek, $policy->working_days, true),
+                // The office weekday of the date, not of the UTC instant (an early shift starts the previous UTC day).
+                'scheduled_working_day' => in_array(CarbonImmutable::parse($date, $policy->timezone)->dayOfWeek, $policy->working_days, true),
                 'schedule_minutes' => intdiv($end->timestamp - $start->timestamp, 60),
                 'early_arrival_minutes' => $day->first_in && $day->first_in->lessThan($start)
                     ? intdiv($start->timestamp - $day->first_in->timestamp, 60) : 0,

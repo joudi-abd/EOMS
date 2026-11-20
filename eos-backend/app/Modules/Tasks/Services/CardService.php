@@ -85,6 +85,8 @@ class CardService
             }
             $fields = array_intersect_key($data, array_flip(['title', 'description', 'priority', 'start_date', 'due_date']));
             $before = $card->only(array_keys($fields));
+            // Dates are logged as plain dates (a Carbon instance would serialise as the previous day in UTC).
+            $before['due_date'] = $card->due_date?->format('Y-m-d');
             $card->fill($fields);
             $this->checkDates($card->start_date?->format('Y-m-d'), $card->due_date?->format('Y-m-d'));
             $dueChanged = $card->isDirty('due_date');
@@ -143,15 +145,17 @@ class CardService
      * Moves a card to a list, after $afterCardId (null = top). Reaching "done" or "finished" follows the workflow
      * rules; a finished card is moved only by reopen().
      */
-    public function move(Card $card, int $listId, ?int $afterCardId, User $actor): Card
+    public function move(Card $card, int $listId, ?int $afterCardId, User $actor, ?string $requireFromKind = null): Card
     {
         $board = $this->boardOf($card);
         $role = $this->writable($actor, $board, 'member');
 
-        return DB::transaction(function () use ($card, $board, $role, $listId, $afterCardId, $actor) {
+        return DB::transaction(function () use ($card, $board, $role, $listId, $afterCardId, $actor, $requireFromKind) {
             $card = Card::query()->lockForUpdate()->findOrFail($card->id);
             abort_if($card->archived_at !== null, 409, 'البطاقة مؤرشفة.');
             $from = TaskList::findOrFail($card->list_id);
+            // Approval re-checks under the card lock: a reject that won the race already sent the card back.
+            abort_if($requireFromKind !== null && $from->kind !== $requireFromKind, 409, 'تغيّرت حالة البطاقة للتو؛ حدّث اللوحة.');
             $to = $this->list($board, $listId);
             abort_if($from->kind === 'finished' && $to->id !== $from->id, 422, 'البطاقة منتهية؛ يعيد المالك فتحها أولاً.');
             $owner = $role === 'owner';
@@ -216,7 +220,7 @@ class CardService
         $this->writable($actor, $board, 'owner');
         abort_unless(TaskList::whereKey($card->list_id)->value('kind') === 'done', 422, 'البطاقة ليست في "منجز".');
 
-        return $this->move($card, (int) $this->kindList($board, 'finished')->id, $this->lastCardId($this->kindList($board, 'finished')), $actor);
+        return $this->move($card, (int) $this->kindList($board, 'finished')->id, $this->lastCardId($this->kindList($board, 'finished')), $actor, requireFromKind: 'done');
     }
 
     /** The owner sends a card in "done" back to where it was, with a reason that becomes a comment. */
@@ -389,6 +393,7 @@ class CardService
         $card = Card::findOrFail($comment->card_id);
         $board = $this->boardOf($card);
         $role = $this->access->authorize($actor, $board);
+        abort_if($board->archived_at !== null, 409, 'اللوحة مؤرشفة؛ يستعيدها المالك أولاً.');
         // Authors edit and delete their own comments; an owner may remove any comment.
         abort_unless($comment->user_id === $actor->id || ($body === null && $role === 'owner'), 403, 'تعدّل تعليقاتك أنت فقط.');
 
@@ -418,6 +423,8 @@ class CardService
         try {
             return DB::transaction(function () use ($card, $board, $file, $path, $actor) {
                 $this->lockOpen($card);
+                // Counted again under the card lock: concurrent uploads must not slip past the cap.
+                abort_if(Attachment::where('card_id', $card->id)->count() >= 30, 422, 'الحد الأقصى 30 مرفقاً للبطاقة.');
                 $attachment = Attachment::create(['card_id' => $card->id, 'path' => $path,
                     'original_name' => mb_substr($file->getClientOriginalName(), 0, 200), 'mime' => $file->getMimeType(),
                     'size' => $file->getSize(), 'uploaded_by' => $actor->id]);

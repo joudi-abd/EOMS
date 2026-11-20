@@ -6,6 +6,7 @@ use App\Modules\Finance\Models\Account;
 use App\Modules\Finance\Models\Box;
 use App\Modules\Finance\Models\Invoice;
 use App\Modules\Finance\Models\Party;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 
@@ -48,12 +49,27 @@ class ReportService
             'overdue_total' => round($open->where('overdue', true)->sum('remaining'), 2)];
     }
 
+    /**
+     * Per account: the opening balance before `from`, the period's debit and credit, and the closing balance.
+     * Balance-sheet accounts carry history, so a period that does not start at inception still shows real balances.
+     */
     public function trialBalance(string $currency, string $from, string $to): array
     {
-        $rows = $this->totals($currency, $from, $to)->map(fn ($r) => [...(array) $r,
-            'balance' => round((float) $r->debit - (float) $r->credit, 2)]);
+        $before = CarbonImmutable::parse($from)->subDay()->toDateString();
+        $opening = $this->totals($currency, '1900-01-01', $before)->keyBy('id');
+        $period = $this->totals($currency, $from, $to)->keyBy('id');
+        $rows = $opening->keys()->merge($period->keys())->unique()->map(function ($id) use ($opening, $period) {
+            $base = $period->get($id) ?? $opening->get($id);
+            $open = $opening->has($id) ? round($opening[$id]->debit - $opening[$id]->credit, 2) : 0.0;
+            $debit = $period->has($id) ? $period[$id]->debit : 0.0;
+            $credit = $period->has($id) ? $period[$id]->credit : 0.0;
 
-        return ['currency' => $currency, 'from' => $from, 'to' => $to, 'accounts' => $rows->values(),
+            return ['id' => $base->id, 'code' => $base->code, 'name' => $base->name, 'type' => $base->type,
+                'opening_balance' => $open, 'debit' => $debit, 'credit' => $credit,
+                'balance' => round($debit - $credit, 2), 'closing_balance' => round($open + $debit - $credit, 2)];
+        })->sortBy('code')->values();
+
+        return ['currency' => $currency, 'from' => $from, 'to' => $to, 'accounts' => $rows,
             'debit' => round($rows->sum('debit'), 2), 'credit' => round($rows->sum('credit'), 2)];
     }
 

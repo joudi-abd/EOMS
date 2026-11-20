@@ -12,8 +12,8 @@ class NotificationController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $data = $request->validate(['unread' => ['sometimes', 'boolean'], 'per_page' => ['sometimes', 'integer', 'between:1,100']]);
-        $query = ($data['unread'] ?? false) ? $request->user()->unreadNotifications() : $request->user()->notifications();
+        $data = $request->validate(['unread' => ['sometimes', 'in:0,1,true,false'], 'per_page' => ['sometimes', 'integer', 'between:1,100']]);
+        $query = $request->boolean('unread') ? $request->user()->unreadNotifications() : $request->user()->notifications();
         $paginator = $query->paginate($data['per_page'] ?? 20);
         $paginator->setCollection($paginator->getCollection()->map(fn ($n) => [
             'id' => $n->id, 'kind' => $n->data['kind'] ?? null, 'message' => $n->data['message'] ?? null,

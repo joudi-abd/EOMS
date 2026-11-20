@@ -16,7 +16,7 @@ class RecalculateAttendance extends Command
 
     public function handle(AttendanceCalculator $calculator): int
     {
-        $zone = AttendancePolicy::query()->orderBy('effective_from')->value('timezone');
+        $zone = AttendancePolicy::officeTimezone();
         $date = $this->option('date');
         if ($date && (! preg_match('/^\d{4}-\d{2}-\d{2}$/D', $date)
             || ! CarbonImmutable::hasFormatWithModifiers($date, 'Y-m-d') || $date < '1970-01-01')) {

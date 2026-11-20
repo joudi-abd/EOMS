@@ -12,6 +12,7 @@ use App\Modules\Finance\Models\Party;
 use App\Modules\Finance\Models\Transaction;
 use App\Modules\Identity\Models\User;
 use App\Modules\Identity\Services\AuditLogger;
+use App\Modules\Settings\Services\ExchangeRateService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -24,6 +25,9 @@ class CashService
 {
     /** Whole-transaction retries on deadlocks and serialization conflicts (MariaDB 1020, PostgreSQL 40001/40P01). */
     private const TX_ATTEMPTS = 3;
+
+    /** An exchange whose rate strays further than this from the day's recorded rate waits for the company manager. */
+    private const EXCHANGE_RATE_TOLERANCE = 0.05;
 
     public function __construct(private LedgerService $ledger, private AuditLogger $audit) {}
 
@@ -122,15 +126,28 @@ class CashService
         }, self::TX_ATTEMPTS);
     }
 
-    /** Sell `amount` from one box for `counter_amount` into a box of another currency; one entry per currency. */
+    /**
+     * Sell `amount` from one box for `counter_amount` into a box of another currency; one entry per currency.
+     * Money leaves a box, so the same approval limit as a payment applies; a rate far from the day's recorded
+     * rate (or a day without one) also waits for the company manager, so a typo cannot drain a box.
+     */
     public function exchange(array $data, User $actor): Transaction
     {
         return DB::transaction(function () use ($data, $actor) {
             [$from, $to] = $this->boxPair($data['box_id'], $data['counter_box_id']);
             abort_if($from->currency_code === $to->currency_code, 422, 'صرف العملة بين عملتين مختلفتين؛ استخدم التحويل لنفس العملة.');
             $data['rate'] = round((float) $data['counter_amount'] / (float) $data['amount'], 6);
-            $tx = $this->make('exchange', $data, $from, $actor, 'posted');
-            $this->postTransaction($tx, $actor);
+            $reference = app(ExchangeRateService::class)->rateOn($from->currency_code, $to->currency_code, $data['date']);
+            $offRate = $reference === null || abs($data['rate'] - $reference) > $reference * self::EXCHANGE_RATE_TOLERANCE;
+            $pending = $offRate || $this->needsApproval($from->currency_code, (float) $data['amount']);
+            $tx = $this->make('exchange', $data, $from, $actor, $pending ? 'pending' : 'posted');
+            if (! $pending) {
+                $this->postTransaction($tx, $actor);
+            } else {
+                app(FinanceNotifier::class)->toApprovers('finance.payment_pending', 'صرف عملة بانتظار الاعتماد: '.number_format((float) $tx->amount, 2).' '.$from->currency_code
+                    .' مقابل '.number_format((float) $tx->counter_amount, 2).' '.$to->currency_code.($offRate ? ' (السعر بعيد عن سعر اليوم المسجل)' : ''),
+                    ['transaction_id' => $tx->id], $actor->id);
+            }
 
             return $tx->refresh();
         }, self::TX_ATTEMPTS);
@@ -197,8 +214,11 @@ class CashService
     {
         $box = Box::query()->lockForUpdate()->findOrFail($tx->box_id);
         $amount = (float) $tx->amount;
-        if (in_array($tx->kind, ['payment', 'transfer', 'exchange', 'payroll'], true) && $this->balance($box) + 0.001 < $amount) {
-            throw ValidationException::withMessages(['amount' => ['رصيد الصندوق غير كافٍ (المتاح '.number_format($this->balance($box), 2).').']]);
+        if (in_array($tx->kind, ['payment', 'transfer', 'exchange', 'payroll'], true)) {
+            $available = $this->ledger->lowestBalanceFrom($box->account_id, $tx->date->format('Y-m-d'));
+            if ($available + 0.001 < $amount) {
+                throw ValidationException::withMessages(['amount' => ['رصيد الصندوق غير كافٍ (المتاح '.number_format($available, 2).').']]);
+            }
         }
         $post = fn (string $currency, array $lines) => $this->ledger->post($currency, $tx->date->format('Y-m-d'), $tx->description, $lines, $actor, 'transaction', $tx->id);
         $counter = function () use ($tx): array {
@@ -276,6 +296,9 @@ class CashService
     private function assertPostablePending(Transaction $tx): void
     {
         $box = $this->box($tx->box_id);
+        if ($tx->counter_box_id !== null) {
+            $this->box($tx->counter_box_id);
+        }
         if ($tx->party_id) {
             $kind = $tx->kind === 'receipt' ? 'customer' : 'supplier';
             $row = Party::query()->whereKey($tx->party_id)->lockForUpdate()->first();

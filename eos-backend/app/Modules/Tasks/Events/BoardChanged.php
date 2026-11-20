@@ -4,14 +4,13 @@ namespace App\Modules\Tasks\Events;
 
 use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
-use Illuminate\Contracts\Events\ShouldDispatchAfterCommit;
 
 /**
  * Tells open boards that something changed. It carries only the board's new cursor (the latest activity id) and
- * what happened; clients then fetch the changes they are allowed to see. Sent after the transaction commits, on
+ * what happened; clients then fetch the changes they are allowed to see. ActivityLog sends it after the transaction commits, on
  * the private channel tasks.board.{id} (authorised in routes/channels.php).
  */
-class BoardChanged implements ShouldBroadcastNow, ShouldDispatchAfterCommit
+class BoardChanged implements ShouldBroadcastNow
 {
     public function __construct(public int $boardId, public int $cursor, public string $action, public ?int $cardId = null) {}
 

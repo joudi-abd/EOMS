@@ -25,12 +25,10 @@ Route::prefix('api/v1/finance')->middleware(['api', 'auth:sanctum'])->controller
         Route::post('accounts', 'storeAccount');
         Route::patch('accounts/{account}', 'updateAccount')->whereNumber('account');
         Route::post('entries', 'storeEntry');
-        Route::post('entries/{entry}/reverse', 'reverseEntry')->whereNumber('entry');
         Route::post('periods/close-request', 'requestClose');
         Route::post('boxes', 'storeBox');
         Route::patch('boxes/{box}', 'updateBox')->whereNumber('box');
         Route::post('transactions/{kind}', 'storeTransaction')->whereIn('kind', ['receipt', 'payment', 'transfer', 'exchange']);
-        Route::post('transactions/{transaction}/reverse', 'reverseTransaction')->whereNumber('transaction');
         Route::post('parties', 'storeParty');
         Route::patch('parties/{party}', 'updateParty')->whereNumber('party');
         Route::post('items', 'storeItem');
@@ -39,12 +37,15 @@ Route::prefix('api/v1/finance')->middleware(['api', 'auth:sanctum'])->controller
         Route::post('invoices', 'saveInvoice');
         Route::put('invoices/{invoice}', 'saveInvoice')->whereNumber('invoice');
         Route::post('invoices/{invoice}/submit', 'submitInvoice')->whereNumber('invoice');
-        Route::post('invoices/{invoice}/cancel', 'cancelInvoice')->whereNumber('invoice');
         Route::post('invoices/{invoice}/attachments', 'storeAttachment')->whereNumber('invoice');
         Route::delete('invoices/{invoice}/attachments/{attachment}', 'destroyAttachment')->whereNumber(['invoice', 'attachment']);
     });
-    // Approve: company manager (finance.approve).
+    // Approve and cancel: company manager (finance.approve). Undoing posted money (reversing an entry or an
+    // operation, cancelling a posted invoice) is a cancellation, so it needs the approver, not the clerk.
     Route::middleware('perm:finance.approve')->group(function () {
+        Route::post('entries/{entry}/reverse', 'reverseEntry')->whereNumber('entry');
+        Route::post('transactions/{transaction}/reverse', 'reverseTransaction')->whereNumber('transaction');
+        Route::post('invoices/{invoice}/cancel', 'cancelInvoice')->whereNumber('invoice');
         Route::put('approval-limits', 'setLimit');
         Route::post('transactions/{transaction}/decision', 'decideTransaction')->whereNumber('transaction');
         Route::post('invoices/{invoice}/decision', 'decideInvoice')->whereNumber('invoice');

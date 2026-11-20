@@ -2,9 +2,9 @@
 
 namespace App\Modules\HR\Services;
 
-use App\Modules\HR\Models\PendingDocumentCleanup;
 use App\Modules\HR\Models\Employee;
 use App\Modules\HR\Models\EmployeeDocument;
+use App\Modules\HR\Models\PendingDocumentCleanup;
 use App\Modules\Identity\Services\AuditLogger;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\UploadedFile;
@@ -66,7 +66,7 @@ class EmployeeDocumentService
                     'document_type' => $data['document_type'] ?? 'other',
                     'description' => $data['description'] ?? null,
                     'file_path' => $path,
-                    'original_name' => basename($file->getClientOriginalName()),
+                    'original_name' => $this->safeName($file->getClientOriginalName()),
                     'mime_type' => $file->getMimeType() ?? 'application/octet-stream',
                     'file_size' => $file->getSize(),
                     'uploaded_by_user_id' => auth()->id(),
@@ -99,8 +99,22 @@ class EmployeeDocumentService
     {
         $document = $this->find($employee, $document);
         abort_unless(Storage::disk('local')->exists($document->file_path), 404);
+        // Private documents (IDs, contracts): every read is on the record.
+        $this->audit->log('employee.document_downloaded', $document, null, ['employee_id' => $employee->id]);
 
         return Storage::disk('local')->download($document->file_path, $document->original_name);
+    }
+
+    /** The client file name, without any path, cut to the column (255) while keeping its extension. */
+    private function safeName(string $name): string
+    {
+        $name = basename(str_replace('\\', '/', $name));
+        if (mb_strlen($name) <= 255) {
+            return $name;
+        }
+        $extension = mb_substr((string) pathinfo($name, PATHINFO_EXTENSION), 0, 20);
+
+        return mb_substr(pathinfo($name, PATHINFO_FILENAME), 0, 254 - mb_strlen($extension)).'.'.$extension;
     }
 
     public function delete(Employee $employee, EmployeeDocument $document): void
