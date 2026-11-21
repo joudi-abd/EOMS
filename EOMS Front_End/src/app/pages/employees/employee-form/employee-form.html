@@ -11,11 +11,13 @@
     <span>{{ t('lastName') }}</span>
     <input name="lastName" type="text" autocomplete="off" maxlength="80" required [value]="person()?.lastName ?? ''" />
   </label>
-  @if (!person()) {
+  @if (!person() || showSensitive()) {
     <label>
       <span>{{ t('nationalId') }}</span>
-      <input name="nationalId" type="text" inputmode="numeric" maxlength="30" autocomplete="off" required />
+      <input name="nationalId" type="text" inputmode="numeric" maxlength="30" autocomplete="off" required [value]="person()?.nationalId ?? ''" />
     </label>
+  }
+  @if (!person()) {
     <label>
       <span>{{ t('hired') }}</span>
       <input name="hired" type="date" autocomplete="off" required />

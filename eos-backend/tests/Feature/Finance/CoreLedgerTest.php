@@ -203,7 +203,7 @@ class CoreLedgerTest extends TestCase
             ->assertUnprocessable(); // type differs from the parent
         $leaf = $this->postJson('/api/v1/finance/accounts', ['code' => '6109', 'name' => 'إيجارات', 'type' => 'expense', 'parent_id' => $this->accountId('6100')])
             ->assertCreated()->json('data');
-        $child = $this->postJson('/api/v1/finance/accounts', ['code' => '6109-1', 'name' => 'إيجار المكتب', 'type' => 'expense', 'parent_id' => $leaf['id']])
+        $child = $this->postJson('/api/v1/finance/accounts', ['code' => '6109-1', 'name' => 'إيجار الشركة', 'type' => 'expense', 'parent_id' => $leaf['id']])
             ->assertCreated()->json('data');
         $tree = collect($this->getJson('/api/v1/finance/accounts')->assertOk()->json('data'))->firstWhere('code', '5');
         $this->assertNotEmpty($tree['children']);

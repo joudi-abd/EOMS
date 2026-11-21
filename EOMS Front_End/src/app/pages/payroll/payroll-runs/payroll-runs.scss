@@ -7,6 +7,40 @@
   gap: 8px;
 }
 
+.pr-blockers {
+  display: grid;
+  gap: 10px;
+}
+
+.pr-blockers-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.pr-blockers-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 650;
+  font-size: 16px;
+}
+
+.pr-blockers-acts,
+.pr-blocker-acts {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.pr-blockers-sheet {
+  max-height: min(42vh, 360px);
+  overflow: auto;
+}
+
 .fin-run-pick select {
   min-width: 220px;
 }
@@ -190,6 +224,56 @@
 .pr-dlg-icon.sham {
   background: color-mix(in srgb, var(--mark) 18%, var(--surface));
   color: var(--mark-ink);
+}
+
+.pr-dlg-icon.review {
+  background: color-mix(in srgb, var(--action) 14%, var(--surface));
+  color: var(--action-ink, var(--action));
+}
+
+.pr-review-kinds {
+  margin-bottom: 4px;
+}
+
+.pr-kind-list {
+  list-style: none;
+  margin: 10px 16px 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 8px;
+}
+
+.pr-kind-list li {
+  margin: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--r-control);
+  background: var(--surface);
+}
+
+.pr-kind-list li.on {
+  border-color: color-mix(in srgb, var(--mark) 45%, var(--line));
+  background: color-mix(in srgb, var(--mark-tint) 55%, transparent);
+}
+
+.pr-kind-list label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 10px 12px;
+  cursor: pointer;
+  font-size: 15px;
+  user-select: none;
+}
+
+.pr-kind-list input {
+  width: auto;
+  margin: 0;
+}
+
+.pr-dlg-form .seg.wide {
+  grid-column: 1 / -1;
 }
 
 .pr-dlg-copy h2 {

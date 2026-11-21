@@ -31,7 +31,7 @@ export async function exportExcel(spec: ReportSpec): Promise<void> {
   const module = await import('exceljs');
   const ExcelJS = ((module as unknown as { default?: typeof module }).default ?? module) as typeof module;
   const book = new ExcelJS.Workbook();
-  book.creator = spec.rtl ? 'إدارة شركة أفق إمبريوم غروب للعمران' : 'UFUQ Imperium Group for Urbanism';
+  book.creator = spec.rtl ? 'شركة أفق إمبريوم غروب للعمران' : 'UFUQ Imperium Group for Urbanism';
   book.created = new Date();
   book.title = spec.title;
 
@@ -113,7 +113,7 @@ export async function exportExcel(spec: ReportSpec): Promise<void> {
 
     const foot = sheet.getCell(cursor + table.rows.length + 2, 1);
     foot.value = spec.footer;
-    foot.font = { name: 'Arial', size: 9, italic: true, color: { argb: muted } };
+    foot.font = { name: 'Arial', size: 11, bold: true, color: { argb: ink } };
   });
 
   const buffer = await book.xlsx.writeBuffer();

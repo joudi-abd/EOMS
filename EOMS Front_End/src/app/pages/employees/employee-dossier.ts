@@ -90,7 +90,7 @@ export class EmployeeDossier {
       status: this.t(person.status),
       statusTone: person.status === 'active' ? 'ok' : person.status === 'ended' ? 'quiet' : 'wait',
       meta: [
-        [this.t('reportBy'), `${this.text(this.session.account().name)} · ${this.session.roleLine()}`],
+        [this.t('reportBy'), this.text(this.session.account().name)],
         [this.t('reportAt'), stampNow(ar ? 'ar-EG-u-nu-latn' : 'en-US')],
         [this.t('staffNo'), person.staffNo],
       ],
@@ -116,6 +116,7 @@ export class EmployeeDossier {
     ];
     if (person.sensitive) {
       fields.push(
+        { label: this.t('nationalId'), value: person.nationalId },
         { label: this.t('birthDate'), value: this.date(person.birthDate) },
         { label: this.t('phone'), value: person.phone },
         { label: this.t('email'), value: person.email },

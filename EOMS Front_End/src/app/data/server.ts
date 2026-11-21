@@ -14,9 +14,12 @@ export interface NoticeItem {
 }
 
 export interface PayrollDay {
+  id?: number;
+  version?: number;
   date: string;
   status: string;
   blockers: string[];
+  flags?: string[];
 }
 
 export interface PayrollMonth {

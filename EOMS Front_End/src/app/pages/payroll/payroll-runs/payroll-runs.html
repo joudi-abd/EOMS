@@ -18,10 +18,21 @@
         <button class="primary" type="button" [disabled]="busy() || !r.calculated_at" (click)="submit()">{{ t('prSubmit') }}</button>
       }
       @if (r.status === 'submitted' && mayApprove) {
+        <button class="text" type="button" [disabled]="busy()" (click)="openReviewDialog()">
+          <i class="fa-solid fa-clipboard-check" aria-hidden="true"></i>
+          {{ t('prReviewBulkBtn') }}
+        </button>
         <button class="quiet" type="button" [disabled]="busy()" (click)="startReturn()">{{ t('prReturn') }}</button>
         <button class="primary" type="button" [disabled]="busy() || r.not_ready > 0 || r.blocking_issues > 0 || ownRun(r)" (click)="approve()">{{ t('prApprove') }}</button>
       }
-      <button class="text" type="button" [disabled]="busy()" (click)="exportRun()"><i class="fa-solid fa-file-csv" aria-hidden="true"></i> CSV</button>
+      <button class="text" type="button" [disabled]="busy() || exporting()" (click)="exportExcel()">
+        <i class="fa-solid fa-file-excel" aria-hidden="true"></i>
+        {{ exporting() ? t('exporting') : t('exportExcel') }}
+      </button>
+      <button class="text" type="button" [disabled]="busy() || exporting()" (click)="exportPdf()">
+        <i class="fa-solid fa-file-pdf" aria-hidden="true"></i>
+        {{ t('exportPdf') }}
+      </button>
     </span>
   }
 </div>
@@ -74,6 +85,68 @@
       <a class="text small" routerLink="/modules/attendance" style="margin-inline-start: auto">{{ t('prOpenAttendance') }}</a>
     </p>
   }
+  @if (r.not_ready > 0) {
+    <section class="pr-blockers panel" [attr.aria-label]="t('prAttendanceBlockers')">
+      <header class="pr-blockers-head">
+        <button class="link-button pr-blockers-toggle" type="button" (click)="blockersOpen.set(!blockersOpen())" [attr.aria-expanded]="blockersOpen()">
+          <i class="fa-solid" [class.fa-chevron-down]="blockersOpen()" [class.fa-chevron-left]="!blockersOpen()" aria-hidden="true"></i>
+          <span>{{ t('prAttendanceBlockers') }}</span>
+          <bdi class="num">{{ num(blockers().length) }}</bdi>
+        </button>
+        <div class="pr-blockers-acts">
+          @if (mayApproveAttendance && hasApprovableBlockers()) {
+            <button class="text small" type="button" [disabled]="busy() || blockersBusy()" (click)="approveCleanBlockers()">{{ t('prApproveCleanDays') }}</button>
+          }
+          @if (mayManage) {
+            <button class="text small" type="button" [disabled]="busy()" (click)="recalculate()">{{ t('prRecalculate') }}</button>
+          }
+        </div>
+      </header>
+      @if (blockersOpen()) {
+        <p class="fin-hint">{{ t('prAttendanceBlockersHint') }}</p>
+        @if (blockersBusy()) { <p class="fin-hint">{{ t('loading') }}</p> }
+        @else if (!blockers().length) { <p class="fin-hint">{{ t('prAttendanceBlockersEmpty') }} · {{ t('prRecalcAfterAttendance') }}</p> }
+        @else {
+          <div class="sheet pr-blockers-sheet">
+            <table>
+              <thead>
+                <tr>
+                  <th>{{ t('prEmployee') }}</th>
+                  <th>{{ t('date') }}</th>
+                  <th>{{ t('dayNote') }}</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (day of blockers(); track day.day_id) {
+                  <tr>
+                    <td>
+                      <span class="strong">{{ day.employee_name }}</span>
+                      <small class="soft block-line"><bdi>{{ day.employee_no }}</bdi></small>
+                    </td>
+                    <td>{{ date(day.date) }}</td>
+                    <td>
+                      {{ blockerReasons(day) }}
+                      @if (!canApproveBlocker(day) && mayApproveAttendance) {
+                        <small class="soft block-line">{{ t('prNeedsManualReview') }}</small>
+                      }
+                    </td>
+                    <td class="end pr-blocker-acts">
+                      <a class="text small" [routerLink]="['/modules/attendance']" [queryParams]="{ who: day.employee_id, day: day.date }">{{ t('prOpenDay') }}</a>
+                      @if (canApproveBlocker(day)) {
+                        <button class="primary small" type="button" [disabled]="busy()" (click)="approveBlocker(day)">{{ t('prApproveDay') }}</button>
+                      }
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+          @if (mayManage) { <p class="fin-hint">{{ t('prRecalcAfterAttendance') }}</p> }
+        }
+      }
+    </section>
+  }
 
   <section class="summary" [attr.aria-label]="t('prSummary')">
     <p><span>{{ t('prEmployees') }}</span><strong>{{ num(r.employees) }}</strong><small>{{ t('prPayable') }} {{ num(r.payable) }}</small></p>
@@ -104,16 +177,22 @@
           <button type="button" role="radio" [attr.aria-checked]="filter() === 'unpaid'" [class.on]="filter() === 'unpaid'" (click)="filter.set('unpaid')">{{ t('prFilterUnpaid') }}</button>
           <button type="button" role="radio" [attr.aria-checked]="filter() === 'paid'" [class.on]="filter() === 'paid'" (click)="filter.set('paid')">{{ t('prFilterPaid') }}</button>
         </div>
-        @if (r.status === 'approved' && mayPay && payPayable().length) {
+        @if ((r.status === 'submitted' && mayApprove) || (r.status === 'approved' && mayPay && payPayable().length)) {
           <div class="pr-cash-acts">
-            <button class="text" type="button" (click)="openShamDialog()">
-              <i class="fa-solid fa-wallet" aria-hidden="true"></i>
-              {{ t('prShamPayBtn') }}
+            <button class="text" type="button" [disabled]="busy()" (click)="openReviewDialog()">
+              <i class="fa-solid fa-clipboard-check" aria-hidden="true"></i>
+              {{ t('prReviewBulkBtn') }}
             </button>
-            <button class="primary" type="button" (click)="openCashDialog()">
-              <i class="fa-solid fa-money-bill" aria-hidden="true"></i>
-              {{ t('prCashPayBtn') }}
-            </button>
+            @if (r.status === 'approved' && mayPay && payPayable().length) {
+              <button class="text" type="button" (click)="openShamDialog()">
+                <i class="fa-solid fa-wallet" aria-hidden="true"></i>
+                {{ t('prShamPayBtn') }}
+              </button>
+              <button class="primary" type="button" (click)="openCashDialog()">
+                <i class="fa-solid fa-money-bill" aria-hidden="true"></i>
+                {{ t('prCashPayBtn') }}
+              </button>
+            }
           </div>
         }
       </div>
@@ -383,6 +462,83 @@
           <button class="primary" type="submit" [disabled]="!paySelectedCount() || busy()">
             <i class="fa-solid fa-money-bill" aria-hidden="true"></i>
             {{ t('prRecordCashBulk') }} · <bdi>{{ num(paySelectedCount()) }}</bdi>
+          </button>
+        </footer>
+      </form>
+    </div>
+  </dialog>
+
+  <dialog #reviewDlg class="pr-dlg" aria-labelledby="pr-review-title" (close)="closePayDialog()">
+    <header class="pr-dlg-head">
+      <span class="pr-dlg-icon review" aria-hidden="true"><i class="fa-solid fa-clipboard-check"></i></span>
+      <div class="pr-dlg-copy">
+        <h2 id="pr-review-title">{{ t('prReviewBulkTitle') }}</h2>
+        <p>{{ t('prReviewBulkHint') }}</p>
+      </div>
+      <button class="quiet-x" type="button" (click)="reviewDlg.close()" [attr.aria-label]="t('dismiss')"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+    </header>
+
+    <div class="pr-dlg-body">
+      <section class="pr-review-kinds" [attr.aria-label]="t('prReviewKinds')">
+        <div class="pr-pick-bar">
+          <label class="pr-bulk-all">
+            <input type="checkbox" [checked]="allKindsSelected()" [indeterminate]="someKindsSelected()" (change)="toggleAllKinds(($any($event.target)).checked)" />
+            {{ t('prReviewSelectKinds') }}
+          </label>
+          <span class="pr-pick-meta">{{ t('prReviewKinds') }}</span>
+        </div>
+        <ul class="pr-kind-list">
+          @for (kind of reviewKinds; track kind.id) {
+            <li [class.on]="kindPicked(kind.id)">
+              <label>
+                <input type="checkbox" [checked]="kindPicked(kind.id)" (change)="toggleKind(kind.id, ($any($event.target)).checked)" />
+                <span>{{ t(kind.key) }}</span>
+              </label>
+            </li>
+          }
+        </ul>
+      </section>
+
+      <section [attr.aria-label]="t('prReviewEmployees')">
+        <div class="pr-pick-bar">
+          <label class="pr-bulk-all">
+            <input type="checkbox" [checked]="allReviewSelected()" [indeterminate]="someReviewSelected()" (change)="toggleAllReview(($any($event.target)).checked)" />
+            {{ t('prSelectAllCash') }}
+          </label>
+          <span class="pr-pick-meta">{{ t('prCashSelected') }} <bdi>{{ num(reviewSelectedCount()) }}</bdi> / <bdi>{{ num(reviewPeople().length) }}</bdi></span>
+        </div>
+        <ul class="pr-pick-list">
+          @for (row of reviewPeople(); track row.employee_id) {
+            <li [class.on]="reviewPicked(row.employee_id)">
+              <label>
+                <input type="checkbox" [checked]="reviewPicked(row.employee_id)" (change)="toggleReview(row.employee_id, ($any($event.target)).checked)" />
+                <span class="pr-avatar" aria-hidden="true">{{ personInitials(row.employee_name) }}</span>
+                <span class="pr-pick-who">
+                  <span class="strong">{{ row.employee_name }}</span>
+                  <small class="soft"><bdi>{{ row.employee_no }}</bdi></small>
+                </span>
+                <bdi class="pr-pick-net">{{ withCurrency(row.net, row.currency_code) }}</bdi>
+              </label>
+            </li>
+          }
+        </ul>
+      </section>
+
+      <form class="pr-dlg-form" (ngSubmit)="applyBulkReview()">
+        <fieldset class="fin-form" [disabled]="busy()">
+          <div class="seg wide" role="radiogroup" [attr.aria-label]="t('prReviewDecision')">
+            <button type="button" role="radio" [attr.aria-checked]="reviewBulkDecision === 'approve'" [class.on]="reviewBulkDecision === 'approve'" (click)="reviewBulkDecision = 'approve'">{{ t('prReviewApproveAll') }}</button>
+            <button type="button" role="radio" [attr.aria-checked]="reviewBulkDecision === 'waive'" [class.on]="reviewBulkDecision === 'waive'" (click)="reviewBulkDecision = 'waive'">{{ t('prReviewWaiveAll') }}</button>
+          </div>
+          @if (reviewBulkDecision === 'waive') {
+            <label class="wide">{{ t('finReason') }}<input name="reviewBulkReason" minlength="3" maxlength="1000" required [(ngModel)]="reviewBulkReason" /></label>
+          }
+        </fieldset>
+        <footer class="pr-dlg-acts">
+          <button class="text" type="button" (click)="reviewDlg.close()">{{ t('cancel') }}</button>
+          <button class="primary" type="submit" [disabled]="!reviewSelectedCount() || !selectedKinds().size || busy()">
+            <i class="fa-solid fa-clipboard-check" aria-hidden="true"></i>
+            {{ t('prReviewApply') }} · <bdi>{{ num(reviewSelectedCount()) }}</bdi>
           </button>
         </footer>
       </form>

@@ -52,13 +52,30 @@
       >
         <i class="fa-solid" [class.fa-bars]="!chrome.menuOpen()" [class.fa-xmark]="chrome.menuOpen()" aria-hidden="true"></i>
       </button>
-      @if (session.can('employees')) {
-        <form class="search" role="search" (submit)="search($event)">
-          <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
-          <label class="vh" for="top-search">{{ t('topSearchLabel') }}</label>
-          <input id="top-search" name="q" type="search" autocomplete="off" [placeholder]="t('topSearch')" />
-        </form>
-      }
+      <div class="top-find">
+        <div class="me" [class.is-admin]="session.isAdmin()">
+          <span class="avatar" aria-hidden="true">{{ initials() }}</span>
+          <span class="me-text">
+            <span class="me-name">{{ language.text(session.account().name) }}</span>
+            <span class="me-role">
+              <i
+                class="fa-solid"
+                [class.fa-shield-halved]="session.isAdmin()"
+                [class.fa-user-tie]="!session.isAdmin()"
+                aria-hidden="true"
+              ></i>
+              {{ session.roleLine() }}
+            </span>
+          </span>
+        </div>
+        @if (session.can('employees')) {
+          <form class="search" role="search" (submit)="search($event)">
+            <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+            <label class="vh" for="top-search">{{ t('topSearchLabel') }}</label>
+            <input id="top-search" name="q" type="search" autocomplete="off" [placeholder]="t('topSearch')" />
+          </form>
+        }
+      </div>
       <div class="top-end">
         <button class="lang" type="button" (click)="toggleLanguage()" [attr.aria-label]="t('switchLabel')">
           <i class="fa-solid fa-language" aria-hidden="true"></i>
@@ -69,16 +86,9 @@
             @if (notes.unread() > 0) { <span class="dot" aria-hidden="true"></span> }
           </a>
         }
-        <div class="me">
-          <span class="avatar" aria-hidden="true">{{ initials() }}</span>
-          <span class="me-text">
-            <span class="me-name">{{ language.text(session.account().name) }}</span>
-            <span class="me-role">{{ session.roleLine() }}</span>
-          </span>
-          <button class="out" type="button" [disabled]="leaving()" (click)="signOut()" [attr.aria-label]="t('signOut')">
-            <i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i>
-          </button>
-        </div>
+        <button class="out" type="button" [disabled]="leaving()" (click)="signOut()" [attr.aria-label]="t('signOut')">
+          <i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i>
+        </button>
       </div>
     </header>
     <router-outlet />

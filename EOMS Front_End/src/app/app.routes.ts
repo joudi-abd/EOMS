@@ -36,6 +36,7 @@ export const routes: Routes = [
       { path: 'modules/hrSettings', component: HrSettings },
       { path: 'modules/attendance', component: Attendance },
       { path: 'modules/leave', component: LeavesPage },
+      { path: 'modules/requests', redirectTo: '/modules/leave', pathMatch: 'full' },
       { path: 'modules/payroll', component: PayrollPage },
       { path: 'modules/tasks', component: TasksPage },
       { path: 'modules/alerts', component: Alerts },

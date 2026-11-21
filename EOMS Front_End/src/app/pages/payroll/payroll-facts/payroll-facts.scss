@@ -15,3 +15,12 @@ h2 {
 .warn {
   color: var(--late);
 }
+
+.end {
+  text-align: end;
+  white-space: nowrap;
+}
+
+.end .text + .primary {
+  margin-inline-start: 8px;
+}

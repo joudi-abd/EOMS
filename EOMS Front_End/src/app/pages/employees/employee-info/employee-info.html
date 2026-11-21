@@ -39,6 +39,10 @@
   </div>
   @if (person().sensitive) {
     <div>
+      <dt>{{ t('nationalId') }}</dt>
+      <dd class="mono">{{ person().nationalId || '—' }}</dd>
+    </div>
+    <div>
       <dt>{{ t('birthDate') }}</dt>
       <dd>{{ date(person().birthDate) }}</dd>
     </div>

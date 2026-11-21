@@ -84,8 +84,8 @@ describe('Attendance leave integration screen', () => {
   });
 
   it('renders a named official holiday distinctly from leave', async () => {
-    const {root} = await setup(day({status: 'holiday', leave: null, leave_minutes: null, holiday: {id: 3, name: 'عطلة المكتب'}, flags: []}));
-    expect(root.textContent).toContain('عطلة المكتب');
+    const {root} = await setup(day({status: 'holiday', leave: null, leave_minutes: null, holiday: {id: 3, name: 'عطلة الشركة'}, flags: []}));
+    expect(root.textContent).toContain('عطلة الشركة');
     expect(root.textContent).not.toContain('سنوية');
     expect(root.querySelector('[data-testid="attendance-conflicts"]')).toBeNull();
   });

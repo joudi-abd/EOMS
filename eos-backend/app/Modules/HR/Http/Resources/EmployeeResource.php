@@ -41,6 +41,7 @@ class EmployeeResource extends JsonResource
             'department' => $this->whenLoaded('department'),
             'job_title' => $this->whenLoaded('jobTitle'),
             'manager' => $this->whenLoaded('manager'),
+            'national_id' => $this->when($canSensitive, fn () => $this->national_id),
             'birth_date' => $this->when($canSensitive, fn () => $this->birth_date?->format('Y-m-d')),
             'email' => $this->when($canSensitive, fn () => $this->email),
             'phone' => $this->when($canSensitive, fn () => $this->phone),

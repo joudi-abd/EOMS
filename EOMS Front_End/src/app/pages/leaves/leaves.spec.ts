@@ -86,30 +86,31 @@ describe('Leave request screen', () => {
 
   it('sends the same filters the server accepts for the list', async () => {
     const {fixture, root, api} = await setup();
-    const page = fixture.componentInstance as unknown as {filters: {employee: string; department: string}};
-    const select = (name: string, value: string) => {
-      const field = root.querySelector<HTMLSelectElement>(`select[name="${name}"]`)!;
-      field.value = value;
-      field.dispatchEvent(new Event('change'));
+    const page = fixture.componentInstance as unknown as {
+      filters: {
+        status: string;
+        employee: string;
+        type: string;
+        department: string;
+        from: string;
+        to: string;
+        change: string;
+      };
+      applyFilters(): void;
     };
-    select('status', 'pending');
+    page.filters.status = 'pending';
     page.filters.employee = '4';
-    select('filterType', '1');
+    page.filters.type = '1';
     page.filters.department = '2';
-    select('changePending', '1');
-    const from = root.querySelector<HTMLInputElement>('input[name="filterFrom"]')!;
-    const to = root.querySelector<HTMLInputElement>('input[name="filterTo"]')!;
-    from.value = '2026-11-01';
-    from.dispatchEvent(new Event('input'));
-    to.value = '2026-11-08';
-    to.dispatchEvent(new Event('input'));
-    fixture.detectChanges();
-    root.querySelector('select[name="status"]')!.closest('form')!
-      .dispatchEvent(new Event('submit', {bubbles: true, cancelable: true}));
+    page.filters.change = '1';
+    page.filters.from = '2026-11-01';
+    page.filters.to = '2026-11-08';
+    page.applyFilters();
     await fixture.whenStable();
     await Promise.resolve();
     const expected = {scope: 'mine', page: 1, status: 'pending', employee_id: 4, leave_type_id: 1, department_id: 2, from: '2026-11-01', to: '2026-11-08', change_pending: true};
     expect(api.list).toHaveBeenLastCalledWith(expected);
+    expect(root.textContent).not.toContain('تطبيق');
     expect(root.textContent).not.toContain('CSV');
   });
 

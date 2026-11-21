@@ -64,6 +64,7 @@ class EmployeePrivacyTest extends TestCase
         $this->getJson("/api/v1/employees/{$employee->id}")
             ->assertOk()
             ->assertJsonPath('data.address', 'Private address')
+            ->assertJsonPath('data.national_id', '1234567890')
             ->assertJsonMissingPath('data.sham_cash_wallet');
     }
 

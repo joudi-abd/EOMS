@@ -3,8 +3,11 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { saveFile, revealed } from '../../../core/api/api';
 import { CopyKey } from '../../../core/copy';
+import { Reporter, ReportDraft } from '../../../core/reports/reporter';
 import { amount, Money, today } from '../../../data/finance';
+import { AttendanceBook } from '../../../data/attendance-book';
 import {
+  AttendanceBlockerDay,
   ItemStatus,
   PayLineDetail,
   PayMethod,
@@ -20,9 +23,35 @@ import {
 } from '../../../data/payroll';
 import { FinanceBase } from '../../finance/finance-base';
 
+const blockerKey: Record<string, CopyKey> = {
+  not_approved: 'blockerNotApproved',
+  pending_changes: 'blockerPending',
+  correction_pending: 'blockerCorrection',
+  leave_pending: 'blockerLeave',
+  leave_change_pending: 'blockerLeaveChange',
+};
+
+const reviewFlags = new Set([
+  'punch_on_leave_day',
+  'punch_during_leave',
+  'work_on_day_off',
+  'work_on_holiday',
+  'direction_conflict',
+  'punch_outside_service',
+  'correction_superseded_by_leave',
+]);
+
 type Panel = 'none' | 'line' | 'return' | 'new';
 type LineFilter = 'all' | 'blocked' | 'unpaid' | 'paid';
-type PayDialog = 'none' | 'cash' | 'sham';
+type PayDialog = 'none' | 'cash' | 'sham' | 'review';
+
+const reviewKinds: { id: string; key: CopyKey }[] = [
+  { id: 'bonus', key: 'prKindBonus' },
+  { id: 'manual_deduction', key: 'prKindManualDeduction' },
+  { id: 'late', key: 'prKindLate' },
+  { id: 'early_exit', key: 'prKindEarly' },
+  { id: 'absence', key: 'prKindAbsence' },
+];
 
 const kindKey: Record<string, CopyKey> = {
   salary: 'prKindSalary',
@@ -73,6 +102,9 @@ function thisMonth(): string {
 })
 export class PayrollRuns extends FinanceBase {
   private readonly payroll = inject(Payroll);
+  private readonly attendance = inject(AttendanceBook);
+  private readonly reporter = inject(Reporter);
+  private readonly host = inject(ElementRef<HTMLElement>);
   protected readonly totalsList = totalsList;
 
   protected readonly runs = signal<PayRunSummary[]>([]);
@@ -82,13 +114,25 @@ export class PayrollRuns extends FinanceBase {
   /** True while the line card is playing its exit slide. */
   protected readonly closing = signal(false);
   protected readonly loading = signal(false);
+  protected readonly exporting = signal(false);
   protected readonly filter = signal<LineFilter>('all');
   protected readonly sham = signal<ShamExport[]>([]);
+  protected readonly blockers = signal<AttendanceBlockerDay[]>([]);
+  protected readonly blockersBusy = signal(false);
+  protected readonly blockersOpen = signal(true);
+  protected readonly hasApprovableBlockers = computed(() => this.blockers().some((day) => this.canApproveBlocker(day)));
   /** Line ids selected inside the open pay dialog (cash or Sham Cash). */
   protected readonly selectedPay = signal<ReadonlySet<number>>(new Set());
+  /** Employee ids selected inside the bulk review dialog. */
+  protected readonly selectedReview = signal<ReadonlySet<number>>(new Set());
+  protected readonly selectedKinds = signal<ReadonlySet<string>>(new Set(reviewKinds.map((item) => item.id)));
   protected readonly payDialog = signal<PayDialog>('none');
   private readonly cashDlg = viewChild<ElementRef<HTMLDialogElement>>('cashDlg');
   private readonly shamDlg = viewChild<ElementRef<HTMLDialogElement>>('shamDlg');
+  private readonly reviewDlg = viewChild<ElementRef<HTMLDialogElement>>('reviewDlg');
+  protected readonly reviewKinds = reviewKinds;
+  protected reviewBulkDecision: 'approve' | 'waive' = 'approve';
+  protected reviewBulkReason = '';
 
   protected newMonth = thisMonth();
   protected returnNote = '';
@@ -142,6 +186,10 @@ export class PayrollRuns extends FinanceBase {
     return this.session.has('payroll.pay');
   }
 
+  protected get mayApproveAttendance(): boolean {
+    return this.session.has('attendance.approve');
+  }
+
   protected readonly lines = computed(() => {
     const rows = this.run()?.lines ?? [];
     switch (this.filter()) {
@@ -178,6 +226,33 @@ export class PayrollRuns extends FinanceBase {
     return rows.some((row) => selected.has(row.id)) && !this.allPaySelected();
   });
 
+  protected readonly reviewPeople = computed(() => this.run()?.lines ?? []);
+
+  protected readonly reviewSelectedCount = computed(() => this.selectedReview().size);
+
+  protected readonly allReviewSelected = computed(() => {
+    const rows = this.reviewPeople();
+    if (!rows.length) return false;
+    const selected = this.selectedReview();
+    return rows.every((row) => selected.has(row.employee_id));
+  });
+
+  protected readonly someReviewSelected = computed(() => {
+    const rows = this.reviewPeople();
+    const selected = this.selectedReview();
+    return rows.some((row) => selected.has(row.employee_id)) && !this.allReviewSelected();
+  });
+
+  protected readonly allKindsSelected = computed(() => {
+    const selected = this.selectedKinds();
+    return reviewKinds.every((item) => selected.has(item.id));
+  });
+
+  protected readonly someKindsSelected = computed(() => {
+    const selected = this.selectedKinds();
+    return reviewKinds.some((item) => selected.has(item.id)) && !this.allKindsSelected();
+  });
+
   /** The payroll currencies the server accepts (`is_payroll_currency`, active), from the currency settings. */
   protected readonly payCurrencies = computed(() => {
     const codes = this.finance.activeCurrencies().filter((item) => item.is_payroll_currency).map((item) => item.code).sort();
@@ -193,6 +268,7 @@ export class PayrollRuns extends FinanceBase {
       const mode = this.payDialog();
       const cash = this.cashDlg()?.nativeElement;
       const sham = this.shamDlg()?.nativeElement;
+      const review = this.reviewDlg()?.nativeElement;
       if (cash) {
         if (mode === 'cash' && !cash.open) cash.showModal();
         if (mode !== 'cash' && cash.open) cash.close();
@@ -200,6 +276,10 @@ export class PayrollRuns extends FinanceBase {
       if (sham) {
         if (mode === 'sham' && !sham.open) sham.showModal();
         if (mode !== 'sham' && sham.open) sham.close();
+      }
+      if (review) {
+        if (mode === 'review' && !review.open) review.showModal();
+        if (mode !== 'review' && review.open) review.close();
       }
     });
     void this.start();
@@ -215,8 +295,91 @@ export class PayrollRuns extends FinanceBase {
     this.payDialog.set('sham');
   }
 
+  protected openReviewDialog(): void {
+    this.selectedReview.set(new Set(this.reviewPeople().map((row) => row.employee_id)));
+    this.selectedKinds.set(new Set(reviewKinds.map((item) => item.id)));
+    this.reviewBulkDecision = 'approve';
+    this.reviewBulkReason = '';
+    this.payDialog.set('review');
+  }
+
   protected closePayDialog(): void {
     this.payDialog.set('none');
+  }
+
+  protected reviewPicked(employeeId: number): boolean {
+    return this.selectedReview().has(employeeId);
+  }
+
+  protected kindPicked(kind: string): boolean {
+    return this.selectedKinds().has(kind);
+  }
+
+  protected toggleReview(employeeId: number, on: boolean): void {
+    this.selectedReview.update((selected) => {
+      const next = new Set(selected);
+      if (on) next.add(employeeId);
+      else next.delete(employeeId);
+      return next;
+    });
+  }
+
+  protected toggleAllReview(on: boolean): void {
+    this.selectedReview.set(on ? new Set(this.reviewPeople().map((row) => row.employee_id)) : new Set());
+  }
+
+  protected toggleKind(kind: string, on: boolean): void {
+    this.selectedKinds.update((selected) => {
+      const next = new Set(selected);
+      if (on) next.add(kind);
+      else next.delete(kind);
+      return next;
+    });
+  }
+
+  protected toggleAllKinds(on: boolean): void {
+    this.selectedKinds.set(on ? new Set(reviewKinds.map((item) => item.id)) : new Set());
+  }
+
+  protected async applyBulkReview(): Promise<void> {
+    const run = this.run();
+    const kinds = [...this.selectedKinds()];
+    const employees = [...this.selectedReview()];
+    if (!run) return;
+    if (run.status !== 'submitted') {
+      this.warn('prReviewNeedSubmitted');
+      return;
+    }
+    if (!kinds.length) {
+      this.warn('prReviewNeedKind');
+      return;
+    }
+    if (!employees.length) {
+      this.warn('prNoneSelected');
+      return;
+    }
+    if (this.reviewBulkDecision === 'waive' && this.reviewBulkReason.trim().length < 3) {
+      this.warn('prReviewNeedReason');
+      return;
+    }
+    if (!(await this.askConfirm({ message: 'confirmSensitiveBody', confirm: 'confirmProceed' }))) return;
+
+    const body: {
+      decision: 'approve' | 'waive';
+      kinds: string[];
+      employee_ids: number[];
+      reason?: string;
+    } = {
+      decision: this.reviewBulkDecision,
+      kinds,
+      employee_ids: employees,
+    };
+    if (this.reviewBulkDecision === 'waive') body.reason = this.reviewBulkReason.trim();
+
+    const ok = await this.act(() => this.payroll.reviewRemaining(run.id, body), 'prReviewBulkDone');
+    if (!ok) return;
+    this.closePayDialog();
+    await this.refresh();
   }
 
   protected personInitials(name: string | null): string {
@@ -255,6 +418,7 @@ export class PayrollRuns extends FinanceBase {
       this.payDialog.set('none');
       if (this.panel() === 'line') this.panel.set('none');
       await this.loadSham(detail);
+      await this.loadBlockers(detail);
     });
   }
 
@@ -270,7 +434,70 @@ export class PayrollRuns extends FinanceBase {
       const open = this.line();
       if (open && this.panel() === 'line') this.line.set(await this.payroll.line(detail.id, open.id));
       await this.loadSham(detail);
+      await this.loadBlockers(detail);
     });
+  }
+
+  private async loadBlockers(run: PayRunDetail): Promise<void> {
+    if (run.not_ready <= 0) {
+      this.blockers.set([]);
+      return;
+    }
+    this.blockersBusy.set(true);
+    try {
+      this.blockers.set(await this.payroll.attendanceBlockers(run.id));
+      this.blockersOpen.set(true);
+    } catch {
+      this.blockers.set([]);
+    } finally {
+      this.blockersBusy.set(false);
+    }
+  }
+
+  protected blockerLabel(code: string): string {
+    const key = blockerKey[code];
+    return key ? this.t(key) : code;
+  }
+
+  protected blockerReasons(day: AttendanceBlockerDay): string {
+    return day.blockers.map((code) => this.blockerLabel(code)).join(' · ');
+  }
+
+  /** Days that only need a normal approve (no leave/correction/conflict flags). */
+  protected canApproveBlocker(day: AttendanceBlockerDay): boolean {
+    if (!this.mayApproveAttendance) return false;
+    if (!day.blockers.includes('not_approved')) return false;
+    if (day.blockers.some((code) => code === 'correction_pending' || code === 'leave_pending' || code === 'leave_change_pending')) {
+      return false;
+    }
+    return !day.flags.some((flag) => reviewFlags.has(flag));
+  }
+
+  protected async approveBlocker(day: AttendanceBlockerDay): Promise<void> {
+    if (!this.canApproveBlocker(day) || this.busy()) return;
+    const ok = await this.attendance.approveDayId(day.day_id, day.version);
+    if (!ok) return;
+    const run = this.run();
+    if (run) await this.loadBlockers(run);
+  }
+
+  protected async approveCleanBlockers(): Promise<void> {
+    const run = this.run();
+    const clean = this.blockers().filter((day) => this.canApproveBlocker(day));
+    if (!run || !clean.length) return;
+    if (!(await this.askConfirm({ message: 'confirmSensitiveBody', confirm: 'confirmProceed' }))) return;
+    this.busy.set(true);
+    try {
+      let approved = 0;
+      for (const day of clean) {
+        if (await this.attendance.approveDayId(day.day_id, day.version, true)) approved += 1;
+      }
+      if (approved) this.office.done('prApproveCleanDone');
+      else this.warn('prAttendanceBlockersEmpty');
+      await this.loadBlockers(run);
+    } finally {
+      this.busy.set(false);
+    }
   }
 
   private prunePaySelection(detail: PayRunDetail): void {
@@ -495,17 +722,84 @@ export class PayrollRuns extends FinanceBase {
     if (ok) await this.refresh();
   }
 
-  protected async exportRun(): Promise<void> {
+  private reportDraft(): ReportDraft | null {
     const run = this.run();
-    if (!run) return;
-    this.busy.set(true);
+    if (!run) return null;
+    const totals = totalsList(run);
+    return {
+      file: `payroll-${run.month}`,
+      title: `${this.t('prTitle')} · ${run.month}`,
+      subtitle: `${this.t('finStatus')} ${this.runLabel(run.status)} · ${this.t('prVersion')} ${this.num(run.version)}`,
+      meta: [
+        [this.t('prMonth'), run.month],
+        [this.t('prEmployees'), this.num(run.employees)],
+        [this.t('prPaidLines'), `${this.num(run.paid)} / ${this.num(run.payable)}`],
+      ],
+      figures: [
+        { label: this.t('prEmployees'), value: this.num(run.employees) },
+        { label: this.t('prPayable'), value: this.num(run.payable) },
+        { label: this.t('prPaidLines'), value: this.num(run.paid) },
+        ...totals.map((total) => ({ label: `${this.t('prNet')} ${total.currency}`, value: this.money(total.net) })),
+      ],
+      tables: [
+        {
+          name: this.t('prSummary'),
+          columns: [
+            { header: this.t('finCurrency') },
+            { header: this.t('prEarnings'), numeric: true },
+            { header: this.t('prDeductions'), numeric: true },
+            { header: this.t('prNet'), numeric: true },
+          ],
+          rows: totals.map((total) => [total.currency, this.money(total.earnings), this.money(total.deductions), this.money(total.net)]),
+        },
+        {
+          name: this.t('prEmployees'),
+          columns: [
+            { header: this.t('staffNo') },
+            { header: this.t('prEmployee') },
+            { header: this.t('prContract') },
+            { header: this.t('prDays'), numeric: true },
+            { header: this.t('prEarnings'), numeric: true },
+            { header: this.t('prDeductions'), numeric: true },
+            { header: this.t('prNet'), numeric: true },
+            { header: this.t('finStatus') },
+          ],
+          rows: run.lines.map((row) => [
+            row.employee_no ?? '',
+            row.employee_name ?? '',
+            `${this.payTypeLabel(row.pay_type)} · ${row.currency_code ?? '—'}`,
+            this.num(row.working_days),
+            this.money(row.earnings),
+            this.money(row.deductions),
+            this.money(row.net),
+            row.paid
+              ? this.t('prLinePaid')
+              : !row.attendance_ready
+                ? this.t('prNotReady')
+                : this.blocked(row)
+                  ? this.t('prHasIssue')
+                  : this.t('prReady'),
+          ]),
+        },
+      ],
+      landscape: true,
+    };
+  }
+
+  protected async exportExcel(): Promise<void> {
+    const draft = this.reportDraft();
+    if (!draft) return;
+    this.exporting.set(true);
     try {
-      saveFile(await this.payroll.exportRun(run.id), `payroll-${run.month}.csv`);
-    } catch (error) {
-      this.office.fail(await revealed(error));
+      await this.reporter.excel(draft);
     } finally {
-      this.busy.set(false);
+      this.exporting.set(false);
     }
+  }
+
+  protected exportPdf(): void {
+    const draft = this.reportDraft();
+    if (draft) this.reporter.pdf(draft, this.host.nativeElement);
   }
 
   // One employee's line

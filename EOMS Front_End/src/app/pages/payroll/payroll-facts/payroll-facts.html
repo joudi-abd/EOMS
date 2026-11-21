@@ -64,13 +64,19 @@
       @else {
         <div class="sheet">
           <table>
-            <thead><tr><th>{{ t('date') }}</th><th>{{ t('state') }}</th><th>{{ t('dayNote') }}</th></tr></thead>
+            <thead><tr><th>{{ t('date') }}</th><th>{{ t('state') }}</th><th>{{ t('dayNote') }}</th><th></th></tr></thead>
             <tbody>
               @for (day of held; track day.date) {
                 <tr>
                   <td>{{ date(day.date) }}</td>
                   <td [class]="dayTone(day.status)">{{ dayState(day.status) }}</td>
                   <td>{{ reasons(day) }}</td>
+                  <td class="end">
+                    <a class="text small" [routerLink]="['/modules/attendance']" [queryParams]="{ who: employeeForLink(), day: day.date }">{{ t('prOpenDay') }}</a>
+                    @if (canApproveDay(day)) {
+                      <button class="primary small" type="button" [disabled]="busy()" (click)="approveDay(day)">{{ t('prApproveDay') }}</button>
+                    }
+                  </td>
                 </tr>
               }
             </tbody>

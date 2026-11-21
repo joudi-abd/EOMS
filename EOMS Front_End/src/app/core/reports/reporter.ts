@@ -31,7 +31,7 @@ export class Reporter {
       brand: this.language.t('brand'),
       meta: [
         ...(draft.meta ?? []),
-        [this.language.t('reportBy'), `${this.language.text(this.session.account().name)} · ${this.session.roleLine()}`],
+        [this.language.t('reportBy'), this.language.text(this.session.account().name)],
         [this.language.t('reportAt'), stampNow(locale)],
       ],
       figures: draft.figures ?? [],

@@ -56,12 +56,34 @@ export class LeaveRegister extends Ui {
   }
 
   protected l(ar: string, en: string): string { return this.language.lang() === 'ar' ? ar : en; }
+
+  /** Compact page window with gaps: 1 … 4 5 6 … 12 */
+  protected pageItems(): (number | 'gap')[] {
+    const last = this.lastPage();
+    const current = this.page();
+    if (last <= 7) return Array.from({ length: last }, (_, index) => index + 1);
+    const marks = new Set(
+      [1, 2, last - 1, last, current - 1, current, current + 1].filter((page) => page >= 1 && page <= last),
+    );
+    const sorted = [...marks].sort((a, b) => a - b);
+    const items: (number | 'gap')[] = [];
+    for (let index = 0; index < sorted.length; index += 1) {
+      const page = sorted[index]!;
+      if (index > 0 && page - sorted[index - 1]! > 1) items.push('gap');
+      items.push(page);
+    }
+    return items;
+  }
+
   protected days(units: number): string { return this.num(units / 1_000_000); }
   protected clock(value: string | null | undefined): string { return leaveClock(value); }
   protected tone(status: string): string { return leaveTone(status); }
   protected label(status: string): string { return leaveLabel(this.language.lang() === 'ar', status); }
   protected owns(row: LeaveRecord): boolean { return row.is_owner || !!row.can_act_for_owner; }
-  protected set(key: keyof LeaveFilters, value: string): void { this.filters()[key] = value; }
+  protected set(key: keyof LeaveFilters, value: string): void {
+    this.filters()[key] = value;
+    this.apply.emit();
+  }
 
   protected pick(row: LeaveRecord): void {
     if (this.picked() === row.id) {

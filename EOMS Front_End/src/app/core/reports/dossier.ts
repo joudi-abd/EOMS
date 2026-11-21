@@ -44,7 +44,7 @@ body { margin: 0; color: #14162b; font: 11.5px/1.55 'Roboto Variable', 'Noto San
 .d-top { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-bottom: 12px; border-bottom: 3px solid #4f46c8; }
 .d-brand { display: flex; align-items: center; gap: 12px; }
 .d-brand img { height: 46px; width: auto; }
-.d-brand p { margin: 0; color: #454a63; font-size: 11px; max-width: 34ch; }
+.d-brand p { margin: 0; color: #14162b; font-size: 15px; font-weight: 700; max-width: 40ch; }
 .d-doc { margin: 0; font-size: 18px; font-weight: 600; color: #3f37a8; }
 .d-id { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin: 18px 0 12px; }
 .d-id h1 { margin: 0; font-size: 26px; font-weight: 600; line-height: 1.25; }
@@ -77,7 +77,7 @@ table.d-table { width: 100%; border-collapse: collapse; font-size: 10.5px; font-
 .d-sheet .d-sub { margin: 6px 0 10px; color: #666b85; font-size: 10.5px; }
 .d-sheet figure { flex: 1; min-height: 0; margin: 0; display: flex; align-items: center; justify-content: center; border: 1px solid #e1e3ee; }
 .d-sheet img { display: block; max-width: 100%; max-height: 100%; object-fit: contain; }
-.d-foot { margin-top: 18px; padding-top: 8px; border-top: 1px solid #e1e3ee; color: #666b85; font-size: 9.5px; }
+.d-foot { margin-top: 18px; padding-top: 8px; border-top: 1px solid #e1e3ee; color: #14162b; font-size: 11px; font-weight: 700; }
 `;
 
 function section(item: DossierSection): string {

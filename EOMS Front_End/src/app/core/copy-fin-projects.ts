@@ -47,7 +47,7 @@ const ar = {
   fpjReceiveClient: 'قبض دفعة من العميل',
   fpjViewSummary: 'الملخص',
   fpjViewBudget: 'الموازنة',
-  fpjViewContractors: 'المقاولون',
+  fpjViewContractors: 'الورشات',
   fpjViewBillings: 'المطالبات',
   fpjViewStatement: 'كشف الحساب',
 
@@ -71,7 +71,7 @@ const ar = {
   fpjLoaded: 'محمّلة',
   fpjNoCosts: 'لا تكاليف بعد.',
   fpjBudgetAlerts: 'بنود موازنة قاربت حدّها أو تجاوزته:',
-  fpjAgreementsOpen: 'اتفاقيات مقاولين مفتوحة:',
+  fpjAgreementsOpen: 'اتفاقيات ورشات مفتوحة:',
   fpjCustodiesOpen: 'عُهد مفتوحة:',
 
   // Budget
@@ -91,7 +91,7 @@ const ar = {
   // Contractors
   fpjNewAgreement: 'اتفاقية جديدة',
   fpjEditAgreement: 'تعديل الاتفاقية',
-  fpjContractor: 'المقاول',
+  fpjContractor: 'الورشة',
   fpjScope: 'العمل المتفق عليه',
   fpjScopeHint: 'مثال: تمديدات صحية',
   fpjAgreed: 'القيمة المتفق عليها',
@@ -105,7 +105,7 @@ const ar = {
   fpjPayment: 'دفعة',
   fpjAdvance: 'سلفة',
   fpjDefaultLabor: 'الافتراضي: أجور اليد العاملة',
-  fpjAgreementFixedHint: 'بعد ربط سندات بالاتفاقية لا يتغيّر المقاول ولا العملة ولا التصنيف.',
+  fpjAgreementFixedHint: 'بعد ربط سندات بالاتفاقية لا تتغيّر الورشة ولا العملة ولا التصنيف.',
   fpjCancelAgreement: 'إلغاء الاتفاقية',
   fpjCancelAgreementConfirm: 'إلغاء هذه الاتفاقية؟ لن تُقبل عليها دفعات بعد ذلك.',
   fpjDeleteAgreementConfirm: 'حذف هذه الاتفاقية؟ لا تُحذف إن كانت عليها سندات؛ ألغها بدلاً من ذلك.',
@@ -118,7 +118,7 @@ const ar = {
   fpjDeducted: 'خصم سلفة',
   fpjCash: 'نقداً',
   fpjNoMoves: 'لا شيء بعد.',
-  fpjNoAgreements: 'لا اتفاقيات مقاولين بعد.',
+  fpjNoAgreements: 'لا اتفاقيات ورشات بعد.',
   fpjAgreementsHint: 'المتبقي = الصافي − ما دُفع. افتح اتفاقية لترى دفعاتها وسلفها.',
 
   // Billings
@@ -240,7 +240,7 @@ const en: Record<keyof typeof ar, string> = {
   fpjReceiveClient: 'Receive a client payment',
   fpjViewSummary: 'Summary',
   fpjViewBudget: 'Budget',
-  fpjViewContractors: 'Contractors',
+  fpjViewContractors: 'Workshops',
   fpjViewBillings: 'Billings',
   fpjViewStatement: 'Statement',
 
@@ -263,7 +263,7 @@ const en: Record<keyof typeof ar, string> = {
   fpjLoaded: 'loaded',
   fpjNoCosts: 'No costs yet.',
   fpjBudgetAlerts: 'Budget lines near or over their limit:',
-  fpjAgreementsOpen: 'Open contractor agreements:',
+  fpjAgreementsOpen: 'Open workshop agreements:',
   fpjCustodiesOpen: 'Open custodies:',
 
   fpjAddLine: 'Add line',
@@ -281,7 +281,7 @@ const en: Record<keyof typeof ar, string> = {
 
   fpjNewAgreement: 'New agreement',
   fpjEditAgreement: 'Edit agreement',
-  fpjContractor: 'Contractor',
+  fpjContractor: 'Workshop',
   fpjScope: 'Agreed work',
   fpjScopeHint: 'e.g. plumbing',
   fpjAgreed: 'Agreed value',
@@ -295,7 +295,7 @@ const en: Record<keyof typeof ar, string> = {
   fpjPayment: 'Payment',
   fpjAdvance: 'Advance',
   fpjDefaultLabor: 'Default: labour',
-  fpjAgreementFixedHint: 'Once vouchers use the agreement, its contractor, currency and category stay fixed.',
+  fpjAgreementFixedHint: 'Once vouchers use the agreement, its workshop, currency and category stay fixed.',
   fpjCancelAgreement: 'Cancel agreement',
   fpjCancelAgreementConfirm: 'Cancel this agreement? No more payments will be accepted on it.',
   fpjDeleteAgreementConfirm: 'Delete this agreement? It cannot be deleted once vouchers use it; cancel it instead.',
@@ -308,7 +308,7 @@ const en: Record<keyof typeof ar, string> = {
   fpjDeducted: 'Advance deducted',
   fpjCash: 'cash',
   fpjNoMoves: 'Nothing yet.',
-  fpjNoAgreements: 'No contractor agreements yet.',
+  fpjNoAgreements: 'No workshop agreements yet.',
   fpjAgreementsHint: 'Remaining = net − paid. Open an agreement to see its payments and advances.',
 
   fpjSuggested: 'Suggested billing now',

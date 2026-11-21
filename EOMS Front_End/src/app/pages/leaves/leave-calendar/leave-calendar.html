@@ -1,18 +1,17 @@
 <section class="panel">
-  <form class="form" (ngSubmit)="show.emit()">
+  <div class="form">
     <fieldset [disabled]="busy()">
-      <label>{{ l('من تاريخ', 'From date') }}<input type="date" name="calendarFrom" required [ngModel]="from()" (ngModelChange)="from.set($event)"></label>
-      <label>{{ l('إلى تاريخ', 'To date') }}<input type="date" name="calendarTo" required [ngModel]="to()" (ngModelChange)="to.set($event)" [min]="from()" [max]="latest()"></label>
+      <label>{{ l('من تاريخ', 'From date') }}<input type="date" name="calendarFrom" required [ngModel]="from()" (ngModelChange)="change('from', $event)"></label>
+      <label>{{ l('إلى تاريخ', 'To date') }}<input type="date" name="calendarTo" required [ngModel]="to()" (ngModelChange)="change('to', $event)" [min]="from()" [max]="latest()"></label>
       <label>{{ l('القسم', 'Department') }}
-        <select name="calendarDepartment" [ngModel]="department()" (ngModelChange)="department.set($event)">
+        <select name="calendarDepartment" [ngModel]="department()" (ngModelChange)="change('department', $event)">
           <option value="">{{ l('كل الأقسام', 'All departments') }}</option>
           @for (item of office.departmentList(); track item.id) { <option [value]="item.id">{{ text(item.name) }}</option> }
         </select>
       </label>
-      <label class="check"><input type="checkbox" name="includePending" [ngModel]="includePending()" (ngModelChange)="includePending.set($event)">{{ l('إظهار الطلبات قيد المراجعة', 'Include requests still under review') }}</label>
-      <button class="text" type="submit">{{ l('عرض التقويم', 'Show the calendar') }}</button>
+      <label class="check"><input type="checkbox" name="includePending" [ngModel]="includePending()" (ngModelChange)="change('pending', $event)">{{ l('إظهار الطلبات قيد المراجعة', 'Include requests still under review') }}</label>
     </fieldset>
-  </form>
+  </div>
   @if (board(); as shown) {
     @if (shown.holidays?.length) {
       <p class="note">@for (holiday of shown.holidays; track holiday.id) { <span><bdi>{{ holiday.date }}</bdi> {{ holiday.name }} · </span> }</p>

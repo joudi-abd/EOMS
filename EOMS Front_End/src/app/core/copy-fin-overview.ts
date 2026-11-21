@@ -39,7 +39,7 @@ const ar = {
 
   // Owed
   fovOwed: 'المستحقات',
-  fovToContractors: 'للمقاولين',
+  fovToContractors: 'للورشات',
   fovPayable: 'رصيدهم المستحق',
   fovAgreementsLeft: 'المتبقي على الاتفاقيات',
   fovFromClients: 'من العملاء',
@@ -90,7 +90,7 @@ const en: Record<keyof typeof ar, string> = {
   fovNoProjects: 'No project profit recorded yet.',
 
   fovOwed: 'Owed',
-  fovToContractors: 'To contractors',
+  fovToContractors: 'To workshops',
   fovPayable: 'Their balance due',
   fovAgreementsLeft: 'Left on agreements',
   fovFromClients: 'From clients',

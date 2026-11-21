@@ -53,7 +53,7 @@ export type Action =
 
 /** Granted to any account that holds an open employee file, whatever its role. */
 export const selfActions: readonly Action[] = ['leave.request'];
-export const selfAreas: readonly ModuleId[] = ['attendance', 'leave', 'requests'];
+export const selfAreas: readonly ModuleId[] = ['attendance', 'leave'];
 
 /** `id` is the linked employee file's id when the account has one, so a person keeps one id across the app. */
 export interface Account {
@@ -137,7 +137,6 @@ export const areaNeeds: Record<ModuleId, readonly Permission[] | 'open'> = {
   employees: ['employees.view'],
   attendance: ['attendance.view'],
   leave: ['leaves.view'],
-  requests: ['leaves.view'],
   payroll: ['payroll.view'],
   hrSettings: ['attendance.view'],
   // Modules not built yet open for nobody; they get their permissions when they are built.

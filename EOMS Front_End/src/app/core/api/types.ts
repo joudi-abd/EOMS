@@ -52,6 +52,7 @@ export interface ApiEmployee {
   hire_date: string;
   department?: ApiDepartment | null;
   job_title?: ApiJobTitle | null;
+  national_id?: string | null;
   birth_date?: string | null;
   email?: string | null;
   phone?: string | null;

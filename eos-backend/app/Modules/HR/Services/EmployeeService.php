@@ -90,6 +90,18 @@ class EmployeeService
                 $this->validateManager($employee, (int) $data['manager_id']);
             }
 
+            if (array_key_exists('national_id', $data)) {
+                $nationalId = trim((string) $data['national_id']);
+                $nationalIdHash = hash('sha256', $nationalId);
+                if (Employee::where('national_id_hash', $nationalIdHash)->whereKeyNot($employee->id)->exists()) {
+                    throw ValidationException::withMessages([
+                        'national_id' => ['الرقم الوطني مسجّل مسبقاً لموظف آخر.'],
+                    ]);
+                }
+                $data['national_id'] = $nationalId;
+                $data['national_id_hash'] = $nationalIdHash;
+            }
+
             $effectiveDate = $data['effective_date'] ?? null;
             $reason = $data['reason'] ?? null;
 
@@ -104,7 +116,14 @@ class EmployeeService
             $changes = Arr::only($employee->getDirty(), $tracked);
             $oldValues = Arr::only($employee->getRawOriginal(), array_keys($changes));
             // Every changed field is named; the payout wallet is also recorded masked, so a redirected salary is traceable.
-            $changes['fields'] = array_keys($employee->getDirty());
+            // National ID stays out of the payload (encrypted column + hash); only the field name is noted.
+            $changes['fields'] = array_values(array_filter(
+                array_keys($employee->getDirty()),
+                fn (string $field) => ! in_array($field, ['national_id', 'national_id_hash'], true)
+            ));
+            if ($employee->isDirty('national_id')) {
+                $changes['fields'][] = 'national_id';
+            }
             if ($employee->isDirty('sham_cash_wallet')) {
                 $mask = fn (?string $wallet) => $wallet === null ? null : '****'.substr($wallet, -4);
                 $oldValues['sham_cash_wallet'] = $mask($employee->getRawOriginal('sham_cash_wallet'));

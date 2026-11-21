@@ -10,6 +10,7 @@ Route::prefix('api/v1/payroll')->middleware(['api', 'auth:sanctum'])->controller
         Route::get('runs', 'index');
         Route::get('runs/{run}', 'show')->whereNumber('run');
         Route::get('runs/{run}/lines/{line}', 'line')->whereNumber(['run', 'line']);
+        Route::get('runs/{run}/attendance-blockers', 'attendanceBlockers')->whereNumber('run');
         Route::get('runs/{run}/export', 'export')->whereNumber('run');
     });
     // Prepare: HR (payroll.manage) sets the salaries, bonuses and deductions and sends the run to finance.

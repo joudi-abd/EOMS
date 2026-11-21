@@ -132,6 +132,20 @@ export interface PaymentInput {
   note: string | null;
 }
 
+/** One attendance day that still blocks a pay run (from `GET …/attendance-blockers`). */
+export interface AttendanceBlockerDay {
+  employee_id: number;
+  employee_name: string;
+  employee_no: string;
+  line_id: number;
+  day_id: number;
+  version: number;
+  date: string;
+  status: string;
+  blockers: string[];
+  flags: string[];
+}
+
 /** Totals as a list, whatever shape the server sent. */
 export function totalsList(run: PayRunSummary): ({ currency: string } & RunTotals)[] {
   return Array.isArray(run.totals) ? [] : Object.entries(run.totals).map(([currency, value]) => ({ currency, ...value }));
@@ -147,6 +161,11 @@ export class Payroll {
 
   async run(id: number): Promise<PayRunDetail> {
     return (await this.api.get<ApiItem<PayRunDetail>>(`/payroll/runs/${id}`)).data;
+  }
+
+  /** Days that still block this run's attendance readiness (same blockers as payroll-inputs). */
+  async attendanceBlockers(runId: number): Promise<AttendanceBlockerDay[]> {
+    return (await this.api.get<ApiItem<{ days: AttendanceBlockerDay[] }>>(`/payroll/runs/${runId}/attendance-blockers`)).data.days;
   }
 
   async line(runId: number, lineId: number): Promise<PayLineDetail> {
@@ -175,6 +194,18 @@ export class Payroll {
 
   reviewDeduction(itemId: number, decision: 'approve' | 'modify' | 'waive', amount: number | null, reason: string | null): Promise<unknown> {
     return this.api.post(`/payroll/items/${itemId}/review`, { decision, amount, reason });
+  }
+
+  async reviewRemaining(
+    runId: number,
+    body: {
+      decision: 'approve' | 'waive';
+      kinds?: string[];
+      employee_ids?: number[];
+      reason?: string | null;
+    },
+  ): Promise<{ decided: number }> {
+    return (await this.api.post<ApiItem<{ decided: number }>>(`/payroll/runs/${runId}/review-remaining`, body)).data;
   }
 
   submit(id: number): Promise<unknown> {

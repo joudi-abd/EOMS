@@ -37,8 +37,10 @@ describe('employeeFrom', () => {
     const hidden = employeeFrom(base);
     expect(hidden.sensitive).toBe(false);
     expect(hidden.financial).toBe(false);
+    expect(hidden.nationalId).toBe('');
     const shown = employeeFrom({
       ...base,
+      national_id: '1234567890',
       email: null,
       phone: '0944',
       user_id: 12,
@@ -47,6 +49,7 @@ describe('employeeFrom', () => {
     });
     expect(shown.sensitive).toBe(true);
     expect(shown.financial).toBe(true);
+    expect(shown.nationalId).toBe('1234567890');
     expect(shown.userId).toBe('12');
     expect(shown.pin).toBe('');
     expect(shown.fingerprint).toBe('none');

@@ -60,6 +60,7 @@ class PayrollInputService
             }
 
             return [
+                'id' => $day->id, 'version' => $day->version,
                 'date' => $date, 'status' => $day->status, 'approved' => $day->approved_at !== null,
                 'pending_changes' => $day->pending_changes, 'flags' => $day->flags,
                 'required_minutes' => $day->required_minutes, 'worked_minutes' => $day->worked_minutes,

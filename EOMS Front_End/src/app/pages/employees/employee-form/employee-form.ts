@@ -52,6 +52,7 @@ export class EmployeeForm extends Ui {
       firstName: read('firstName'),
       fatherName: read('fatherName'),
       lastName: read('lastName'),
+      nationalId: data.has('nationalId') ? read('nationalId') : (editing?.nationalId ?? ''),
       birthDate: data.has('birthDate') ? read('birthDate') : (editing?.birthDate ?? ''),
       phone: data.has('phone') ? read('phone') : (editing?.phone ?? ''),
       email: data.has('email') ? read('email') : (editing?.email ?? ''),
@@ -75,7 +76,7 @@ export class EmployeeForm extends Ui {
     this.problem.set('');
     const outcome = editing
       ? await this.office.updateEmployee(editing.id, { ...shared, effectiveDate: read('effectiveDate'), reason: read('reason') }, actor)
-      : await this.office.hire({ ...shared, nationalId: read('nationalId'), hired: read('hired') }, actor);
+      : await this.office.hire({ ...shared, hired: read('hired') }, actor);
     if (outcome.ok && !editing && outcome.id && accountEmail) {
       await this.office.createLogin(outcome.id, accountEmail, String(data.get('accountPassword') ?? ''), actor);
     }

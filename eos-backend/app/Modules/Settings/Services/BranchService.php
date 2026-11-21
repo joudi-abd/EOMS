@@ -51,7 +51,7 @@ class BranchService
             }
             $headOffice = $data['is_head_office'] ?? $branch->is_head_office;
             if ($headOffice && array_key_exists('is_active', $data) && ! $data['is_active']) {
-                throw ValidationException::withMessages(['is_active' => ['لا يُعطَّل المكتب الرئيسي؛ عيّن مكتباً رئيسياً آخر أولاً.']]);
+                throw ValidationException::withMessages(['is_active' => ['لا تُعطَّل الشركة الرئيسية؛ عيّن شركةً رئيسيةً أخرى أولاً.']]);
             }
             if (($data['is_head_office'] ?? false) && ! $branch->is_head_office) {
                 Branch::query()->where('is_head_office', true)->where('id', '!=', $branch->id)->lockForUpdate()->update(['is_head_office' => false]);
