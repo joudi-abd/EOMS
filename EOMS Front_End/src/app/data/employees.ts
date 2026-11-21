@@ -86,7 +86,7 @@ export function employeeFrom(item: ApiEmployee): Employee {
     endReason: item.termination_reason ?? '',
     hasAccount: item.has_account ?? (item.user_id !== undefined && item.user_id !== null),
     projects: [],
-    nationalId: '',
+    nationalId: item.national_id ?? '',
     staffNo: item.employee_no,
     pin: item.fingerprint?.device_user_id ?? '',
     fingerprint: item.fingerprint?.status ?? 'none',

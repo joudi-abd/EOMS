@@ -56,7 +56,7 @@ class PayrollFinanceService
         if ($rows === []) {
             return null;
         }
-        $branch = $this->branches->headOffice() ?? throw ValidationException::withMessages(['branch_id' => ['عيّن المكتب الرئيسي في الفروع أولاً.']]);
+        $branch = $this->branches->headOffice() ?? throw ValidationException::withMessages(['branch_id' => ['عيّن الشركة الرئيسية في الفروع أولاً.']]);
 
         return DB::transaction(function () use ($month, $rows, $actor, $meta, $branch) {
             $voucher = $this->vouchers->createInternal([

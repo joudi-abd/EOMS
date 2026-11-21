@@ -158,7 +158,11 @@ export class LeavesPage extends Ui {
     this.forEmployee = id; this.approveNow = false; this.invalidate();
     void this.run(() => this.loadOptions(id ? Number(id) : undefined));
   }
-  protected turnPage(delta: number): void { this.page += delta; void this.run(() => this.loadRows()); }
+  protected turnPage(page: number): void {
+    if (page < 1 || page > this.lastPage || page === this.page) return;
+    this.page = page;
+    void this.run(() => this.loadRows());
+  }
   protected preview(): void {
     void this.run(async () => {
       this.invalidate();

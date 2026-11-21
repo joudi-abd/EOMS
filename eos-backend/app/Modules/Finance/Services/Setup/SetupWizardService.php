@@ -135,7 +135,7 @@ class SetupWizardService
         if ($active->isEmpty()) {
             $missing[] = 'أضف فرعاً واحداً على الأقل.';
         } elseif (! $active->contains('is_head_office', true)) {
-            $missing[] = 'حدّد المكتب الرئيسي.';
+            $missing[] = 'حدّد الشركة الرئيسية.';
         }
 
         return $this->step(2, 'branches', 'الفروع', $missing, ['count' => $active->count()]);

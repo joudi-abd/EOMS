@@ -6,7 +6,6 @@ export const moduleIcon: Record<ModuleId | 'dashboard', string> = {
   employees: 'fa-solid fa-users',
   attendance: 'fa-solid fa-user-clock',
   leave: 'fa-solid fa-calendar-check',
-  requests: 'fa-solid fa-inbox',
   hrSettings: 'fa-solid fa-sliders',
   payroll: 'fa-solid fa-wallet',
   projects: 'fa-solid fa-drafting-compass',

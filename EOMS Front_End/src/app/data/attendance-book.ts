@@ -223,6 +223,19 @@ export class AttendanceBook {
     return this.mutate(day, 'dayApproved', () => this.api.post(`/attendance/days/${day.id}/approve`, { version: day.version }));
   }
 
+  /** Approves by id/version without loading the day first (e.g. from the payroll blockers list). */
+  async approveDayId(dayId: number, version: number, quiet = false): Promise<boolean> {
+    try {
+      await this.api.post(`/attendance/days/${dayId}/approve`, { version });
+      if (!quiet) this.office.done('dayApproved');
+      this.reports.set({});
+      return true;
+    } catch (error) {
+      if (!quiet) this.office.fail(error);
+      return false;
+    }
+  }
+
   async reopen(day: ApiAttendanceDay, reason: string): Promise<boolean> {
     return this.mutate(day, 'dayReopened', () => this.api.post(`/attendance/days/${day.id}/reopen`, { version: day.version, reason }));
   }

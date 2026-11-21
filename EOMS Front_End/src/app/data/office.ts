@@ -130,6 +130,7 @@ export interface EmployeePatch {
   firstName: string;
   fatherName: string;
   lastName: string;
+  nationalId: string;
   birthDate: string;
   phone: string;
   email: string;
@@ -673,6 +674,9 @@ export class Office {
     text('first_name', patch.firstName, current.firstName, true);
     text('father_name', patch.fatherName, current.fatherName, true);
     text('last_name', patch.lastName, current.lastName, true);
+    if (current.sensitive) {
+      text('national_id', patch.nationalId, current.nationalId, true);
+    }
     text('birth_date', patch.birthDate, current.birthDate);
     text('phone', patch.phone, current.phone);
     text('email', patch.email, current.email);

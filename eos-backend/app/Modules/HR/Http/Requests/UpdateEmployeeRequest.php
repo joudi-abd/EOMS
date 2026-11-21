@@ -23,6 +23,8 @@ class UpdateEmployeeRequest extends FormRequest
             'first_name' => ['sometimes', 'string', 'max:80'],
             'father_name' => ['sometimes', 'required', 'string', 'max:80'],
             'last_name' => ['sometimes', 'string', 'max:80'],
+            // National ID is encrypted at rest; only accounts that may see sensitive fields may change it.
+            'national_id' => ['sometimes', Rule::prohibitedIf(fn () => ! $this->user()?->can('employees.view_sensitive')), 'string', 'max:30'],
             'birth_date' => ['sometimes', 'nullable', 'date', 'before:today'],
             'email' => ['sometimes', 'nullable', 'email', 'max:191',
                 Rule::unique('hr_employees', 'email')->ignore($employee->id)],

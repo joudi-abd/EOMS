@@ -54,14 +54,14 @@ class ExpensesTest extends TestCase
         $this->assertSame('6104', collect($operating['children'])->firstWhere('name', 'محروقات')['account_code']);
 
         $parentId = $operating['id'];
-        $this->postJson('/api/v1/finance/expense-categories', ['name' => 'صيانة مكتب', 'parent_id' => $parentId])
+        $this->postJson('/api/v1/finance/expense-categories', ['name' => 'صيانة شركة', 'parent_id' => $parentId])
             ->assertUnprocessable()->assertJsonValidationErrors('account_id');
         // The account must be a postable expense account: an asset account or a group is refused.
-        $this->postJson('/api/v1/finance/expense-categories', ['name' => 'صيانة مكتب', 'parent_id' => $parentId, 'account_id' => $this->accountId('1300')])
+        $this->postJson('/api/v1/finance/expense-categories', ['name' => 'صيانة شركة', 'parent_id' => $parentId, 'account_id' => $this->accountId('1300')])
             ->assertUnprocessable()->assertJsonValidationErrors('account_id');
-        $this->postJson('/api/v1/finance/expense-categories', ['name' => 'صيانة مكتب', 'parent_id' => $parentId, 'account_id' => $this->accountId('6100')])
+        $this->postJson('/api/v1/finance/expense-categories', ['name' => 'صيانة شركة', 'parent_id' => $parentId, 'account_id' => $this->accountId('6100')])
             ->assertUnprocessable()->assertJsonValidationErrors('account_id');
-        $leaf = $this->postJson('/api/v1/finance/expense-categories', ['name' => 'صيانة مكتب', 'parent_id' => $parentId,
+        $leaf = $this->postJson('/api/v1/finance/expense-categories', ['name' => 'صيانة شركة', 'parent_id' => $parentId,
             'account_id' => $this->accountId('6106'), 'is_overhead_allocatable' => true])->assertCreated()->json('data');
         $this->assertTrue($leaf['is_overhead_allocatable']);
 

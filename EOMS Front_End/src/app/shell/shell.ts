@@ -13,7 +13,7 @@ import { Chrome } from './chrome';
 import { moduleIcon } from './icons';
 
 const navGroups: { label: CopyKey; ids: ModuleId[] }[] = [
-  { label: 'navPeople', ids: ['employees', 'attendance', 'leave', 'requests', 'payroll', 'hrSettings'] },
+  { label: 'navPeople', ids: ['employees', 'attendance', 'leave', 'payroll', 'hrSettings'] },
   { label: 'navWork', ids: ['tasks', 'projects', 'clients', 'procurement', 'documents', 'assets', 'meetings'] },
   { label: 'navMoney', ids: ['finOverview', 'finBoxes', 'finVouchers', 'finParties', 'finProjects', 'finAdvances', 'finAssets', 'finSite', 'finReports', 'finSettings'] },
   { label: 'navSystem', ids: ['access', 'alerts'] },

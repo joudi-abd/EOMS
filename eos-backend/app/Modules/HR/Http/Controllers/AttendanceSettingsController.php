@@ -53,7 +53,7 @@ class AttendanceSettingsController extends Controller
             }
             if ($data['timezone'] !== $first->timezone
                 || $data['effective_from'] <= CarbonImmutable::now($first->timezone)->toDateString()) {
-                throw ValidationException::withMessages(['effective_from' => ['أنشئ نسخة تبدأ من الغد أو لاحقاً؛ المنطقة الزمنية للمكتب ثابتة في النسخة الأولى.']]);
+                throw ValidationException::withMessages(['effective_from' => ['أنشئ نسخة تبدأ من الغد أو لاحقاً؛ المنطقة الزمنية للشركة ثابتة في النسخة الأولى.']]);
             }
             if (AttendancePolicy::query()->where('effective_from', $data['effective_from'])->exists()) {
                 throw ValidationException::withMessages(['effective_from' => ['توجد سياسة بنفس تاريخ السريان.']]);
@@ -93,7 +93,7 @@ class AttendanceSettingsController extends Controller
         // punch would be shifted by the difference (and the zone cannot be changed after punches arrive).
         $office = AttendancePolicy::query()->exists() ? AttendancePolicy::officeTimezone() : null;
         if ($office !== null && isset($data['timezone']) && $data['timezone'] !== $office) {
-            throw ValidationException::withMessages(['timezone' => ["توقيت الجهاز يجب أن يطابق توقيت المكتب ({$office})."]]);
+            throw ValidationException::withMessages(['timezone' => ["توقيت الجهاز يجب أن يطابق توقيت الشركة ({$office})."]]);
         }
         $data['timezone'] ??= $office ?? config('app.timezone');
 

@@ -18,7 +18,7 @@ export class Session {
   /** The signed-in account, as the backend reports it. */
   readonly account = computed<Account>(() => this.office.self() ?? nobody);
 
-  /** The signed-in account has an open employee file, so it reaches its own attendance, leave, and requests. */
+  /** The signed-in account has an open employee file, so it reaches its own attendance and leave. */
   readonly hasFile = computed(() => this.office.employees().some((item) => item.id === this.account().id && item.status !== 'ended'));
 
   readonly manages = computed(() => this.office.team(this.account().id).length > 0);

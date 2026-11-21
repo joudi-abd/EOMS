@@ -3,6 +3,7 @@
 namespace App\Modules\Payroll\Http\Controllers;
 
 use App\Modules\HR\Models\Employee;
+use App\Modules\HR\Services\Attendance\PayrollInputService;
 use App\Modules\Identity\Services\AuditLogger;
 use App\Modules\Payroll\Models\PayExport;
 use App\Modules\Payroll\Models\PayPayment;
@@ -100,6 +101,43 @@ class PayRunController extends Controller
         return ApiResponse::ok($this->detail($run));
     }
 
+    /**
+     * Days that still block payroll for this run: the same blockers as payroll-inputs, flattened for HR
+     * so they can open or approve each day without auditing the month employee by employee.
+     */
+    public function attendanceBlockers(PayRun $run, PayrollInputService $inputs): JsonResponse
+    {
+        $lines = PayRunLine::query()->where('pay_run_id', $run->id)->where('attendance_ready', false)
+            ->orderBy('employee_id')->get();
+        $employees = Employee::query()->whereIn('id', $lines->pluck('employee_id'))->get()->keyBy('id');
+        $days = [];
+        foreach ($lines as $line) {
+            $employee = $employees->get($line->employee_id);
+            if ($employee === null) {
+                continue;
+            }
+            foreach ($inputs->month($employee, $run->month)['days'] as $day) {
+                if ($day['blockers'] === []) {
+                    continue;
+                }
+                $days[] = [
+                    'employee_id' => $line->employee_id,
+                    'employee_name' => $employee->full_name,
+                    'employee_no' => $employee->employee_no,
+                    'line_id' => $line->id,
+                    'day_id' => $day['id'],
+                    'version' => $day['version'],
+                    'date' => $day['date'],
+                    'status' => $day['status'],
+                    'blockers' => $day['blockers'],
+                    'flags' => $day['flags'],
+                ];
+            }
+        }
+
+        return ApiResponse::ok(['month' => $run->month, 'count' => count($days), 'days' => $days]);
+    }
+
     public function line(PayRun $run, PayRunLine $line): JsonResponse
     {
         abort_unless($line->pay_run_id === $run->id, 404);
@@ -167,10 +205,12 @@ class PayRunController extends Controller
             'kinds' => ['nullable', 'array', 'min:1'],
             'kinds.*' => ['string', Rule::in([...PayrollCalculator::PROPOSED_KINDS, ...SalaryComponent::query()->where('is_system', false)->pluck('code')->all(),
                 ...SalaryComponent::MANUAL_SYSTEM])],
+            'employee_ids' => ['nullable', 'array', 'min:1'],
+            'employee_ids.*' => ['integer', 'distinct'],
             'reason' => [Rule::requiredIf($request->input('decision') === 'waive'), 'nullable', 'string', 'min:3', 'max:1000'],
         ]);
         $count = $this->runs->reviewRemaining($run, $data['decision'], $data['kinds'] ?? null,
-            $data['reason'] ?? 'اعتماد البنود المقترحة', $request->user());
+            $data['reason'] ?? 'اعتماد البنود المقترحة', $request->user(), $data['employee_ids'] ?? null);
 
         return ApiResponse::ok(['decided' => $count, 'run' => $this->runSummary($run->refresh())]);
     }

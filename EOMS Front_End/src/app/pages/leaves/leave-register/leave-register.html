@@ -1,4 +1,4 @@
-<form class="filters" (ngSubmit)="apply.emit()">
+<div class="filters">
   <label><span>{{ l('الحالة', 'Status') }}</span>
     <select name="status" [ngModel]="filters().status" (ngModelChange)="set('status', $event)">
       <option value="">{{ l('كل الحالات', 'Every status') }}</option>
@@ -32,8 +32,7 @@
       <option value="0">{{ l('لا', 'No') }}</option>
     </select>
   </label>
-  <button class="text" type="submit" [disabled]="busy()">{{ l('تطبيق', 'Apply') }}</button>
-</form>
+</div>
 <div class="reg-split" [class.open]="!!current()" [class.closing]="closing()">
   <div class="reg-main">
     @if (rows().length === 0) {
@@ -170,4 +169,49 @@
     </aside>
   }
 </div>
-<nav class="pager"><button class="text" type="button" [disabled]="busy() || page() <= 1" (click)="turn.emit(-1)">{{ l('السابق', 'Previous') }}</button><span>{{ page() }} / {{ lastPage() }}</span><button class="text" type="button" [disabled]="busy() || page() >= lastPage()" (click)="turn.emit(1)">{{ l('التالي', 'Next') }}</button></nav>
+@if (lastPage() > 1) {
+  <nav class="pager" [attr.aria-label]="l('صفحات الطلبات', 'Request pages')">
+    <button
+      class="pager-step"
+      type="button"
+      [disabled]="busy() || page() <= 1"
+      (click)="turn.emit(page() - 1)"
+      [attr.aria-label]="l('الصفحة السابقة', 'Previous page')"
+    >
+      <i class="fa-solid fa-chevron-right" aria-hidden="true"></i>
+    </button>
+    <div class="pager-pages">
+      @for (item of pageItems(); track $index) {
+        @if (item === 'gap') {
+          <span class="pager-gap" aria-hidden="true">…</span>
+        } @else {
+          <button
+            class="pager-num"
+            type="button"
+            [class.on]="item === page()"
+            [attr.aria-current]="item === page() ? 'page' : null"
+            [disabled]="busy()"
+            (click)="turn.emit(item)"
+          >
+            <bdi>{{ item }}</bdi>
+          </button>
+        }
+      }
+    </div>
+    <button
+      class="pager-step"
+      type="button"
+      [disabled]="busy() || page() >= lastPage()"
+      (click)="turn.emit(page() + 1)"
+      [attr.aria-label]="l('الصفحة التالية', 'Next page')"
+    >
+      <i class="fa-solid fa-chevron-left" aria-hidden="true"></i>
+    </button>
+    <p class="pager-meta">
+      {{ l('صفحة', 'Page') }}
+      <bdi class="strong">{{ page() }}</bdi>
+      {{ l('من', 'of') }}
+      <bdi class="strong">{{ lastPage() }}</bdi>
+    </p>
+  </nav>
+}

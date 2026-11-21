@@ -28,7 +28,7 @@ html, body { background: #fff !important; }
 body { margin: 0; color: #14162b; font: 12px/1.5 'Roboto Variable', 'Noto Sans Arabic Variable', sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 .r-head { display: grid; justify-items: start; gap: 6px; padding-bottom: 12px; border-bottom: 2px solid #4f46c8; }
 .r-brand { display: block; height: 48px; width: auto; }
-.r-company { margin: 0; color: #454a63; font-size: 12px; }
+.r-company { margin: 0; color: #14162b; font-size: 16px; font-weight: 700; }
 .r-meta { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px 16px; margin: 12px 0 14px; padding: 10px 12px; background: #f8f8fc; border: 1px solid #e1e3ee; border-radius: 8px; }
 .r-meta div { display: grid; }
 .r-meta dt { color: #666b85; font-size: 10px; }
@@ -48,7 +48,7 @@ table.r-table { width: 100%; border-collapse: collapse; font-size: 11px; font-va
 .r-table td { padding: 5px 8px; border-bottom: 1px solid #e1e3ee; text-align: start; }
 .r-table tr { break-inside: avoid; }
 .r-table tbody tr:nth-child(even) td { background: #f8f8fc; }
-.r-foot { margin-top: 14px; padding-top: 8px; border-top: 1px solid #e1e3ee; color: #666b85; font-size: 10px; }
+.r-foot { margin-top: 14px; padding-top: 8px; border-top: 1px solid #e1e3ee; color: #14162b; font-size: 11px; font-weight: 700; }
 `;
 
 /** Renders the report as its own A4 document in a hidden frame and opens the print dialog, where it saves as PDF. Charts are copied from the live page. */

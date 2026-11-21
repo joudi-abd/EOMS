@@ -263,13 +263,18 @@ class PayRunService
      * need not open dozens of small deductions one by one. Each item is recorded as its own decision.
      *
      * @param  list<string>|null  $kinds
+     * @param  list<int>|null  $employeeIds
      */
-    public function reviewRemaining(PayRun $run, string $decision, ?array $kinds, string $reason, User $actor): int
+    public function reviewRemaining(PayRun $run, string $decision, ?array $kinds, string $reason, User $actor, ?array $employeeIds = null): int
     {
-        return DB::transaction(function () use ($run, $decision, $kinds, $reason, $actor) {
+        return DB::transaction(function () use ($run, $decision, $kinds, $reason, $actor, $employeeIds) {
             $run = $this->lock($run, 'submitted');
+            $lineIds = $employeeIds === null
+                ? null
+                : PayRunLine::query()->where('pay_run_id', $run->id)->whereIn('employee_id', $employeeIds)->pluck('id')->all();
             $items = $this->items($run)->whereIn('origin', ['proposed', 'manual'])->where('status', 'proposed')
                 ->when($kinds !== null, fn ($q) => $q->whereIn('kind', $kinds))
+                ->when($lineIds !== null, fn ($q) => $q->whereIn('pay_run_line_id', $lineIds))
                 // Items a reviewer entered themselves stay for another reviewer.
                 ->where(fn ($q) => $q->whereNull('created_by')->orWhere('created_by', '!=', $actor->id))
                 ->orderBy('id')->lockForUpdate()->get();

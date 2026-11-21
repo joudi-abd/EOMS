@@ -9,6 +9,6 @@ class BranchSeeder extends Seeder
 {
     public function run(): void
     {
-        Branch::query()->firstOrCreate(['code' => 'HQ'], ['name' => 'المكتب الرئيسي', 'is_head_office' => true, 'is_active' => true]);
+        Branch::query()->updateOrCreate(['code' => 'HQ'], ['name' => 'الشركة الرئيسية', 'is_head_office' => true, 'is_active' => true]);
     }
 }

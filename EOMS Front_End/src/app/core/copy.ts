@@ -20,7 +20,7 @@ export type Lang = 'ar' | 'en';
 const base = {
   ar: {
     skip: 'تخطي إلى المحتوى',
-    brand: 'إدارة شركة أفق إمبريوم غروب للعمران',
+    brand: 'شركة أفق إمبريوم غروب للعمران',
     menu: 'القائمة',
     closeMenu: 'إغلاق القائمة',
     switchTo: 'English',
@@ -134,7 +134,7 @@ const base = {
     roleLimit: 'يمكن اختيار دورين كحد أقصى.',
     grantedTitle: 'ما تتيحه هذه الأدوار',
     grantedHint: 'كما تعرّفها شاشة الأدوار. يجمع الحساب صلاحيات كل أدواره بأوسع نطاق بينها.',
-    grantedNone: 'لا صلاحيات إضافية. يصل الموظف إلى حضوره وإجازاته وطلباته فقط.',
+    grantedNone: 'لا صلاحيات إضافية. يصل الموظف إلى حضوره وإجازاته فقط.',
     grantedCount: 'صلاحية',
     keepCompany: 'يجب أن يبقى مدير نظام واحد مفعّلاً.',
     missingAccount: 'لا حساب بهذا الاسم.',
@@ -311,7 +311,7 @@ const base = {
   },
   en: {
     skip: 'Skip to content',
-    brand: 'Management of UFUQ Imperium Group for Urbanism',
+    brand: 'UFUQ Imperium Group for Urbanism',
     menu: 'Menu',
     closeMenu: 'Close menu',
     switchTo: 'العربية',
@@ -425,7 +425,7 @@ const base = {
     roleLimit: 'Choose two roles at most.',
     grantedTitle: 'What these roles allow',
     grantedHint: 'As the roles screen defines them. An account holds every permission of its roles, at the widest reach among them.',
-    grantedNone: 'No extra permissions. An employee reaches their own attendance, leave and requests only.',
+    grantedNone: 'No extra permissions. An employee reaches their own attendance and leave only.',
     grantedCount: 'permissions',
     keepCompany: 'One enabled system administrator has to remain.',
     missingAccount: 'No account with this name.',
@@ -615,7 +615,6 @@ export const moduleIds = [
   'employees',
   'attendance',
   'leave',
-  'requests',
   'payroll',
   'hrSettings',
   'projects',

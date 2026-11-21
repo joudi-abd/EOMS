@@ -1,16 +1,4 @@
 <div class="grid-2">
-  @if (session.can('requests')) {
-    <section class="panel" data-print>
-      <header class="panel-head">
-        <div>
-          <h2>{{ t('requestsTitle') }}</h2>
-          <p>{{ session.canAct('leave.decide') ? t('officeScope') : t('teamScope') }}</p>
-        </div>
-        <a class="text small" routerLink="/modules/requests">{{ t('requests') }}</a>
-      </header>
-      <app-bar-chart [data]="insights.requestsByKind()" [series]="series()" [label]="t('requestsTitle')" [stacked]="true" [height]="260" />
-    </section>
-  }
   @if (session.can('payroll')) {
     <section class="panel" data-print>
       <header class="panel-head">

@@ -27,4 +27,12 @@ export class LeaveCalendar extends Ui {
   protected tone(status: string): string { return leaveTone(status); }
   protected label(status: string): string { return leaveLabel(this.language.lang() === 'ar', status); }
   protected latest(): string { return leaveShift(this.from(), 61); }
+
+  protected change(field: 'from' | 'to' | 'department' | 'pending', value: string | boolean): void {
+    if (field === 'from') this.from.set(String(value));
+    else if (field === 'to') this.to.set(String(value));
+    else if (field === 'department') this.department.set(String(value));
+    else this.includePending.set(Boolean(value));
+    if (this.from() && this.to()) this.show.emit();
+  }
 }

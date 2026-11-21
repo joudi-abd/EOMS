@@ -25,14 +25,92 @@
 
 .pager {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
-  margin-top: 16px;
+  justify-content: center;
+  gap: 10px 12px;
+  margin-top: 18px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-control);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--hover) 70%, transparent), transparent 100%),
+    var(--surface);
 }
 
-.pager span {
-  color: var(--muted);
+.pager-pages {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+.pager-step,
+.pager-num {
+  display: grid;
+  place-items: center;
+  min-width: 36px;
+  height: 36px;
+  margin: 0;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 650;
   font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.pager-step {
+  color: var(--action-ink, var(--action));
+}
+
+.pager-num.on {
+  border-color: var(--action);
+  background: var(--action);
+  color: #fff;
+}
+
+.pager-step:hover:not(:disabled),
+.pager-num:hover:not(:disabled):not(.on) {
+  border-color: color-mix(in srgb, var(--action) 40%, var(--line));
+  background: color-mix(in srgb, var(--action-tint) 70%, var(--surface));
+}
+
+.pager-step:disabled,
+.pager-num:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.pager-gap {
+  display: grid;
+  place-items: center;
+  min-width: 24px;
+  color: var(--muted);
+  font-weight: 650;
+  letter-spacing: 0.08em;
+}
+
+.pager-meta {
+  margin: 0;
+  margin-inline-start: 4px;
+  color: var(--muted);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.pager-meta .strong {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+:host-context([dir='ltr']) .pager-step .fa-chevron-right,
+:host-context([dir='ltr']) .pager-step .fa-chevron-left {
+  transform: scaleX(-1);
 }
 
 /* Full-width list; the request card slides in on the left. */
